@@ -12,6 +12,7 @@ import { SemanticKnowledgeGraph } from '../knowledge/graph/knowledge-graph';
 import { SemanticAnalyzer } from '../knowledge/analyzers/semantic-analyzer';
 import { GraphQueryEngine } from '../knowledge/query/graph-query-engine';
 import { SelfImprovementEngine } from '../self-improvement/self-improvement-engine';
+import { createAutoFixCommand } from './commands/auto-fix';
 import { Logger } from '../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -849,6 +850,9 @@ program
       process?.exit(1);
     }
   });
+
+// Add the auto-fix command
+program.addCommand(createAutoFixCommand());
 
 // Global options
 program?.option('-v, --verbose', 'Verbose logging', false);

@@ -4,13 +4,37 @@
 
 ## What is CodeMind?
 
-CodeMind is a local auxiliary system that works alongside Claude Code to provide:
-- 🧠 **Smart Context Generation** - Token-efficient project context optimized for Claude
-- 🔍 **Codebase Analysis** - Automatic pattern detection and architectural insights  
-- 🌳 **Advanced Tree Traversal** - Intelligent class traversal for quick finding and concept understanding
-- 💡 **Intelligent Questions** - AI-generated questions based on your project state
-- 📋 **Development Planning** - Track and manage development plans with progress monitoring
-- 🚀 **Enhanced Setup** - Claude CLI integration for intelligent project configuration
+CodeMind is a comprehensive intelligent code auxiliary system that provides:
+
+### 🏗️ **Multi-Role AI Orchestration**
+- 19 specialized AI roles coordinating development workflows
+- Automated quality gates and scoring (Security ≥90%, Coverage ≥85%, SOLID ≥90%)
+- Parallel workflow execution with intelligent resource management
+- Branch-based development with automated merge strategies
+
+### 🧠 **Semantic Knowledge Graph**
+- Triad-based (Subject-Predicate-Object) code relationship analysis
+- Deep architectural pattern detection and anti-pattern identification
+- Cross-project knowledge integration and learning
+- Persistent knowledge base with SQLite/PostgreSQL backend
+
+### 🔍 **Advanced Code Analysis**
+- Multi-level duplication detection (exact, structural, semantic, renamed)
+- Configuration centralization with migration planning
+- Vector-based semantic code search across projects  
+- Dependency tree analysis with circular dependency detection
+
+### 🎯 **Automated Improvement**
+- Self-improvement engine using dogfooding strategy
+- Scheduled analysis and optimization cycles
+- Technical debt quantification and reduction planning
+- Performance bottleneck detection and optimization
+
+### 🚀 **Smart Context Management**  
+- Claude-optimized context compression and management
+- Token-efficient project context generation
+- Intelligent queue management with priority handling
+- Real-time limit detection and adaptive strategies
 
 ## Why Use CodeMind?
 
@@ -45,7 +69,19 @@ docker-compose -f docker-compose.postgres.yml up -d
 npm install -g @anthropics/claude-cli
 ```
 
-### 3. Setup Your Project
+### 3. Auto-Improve Existing Project ⭐ **NEW!**
+```bash
+# Automatically analyze and fix issues in existing codebase
+npx codemind auto-fix /path/to/your-project
+
+# Preview changes without modifying files
+npx codemind auto-fix /path/to/your-project --dry-run
+
+# Fix specific issue types only
+npx codemind auto-fix /path/to/your-project --types duplicates centralization
+```
+
+### 4. Setup Your Project
 ```bash
 # Interactive setup (ask questions)
 ./scripts/interactive-setup.sh -p "/path/to/your-project"
@@ -75,7 +111,7 @@ npm install -g @anthropics/claude-cli
 .\scripts\interactive-setup.ps1 -p "C:\Projects\MyApp" -Auto -Override
 ```
 
-### 4. Use During Development
+### 5. Use During Development
 ```bash
 # Before coding - get context
 curl "http://localhost:3004/claude/context/your-project?intent=coding"
@@ -89,28 +125,35 @@ curl "http://localhost:3004/claude/suggest-questions/your-project"
 ## 📖 Documentation
 
 - **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running in 5 minutes
+- **[Auto-Improvement Mode](docs/AUTO_IMPROVEMENT_MODE.md)** - Automatic project analysis and fixes ⭐ **NEW!**
+- **[Features Documentation](docs/FEATURES_DOCUMENTATION.md)** - Comprehensive feature overview
 - **[Complete Setup Guide](SETUP.md)** - Detailed installation and configuration
 - **[API Documentation](docs/API.md)** - All endpoints and examples
 - **[Development Plans](docs/PHASE4_DEVELOPMENT_PLANS.md)** - Plan management system
 
 ## 🎯 Key Features
 
-### 1. Context-Aware Setup
+### 1. Automatic Project Improvement ⭐ **NEW!**
+- **Legacy Modernization**: Automatically fix code duplications, centralize configs, resolve dependencies
+- **Quality Enhancement**: Apply systematic improvements with configurable aggressiveness levels
+- **Safe Refactoring**: Preview changes with dry-run mode, automatic backups, comprehensive reports
+
+### 2. Context-Aware Setup
 - **Greenfield Projects**: Get architectural guidance and best practices
 - **Existing Projects**: Validate decisions against actual codebase
 - **Claude CLI Integration**: Automatic enhancement without copy-paste
 
-### 2. Token-Efficient API
+### 3. Token-Efficient API
 - **Optimized Responses**: ~200-800 tokens based on intent
 - **Smart Caching**: 5-minute cache for repeated queries
 - **Intent-Based**: Different contexts for coding, review, or overview
 
-### 3. Intelligent Analysis
+### 4. Intelligent Analysis
 - **Pattern Detection**: Identify architectural patterns and inconsistencies
 - **Smart Questions**: AI-generated questions specific to your project
 - **Progress Tracking**: Monitor project evolution over time
 
-### 4. Development Planning (Phase 4)
+### 5. Development Planning (Phase 4)
 - **Plan Templates**: Feature development, bug fixes, refactoring, testing
 - **Progress Tracking**: Task completion and milestone monitoring
 - **AI Suggestions**: Get plan recommendations based on project analysis

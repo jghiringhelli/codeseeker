@@ -36,22 +36,22 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 connectionTimeoutMillis: 2000, // Return error after 2 seconds if unable to connect
             });
             // Test connection
-            const client = await this.pool.connect();
-            await client.query('SELECT NOW()');
-            client.release();
+            const client = await this.pool?.connect();
+            await client?.query('SELECT NOW()');
+            client?.release();
             this.logger.info('PostgreSQL connection established successfully');
             // Run migrations
-            await this.migrate();
+            await this?.migrate();
         }
         catch (error) {
-            const dbError = this.handleError('initialization', error);
+            const dbError = this?.handleError('initialization', error);
             throw new Error(dbError.message);
         }
     }
     async close() {
         if (this.pool) {
             this.logger.info('Closing PostgreSQL connection pool');
-            await this.pool.end();
+            await this.pool?.end();
             this.pool = null;
         }
     }
@@ -65,7 +65,7 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
             const possiblePaths = [
                 (0, path_1.join)(__dirname, '../../src/database/schema.postgres.sql'), // Docker path
                 (0, path_1.join)(__dirname, '../schema.postgres.sql'), // Local compiled path
-                (0, path_1.join)(process.cwd(), 'src/database/schema.postgres.sql'), // From project root
+                (0, path_1.join)(process?.cwd(), 'src/database/schema.postgres.sql'), // From project root
             ];
             let schemaSql = '';
             let schemaFound = false;
@@ -82,19 +82,19 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 }
             }
             if (!schemaFound) {
-                throw new Error(`Schema file not found. Tried paths: ${possiblePaths.join(', ')}`);
+                throw new Error(`Schema file not found. Tried paths: ${possiblePaths?.join(', ')}`);
             }
-            const client = await this.pool.connect();
+            const client = await this.pool?.connect();
             try {
                 // Try to run schema - if it fails because objects already exist, that's OK
                 try {
-                    await client.query(schemaSql);
+                    await client?.query(schemaSql);
                     this.logger.info('PostgreSQL migrations completed successfully');
                 }
                 catch (migrationError) {
                     // Check if the error is just about existing objects
                     const errorMessage = migrationError.message;
-                    if (errorMessage.includes('already exists') || errorMessage.includes('does not exist')) {
+                    if (errorMessage?.includes('already exists') || errorMessage?.includes('does not exist')) {
                         this.logger.info('PostgreSQL schema already exists, skipping migration');
                     }
                     else {
@@ -104,20 +104,20 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 }
             }
             finally {
-                client.release();
+                client?.release();
             }
         }
         catch (error) {
-            throw this.handleError('migration', error);
+            throw this?.handleError('migration', error);
         }
     }
     async isHealthy() {
         if (!this.pool)
             return false;
         try {
-            const client = await this.pool.connect();
-            await client.query('SELECT 1');
-            client.release();
+            const client = await this.pool?.connect();
+            await client?.query('SELECT 1');
+            client?.release();
             return true;
         }
         catch {
@@ -128,11 +128,11 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
     async createProject(projectData) {
         if (!this.pool)
             throw new Error('Database not initialized');
-        const client = await this.pool.connect();
+        const client = await this.pool?.connect();
         try {
-            await client.query('BEGIN');
+            await client?.query('BEGIN');
             // Create project
-            const projectResult = await client.query(`
+            const projectResult = await client?.query(`
         INSERT INTO projects (
           project_path, project_name, project_type, languages, frameworks,
           project_size, domain, total_files, total_lines, status, metadata
@@ -151,48 +151,48 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 projectData.status,
                 JSON.stringify(projectData.metadata)
             ]);
-            const project = this.mapRowToProject(projectResult.rows[0]);
+            const project = this?.mapRowToProject(projectResult.rows[0]);
             // Create primary path entry
-            await client.query(`
+            await client?.query(`
         INSERT INTO project_paths (project_id, path, path_type, is_active)
         VALUES ($1, $2, 'primary', true)
       `, [project.id, project.projectPath]);
-            await client.query('COMMIT');
+            await client?.query('COMMIT');
             return project;
         }
         catch (error) {
-            await client.query('ROLLBACK');
-            throw this.handleError('createProject', error);
+            await client?.query('ROLLBACK');
+            throw this?.handleError('createProject', error);
         }
         finally {
-            client.release();
+            client?.release();
         }
     }
     async getProject(projectPath) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         SELECT DISTINCT p.* FROM projects p
         JOIN project_paths pp ON p.id = pp.project_id
         WHERE pp.path = $1 AND pp.is_active = true
         LIMIT 1
       `, [projectPath]);
-            return result.rows.length > 0 ? this.mapRowToProject(result.rows[0]) : null;
+            return result.rows?.length > 0 ? this?.mapRowToProject(result.rows[0]) : null;
         }
         catch (error) {
-            throw this.handleError('getProject', error);
+            throw this?.handleError('getProject', error);
         }
     }
     async getProjectById(id) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query('SELECT * FROM projects WHERE id = $1', [id]);
-            return result.rows.length > 0 ? this.mapRowToProject(result.rows[0]) : null;
+            const result = await this.pool?.query('SELECT * FROM projects WHERE id = $1', [id]);
+            return result.rows?.length > 0 ? this?.mapRowToProject(result.rows[0]) : null;
         }
         catch (error) {
-            throw this.handleError('getProjectById', error);
+            throw this?.handleError('getProjectById', error);
         }
     }
     async updateProject(id, updates) {
@@ -201,161 +201,161 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
         const fields = [];
         const values = [];
         let paramCount = 1;
-        Object.entries(updates).forEach(([key, value]) => {
+        Object.entries(updates)?.forEach(([key, value]) => {
             if (key === 'id' || key === 'createdAt')
                 return;
-            let dbColumn = this.mapFieldToColumn(key);
+            let dbColumn = this?.mapFieldToColumn(key);
             if (key === 'languages' || key === 'frameworks' || key === 'metadata') {
-                fields.push(`${dbColumn} = $${paramCount}`);
-                values.push(JSON.stringify(value));
+                fields?.push(`${dbColumn} = $${paramCount}`);
+                values?.push(JSON.stringify(value));
             }
             else {
-                fields.push(`${dbColumn} = $${paramCount}`);
-                values.push(value);
+                fields?.push(`${dbColumn} = $${paramCount}`);
+                values?.push(value);
             }
             paramCount++;
         });
-        if (fields.length === 0) {
-            return this.getProjectById(id);
+        if (fields?.length === 0) {
+            return this?.getProjectById(id);
         }
-        values.push(id);
+        values?.push(id);
         try {
-            const result = await this.pool.query(`
-        UPDATE projects SET ${fields.join(', ')}, updated_at = NOW()
+            const result = await this.pool?.query(`
+        UPDATE projects SET ${fields?.join(', ')}, updated_at = NOW()
         WHERE id = $${paramCount}
         RETURNING *
       `, values);
-            if (result.rows.length === 0) {
+            if (result.rows?.length === 0) {
                 throw new Error(`Project with id ${id} not found`);
             }
-            return this.mapRowToProject(result.rows[0]);
+            return this?.mapRowToProject(result.rows[0]);
         }
         catch (error) {
-            throw this.handleError('updateProject', error);
+            throw this?.handleError('updateProject', error);
         }
     }
     async deleteProject(id) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query('DELETE FROM projects WHERE id = $1', [id]);
-            if (result.rowCount === 0) {
+            const result = await this.pool?.query('DELETE FROM projects WHERE id = $1', [id]);
+            if (result?.rowCount === 0) {
                 throw new Error(`Project with id ${id} not found`);
             }
         }
         catch (error) {
-            throw this.handleError('deleteProject', error);
+            throw this?.handleError('deleteProject', error);
         }
     }
     async listProjects(status = 'active', limit = 50, offset = 0) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         SELECT * FROM projects 
         WHERE status = $1 
         ORDER BY updated_at DESC 
         LIMIT $2 OFFSET $3
       `, [status, limit, offset]);
-            return result.rows.map(row => this.mapRowToProject(row));
+            return result.rows?.map(row => this?.mapRowToProject(row));
         }
         catch (error) {
-            throw this.handleError('listProjects', error);
+            throw this?.handleError('listProjects', error);
         }
     }
     // Project path management
     async addProjectPath(projectId, path, pathType) {
         if (!this.pool)
             throw new Error('Database not initialized');
-        const client = await this.pool.connect();
+        const client = await this.pool?.connect();
         try {
-            await client.query('BEGIN');
+            await client?.query('BEGIN');
             // If setting as primary, deactivate current primary
             if (pathType === 'primary') {
-                await client.query(`
+                await client?.query(`
           UPDATE project_paths 
           SET is_active = false, deactivated_at = NOW() 
           WHERE project_id = $1 AND path_type = 'primary' AND is_active = true
         `, [projectId]);
             }
-            const result = await client.query(`
+            const result = await client?.query(`
         INSERT INTO project_paths (project_id, path, path_type, is_active)
         VALUES ($1, $2, $3, $4)
         RETURNING *
       `, [projectId, path, pathType, pathType === 'primary']);
-            await client.query('COMMIT');
-            return this.mapRowToProjectPath(result.rows[0]);
+            await client?.query('COMMIT');
+            return this?.mapRowToProjectPath(result.rows[0]);
         }
         catch (error) {
-            await client.query('ROLLBACK');
-            throw this.handleError('addProjectPath', error);
+            await client?.query('ROLLBACK');
+            throw this?.handleError('addProjectPath', error);
         }
         finally {
-            client.release();
+            client?.release();
         }
     }
     async updateProjectPath(projectId, oldPath, newPath) {
         if (!this.pool)
             throw new Error('Database not initialized');
-        const client = await this.pool.connect();
+        const client = await this.pool?.connect();
         try {
-            await client.query('BEGIN');
+            await client?.query('BEGIN');
             // Mark old path as historical
-            await client.query(`
+            await client?.query(`
         UPDATE project_paths 
         SET path_type = 'historical', is_active = false, deactivated_at = NOW()
         WHERE project_id = $1 AND path = $2
       `, [projectId, oldPath]);
             // Add new primary path
-            await client.query(`
+            await client?.query(`
         INSERT INTO project_paths (project_id, path, path_type, is_active)
         VALUES ($1, $2, 'primary', true)
       `, [projectId, newPath]);
             // Update project table
-            await client.query(`
+            await client?.query(`
         UPDATE projects SET project_path = $1, updated_at = NOW()
         WHERE id = $2
       `, [newPath, projectId]);
-            await client.query('COMMIT');
+            await client?.query('COMMIT');
         }
         catch (error) {
-            await client.query('ROLLBACK');
-            throw this.handleError('updateProjectPath', error);
+            await client?.query('ROLLBACK');
+            throw this?.handleError('updateProjectPath', error);
         }
         finally {
-            client.release();
+            client?.release();
         }
     }
     async deactivateProjectPath(projectId, path) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            await this.pool.query(`
+            await this.pool?.query(`
         UPDATE project_paths 
         SET is_active = false, deactivated_at = NOW()
         WHERE project_id = $1 AND path = $2
       `, [projectId, path]);
         }
         catch (error) {
-            throw this.handleError('deactivateProjectPath', error);
+            throw this?.handleError('deactivateProjectPath', error);
         }
     }
     async getProjectByAnyPath(path) {
-        return this.getProject(path); // Same implementation for now
+        return this?.getProject(path); // Same implementation for now
     }
     async getProjectPaths(projectId) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         SELECT * FROM project_paths 
         WHERE project_id = $1 
         ORDER BY created_at DESC
       `, [projectId]);
-            return result.rows.map(row => this.mapRowToProjectPath(row));
+            return result.rows?.map(row => this?.mapRowToProjectPath(row));
         }
         catch (error) {
-            throw this.handleError('getProjectPaths', error);
+            throw this?.handleError('getProjectPaths', error);
         }
     }
     // Initialization progress - implement all required methods
@@ -364,11 +364,11 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
             throw new Error('Database not initialized');
         try {
             // First get or create project
-            let project = await this.getProject(progress.projectPath);
+            let project = await this?.getProject(progress.projectPath);
             if (!project) {
-                project = await this.createProject({
+                project = await this?.createProject({
                     projectPath: progress.projectPath,
-                    projectName: progress.projectPath.split('/').pop() || 'Unknown',
+                    projectName: progress.projectPath?.split('/').pop() || 'Unknown',
                     projectType: types_1.ProjectType.UNKNOWN,
                     languages: [],
                     frameworks: [],
@@ -378,7 +378,7 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                     metadata: {}
                 });
             }
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         INSERT INTO initialization_progress (
           project_id, phase, resume_token, progress_data, tech_stack_data
         ) VALUES ($1, $2, $3, $4, $5)
@@ -396,27 +396,27 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 JSON.stringify(progress.progressData),
                 progress.techStackData ? JSON.stringify(progress.techStackData) : null
             ]);
-            return this.mapRowToInitializationProgress(result.rows[0], progress.projectPath);
+            return this?.mapRowToInitializationProgress(result.rows[0], progress.projectPath);
         }
         catch (error) {
-            throw this.handleError('saveInitializationProgress', error);
+            throw this?.handleError('saveInitializationProgress', error);
         }
     }
     async getInitializationProgress(projectPath) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         SELECT ip.* FROM initialization_progress ip
         JOIN projects p ON ip.project_id = p.id
         JOIN project_paths pp ON p.id = pp.project_id
         WHERE pp.path = $1 AND pp.is_active = true
         LIMIT 1
       `, [projectPath]);
-            return result.rows.length > 0 ? this.mapRowToInitializationProgress(result.rows[0], projectPath) : null;
+            return result.rows?.length > 0 ? this?.mapRowToInitializationProgress(result.rows[0], projectPath) : null;
         }
         catch (error) {
-            throw this.handleError('getInitializationProgress', error);
+            throw this?.handleError('getInitializationProgress', error);
         }
     }
     async updateInitializationProgress(resumeToken, updates) {
@@ -425,40 +425,40 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
         const fields = [];
         const values = [];
         let paramCount = 1;
-        Object.entries(updates).forEach(([key, value]) => {
+        Object.entries(updates)?.forEach(([key, value]) => {
             if (key === 'id' || key === 'createdAt' || key === 'projectPath')
                 return;
             if (key === 'progressData' || key === 'techStackData') {
-                fields.push(`${this.mapFieldToColumn(key)} = $${paramCount}`);
-                values.push(JSON.stringify(value));
+                fields?.push(`${this?.mapFieldToColumn(key)} = $${paramCount}`);
+                values?.push(JSON.stringify(value));
             }
             else {
-                fields.push(`${this.mapFieldToColumn(key)} = $${paramCount}`);
-                values.push(value);
+                fields?.push(`${this?.mapFieldToColumn(key)} = $${paramCount}`);
+                values?.push(value);
             }
             paramCount++;
         });
-        values.push(resumeToken);
+        values?.push(resumeToken);
         try {
-            const result = await this.pool.query(`
-        UPDATE initialization_progress SET ${fields.join(', ')}, updated_at = NOW()
+            const result = await this.pool?.query(`
+        UPDATE initialization_progress SET ${fields?.join(', ')}, updated_at = NOW()
         WHERE resume_token = $${paramCount}
         RETURNING *
       `, values);
-            if (result.rows.length === 0) {
+            if (result.rows?.length === 0) {
                 throw new Error(`InitializationProgress with resume token ${resumeToken} not found`);
             }
             // Get project path for the returned object
-            const projectResult = await this.pool.query(`
+            const projectResult = await this.pool?.query(`
         SELECT pp.path FROM projects p
         JOIN project_paths pp ON p.id = pp.project_id
         WHERE p.id = $1 AND pp.path_type = 'primary' AND pp.is_active = true
-      `, [result.rows[0].project_id]);
+      `, [result.rows?.[0].project_id]);
             const projectPath = projectResult.rows[0]?.path || '';
-            return this.mapRowToInitializationProgress(result.rows[0], projectPath);
+            return this?.mapRowToInitializationProgress(result.rows[0], projectPath);
         }
         catch (error) {
-            throw this.handleError('updateInitializationProgress', error);
+            throw this?.handleError('updateInitializationProgress', error);
         }
     }
     // Continue implementing other required methods...
@@ -466,11 +466,11 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const project = await this.getProject(pattern.projectPath);
+            const project = await this?.getProject(pattern.projectPath);
             if (!project) {
                 throw new Error(`Project not found: ${pattern.projectPath}`);
             }
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         INSERT INTO detected_patterns (
           project_id, pattern_type, pattern_name, confidence_score, evidence
         ) VALUES ($1, $2, $3, $4, $5)
@@ -482,10 +482,10 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 pattern.confidence,
                 JSON.stringify(pattern.evidence)
             ]);
-            return this.mapRowToDetectedPattern(result.rows[0], pattern.projectPath);
+            return this?.mapRowToDetectedPattern(result.rows[0], pattern.projectPath);
         }
         catch (error) {
-            throw this.handleError('saveDetectedPattern', error);
+            throw this?.handleError('saveDetectedPattern', error);
         }
     }
     async getDetectedPatterns(projectPath, patternType) {
@@ -501,24 +501,24 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
             const params = [projectPath];
             if (patternType) {
                 query += ' AND dp.pattern_type = $2';
-                params.push(patternType);
+                params?.push(patternType);
             }
             query += ' ORDER BY dp.confidence_score DESC, dp.created_at DESC';
-            const result = await this.pool.query(query, params);
-            return result.rows.map(row => this.mapRowToDetectedPattern(row, projectPath));
+            const result = await this.pool?.query(query, params);
+            return result.rows?.map(row => this?.mapRowToDetectedPattern(row, projectPath));
         }
         catch (error) {
-            throw this.handleError('getDetectedPatterns', error);
+            throw this?.handleError('getDetectedPatterns', error);
         }
     }
     async updatePatternStatus(id, status) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            await this.pool.query('UPDATE detected_patterns SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+            await this.pool?.query('UPDATE detected_patterns SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
         }
         catch (error) {
-            throw this.handleError('updatePatternStatus', error);
+            throw this?.handleError('updatePatternStatus', error);
         }
     }
     // Implement remaining methods with similar patterns...
@@ -526,11 +526,11 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const project = await this.getProject(response.projectPath);
+            const project = await this?.getProject(response.projectPath);
             if (!project) {
                 throw new Error(`Project not found: ${response.projectPath}`);
             }
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         INSERT INTO questionnaire_responses (
           project_id, category, question_id, response, metadata
         ) VALUES ($1, $2, $3, $4, $5)
@@ -542,10 +542,10 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 response.response,
                 JSON.stringify(response.metadata || {})
             ]);
-            return this.mapRowToQuestionnaireResponse(result.rows[0], response.projectPath);
+            return this?.mapRowToQuestionnaireResponse(result.rows[0], response.projectPath);
         }
         catch (error) {
-            throw this.handleError('saveQuestionnaireResponse', error);
+            throw this?.handleError('saveQuestionnaireResponse', error);
         }
     }
     async getQuestionnaireResponses(projectPath, category) {
@@ -561,24 +561,24 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
             const params = [projectPath];
             if (category) {
                 query += ' AND qr.category = $2';
-                params.push(category);
+                params?.push(category);
             }
-            const result = await this.pool.query(query, params);
-            return result.rows.map(row => this.mapRowToQuestionnaireResponse(row, projectPath));
+            const result = await this.pool?.query(query, params);
+            return result.rows?.map(row => this?.mapRowToQuestionnaireResponse(row, projectPath));
         }
         catch (error) {
-            throw this.handleError('getQuestionnaireResponses', error);
+            throw this?.handleError('getQuestionnaireResponses', error);
         }
     }
     async saveAnalysisResult(analysisResult) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const project = await this.getProject(analysisResult.projectPath);
+            const project = await this?.getProject(analysisResult.projectPath);
             if (!project) {
                 throw new Error(`Project not found: ${analysisResult.projectPath}`);
             }
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         INSERT INTO analysis_results (
           project_id, file_path, file_hash, analysis_type, analysis_result, confidence_score
         ) VALUES ($1, $2, $3, $4, $5, $6)
@@ -591,10 +591,10 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 JSON.stringify(analysisResult.result),
                 analysisResult.confidenceScore
             ]);
-            return this.mapRowToAnalysisResult(result.rows[0], analysisResult.projectPath);
+            return this?.mapRowToAnalysisResult(result.rows[0], analysisResult.projectPath);
         }
         catch (error) {
-            throw this.handleError('saveAnalysisResult', error);
+            throw this?.handleError('saveAnalysisResult', error);
         }
     }
     async getAnalysisResults(projectPath, analysisType, fileHash) {
@@ -611,38 +611,38 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
             let paramCount = 2;
             if (analysisType) {
                 query += ` AND ar.analysis_type = $${paramCount}`;
-                params.push(analysisType);
+                params?.push(analysisType);
                 paramCount++;
             }
             if (fileHash) {
                 query += ` AND ar.file_hash = $${paramCount}`;
-                params.push(fileHash);
+                params?.push(fileHash);
             }
-            const result = await this.pool.query(query, params);
-            return result.rows.map(row => this.mapRowToAnalysisResult(row, projectPath));
+            const result = await this.pool?.query(query, params);
+            return result.rows?.map(row => this?.mapRowToAnalysisResult(row, projectPath));
         }
         catch (error) {
-            throw this.handleError('getAnalysisResults', error);
+            throw this?.handleError('getAnalysisResults', error);
         }
     }
     async getSystemConfig(key) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query('SELECT config_value FROM system_config WHERE config_key = $1 AND is_global = true', [key]);
-            if (result.rows.length === 0)
+            const result = await this.pool?.query('SELECT config_value FROM system_config WHERE config_key = $1 AND is_global = true', [key]);
+            if (result.rows?.length === 0)
                 return null;
-            return result.rows[0].config_value;
+            return result.rows?.[0].config_value;
         }
         catch (error) {
-            throw this.handleError('getSystemConfig', error);
+            throw this?.handleError('getSystemConfig', error);
         }
     }
     async setSystemConfig(key, value, projectId) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            await this.pool.query(`
+            await this.pool?.query(`
         INSERT INTO system_config (config_key, config_value, is_global, project_id)
         VALUES ($1, $2, $3, $4)
         ON CONFLICT (config_key) DO UPDATE SET
@@ -651,14 +651,14 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
       `, [key, JSON.stringify(value), !projectId, projectId]);
         }
         catch (error) {
-            throw this.handleError('setSystemConfig', error);
+            throw this?.handleError('setSystemConfig', error);
         }
     }
     async getDatabaseStats() {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         SELECT 
           (SELECT COUNT(*) FROM projects) as projects,
           (SELECT COUNT(*) FROM initialization_progress) as initialization_progress,
@@ -668,23 +668,23 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
           (SELECT COUNT(*) FROM projects WHERE status = 'active') as active_projects
       `);
             return {
-                projects: parseInt(result.rows[0].projects),
-                initialization_progress: parseInt(result.rows[0].initialization_progress),
-                detected_patterns: parseInt(result.rows[0].detected_patterns),
-                questionnaire_responses: parseInt(result.rows[0].questionnaire_responses),
-                analysis_results: parseInt(result.rows[0].analysis_results),
-                active_projects: parseInt(result.rows[0].active_projects)
+                projects: parseInt(result.rows?.[0].projects),
+                initialization_progress: parseInt(result.rows?.[0].initialization_progress),
+                detected_patterns: parseInt(result.rows?.[0].detected_patterns),
+                questionnaire_responses: parseInt(result.rows?.[0].questionnaire_responses),
+                analysis_results: parseInt(result.rows?.[0].analysis_results),
+                active_projects: parseInt(result.rows?.[0].active_projects)
             };
         }
         catch (error) {
-            throw this.handleError('getDatabaseStats', error);
+            throw this?.handleError('getDatabaseStats', error);
         }
     }
     async recordOperationMetrics(operation, projectId, durationMs, success, error, metadata) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            await this.pool.query(`
+            await this.pool?.query(`
         INSERT INTO operation_metrics (
           operation_type, project_id, duration_ms, success, error_message, metadata
         ) VALUES ($1, $2, $3, $4, $5, $6)
@@ -699,25 +699,25 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query('SELECT cleanup_expired_resume_states()');
-            return parseInt(result.rows[0].cleanup_expired_resume_states);
+            const result = await this.pool?.query('SELECT cleanup_expired_resume_states()');
+            return parseInt(result.rows?.[0].cleanup_expired_resume_states);
         }
         catch (error) {
-            throw this.handleError('cleanupExpiredResumeStates', error);
+            throw this?.handleError('cleanupExpiredResumeStates', error);
         }
     }
     async archiveOldAnalysisResults(olderThanDays) {
         if (!this.pool)
             throw new Error('Database not initialized');
         try {
-            const result = await this.pool.query(`
+            const result = await this.pool?.query(`
         DELETE FROM analysis_results 
         WHERE created_at < NOW() - INTERVAL '${olderThanDays} days'
       `);
             return result.rowCount || 0;
         }
         catch (error) {
-            throw this.handleError('archiveOldAnalysisResults', error);
+            throw this?.handleError('archiveOldAnalysisResults', error);
         }
     }
     // Helper mapping methods

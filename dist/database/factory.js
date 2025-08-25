@@ -7,7 +7,7 @@ exports.DatabaseFactory = void 0;
 const postgresql_1 = require("./adapters/postgresql");
 class DatabaseFactory {
     static create(config, logger) {
-        if (config.type !== 'postgresql') {
+        if (config?.type !== 'postgresql') {
             throw new Error('Only PostgreSQL is supported');
         }
         return new postgresql_1.PostgreSQLAdapter(config, logger);
@@ -29,7 +29,7 @@ class DatabaseFactory {
                 database: process.env.DB_NAME || 'codemind',
                 username: process.env.DB_USER || 'codemind',
                 password: process.env.DB_PASSWORD || 'codemind123',
-                ssl: process.env.DB_SSL === 'true'
+                ssl: process.env?.DB_SSL === 'true'
             };
         }
     }

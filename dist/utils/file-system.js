@@ -16,8 +16,8 @@ class FileSystemHelper {
         const files = [];
         const resolvedDir = (0, path_1.resolve)(directory);
         try {
-            await this.collectFiles(resolvedDir, files, extensions);
-            return files.sort(); // Return sorted for consistent ordering
+            await this?.collectFiles(resolvedDir, files, extensions);
+            return files?.sort(); // Return sorted for consistent ordering
         }
         catch (error) {
             this.logger.error(`Failed to get files from directory: ${directory}`, error);
@@ -27,7 +27,7 @@ class FileSystemHelper {
     async collectFiles(directory, files, extensions) {
         let entries;
         try {
-            entries = await fs_1.promises.readdir(directory);
+            entries = await fs_1.promises?.readdir(directory);
         }
         catch (error) {
             this.logger.warn(`Cannot read directory: ${directory}`, { error });
@@ -36,24 +36,24 @@ class FileSystemHelper {
         for (const entry of entries) {
             const fullPath = (0, path_1.join)(directory, entry);
             try {
-                const stats = await fs_1.promises.stat(fullPath);
-                if (stats.isDirectory()) {
+                const stats = await fs_1.promises?.stat(fullPath);
+                if (stats?.isDirectory()) {
                     // Skip common excluded directories
-                    if (this.shouldSkipDirectory(entry)) {
+                    if (this?.shouldSkipDirectory(entry)) {
                         continue;
                     }
-                    await this.collectFiles(fullPath, files, extensions);
+                    await this?.collectFiles(fullPath, files, extensions);
                 }
-                else if (stats.isFile()) {
+                else if (stats?.isFile()) {
                     // Check file extension if specified
-                    if (extensions && extensions.length > 0) {
+                    if (extensions && extensions?.length > 0) {
                         const ext = (0, path_1.extname)(entry).toLowerCase();
-                        if (extensions.includes(ext) || extensions.includes(ext.slice(1))) {
-                            files.push(fullPath);
+                        if (extensions?.includes(ext) || extensions?.includes(ext?.slice(1))) {
+                            files?.push(fullPath);
                         }
                     }
                     else {
-                        files.push(fullPath);
+                        files?.push(fullPath);
                     }
                 }
             }
@@ -83,12 +83,12 @@ class FileSystemHelper {
             'bin',
             'obj'
         ];
-        return excludedDirs.includes(dirName) || dirName.startsWith('.');
+        return excludedDirs?.includes(dirName) || dirName?.startsWith('.');
     }
     async getFileContent(filePath) {
         try {
             const resolvedPath = (0, path_1.resolve)(filePath);
-            return await fs_1.promises.readFile(resolvedPath, 'utf8');
+            return await fs_1.promises?.readFile(resolvedPath, 'utf8');
         }
         catch (error) {
             this.logger.error(`Failed to read file: ${filePath}`, error);
@@ -98,7 +98,7 @@ class FileSystemHelper {
     async getFileStats(filePath) {
         try {
             const resolvedPath = (0, path_1.resolve)(filePath);
-            return await fs_1.promises.stat(resolvedPath);
+            return await fs_1.promises?.stat(resolvedPath);
         }
         catch (error) {
             this.logger.error(`Failed to get file stats: ${filePath}`, error);
@@ -108,7 +108,7 @@ class FileSystemHelper {
     async fileExists(filePath) {
         try {
             const resolvedPath = (0, path_1.resolve)(filePath);
-            await fs_1.promises.access(resolvedPath, fs_1.constants.F_OK);
+            await fs_1.promises?.access(resolvedPath, fs_1.constants.F_OK);
             return true;
         }
         catch {
@@ -118,7 +118,7 @@ class FileSystemHelper {
     async createDirectory(directoryPath) {
         try {
             const resolvedPath = (0, path_1.resolve)(directoryPath);
-            await fs_1.promises.mkdir(resolvedPath, { recursive: true });
+            await fs_1.promises?.mkdir(resolvedPath, { recursive: true });
         }
         catch (error) {
             this.logger.error(`Failed to create directory: ${directoryPath}`, error);
@@ -130,8 +130,8 @@ class FileSystemHelper {
             const resolvedPath = (0, path_1.resolve)(filePath);
             // Ensure directory exists
             const dir = (0, path_1.resolve)(resolvedPath, '..');
-            await this.createDirectory(dir);
-            await fs_1.promises.writeFile(resolvedPath, content, 'utf8');
+            await this?.createDirectory(dir);
+            await fs_1.promises?.writeFile(resolvedPath, content, 'utf8');
         }
         catch (error) {
             this.logger.error(`Failed to write file: ${filePath}`, error);
@@ -139,13 +139,13 @@ class FileSystemHelper {
         }
     }
     async getFileSize(filePath) {
-        const stats = await this.getFileStats(filePath);
+        const stats = await this?.getFileStats(filePath);
         return stats.size;
     }
     async isDirectory(path) {
         try {
-            const stats = await this.getFileStats(path);
-            return stats.isDirectory();
+            const stats = await this?.getFileStats(path);
+            return stats?.isDirectory();
         }
         catch {
             return false;
@@ -153,8 +153,8 @@ class FileSystemHelper {
     }
     async isFile(path) {
         try {
-            const stats = await this.getFileStats(path);
-            return stats.isFile();
+            const stats = await this?.getFileStats(path);
+            return stats?.isFile();
         }
         catch {
             return false;
@@ -164,13 +164,13 @@ class FileSystemHelper {
         return (0, path_1.extname)(filePath).toLowerCase();
     }
     getFileName(filePath) {
-        const parts = filePath.split(/[/\\]/);
-        return parts[parts.length - 1] || '';
+        const parts = filePath?.split(/[/\\]/);
+        return parts[parts?.length - 1] || '';
     }
     getFileNameWithoutExtension(filePath) {
-        const fileName = this.getFileName(filePath);
+        const fileName = this?.getFileName(filePath);
         const ext = (0, path_1.extname)(fileName);
-        return ext ? fileName.slice(0, -ext.length) : fileName;
+        return ext ? fileName?.slice(0, -ext?.length) : fileName;
     }
     joinPath(...paths) {
         return (0, path_1.join)(...paths);
@@ -188,8 +188,8 @@ class FileSystemHelper {
             '.sql', '.sh', '.bash', '.bat', '.ps1',
             '.log', '.csv', '.tsv'
         ];
-        const ext = this.getFileExtension(filePath);
-        return textExtensions.includes(ext);
+        const ext = this?.getFileExtension(filePath);
+        return textExtensions?.includes(ext);
     }
     // Get relative path from base directory
     getRelativePath(from, to) {
@@ -200,7 +200,7 @@ class FileSystemHelper {
     isWithinDirectory(filePath, directory) {
         const resolvedFile = (0, path_1.resolve)(filePath);
         const resolvedDir = (0, path_1.resolve)(directory);
-        return resolvedFile.startsWith(resolvedDir);
+        return resolvedFile?.startsWith(resolvedDir);
     }
 }
 exports.FileSystemHelper = FileSystemHelper;

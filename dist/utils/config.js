@@ -13,10 +13,10 @@ class SystemConfigManager {
     configPath;
     constructor(logger) {
         this.logger = logger || new logger_1.Logger();
-        this.loadDefaults();
+        this?.loadDefaults();
     }
     get(key, defaultValue) {
-        const keys = key.split('.');
+        const keys = key?.split('.');
         let current = this.config;
         for (const k of keys) {
             if (current && typeof current === 'object' && k in current) {
@@ -29,9 +29,9 @@ class SystemConfigManager {
         return current;
     }
     set(key, value) {
-        const keys = key.split('.');
+        const keys = key?.split('.');
         let current = this.config;
-        for (let i = 0; i < keys.length - 1; i++) {
+        for (let i = 0; i < keys?.length - 1; i++) {
             const k = keys[i];
             if (!k)
                 continue;
@@ -40,7 +40,7 @@ class SystemConfigManager {
             }
             current = current[k];
         }
-        const lastKey = keys[keys.length - 1];
+        const lastKey = keys[keys?.length - 1];
         if (lastKey) {
             current[lastKey] = value;
             this.logger.debug(`Config updated: ${key} = ${JSON.stringify(value)}`);
@@ -55,16 +55,16 @@ class SystemConfigManager {
             return;
         }
         try {
-            const configContent = await fs_1.promises.readFile(this.configPath, 'utf8');
+            const configContent = await fs_1.promises?.readFile(this.configPath, 'utf8');
             const loadedConfig = JSON.parse(configContent);
             // Merge with existing config (loaded config takes precedence)
-            this.config = this.mergeConfig(this.config, loadedConfig);
+            this.config = this?.mergeConfig(this.config, loadedConfig);
             this.logger.info(`Configuration loaded from: ${this.configPath}`);
         }
         catch (error) {
             if (error.code === 'ENOENT') {
                 this.logger.info(`Config file not found at ${this.configPath}, creating with defaults`);
-                await this.save();
+                await this?.save();
             }
             else {
                 this.logger.error(`Failed to load config from ${this.configPath}`, error);
@@ -79,7 +79,7 @@ class SystemConfigManager {
         }
         try {
             const configJson = JSON.stringify(this.config, null, 2);
-            await fs_1.promises.writeFile(targetPath, configJson, 'utf8');
+            await fs_1.promises?.writeFile(targetPath, configJson, 'utf8');
             this.configPath = targetPath;
             this.logger.info(`Configuration saved to: ${targetPath}`);
         }
@@ -110,16 +110,16 @@ class SystemConfigManager {
             if (envValue !== undefined) {
                 // Parse value based on type
                 let parsedValue = envValue;
-                if (envValue.toLowerCase() === 'true') {
+                if (envValue?.toLowerCase() === 'true') {
                     parsedValue = true;
                 }
-                else if (envValue.toLowerCase() === 'false') {
+                else if (envValue?.toLowerCase() === 'false') {
                     parsedValue = false;
                 }
                 else if (!isNaN(Number(envValue))) {
                     parsedValue = Number(envValue);
                 }
-                this.set(configKey, parsedValue);
+                this?.set(configKey, parsedValue);
                 this.logger.debug(`Config updated from env: ${configKey} = ${parsedValue}`);
             }
         }
@@ -135,26 +135,26 @@ class SystemConfigManager {
             'logging.level'
         ];
         for (const path of requiredPaths) {
-            const value = this.get(path);
+            const value = this?.get(path);
             if (value === undefined || value === null) {
-                errors.push(`Missing required configuration: ${path}`);
+                errors?.push(`Missing required configuration: ${path}`);
             }
         }
         // Validate specific values
         const logLevel = this.get('logging.level');
         if (logLevel && !['debug', 'info', 'warn', 'error'].includes(logLevel)) {
-            errors.push(`Invalid logging level: ${logLevel}`);
+            errors?.push(`Invalid logging level: ${logLevel}`);
         }
         const maxBatchSize = this.get('analysis.maxBatchSize');
         if (maxBatchSize && (maxBatchSize <= 0 || maxBatchSize > 1000)) {
-            errors.push(`Invalid maxBatchSize: ${maxBatchSize}. Must be between 1 and 1000`);
+            errors?.push(`Invalid maxBatchSize: ${maxBatchSize}. Must be between 1 and 1000`);
         }
         const mcpPort = this.get('mcp.port');
         if (mcpPort && (mcpPort < 1 || mcpPort > 65535)) {
-            errors.push(`Invalid MCP port: ${mcpPort}. Must be between 1 and 65535`);
+            errors?.push(`Invalid MCP port: ${mcpPort}. Must be between 1 and 65535`);
         }
         return {
-            valid: errors.length === 0,
+            valid: errors?.length === 0,
             errors
         };
     }
@@ -186,7 +186,7 @@ class SystemConfigManager {
                 batchSize: 50
             },
             logging: {
-                level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+                level: process.env?.NODE_ENV === 'development' ? 'debug' : 'info',
                 enableFileLogging: false,
                 logDirectory: './logs'
             },
@@ -207,14 +207,14 @@ class SystemConfigManager {
     mergeConfig(target, source) {
         const result = { ...target };
         for (const key in source) {
-            if (source.hasOwnProperty(key)) {
+            if (source?.hasOwnProperty(key)) {
                 if (source[key] &&
                     typeof source[key] === 'object' &&
                     !Array.isArray(source[key]) &&
                     target[key] &&
                     typeof target[key] === 'object' &&
                     !Array.isArray(target[key])) {
-                    result[key] = this.mergeConfig(target[key], source[key]);
+                    result[key] = this?.mergeConfig(target[key], source[key]);
                 }
                 else {
                     result[key] = source[key];

@@ -8,7 +8,7 @@ const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
 const logger_1 = require("../utils/logger");
 class ClaudeIntegration {
     client = null;
-    logger = logger_1.Logger.getInstance();
+    logger = logger_1.Logger?.getInstance();
     config;
     constructor(config = {}) {
         this.config = {
@@ -17,7 +17,7 @@ class ClaudeIntegration {
             temperature: 0.1,
             ...config
         };
-        this.initialize();
+        this?.initialize();
     }
     initialize() {
         const apiKey = this.config.apiKey || process.env.ANTHROPIC_API_KEY;
@@ -35,12 +35,12 @@ class ClaudeIntegration {
     }
     async askQuestion(question, contextOptimization) {
         if (!this.client) {
-            return this.simulateResponse(question, contextOptimization);
+            return this?.simulateResponse(question, contextOptimization);
         }
         try {
-            const prompt = this.buildPrompt(question, contextOptimization);
-            this.logger.debug(`Sending request to Claude with ${prompt.length} characters`);
-            const response = await this.client.messages.create({
+            const prompt = this?.buildPrompt(question, contextOptimization);
+            this.logger.debug(`Sending request to Claude with ${prompt?.length} characters`);
+            const response = await this.client.messages?.create({
                 model: this.config.model,
                 max_tokens: this.config.maxTokens,
                 temperature: this.config.temperature,
@@ -51,13 +51,13 @@ class ClaudeIntegration {
                     }
                 ]
             });
-            const content = response.content[0];
-            const text = content.type === 'text' ? content.text : 'Unable to parse response';
+            const content = response.content?.[0];
+            const text = content && content?.type === 'text' ? content.text : 'Unable to parse response';
             return {
                 content: text,
                 contextUsed: {
-                    tokensUsed: this.estimateTokens(prompt),
-                    filesIncluded: contextOptimization.priorityFiles.map(f => f.path),
+                    tokensUsed: this?.estimateTokens(prompt),
+                    filesIncluded: contextOptimization.priorityFiles?.map(f => f.path),
                     optimizationStrategy: contextOptimization.strategy
                 },
                 usage: {
@@ -81,16 +81,16 @@ class ClaudeIntegration {
             prompt += `Framework: ${context.projectInfo.framework || 'None detected'}\n\n`;
         }
         // Add relevant code files
-        if (context.priorityFiles && context.priorityFiles.length > 0) {
+        if (context.priorityFiles && context.priorityFiles?.length > 0) {
             prompt += `# Relevant Code Files\n\n`;
             for (const file of context.priorityFiles) {
                 prompt += `## ${file.path}\n`;
                 if (file.summary) {
                     prompt += `Summary: ${file.summary}\n`;
                 }
-                if (file.relevantSections && file.relevantSections.length > 0) {
+                if (file.relevantSections && file.relevantSections?.length > 0) {
                     prompt += `\`\`\`${file.language || ''}\n`;
-                    file.relevantSections.forEach(section => {
+                    file.relevantSections?.forEach(section => {
                         prompt += `// Lines ${section.startLine}-${section.endLine}\n`;
                         prompt += `${section.content}\n\n`;
                     });
@@ -99,9 +99,9 @@ class ClaudeIntegration {
             }
         }
         // Add architectural patterns if detected
-        if (context.detectedPatterns && context.detectedPatterns.length > 0) {
+        if (context.detectedPatterns && context.detectedPatterns?.length > 0) {
             prompt += `# Detected Patterns\n`;
-            context.detectedPatterns.forEach(pattern => {
+            context.detectedPatterns?.forEach(pattern => {
                 prompt += `- ${pattern.name}: ${pattern.description}\n`;
             });
             prompt += `\n`;
@@ -132,7 +132,7 @@ To get real Claude responses:
 
 **Suggested approach based on context optimization:**
 The system has identified ${context.priorityFiles?.length || 0} relevant files for your query.
-${context.strategy === 'smart' ? 'Smart context optimization was used to focus on the most relevant code sections.' : ''}
+${context?.strategy === 'smart' ? 'Smart context optimization was used to focus on the most relevant code sections.' : ''}
 
 **Next steps:**
 1. Configure your Anthropic API key for real Claude integration
@@ -149,14 +149,14 @@ ${context.strategy === 'smart' ? 'Smart context optimization was used to focus o
     }
     estimateTokens(text) {
         // Rough estimation: ~4 characters per token for English text
-        return Math.ceil(text.length / 4);
+        return Math.ceil(text?.length / 4);
     }
     async testConnection() {
         if (!this.client) {
             return false;
         }
         try {
-            const response = await this.client.messages.create({
+            const response = await this.client.messages?.create({
                 model: this.config.model,
                 max_tokens: 10,
                 messages: [
@@ -166,7 +166,8 @@ ${context.strategy === 'smart' ? 'Smart context optimization was used to focus o
                     }
                 ]
             });
-            return response.content[0].type === 'text' && response.content[0].text.includes('OK');
+            const content = response.content?.[0];
+            return content && content?.type === 'text' && content.text?.includes('OK');
         }
         catch (error) {
             this.logger.error('Claude connection test failed', error);

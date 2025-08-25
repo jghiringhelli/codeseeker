@@ -43,17 +43,17 @@ class Logger {
     }
     debug(message, meta) {
         if (this.level <= LogLevel.DEBUG) {
-            this.log('DEBUG', message, meta);
+            this?.log('DEBUG', message, meta);
         }
     }
     info(message, meta) {
         if (this.level <= LogLevel.INFO) {
-            this.log('INFO', message, meta);
+            this?.log('INFO', message, meta);
         }
     }
     warn(message, meta) {
         if (this.level <= LogLevel.WARN) {
-            this.log('WARN', message, meta);
+            this?.log('WARN', message, meta);
         }
     }
     error(message, error, meta) {
@@ -63,7 +63,7 @@ class Logger {
                 stack: error.stack,
                 name: error.name
             } : undefined;
-            this.log('ERROR', message, { error: errorInfo, ...meta });
+            this?.log('ERROR', message, { error: errorInfo, ...meta });
         }
     }
     child(context) {
@@ -74,10 +74,10 @@ class Logger {
         const timestamp = new Date().toISOString();
         const contextStr = this.context ? ` [${this.context}]` : '';
         const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
-        console.log(`${timestamp} ${level}${contextStr}: ${message}${metaStr}`);
+        console?.log(`${timestamp} ${level}${contextStr}: ${message}${metaStr}`);
     }
 }
 exports.Logger = Logger;
 // Default logger instance
-exports.defaultLogger = new Logger(process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO);
+exports.defaultLogger = new Logger(process.env?.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO);
 //# sourceMappingURL=logger.js.map

@@ -48,17 +48,17 @@ class InMemoryGitStore {
     rules = new Map();
     async query(sql, params) {
         // Simple mock implementation - in a real scenario you'd implement actual SQL parsing
-        if (sql.includes('INSERT INTO git_commits')) {
-            const id = Date.now().toString();
-            this.commits.set(id, { id, ...params });
+        if (sql?.includes('INSERT INTO git_commits')) {
+            const id = Date?.now().toString();
+            this.commits?.set(id, { id, ...params });
             return [];
         }
-        else if (sql.includes('SELECT') && sql.includes('git_commits')) {
-            return Array.from(this.commits.values()).slice(0, parseInt(params?.[0] || '10'));
+        else if (sql?.includes('SELECT') && sql?.includes('git_commits')) {
+            return Array.from(this.commits?.values()).slice(0, parseInt(params?.[0] || '10'));
         }
-        else if (sql.includes('INSERT INTO auto_commit_rules')) {
+        else if (sql?.includes('INSERT INTO auto_commit_rules')) {
             const projectPath = params?.[0] || 'default';
-            this.rules.set(projectPath, {
+            this.rules?.set(projectPath, {
                 project_path: projectPath,
                 enabled: params?.[1] || false,
                 min_significance_score: params?.[2] || 2.0,
@@ -70,25 +70,25 @@ class InMemoryGitStore {
     }
 }
 class GitIntegration {
-    logger = logger_1.Logger.getInstance();
+    logger = logger_1.Logger?.getInstance();
     projectPath;
     db;
     changeDetector;
     fileWatcher;
     autoCommitRules = { enabled: false };
     constructor(projectPath) {
-        this.projectPath = projectPath || process.cwd();
+        this.projectPath = projectPath || process?.cwd();
         this.changeDetector = new change_detector_1.ChangeDetector(this.logger);
-        this.initializeDatabase();
+        this?.initializeDatabase();
     }
     async initializeDatabase() {
         try {
             // Try to use existing database configuration or create a simple in-memory store
-            const config = factory_1.DatabaseFactory.parseConfigFromEnv();
+            const config = factory_1.DatabaseFactory?.parseConfigFromEnv();
             if (config) {
-                this.db = factory_1.DatabaseFactory.create(config, this.logger);
-                await this.db.initialize();
-                await this.createGitTables();
+                this.db = factory_1.DatabaseFactory?.create(config, this.logger);
+                await this.db?.initialize();
+                await this?.createGitTables();
             }
             else {
                 // Use a simple in-memory store for Git integration if no database configured
@@ -149,10 +149,10 @@ class GitIntegration {
       )`
         ];
         for (const table of tables) {
-            await this.db.query(table);
+            await this.db?.query(table);
         }
         // Insert default auto-commit rules
-        await this.insertDefaultAutoCommitRules();
+        await this?.insertDefaultAutoCommitRules();
     }
     async insertDefaultAutoCommitRules() {
         const defaultRules = [
@@ -187,17 +187,17 @@ class GitIntegration {
             }
         ];
         for (const rule of defaultRules) {
-            await this.db.query(`INSERT OR IGNORE INTO auto_commit_rules (rule_name, rule_type, conditions) VALUES (?, ?, ?)`, [rule.name, rule.type, rule.conditions]);
+            await this.db?.query(`INSERT OR IGNORE INTO auto_commit_rules (rule_name, rule_type, conditions) VALUES (?, ?, ?)`, [rule.name, rule.type, rule.conditions]);
         }
     }
     async getCurrentCommit() {
         try {
             const { stdout } = await execAsync('git log -1 --format="%H|%h|%s|%an|%ad" --date=iso', { cwd: this.projectPath });
-            if (!stdout.trim())
+            if (!stdout?.trim())
                 return null;
-            const [hash, shortHash, message, author, dateStr] = stdout.trim().split('|');
-            const changedFiles = await this.getChangedFiles(hash);
-            const { additions, deletions } = await this.getCommitStats(hash);
+            const [hash, shortHash, message, author, dateStr] = stdout?.trim().split('|');
+            const changedFiles = await this?.getChangedFiles(hash);
+            const { additions, deletions } = await this?.getCommitStats(hash);
             return {
                 hash,
                 shortHash,
@@ -217,14 +217,14 @@ class GitIntegration {
     async getCommitsSince(since) {
         try {
             const { stdout } = await execAsync(`git log ${since}..HEAD --format="%H|%h|%s|%an|%ad" --date=iso`, { cwd: this.projectPath });
-            if (!stdout.trim())
+            if (!stdout?.trim())
                 return [];
             const commits = [];
-            for (const line of stdout.trim().split('\n')) {
-                const [hash, shortHash, message, author, dateStr] = line.split('|');
-                const changedFiles = await this.getChangedFiles(hash);
-                const { additions, deletions } = await this.getCommitStats(hash);
-                commits.push({
+            for (const line of stdout?.trim().split('\n')) {
+                const [hash, shortHash, message, author, dateStr] = line?.split('|');
+                const changedFiles = await this?.getChangedFiles(hash);
+                const { additions, deletions } = await this?.getCommitStats(hash);
+                commits?.push({
                     hash,
                     shortHash,
                     message,
@@ -245,26 +245,26 @@ class GitIntegration {
     async getDiffBetweenCommits(from, to = 'HEAD') {
         try {
             const { stdout } = await execAsync(`git diff --name-status --numstat ${from}..${to}`, { cwd: this.projectPath });
-            if (!stdout.trim())
+            if (!stdout?.trim())
                 return [];
             const results = [];
-            const lines = stdout.trim().split('\n');
-            for (let i = 0; i < lines.length; i += 2) {
+            const lines = stdout?.trim().split('\n');
+            for (let i = 0; i < lines?.length; i += 2) {
                 const statusLine = lines[i];
                 const statsLine = lines[i + 1];
                 if (!statusLine || !statsLine)
                     continue;
-                const statusMatch = statusLine.match(/^([AMDRT])\s+(.+)$/);
-                const statsMatch = statsLine.match(/^(\d+|-)\s+(\d+|-)\s+(.+)$/);
+                const statusMatch = statusLine?.match(/^([AMDRT])\s+(.+)$/);
+                const statsMatch = statsLine?.match(/^(\d+|-)\s+(\d+|-)\s+(.+)$/);
                 if (statusMatch && statsMatch) {
-                    const status = this.mapGitStatus(statusMatch[1]);
+                    const status = this?.mapGitStatus(statusMatch[1]);
                     const file = statusMatch[2];
                     const additions = statsMatch[1] === '-' ? 0 : parseInt(statsMatch[1]);
                     const deletions = statsMatch[2] === '-' ? 0 : parseInt(statsMatch[2]);
-                    const changes = await this.getFileChanges(file, from, to);
+                    const changes = await this?.getFileChanges(file, from, to);
                     // Get patch for detailed analysis
-                    const patch = await this.getFilePatch(file, from, to);
-                    results.push({
+                    const patch = await this?.getFilePatch(file, from, to);
+                    results?.push({
                         file,
                         status,
                         linesAdded: additions,
@@ -293,7 +293,7 @@ class GitIntegration {
     async getChangedFiles(commitHash) {
         try {
             const { stdout } = await execAsync(`git show --name-only --format="" ${commitHash}`, { cwd: this.projectPath });
-            return stdout.trim().split('\n').filter(line => line.trim());
+            return stdout?.trim().split('\n').filter(line => line?.trim());
         }
         catch (error) {
             return [];
@@ -304,8 +304,8 @@ class GitIntegration {
             const { stdout } = await execAsync(`git show --numstat --format="" ${commitHash}`, { cwd: this.projectPath });
             let totalAdditions = 0;
             let totalDeletions = 0;
-            for (const line of stdout.trim().split('\n')) {
-                const match = line.match(/^(\d+|-)\s+(\d+|-)\s+/);
+            for (const line of stdout?.trim().split('\n')) {
+                const match = line?.match(/^(\d+|-)\s+(\d+|-)\s+/);
                 if (match) {
                     totalAdditions += match[1] === '-' ? 0 : parseInt(match[1]);
                     totalDeletions += match[2] === '-' ? 0 : parseInt(match[2]);
@@ -330,27 +330,27 @@ class GitIntegration {
         try {
             const { stdout } = await execAsync(`git diff --unified=0 ${from}..${to} -- "${file}"`, { cwd: this.projectPath });
             const changes = [];
-            const lines = stdout.split('\n');
+            const lines = stdout?.split('\n');
             let currentLine = 0;
             for (const line of lines) {
-                if (line.startsWith('@@')) {
-                    const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+                if (line?.startsWith('@@')) {
+                    const match = line?.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
                     if (match) {
                         currentLine = parseInt(match[2]);
                     }
                 }
-                else if (line.startsWith('+') && !line.startsWith('+++')) {
-                    changes.push({
+                else if (line?.startsWith('+') && !line?.startsWith('+++')) {
+                    changes?.push({
                         type: 'added',
                         lineNumber: currentLine++,
-                        content: line.substring(1)
+                        content: line?.substring(1)
                     });
                 }
-                else if (line.startsWith('-') && !line.startsWith('---')) {
-                    changes.push({
+                else if (line?.startsWith('-') && !line?.startsWith('---')) {
+                    changes?.push({
                         type: 'removed',
                         lineNumber: currentLine,
-                        content: line.substring(1)
+                        content: line?.substring(1)
                     });
                 }
             }
@@ -362,14 +362,14 @@ class GitIntegration {
     }
     async analyzeChangeSignificance(diff) {
         // Use the advanced change detector for detailed analysis
-        const detailedSignificance = await this.changeDetector.analyzeChanges(diff);
+        const detailedSignificance = await this.changeDetector?.analyzeChanges(diff);
         // Convert to legacy format for backward compatibility
         const factors = [];
         let score = detailedSignificance.score;
         // File count factor
-        const fileCount = diff.length;
+        const fileCount = diff?.length;
         if (fileCount > 0) {
-            factors.push({
+            factors?.push({
                 type: 'file_count',
                 impact: fileCount * 0.2,
                 description: `${fileCount} files changed`
@@ -380,36 +380,36 @@ class GitIntegration {
         const totalDeletions = detailedSignificance.linesDeleted;
         const totalChanges = totalAdditions + totalDeletions;
         if (totalChanges > 0) {
-            factors.push({
+            factors?.push({
                 type: 'line_changes',
                 impact: totalChanges * 0.01,
                 description: `${totalAdditions} additions, ${totalDeletions} deletions`
             });
         }
         // Add factors based on detailed analysis
-        if (detailedSignificance.newFeatures.length > 0) {
-            factors.push({
+        if (detailedSignificance.newFeatures?.length > 0) {
+            factors?.push({
                 type: 'new_features',
-                impact: detailedSignificance.newFeatures.length * 0.5,
-                description: `New features: ${detailedSignificance.newFeatures.join(', ')}`
+                impact: detailedSignificance.newFeatures?.length * 0.5,
+                description: `New features: ${detailedSignificance.newFeatures?.join(', ')}`
             });
         }
-        if (detailedSignificance.testChanges.length > 0) {
-            factors.push({
+        if (detailedSignificance.testChanges?.length > 0) {
+            factors?.push({
                 type: 'tests',
-                impact: detailedSignificance.testChanges.length * 0.3,
-                description: `Test files: ${detailedSignificance.testChanges.join(', ')}`
+                impact: detailedSignificance.testChanges?.length * 0.3,
+                description: `Test files: ${detailedSignificance.testChanges?.join(', ')}`
             });
         }
-        if (detailedSignificance.configChanges.length > 0) {
-            factors.push({
+        if (detailedSignificance.configChanges?.length > 0) {
+            factors?.push({
                 type: 'config',
-                impact: detailedSignificance.configChanges.length * 0.4,
-                description: `Config files: ${detailedSignificance.configChanges.join(', ')}`
+                impact: detailedSignificance.configChanges?.length * 0.4,
+                description: `Config files: ${detailedSignificance.configChanges?.join(', ')}`
             });
         }
         // Generate commit message based on analysis
-        const commitMessage = this.generateCommitMessage(detailedSignificance);
+        const commitMessage = this?.generateCommitMessage(detailedSignificance);
         return {
             score,
             factors,
@@ -419,7 +419,7 @@ class GitIntegration {
     }
     generateCommitMessage(significance) {
         const categories = significance.categories;
-        const primaryCategory = categories.length > 0 ? categories[0] : null;
+        const primaryCategory = categories?.length > 0 ? categories[0] : null;
         let baseMessage = '';
         if (primaryCategory) {
             switch (primaryCategory.type) {
@@ -450,31 +450,31 @@ class GitIntegration {
         }
         // Generate description based on changes
         const descriptions = [];
-        if (significance.newFeatures.length > 0) {
-            descriptions.push(`add ${significance.newFeatures.slice(0, 2).join(', ')}`);
+        if (significance.newFeatures?.length > 0) {
+            descriptions?.push(`add ${significance.newFeatures?.slice(0, 2).join(', ')}`);
         }
-        if (significance.bugFixes.length > 0) {
-            descriptions.push(`fix ${significance.bugFixes.slice(0, 2).join(', ')}`);
+        if (significance.bugFixes?.length > 0) {
+            descriptions?.push(`fix ${significance.bugFixes?.slice(0, 2).join(', ')}`);
         }
-        if (significance.testChanges.length > 0) {
-            descriptions.push(`update ${significance.testChanges.length} tests`);
+        if (significance.testChanges?.length > 0) {
+            descriptions?.push(`update ${significance.testChanges?.length} tests`);
         }
-        if (significance.configChanges.length > 0) {
-            descriptions.push(`modify ${significance.configChanges.slice(0, 2).join(', ')}`);
+        if (significance.configChanges?.length > 0) {
+            descriptions?.push(`modify ${significance.configChanges?.slice(0, 2).join(', ')}`);
         }
-        if (descriptions.length === 0) {
-            descriptions.push(`${significance.filesChanged} files, +${significance.linesAdded}/-${significance.linesDeleted}`);
+        if (descriptions?.length === 0) {
+            descriptions?.push(`${significance.filesChanged} files, +${significance.linesAdded}/-${significance.linesDeleted}`);
         }
-        const message = baseMessage + descriptions.join(', ');
+        const message = baseMessage + descriptions?.join(', ');
         // Add context about significance and impact areas
         const details = [];
-        if (significance.riskLevel === 'high') {
-            details.push('High-risk changes');
+        if (significance?.riskLevel === 'high') {
+            details?.push('High-risk changes');
         }
-        if (significance.impactAreas.length > 0) {
-            details.push(`Affects: ${significance.impactAreas.slice(0, 3).join(', ')}`);
+        if (significance.impactAreas?.length > 0) {
+            details?.push(`Affects: ${significance.impactAreas?.slice(0, 3).join(', ')}`);
         }
-        return details.length > 0 ? `${message}\n\n${details.join(', ')}` : message;
+        return details?.length > 0 ? `${message}\n\n${details?.join(', ')}` : message;
     }
     async isGitRepository() {
         try {
@@ -488,27 +488,27 @@ class GitIntegration {
     async compilesSuccessfully() {
         try {
             // Check for TypeScript project
-            const tsConfigExists = await fs.access(path.join(this.projectPath, 'tsconfig.json'))
+            const tsConfigExists = await fs?.access(path?.join(this.projectPath, 'tsconfig.json'))
                 .then(() => true)
                 .catch(() => false);
             if (tsConfigExists) {
                 const { stdout, stderr } = await execAsync('npm run build', { cwd: this.projectPath });
-                return !stderr || !stderr.includes('error');
+                return !stderr || !stderr?.includes('error');
             }
             // Check for package.json scripts
-            const packageJsonPath = path.join(this.projectPath, 'package.json');
-            const packageJsonExists = await fs.access(packageJsonPath)
+            const packageJsonPath = path?.join(this.projectPath, 'package.json');
+            const packageJsonExists = await fs?.access(packageJsonPath)
                 .then(() => true)
                 .catch(() => false);
             if (packageJsonExists) {
-                const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
+                const packageJson = JSON.parse(await fs?.readFile(packageJsonPath, 'utf-8'));
                 // Try common build/compile scripts
                 const buildScripts = ['build', 'compile', 'tsc', 'test'];
                 for (const script of buildScripts) {
                     if (packageJson.scripts?.[script]) {
                         try {
                             const { stderr } = await execAsync(`npm run ${script}`, { cwd: this.projectPath });
-                            if (!stderr || !stderr.includes('error')) {
+                            if (!stderr || !stderr?.includes('error')) {
                                 return true;
                             }
                         }
@@ -535,17 +535,17 @@ class GitIntegration {
             await execAsync('git add -A', { cwd: this.projectPath });
             // Check if there are changes to commit
             const { stdout } = await execAsync('git diff --cached --name-only', { cwd: this.projectPath });
-            if (!stdout.trim()) {
+            if (!stdout?.trim()) {
                 this.logger.info('No changes to commit');
                 return false;
             }
             // Create commit
             await execAsync(`git commit -m "${significance.commitMessage}"`, { cwd: this.projectPath });
-            this.logger.info(`Auto-commit created: ${significance.commitMessage.split('\n')[0]}`);
+            this.logger.info(`Auto-commit created: ${significance.commitMessage?.split('\n')[0]}`);
             // Record the auto-commit in database
-            const currentCommit = await this.getCurrentCommit();
+            const currentCommit = await this?.getCurrentCommit();
             if (currentCommit) {
-                await this.recordCommit(currentCommit, significance, true);
+                await this?.recordCommit(currentCommit, significance, true);
             }
             return true;
         }
@@ -557,7 +557,7 @@ class GitIntegration {
     async recordCommit(commit, significance, autoCommitted = false) {
         try {
             // Insert commit record
-            await this.db.query(`INSERT OR REPLACE INTO git_commits (
+            await this.db?.query(`INSERT OR REPLACE INTO git_commits (
           hash, short_hash, message, author, commit_date, changed_files, 
           additions, deletions, significance_score, auto_committed
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
@@ -566,7 +566,7 @@ class GitIntegration {
                 commit.message,
                 commit.author,
                 commit.date,
-                commit.changedFiles.length,
+                commit.changedFiles?.length,
                 commit.additions,
                 commit.deletions,
                 significance.score,
@@ -574,7 +574,7 @@ class GitIntegration {
             ]);
             // Insert significance factors
             for (const factor of significance.factors) {
-                await this.db.query(`INSERT INTO git_file_changes (commit_hash, file_path, change_type, significance_factors) 
+                await this.db?.query(`INSERT INTO git_file_changes (commit_hash, file_path, change_type, significance_factors) 
            VALUES (?, ?, ?, ?)`, [commit.hash, 'multiple', factor.type, JSON.stringify(factor)]);
             }
             this.logger.info(`Recorded commit ${commit.shortHash} with significance score ${significance.score}`);
@@ -587,15 +587,15 @@ class GitIntegration {
         this.logger.info('Updating database from Git history...');
         try {
             // Get last processed commit
-            const lastProcessed = await this.db.query('SELECT hash FROM git_commits ORDER BY commit_date DESC LIMIT 1');
+            const lastProcessed = await this.db?.query('SELECT hash FROM git_commits ORDER BY commit_date DESC LIMIT 1');
             const since = lastProcessed?.[0]?.hash || 'HEAD~10'; // Default to last 10 commits
-            const newCommits = await this.getCommitsSince(since);
+            const newCommits = await this?.getCommitsSince(since);
             for (const commit of newCommits) {
-                const diff = await this.getDiffBetweenCommits(`${commit.hash}~1`, commit.hash);
-                const significance = await this.analyzeChangeSignificance(diff);
-                await this.recordCommit(commit, significance);
+                const diff = await this?.getDiffBetweenCommits(`${commit.hash}~1`, commit.hash);
+                const significance = await this?.analyzeChangeSignificance(diff);
+                await this?.recordCommit(commit, significance);
             }
-            this.logger.info(`Processed ${newCommits.length} new commits`);
+            this.logger.info(`Processed ${newCommits?.length} new commits`);
         }
         catch (error) {
             this.logger.error('Failed to update database from Git history', error);
@@ -605,7 +605,7 @@ class GitIntegration {
         this.logger.info('Starting auto-commit watcher...');
         // Set up file system watcher
         const chokidar = await Promise.resolve().then(() => __importStar(require('chokidar')));
-        const watcher = chokidar.watch(this.projectPath, {
+        const watcher = chokidar?.watch(this.projectPath, {
             ignored: [
                 '**/node_modules/**',
                 '**/.git/**',
@@ -620,14 +620,14 @@ class GitIntegration {
             try {
                 // Check if there are uncommitted changes
                 const { stdout } = await execAsync('git status --porcelain', { cwd: this.projectPath });
-                if (!stdout.trim())
+                if (!stdout?.trim())
                     return; // No changes
                 // Analyze current changes
-                const diff = await this.getDiffBetweenCommits('HEAD');
-                const significance = await this.analyzeChangeSignificance(diff);
+                const diff = await this?.getDiffBetweenCommits('HEAD');
+                const significance = await this?.analyzeChangeSignificance(diff);
                 this.logger.info(`Change detected. Significance score: ${significance.score}`);
                 if (significance.shouldAutoCommit) {
-                    const success = await this.performAutoCommit(significance);
+                    const success = await this?.performAutoCommit(significance);
                     if (success) {
                         this.logger.info('Auto-commit performed successfully');
                     }
@@ -637,7 +637,7 @@ class GitIntegration {
                 this.logger.error('Error processing changes', error);
             }
         };
-        watcher.on('change', (filePath) => {
+        watcher?.on('change', (filePath) => {
             this.logger.debug(`File changed: ${filePath}`);
             // Debounce changes - wait 5 seconds after last change
             if (changeTimeout) {
@@ -645,7 +645,7 @@ class GitIntegration {
             }
             changeTimeout = setTimeout(processChanges, 5000);
         });
-        watcher.on('add', (filePath) => {
+        watcher?.on('add', (filePath) => {
             this.logger.debug(`File added: ${filePath}`);
             if (changeTimeout) {
                 clearTimeout(changeTimeout);
@@ -655,7 +655,7 @@ class GitIntegration {
     }
     async getCommitHistory(limit = 20) {
         try {
-            const commits = await this.db.query(`SELECT * FROM git_commits 
+            const commits = await this.db?.query(`SELECT * FROM git_commits 
          ORDER BY commit_date DESC 
          LIMIT ?`, [limit]);
             const analyses = [];
@@ -675,7 +675,7 @@ class GitIntegration {
                     factors: [], // Would need to fetch separately
                     shouldAutoCommit: false
                 };
-                analyses.push({
+                analyses?.push({
                     commit,
                     significance
                 });
@@ -690,9 +690,9 @@ class GitIntegration {
     // CLI Interface Methods
     async getIntegrationStatus(projectPath) {
         const gitIntegration = new GitIntegration(projectPath);
-        const isRepository = await gitIntegration.isGitRepository();
+        const isRepository = await gitIntegration?.isGitRepository();
         const recentCommits = isRepository ?
-            (await gitIntegration.getCommitsSince('HEAD~5')).map(commit => ({
+            (await gitIntegration?.getCommitsSince('HEAD~5')).map(commit => ({
                 hash: commit.hash,
                 message: commit.message,
                 timestamp: commit.date
@@ -700,19 +700,19 @@ class GitIntegration {
         return {
             isRepository,
             autoCommitEnabled: gitIntegration.autoCommitRules.enabled,
-            isTracking: gitIntegration.fileWatcher !== undefined,
+            isTracking: gitIntegration?.fileWatcher !== undefined,
             recentCommits
         };
     }
     async analyzeCommitRange(projectPath, from, to) {
         const gitIntegration = new GitIntegration(projectPath);
-        const diff = await gitIntegration.getDiffBetweenCommits(from, to);
-        const significance = await gitIntegration.analyzeChangeSignificance(diff);
+        const diff = await gitIntegration?.getDiffBetweenCommits(from, to);
+        const significance = await gitIntegration?.analyzeChangeSignificance(diff);
         return {
             significanceScore: significance.score,
-            filesChanged: diff.length,
-            linesAdded: diff.reduce((sum, d) => sum + (d.linesAdded || 0), 0),
-            linesDeleted: diff.reduce((sum, d) => sum + (d.linesDeleted || 0), 0),
+            filesChanged: diff?.length,
+            linesAdded: diff?.reduce((sum, d) => sum + (d.linesAdded || 0), 0),
+            linesDeleted: diff?.reduce((sum, d) => sum + (d.linesDeleted || 0), 0),
             newFeatures: [] // Will be populated by detailed analysis
         };
     }
@@ -721,7 +721,7 @@ class GitIntegration {
         gitIntegration.autoCommitRules = { ...gitIntegration.autoCommitRules, ...rules };
         // Save rules to database
         try {
-            await gitIntegration.db.query(`INSERT OR REPLACE INTO auto_commit_rules 
+            await gitIntegration.db?.query(`INSERT OR REPLACE INTO auto_commit_rules 
          (project_path, enabled, min_significance_score, requires_compilation, watch_patterns, max_frequency)
          VALUES (?, ?, ?, ?, ?, ?)`, [
                 projectPath,
@@ -738,7 +738,7 @@ class GitIntegration {
     }
     async stopAutoCommitWatcher() {
         if (this.fileWatcher) {
-            await this.fileWatcher.close();
+            await this.fileWatcher?.close();
             this.fileWatcher = undefined;
             this.logger.info('Stopped file watcher');
         }
@@ -746,12 +746,12 @@ class GitIntegration {
     async checkForAutoCommit() {
         if (!this.autoCommitRules.enabled)
             return;
-        const diff = await this.getWorkingDirectoryDiff(this.projectPath);
-        if (diff.length === 0)
+        const diff = await this?.getWorkingDirectoryDiff(this.projectPath);
+        if (diff?.length === 0)
             return;
-        const significance = await this.analyzeChangeSignificance(diff);
+        const significance = await this?.analyzeChangeSignificance(diff);
         if (significance.shouldAutoCommit) {
-            const success = await this.performAutoCommit(significance);
+            const success = await this?.performAutoCommit(significance);
             if (success) {
                 this.logger.info(`Auto-committed changes with score ${significance.score}`);
             }
@@ -760,19 +760,19 @@ class GitIntegration {
     async getWorkingDirectoryDiff(projectPath) {
         try {
             const { stdout } = await execAsync('git diff --name-status HEAD', { cwd: projectPath });
-            if (!stdout.trim())
+            if (!stdout?.trim())
                 return [];
             const results = [];
-            const lines = stdout.trim().split('\n');
+            const lines = stdout?.trim().split('\n');
             for (const line of lines) {
-                const match = line.match(/^([AMDRT])\s+(.+)$/);
+                const match = line?.match(/^([AMDRT])\s+(.+)$/);
                 if (match) {
-                    const status = this.mapGitStatus(match[1]);
+                    const status = this?.mapGitStatus(match[1]);
                     const file = match[2];
                     // Get line changes for this file
-                    const stats = await this.getFileStats(file, 'HEAD');
-                    const patch = await this.getWorkingFilePatch(file);
-                    results.push({
+                    const stats = await this?.getFileStats(file, 'HEAD');
+                    const patch = await this?.getWorkingFilePatch(file);
+                    results?.push({
                         file,
                         status,
                         linesAdded: stats.additions,
@@ -800,9 +800,9 @@ class GitIntegration {
     async getFileStats(file, from) {
         try {
             const { stdout } = await execAsync(`git diff --numstat ${from} -- "${file}"`, { cwd: this.projectPath });
-            if (!stdout.trim())
+            if (!stdout?.trim())
                 return { additions: 0, deletions: 0 };
-            const match = stdout.trim().match(/^(\d+|-)\s+(\d+|-)\s+/);
+            const match = stdout?.trim().match(/^(\d+|-)\s+(\d+|-)\s+/);
             if (match) {
                 const additions = match[1] === '-' ? 0 : parseInt(match[1]);
                 const deletions = match[2] === '-' ? 0 : parseInt(match[2]);
@@ -817,7 +817,7 @@ class GitIntegration {
     async getStagedFiles(projectPath) {
         try {
             const { stdout } = await execAsync('git diff --cached --name-only', { cwd: projectPath });
-            return stdout.trim() ? stdout.trim().split('\n') : [];
+            return stdout?.trim() ? stdout?.trim().split('\n') : [];
         }
         catch (error) {
             return [];

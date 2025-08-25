@@ -30,8 +30,8 @@ class HashUtils {
      */
     static async hashFile(filePath, algorithm = 'sha256') {
         try {
-            const content = await fs_1.promises.readFile(filePath, 'utf8');
-            return this.hash(content, algorithm);
+            const content = await fs_1.promises?.readFile(filePath, 'utf8');
+            return this?.hash(content, algorithm);
         }
         catch (error) {
             throw new Error(`Failed to hash file ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
@@ -43,11 +43,11 @@ class HashUtils {
     static hash(input, algorithm = 'sha256') {
         switch (algorithm) {
             case 'sha256':
-                return this.sha256(input);
+                return this?.sha256(input);
             case 'md5':
-                return this.md5(input);
+                return this?.md5(input);
             case 'sha1':
-                return this.sha1(input);
+                return this?.sha1(input);
             default:
                 throw new Error(`Unsupported hash algorithm: ${algorithm}`);
         }
@@ -62,12 +62,12 @@ class HashUtils {
      * Compare two hashes in a timing-safe manner
      */
     static compareHashes(hash1, hash2) {
-        if (hash1.length !== hash2.length) {
+        if (hash1?.length !== hash2?.length) {
             return false;
         }
         let result = 0;
-        for (let i = 0; i < hash1.length; i++) {
-            result |= hash1.charCodeAt(i) ^ hash2.charCodeAt(i);
+        for (let i = 0; i < hash1?.length; i++) {
+            result |= hash1?.charCodeAt(i) ^ hash2?.charCodeAt(i);
         }
         return result === 0;
     }
@@ -75,15 +75,15 @@ class HashUtils {
      * Generate a short hash for display purposes (first 8 characters)
      */
     static shortHash(input, length = 8) {
-        const fullHash = this.sha256(input);
-        return fullHash.substring(0, length);
+        const fullHash = this?.sha256(input);
+        return fullHash?.substring(0, length);
     }
     /**
      * Generate hash for object (converts to JSON first)
      */
     static hashObject(obj, algorithm = 'sha256') {
         const jsonString = JSON.stringify(obj, Object.keys(obj).sort()); // Sort keys for consistency
-        return this.hash(jsonString, algorithm);
+        return this?.hash(jsonString, algorithm);
     }
     /**
      * Generate content-based hash for code similarity
@@ -97,7 +97,7 @@ class HashUtils {
             .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
             .replace(/\/\/.*$/gm, '') // Remove line comments
             .trim();
-        return this.sha256(normalized);
+        return this?.sha256(normalized);
     }
     /**
      * Generate a deterministic hash for file metadata
@@ -106,9 +106,9 @@ class HashUtils {
         const metadata = {
             path: filePath,
             size,
-            lastModified: lastModified.toISOString()
+            lastModified: lastModified?.toISOString()
         };
-        return this.hashObject(metadata);
+        return this?.hashObject(metadata);
     }
     /**
      * Validate hash format
@@ -120,11 +120,11 @@ class HashUtils {
             md5: 32
         };
         const expectedLength = expectedLengths[algorithm];
-        if (hash.length !== expectedLength) {
+        if (hash?.length !== expectedLength) {
             return false;
         }
         // Check if it contains only valid hex characters
-        return /^[a-f0-9]+$/i.test(hash);
+        return /^[a-f0-9]+$/i?.test(hash);
     }
     /**
      * Generate UUID v4 (for resume tokens, etc.)
@@ -133,7 +133,7 @@ class HashUtils {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             const r = Math.random() * 16 | 0;
             const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
+            return v?.toString(16);
         });
     }
     /**
@@ -141,23 +141,23 @@ class HashUtils {
      */
     static generateToken(length = 32) {
         const bytes = require('crypto').randomBytes(Math.ceil(length / 2));
-        return bytes.toString('hex').slice(0, length);
+        return bytes?.toString('hex').slice(0, length);
     }
     /**
      * Hash multiple inputs together
      */
     static hashMultiple(inputs, algorithm = 'sha256') {
-        const combined = inputs.join('|');
-        return this.hash(combined, algorithm);
+        const combined = inputs?.join('|');
+        return this?.hash(combined, algorithm);
     }
     /**
      * Generate content fingerprint for change detection
      * Includes both content hash and structural information
      */
     static generateFingerprint(content, metadata) {
-        const contentHash = this.sha256(content);
-        const metadataHash = metadata ? this.hashObject(metadata) : '';
-        return this.sha256(`${contentHash}:${metadataHash}`);
+        const contentHash = this?.sha256(content);
+        const metadataHash = metadata ? this?.hashObject(metadata) : '';
+        return this?.sha256(`${contentHash}:${metadataHash}`);
     }
 }
 exports.HashUtils = HashUtils;
