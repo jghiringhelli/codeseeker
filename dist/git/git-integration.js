@@ -42,6 +42,33 @@ const logger_1 = require("../utils/logger");
 const factory_1 = require("../database/factory");
 const change_detector_1 = require("./change-detector");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
+// Simple in-memory store for Git integration when no database is available
+class InMemoryGitStore {
+    commits = new Map();
+    rules = new Map();
+    async query(sql, params) {
+        // Simple mock implementation - in a real scenario you'd implement actual SQL parsing
+        if (sql.includes('INSERT INTO git_commits')) {
+            const id = Date.now().toString();
+            this.commits.set(id, { id, ...params });
+            return [];
+        }
+        else if (sql.includes('SELECT') && sql.includes('git_commits')) {
+            return Array.from(this.commits.values()).slice(0, parseInt(params?.[0] || '10'));
+        }
+        else if (sql.includes('INSERT INTO auto_commit_rules')) {
+            const projectPath = params?.[0] || 'default';
+            this.rules.set(projectPath, {
+                project_path: projectPath,
+                enabled: params?.[1] || false,
+                min_significance_score: params?.[2] || 2.0,
+                requires_compilation: params?.[3] || true
+            });
+            return [];
+        }
+        return [];
+    }
+}
 class GitIntegration {
     logger = logger_1.Logger.getInstance();
     projectPath;
@@ -56,16 +83,23 @@ class GitIntegration {
     }
     async initializeDatabase() {
         try {
-            const config = {
-                type: 'sqlite',
-                database: path.join(this.projectPath, '.codemind', 'git-tracking.db')
-            };
-            this.db = factory_1.DatabaseFactory.create(config, this.logger);
-            await this.db.initialize();
-            await this.createGitTables();
+            // Try to use existing database configuration or create a simple in-memory store
+            const config = factory_1.DatabaseFactory.parseConfigFromEnv();
+            if (config) {
+                this.db = factory_1.DatabaseFactory.create(config, this.logger);
+                await this.db.initialize();
+                await this.createGitTables();
+            }
+            else {
+                // Use a simple in-memory store for Git integration if no database configured
+                this.logger.warn('No database configuration found, using in-memory store for Git integration');
+                this.db = new InMemoryGitStore();
+            }
         }
         catch (error) {
             this.logger.error('Failed to initialize Git integration database', error);
+            // Fall back to in-memory store
+            this.db = new InMemoryGitStore();
         }
     }
     async createGitTables() {
@@ -442,6 +476,15 @@ class GitIntegration {
         }
         return details.length > 0 ? `${message}\n\n${details.join(', ')}` : message;
     }
+    async isGitRepository() {
+        try {
+            await execAsync('git status', { cwd: this.projectPath });
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
     async compilesSuccessfully() {
         try {
             // Check for TypeScript project
@@ -714,28 +757,6 @@ class GitIntegration {
             }
         }
     }
-    async performAutoCommit(significance) {
-        try {
-            if (this.autoCommitRules.requiresCompilation) {
-                const compiles = await this.compilesSuccessfully();
-                if (!compiles) {
-                    this.logger.warn('Skipping auto-commit: compilation failed');
-                    return false;
-                }
-            }
-            // Stage all changes
-            await execAsync('git add .', { cwd: this.projectPath });
-            // Commit with generated message
-            const message = significance.commitMessage || 'Auto-commit: significant changes detected';
-            await execAsync(`git commit -m "${message}"`, { cwd: this.projectPath });
-            this.logger.info('Auto-commit successful');
-            return true;
-        }
-        catch (error) {
-            this.logger.error('Auto-commit failed', error);
-            return false;
-        }
-    }
     async getWorkingDirectoryDiff(projectPath) {
         try {
             const { stdout } = await execAsync('git diff --name-status HEAD', { cwd: projectPath });
@@ -749,7 +770,7 @@ class GitIntegration {
                     const status = this.mapGitStatus(match[1]);
                     const file = match[2];
                     // Get line changes for this file
-                    const stats = await this.getFileStats(file, 'HEAD', 'working-directory');
+                    const stats = await this.getFileStats(file, 'HEAD');
                     const patch = await this.getWorkingFilePatch(file);
                     results.push({
                         file,
@@ -774,6 +795,23 @@ class GitIntegration {
         }
         catch (error) {
             return '';
+        }
+    }
+    async getFileStats(file, from) {
+        try {
+            const { stdout } = await execAsync(`git diff --numstat ${from} -- "${file}"`, { cwd: this.projectPath });
+            if (!stdout.trim())
+                return { additions: 0, deletions: 0 };
+            const match = stdout.trim().match(/^(\d+|-)\s+(\d+|-)\s+/);
+            if (match) {
+                const additions = match[1] === '-' ? 0 : parseInt(match[1]);
+                const deletions = match[2] === '-' ? 0 : parseInt(match[2]);
+                return { additions, deletions };
+            }
+            return { additions: 0, deletions: 0 };
+        }
+        catch (error) {
+            return { additions: 0, deletions: 0 };
         }
     }
     async getStagedFiles(projectPath) {

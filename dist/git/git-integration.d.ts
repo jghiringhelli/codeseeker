@@ -33,6 +33,13 @@ export interface SignificanceFactor {
     impact: number;
     description: string;
 }
+export interface AutoCommitRules {
+    enabled: boolean;
+    minSignificanceScore?: number;
+    requiresCompilation?: boolean;
+    watchPatterns?: string[];
+    maxCommitFrequency?: number;
+}
 export interface CommitAnalysis {
     commit: GitCommitInfo;
     significance: ChangeSignificance;
@@ -64,7 +71,9 @@ export declare class GitIntegration {
     private getFileChanges;
     analyzeChangeSignificance(diff: GitDiffResult[]): Promise<ChangeSignificance>;
     private generateCommitMessage;
+    isGitRepository(): Promise<boolean>;
     compilesSuccessfully(): Promise<boolean>;
+    performAutoCommit(significance: ChangeSignificance): Promise<boolean>;
     recordCommit(commit: GitCommitInfo, significance: ChangeSignificance, autoCommitted?: boolean): Promise<void>;
     updateDatabaseFromGitHistory(): Promise<void>;
     startAutoCommitWatcher(): Promise<void>;
@@ -91,6 +100,7 @@ export declare class GitIntegration {
     private checkForAutoCommit;
     getWorkingDirectoryDiff(projectPath: string): Promise<GitDiffResult[]>;
     private getWorkingFilePatch;
+    private getFileStats;
     getStagedFiles(projectPath: string): Promise<string[]>;
 }
 export default GitIntegration;

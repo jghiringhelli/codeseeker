@@ -20,7 +20,10 @@
       "Bash(docker exec:*)",
       "Bash(docker cp:*)",
       "Bash(./scripts/interactive-setup.sh:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(npx tsx:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": [],
