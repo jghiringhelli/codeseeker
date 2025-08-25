@@ -8,6 +8,10 @@ import { TreeNavigator } from '../features/tree-navigation/navigator';
 import { VectorSearch } from '../features/vector-search/search-engine';
 import { CentralizationDetector } from '../features/centralization/detector';
 import { GitIntegration } from '../git/git-integration';
+import { SemanticKnowledgeGraph } from '../knowledge/graph/knowledge-graph';
+import { SemanticAnalyzer } from '../knowledge/analyzers/semantic-analyzer';
+import { GraphQueryEngine } from '../knowledge/query/graph-query-engine';
+import { SelfImprovementEngine } from '../self-improvement/self-improvement-engine';
 import { Logger } from '../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -23,6 +27,28 @@ const treeNavigator = new TreeNavigator();
 const vectorSearch = new VectorSearch();
 const centralizationDetector = new CentralizationDetector();
 const gitIntegration = new GitIntegration();
+const selfImprovementEngine = new SelfImprovementEngine();
+
+// Initialize knowledge graph components
+let knowledgeGraph: SemanticKnowledgeGraph;
+let semanticAnalyzer: SemanticAnalyzer;
+let queryEngine: GraphQueryEngine;
+
+function initializeKnowledgeGraph(projectPath: string) {
+  if (!knowledgeGraph) {
+    knowledgeGraph = new SemanticKnowledgeGraph(projectPath);
+    queryEngine = new GraphQueryEngine(knowledgeGraph);
+    semanticAnalyzer = new SemanticAnalyzer({
+      projectPath,
+      filePatterns: ['**/*.ts', '**/*.js', '**/*.tsx', '**/*.jsx'],
+      includeTests: true,
+      minConfidence: 0.6,
+      enableSemanticSimilarity: true,
+      enablePatternDetection: true
+    }, knowledgeGraph);
+  }
+  return { knowledgeGraph, semanticAnalyzer, queryEngine };
+}
 
 program
   .name('codemind')
@@ -382,6 +408,447 @@ program
         }
       })
   );
+
+// Knowledge Graph commands
+program
+  .command('knowledge')
+  .description('Knowledge graph operations for semantic code analysis')
+  .addCommand(
+    new Command('analyze')
+      .description('Build semantic knowledge graph from codebase')
+      .option('--project <path>', 'Project path', '.')
+      .option('--include-tests', 'Include test files in analysis', false)
+      .option('--min-confidence <value>', 'Minimum confidence threshold', '0.6')
+      .action(async (options: any) => {
+        try {
+          logger.info('🧠 Building semantic knowledge graph...');
+          
+          const { knowledgeGraph, semanticAnalyzer } = initializeKnowledgeGraph(options.project);
+          
+          const result = await semanticAnalyzer.analyzeProject();
+          
+          console.log('\n🧠 Semantic Knowledge Graph Analysis:');
+          console.log('─'.repeat(50));
+          console.log(`Nodes extracted: ${result.nodesExtracted}`);
+          console.log(`Triads created: ${result.triadsCreated}`);
+          console.log(`Patterns detected: ${result.patterns.length}`);
+          
+          if (result.patterns.length > 0) {
+            console.log('\n📋 Detected Patterns:');
+            result.patterns.forEach((pattern, i) => {
+              console.log(`${i + 1}. ${pattern.name} (${pattern.type}) - ${(pattern.confidence * 100).toFixed(1)}% confidence`);
+              console.log(`   Description: ${pattern.description}`);
+              console.log(`   Affected nodes: ${pattern.nodes.length}`);
+            });
+          }
+          
+          if (result.insights.length > 0) {
+            console.log('\n💡 Analysis Insights:');
+            result.insights.forEach((insight, i) => {
+              console.log(`${i + 1}. ${insight}`);
+            });
+          }
+
+        } catch (error) {
+          logger.error('Failed to analyze knowledge graph', error);
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command('query')
+      .description('Query the knowledge graph')
+      .argument('<query>', 'Query to execute')
+      .option('--type <type>', 'Query type: cypher, semantic, pattern', 'semantic')
+      .option('--limit <number>', 'Limit results', '10')
+      .option('--project <path>', 'Project path', '.')
+      .action(async (query: string, options: any) => {
+        try {
+          logger.info(`🔍 Executing ${options.type} query...`);
+          
+          const { queryEngine } = initializeKnowledgeGraph(options.project);
+          let result: any;
+
+          switch (options.type) {
+            case 'cypher':
+              result = await queryEngine.executeCypher({ query });
+              break;
+            case 'semantic':
+              result = await queryEngine.semanticSearch(query, 'both', parseInt(options.limit));
+              break;
+            case 'pattern':
+              // For pattern queries, we'd need to parse the query into a pattern structure
+              console.log('Pattern queries not yet implemented. Use semantic or cypher queries.');
+              return;
+            default:
+              throw new Error(`Unknown query type: ${options.type}`);
+          }
+
+          console.log('\n🔍 Query Results:');
+          console.log('─'.repeat(50));
+          console.log(`Found ${result.data.length} results in ${result.metadata.executionTime}ms`);
+          console.log(`Nodes traversed: ${result.metadata.nodesTraversed}`);
+          console.log(`Triads examined: ${result.metadata.triadsExamined}`);
+          
+          if (options.type === 'semantic') {
+            result.data.forEach((item: any, i: number) => {
+              console.log(`\n${i + 1}. ${item.item.name || item.item.id} (${(item.similarity * 100).toFixed(1)}% similarity)`);
+              if (item.item.type) {
+                console.log(`   Type: ${item.item.type}`);
+              }
+              if (item.item.sourceLocation) {
+                console.log(`   Location: ${item.item.sourceLocation.filePath}:${item.item.sourceLocation.startLine}`);
+              }
+              if (item.item.metadata?.description) {
+                console.log(`   Description: ${item.item.metadata.description}`);
+              }
+            });
+          } else {
+            result.data.slice(0, parseInt(options.limit)).forEach((item: any, i: number) => {
+              console.log(`${i + 1}. ${JSON.stringify(item, null, 2)}`);
+            });
+          }
+
+        } catch (error) {
+          logger.error('Failed to execute query', error);
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command('path')
+      .description('Find paths between nodes in the knowledge graph')
+      .argument('<from>', 'Source node name or ID')
+      .argument('<to>', 'Target node name or ID')
+      .option('--relations <types>', 'Relationship types to traverse (comma-separated)')
+      .option('--max-depth <number>', 'Maximum path depth', '5')
+      .option('--all-paths', 'Find all paths (not just shortest)', false)
+      .option('--project <path>', 'Project path', '.')
+      .action(async (from: string, to: string, options: any) => {
+        try {
+          logger.info(`🛤️  Finding paths from ${from} to ${to}...`);
+          
+          const { queryEngine } = initializeKnowledgeGraph(options.project);
+          
+          // Find nodes by name first
+          const fromResult = await queryEngine.semanticSearch(from, 'nodes', 1);
+          const toResult = await queryEngine.semanticSearch(to, 'nodes', 1);
+          
+          if (fromResult.data.length === 0) {
+            console.log(`❌ Source node '${from}' not found`);
+            return;
+          }
+          
+          if (toResult.data.length === 0) {
+            console.log(`❌ Target node '${to}' not found`);
+            return;
+          }
+
+          const fromNodeId = (fromResult.data[0].item as any).id;
+          const toNodeId = (toResult.data[0].item as any).id;
+          const relationTypes = options.relations ? options.relations.split(',') : undefined;
+          const maxDepth = parseInt(options.maxDepth);
+
+          const result = options.allPaths 
+            ? await queryEngine.findAllPaths(fromNodeId, toNodeId, relationTypes, maxDepth, 10)
+            : await queryEngine.findShortestPath(fromNodeId, toNodeId, relationTypes, maxDepth);
+
+          console.log('\n🛤️  Path Analysis:');
+          console.log('─'.repeat(50));
+          
+          if (options.allPaths) {
+            console.log(`Found ${result.data.length} paths`);
+            result.data.forEach((path: any, i: number) => {
+              console.log(`\nPath ${i + 1} (confidence: ${(path.confidence * 100).toFixed(1)}%):`);
+              path.path.forEach((node: any, nodeIndex: number) => {
+                console.log(`  ${nodeIndex + 1}. ${node.name} (${node.type})`);
+                if (nodeIndex < path.relationships.length) {
+                  const rel = path.relationships[nodeIndex];
+                  console.log(`     --[${rel.predicate}]-->`);
+                }
+              });
+            });
+          } else if (result.data) {
+            console.log(`Shortest path found (confidence: ${(result.data.confidence * 100).toFixed(1)}%):`);
+            result.data.path.forEach((node: any, i: number) => {
+              console.log(`${i + 1}. ${node.name} (${node.type})`);
+              if (i < result.data.relationships.length) {
+                const rel = result.data.relationships[i];
+                console.log(`   --[${rel.predicate}]-->`);
+              }
+            });
+            console.log(`\nTotal weight: ${result.data.totalWeight.toFixed(2)}`);
+          } else {
+            console.log('❌ No path found between the specified nodes');
+          }
+          
+          console.log(`\nQuery took ${result.metadata.executionTime}ms`);
+
+        } catch (error) {
+          logger.error('Failed to find paths', error);
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command('insights')
+      .description('Get architectural insights from the knowledge graph')
+      .option('--type <types>', 'Insight types: patterns, communities, centrality', 'patterns')
+      .option('--project <path>', 'Project path', '.')
+      .action(async (options: any) => {
+        try {
+          logger.info('🔬 Analyzing knowledge graph for insights...');
+          
+          const { knowledgeGraph, queryEngine } = initializeKnowledgeGraph(options.project);
+          
+          console.log('\n🔬 Knowledge Graph Insights:');
+          console.log('─'.repeat(50));
+
+          const insightTypes = options.type.split(',');
+
+          if (insightTypes.includes('patterns')) {
+            const insights = await knowledgeGraph.detectArchitecturalInsights();
+            
+            console.log('\n📐 Architectural Insights:');
+            insights.forEach((insight, i) => {
+              console.log(`${i + 1}. ${insight.description} (${(insight.confidence * 100).toFixed(1)}% confidence)`);
+              console.log(`   Type: ${insight.type}`);
+              console.log(`   Affected nodes: ${insight.affectedNodes.length}`);
+              if (insight.recommendations.length > 0) {
+                console.log(`   Recommendations:`);
+                insight.recommendations.forEach(rec => {
+                  console.log(`   - ${rec}`);
+                });
+              }
+            });
+          }
+
+          if (insightTypes.includes('communities')) {
+            const communities = await queryEngine.findCommunities();
+            
+            console.log('\n🏘️  Semantic Communities:');
+            communities.data.forEach((community, i) => {
+              console.log(`${i + 1}. ${community.name} (${community.nodes.length} nodes)`);
+              console.log(`   Coherence: ${(community.coherenceScore * 100).toFixed(1)}%`);
+              console.log(`   Representative triads: ${community.representativeTriads.length}`);
+              if (community.description) {
+                console.log(`   Description: ${community.description}`);
+              }
+            });
+          }
+
+          if (insightTypes.includes('centrality')) {
+            // Analyze centrality for most important nodes
+            const allNodes = await knowledgeGraph.queryNodes({ limit: 10 });
+            
+            console.log('\n📊 Node Centrality Analysis:');
+            for (const node of allNodes) {
+              const centrality = await queryEngine.analyzeNodeCentrality(node.id);
+              console.log(`\n${node.name} (${node.type}):`);
+              console.log(`  Betweenness: ${(centrality.data.betweennessCentrality * 100).toFixed(1)}%`);
+              console.log(`  Closeness: ${(centrality.data.closenessCentrality * 100).toFixed(1)}%`);
+              console.log(`  Degree: ${(centrality.data.degreeCentrality * 100).toFixed(1)}%`);
+              console.log(`  Eigenvector: ${(centrality.data.eigenvectorCentrality * 100).toFixed(1)}%`);
+            }
+          }
+
+        } catch (error) {
+          logger.error('Failed to analyze insights', error);
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command('export')
+      .description('Export knowledge graph data')
+      .option('--format <format>', 'Export format: json, graphml, cypher', 'json')
+      .option('--output <file>', 'Output file path')
+      .option('--project <path>', 'Project path', '.')
+      .action(async (options: any) => {
+        try {
+          logger.info(`📤 Exporting knowledge graph in ${options.format} format...`);
+          
+          const { knowledgeGraph } = initializeKnowledgeGraph(options.project);
+          
+          const graphData = await knowledgeGraph.exportGraph();
+          
+          let exportData: string;
+          let defaultFilename: string;
+
+          switch (options.format) {
+            case 'json':
+              exportData = JSON.stringify(graphData, null, 2);
+              defaultFilename = 'knowledge-graph.json';
+              break;
+            case 'graphml':
+              exportData = await this.convertToGraphML(graphData);
+              defaultFilename = 'knowledge-graph.graphml';
+              break;
+            case 'cypher':
+              exportData = await this.convertToCypher(graphData);
+              defaultFilename = 'knowledge-graph.cypher';
+              break;
+            default:
+              throw new Error(`Unsupported export format: ${options.format}`);
+          }
+
+          const outputPath = options.output || defaultFilename;
+          await fs.writeFile(outputPath, exportData, 'utf-8');
+          
+          console.log(`✅ Knowledge graph exported to ${outputPath}`);
+          console.log(`   Nodes: ${graphData.nodes.length}`);
+          console.log(`   Triads: ${graphData.triads.length}`);
+          console.log(`   Size: ${(exportData.length / 1024).toFixed(2)} KB`);
+
+        } catch (error) {
+          logger.error('Failed to export knowledge graph', error);
+          process.exit(1);
+        }
+      })
+  );
+
+// Self-improvement commands
+program
+  .command('self-improve')
+  .description('Run self-improvement analysis on CodeMind codebase')
+  .option('--apply', 'Apply identified improvements', false)
+  .option('--report', 'Generate detailed report', true)
+  .option('--project <path>', 'CodeMind project path', '.')
+  .action(async (options: any) => {
+    try {
+      logger.info('🔄 Running self-improvement analysis...');
+      
+      const engine = new SelfImprovementEngine(options.project);
+      const report = await engine.runSelfImprovement();
+      
+      console.log('\n🎯 Self-Improvement Report:');
+      console.log('─'.repeat(50));
+      console.log(`Analysis Date: ${report.timestamp.toISOString()}`);
+      console.log(`Total Improvements: ${report.improvements.length}`);
+      
+      // Group by type
+      const byType = report.improvements.reduce((acc, imp) => {
+        acc[imp.type] = (acc[imp.type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      console.log('\n📊 Improvement Categories:');
+      for (const [type, count] of Object.entries(byType)) {
+        console.log(`  ${type.replace('_', ' ')}: ${count}`);
+      }
+      
+      // High priority items
+      const highPriority = report.improvements.filter(i => i.benefit > 7);
+      if (highPriority.length > 0) {
+        console.log('\n🔥 High Priority Improvements:');
+        highPriority.forEach((imp, i) => {
+          console.log(`${i + 1}. ${imp.description} (benefit: ${imp.benefit})`);
+          console.log(`   Target: ${imp.target}`);
+          console.log(`   Suggestion: ${imp.suggestion}`);
+        });
+      }
+      
+      // Recommendations
+      if (report.recommendations.length > 0) {
+        console.log('\n💡 Recommendations:');
+        report.recommendations.forEach((rec, i) => {
+          console.log(`${i + 1}. ${rec}`);
+        });
+      }
+      
+      // Metrics comparison
+      console.log('\n📈 Impact Metrics:');
+      console.log(`Before: ${report.metrics.before.totalDuplications || 0} duplications, ${report.metrics.before.circularDependencies || 0} circular deps`);
+      console.log(`After:  ${report.metrics.after.totalDuplications || 0} duplications, ${report.metrics.after.circularDependencies || 0} circular deps`);
+      
+      if (options.apply) {
+        console.log('\n🚀 Applying improvements...');
+        // In a real scenario, you'd selectively apply improvements
+        // For now, just mark them as ready for manual application
+        console.log('Manual application required. Review suggestions above.');
+      }
+      
+      engine.close();
+      
+    } catch (error) {
+      logger.error('Self-improvement failed', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('dogfood')
+  .alias('df')
+  .description('Use CodeMind tools on CodeMind itself (dogfooding)')
+  .option('--feature <feature>', 'Specific feature to dogfood: duplicates|tree|search|centralize', 'all')
+  .option('--project <path>', 'CodeMind project path', '.')
+  .action(async (options: any) => {
+    try {
+      const projectPath = options.project;
+      
+      switch (options.feature) {
+        case 'duplicates':
+        case 'all':
+          console.log('🔍 Finding duplicates in CodeMind codebase...');
+          const duplicates = await duplicationDetector.findDuplicates({
+            projectPath,
+            includeSemantic: true,
+            similarityThreshold: 0.8,
+            includeRefactoringSuggestions: true,
+            filePatterns: ['src/**/*.ts'],
+            excludePatterns: ['**/node_modules/**', '**/dist/**']
+          });
+          console.log(`Found ${duplicates.duplicates.length} duplication groups`);
+          
+          if (options.feature !== 'all') break;
+          
+        case 'tree':
+          console.log('🌳 Analyzing CodeMind dependency tree...');
+          const tree = await treeNavigator.buildDependencyTree({
+            projectPath,
+            filePattern: 'src/**/*.ts',
+            showDependencies: true,
+            circularOnly: false
+          });
+          console.log(`Tree has ${tree.nodes.size} nodes and ${tree.circularDependencies.length} circular dependencies`);
+          
+          if (options.feature !== 'all') break;
+          
+        case 'search':
+          console.log('🔎 Testing semantic search on CodeMind...');
+          const searchResults = await vectorSearch.search({
+            query: 'AST analysis',
+            projectPath,
+            limit: 5,
+            crossProject: false,
+            useSemanticSearch: true
+          });
+          console.log(`Found ${searchResults.matches.length} semantic matches`);
+          
+          if (options.feature !== 'all') break;
+          
+        case 'centralize':
+          console.log('🎯 Finding centralization opportunities in CodeMind...');
+          const centralization = await centralizationDetector.scanProject({
+            projectPath,
+            includeMigrationPlan: true,
+            includeRiskAssessment: true
+          });
+          console.log(`Found ${centralization.opportunities.length} centralization opportunities`);
+          break;
+          
+        default:
+          console.log('❌ Unknown feature. Use: duplicates, tree, search, centralize, or all');
+          return;
+      }
+      
+      console.log('✅ Dogfooding complete. CodeMind has been analyzed by CodeMind!');
+      
+    } catch (error) {
+      logger.error('Dogfooding failed', error);
+      process.exit(1);
+    }
+  });
 
 // Global options
 program.option('-v, --verbose', 'Verbose logging', false);
