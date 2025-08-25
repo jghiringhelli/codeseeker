@@ -16,13 +16,13 @@ import { Logger } from '../../utils/logger';
  * - Self-improvement tracking
  */
 export class Phase2Migration {
-  private logger = Logger.getInstance();
+  private logger = Logger?.getInstance();
   private db: Database.Database;
 
   constructor(databasePath: string) {
     this.db = new Database(databasePath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('foreign_keys = ON');
+    this.db?.pragma('journal_mode = WAL');
+    this.db?.pragma('foreign_keys = ON');
   }
 
   async up(): Promise<void> {
@@ -30,27 +30,27 @@ export class Phase2Migration {
     
     try {
       // Read the schema file
-      const schemaPath = path.join(__dirname, '..', 'schema-phase2.sql');
-      const schemaSql = await fs.readFile(schemaPath, 'utf-8');
+      const schemaPath = path?.join(__dirname, '..', 'schema-phase2.sql');
+      const schemaSql = await fs?.readFile(schemaPath, 'utf-8');
       
       // Split by statements (simple approach - may need refinement for complex SQL)
       const statements = schemaSql
         .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'));
+        .map(s => s?.trim())
+        .filter(s => s?.length > 0 && !s?.startsWith('--'));
       
       // Execute each statement in a transaction
-      const transaction = this.db.transaction((statements: string[]) => {
+      const transaction = this.db?.transaction((statements: string[]) => {
         for (const statement of statements) {
           try {
-            this.db.prepare(statement + ';').run();
-            this.logger.debug(`Executed: ${statement.substring(0, 50)}...`);
+            this.db?.prepare(statement + ';').run();
+            this.logger.debug(`Executed: ${statement?.substring(0, 50)}...`);
           } catch (error) {
             // Check if it's a "already exists" error and continue
-            if (error instanceof Error && error.message.includes('already exists')) {
-              this.logger.debug(`Table/index already exists, skipping: ${statement.substring(0, 50)}...`);
+            if (error instanceof Error && error.message?.includes('already exists')) {
+              this.logger.debug(`Table/index already exists, skipping: ${statement?.substring(0, 50)}...`);
             } else {
-              throw error;
+              throw error as Error;
             }
           }
         }
@@ -59,15 +59,15 @@ export class Phase2Migration {
       transaction(statements);
       
       // Verify migration
-      const tables = this.verifyTables();
-      this.logger.info(`Phase 2 migration completed. Created/verified ${tables.length} tables.`);
+      const tables = this?.verifyTables();
+      this.logger.info(`Phase 2 migration completed. Created/verified ${tables?.length} tables.`);
       
       // Record migration
-      this.recordMigration();
+      this?.recordMigration();
       
     } catch (error) {
       this.logger.error('Phase 2 migration failed', error as Error);
-      throw error;
+      throw error as Error;
     }
   }
 
@@ -92,11 +92,11 @@ export class Phase2Migration {
       'self_improvement_progress'
     ];
     
-    const transaction = this.db.transaction(() => {
+    const transaction = this.db?.transaction(() => {
       // Drop views first
       for (const view of views) {
         try {
-          this.db.prepare(`DROP VIEW IF EXISTS ${view}`).run();
+          this.db?.prepare(`DROP VIEW IF EXISTS ${view}`).run();
           this.logger.debug(`Dropped view: ${view}`);
         } catch (error) {
           this.logger.warn(`Failed to drop view ${view}:`, error as Error);
@@ -106,7 +106,7 @@ export class Phase2Migration {
       // Drop tables
       for (const table of tables) {
         try {
-          this.db.prepare(`DROP TABLE IF EXISTS ${table}`).run();
+          this.db?.prepare(`DROP TABLE IF EXISTS ${table}`).run();
           this.logger.debug(`Dropped table: ${table}`);
         } catch (error) {
           this.logger.warn(`Failed to drop table ${table}:`, error as Error);
@@ -133,11 +133,11 @@ export class Phase2Migration {
       'self_improvement'
     ];
     
-    const existingTables = tables.map(t => t.name);
-    const missingTables = phase2Tables.filter(t => !existingTables.includes(t));
+    const existingTables = tables?.map(t => t.name);
+    const missingTables = phase2Tables?.filter(t => !existingTables?.includes(t));
     
-    if (missingTables.length > 0) {
-      throw new Error(`Missing tables after migration: ${missingTables.join(', ')}`);
+    if (missingTables?.length > 0) {
+      throw new Error(`Missing tables after migration: ${missingTables?.join(', ')}`);
     }
     
     return phase2Tables;
@@ -145,7 +145,7 @@ export class Phase2Migration {
 
   private recordMigration(): void {
     // Create migrations table if it doesn't exist
-    this.db.prepare(`
+    this.db?.prepare(`
       CREATE TABLE IF NOT EXISTS migrations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
@@ -155,7 +155,7 @@ export class Phase2Migration {
     
     // Record this migration
     try {
-      this.db.prepare(`
+      this.db?.prepare(`
         INSERT INTO migrations (name) VALUES (?)
       `).run('002_phase2_features');
     } catch (error) {
@@ -165,35 +165,35 @@ export class Phase2Migration {
   }
 
   close(): void {
-    this.db.close();
+    this.db?.close();
   }
 }
 
 // CLI interface for running migration
-if (require.main === module) {
-  const args = process.argv.slice(2);
+if (require?.main === module) {
+  const args = process.argv?.slice(2);
   const command = args[0];
-  const dbPath = args[1] || path.join(process.cwd(), 'codemind.db');
+  const dbPath = args[1] || path?.join(process?.cwd(), 'codemind.db');
   
   const migration = new Phase2Migration(dbPath);
   
   (async () => {
     try {
       if (command === 'up') {
-        await migration.up();
-        console.log('✅ Phase 2 migration applied successfully');
+        await migration?.up();
+        console?.log('✅ Phase 2 migration applied successfully');
       } else if (command === 'down') {
-        await migration.down();
-        console.log('✅ Phase 2 migration rolled back successfully');
+        await migration?.down();
+        console?.log('✅ Phase 2 migration rolled back successfully');
       } else {
-        console.log('Usage: ts-node 002_phase2_features.ts [up|down] [database_path]');
-        process.exit(1);
+        console?.log('Usage: ts-node 002_phase2_features.ts [up|down] [database_path]');
+        process?.exit(1);
       }
     } catch (error) {
-      console.error('❌ Migration failed:', error);
-      process.exit(1);
+      console?.error('❌ Migration failed:', error);
+      process?.exit(1);
     } finally {
-      migration.close();
+      migration?.close();
     }
   })();
 }

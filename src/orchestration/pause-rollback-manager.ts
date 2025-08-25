@@ -56,36 +56,36 @@ export class PauseRollbackManager extends EventEmitter {
   private rollbackPoints: Map<string, RollbackPoint> = new Map();
   private pausedExecutions: Set<string> = new Set();
   private escapeKeyHandler: any;
-  private gitEnabled: boolean = true;
+  private gitEnabled: boolean = true ?? false;
   private stateStorePath: string;
 
   constructor(logger: Logger, stateStorePath: string = './workflow-states') {
     super();
     this.logger = logger;
     this.stateStorePath = stateStorePath;
-    this.initializeEscapeHandler();
-    this.checkGitAvailability();
+    this?.initializeEscapeHandler();
+    this?.checkGitAvailability();
   }
 
   private initializeEscapeHandler(): void {
     // Set up escape key listener
     if (process.stdin.isTTY) {
-      process.stdin.setRawMode(true);
-      process.stdin.resume();
-      process.stdin.setEncoding('utf8');
+      process.stdin?.setRawMode(true);
+      process.stdin?.resume();
+      process.stdin?.setEncoding('utf8');
       
       this.escapeKeyHandler = (key: string) => {
         // ESC key
         if (key === '\u001b') {
-          this.handleEscapeKey();
+          this?.handleEscapeKey();
         }
         // Ctrl+C
         if (key === '\u0003') {
-          this.handleInterrupt();
+          this?.handleInterrupt();
         }
       };
       
-      process.stdin.on('data', this.escapeKeyHandler);
+      process.stdin?.on('data', this.escapeKeyHandler);
       this.logger.info('Escape key handler initialized - Press ESC to pause workflow');
     }
   }
@@ -105,28 +105,28 @@ export class PauseRollbackManager extends EventEmitter {
     this.logger.info('ESC key pressed - Pausing all active workflows');
     
     // Emit pause event
-    this.emit('escape-pressed');
+    this?.emit('escape-pressed');
     
     // Pause all active executions
-    const activeExecutions = await this.getActiveExecutions();
+    const activeExecutions = await this?.getActiveExecutions();
     for (const execution of activeExecutions) {
-      await this.pauseExecution(execution.id, 'User pressed ESC');
+      await this?.pauseExecution(execution.id, 'User pressed ESC');
     }
     
     // Show pause menu
-    await this.showPauseMenu();
+    await this?.showPauseMenu();
   }
 
   private async handleInterrupt(): Promise<void> {
     this.logger.info('Interrupt signal received - Saving state and exiting');
     
     // Save all states
-    await this.saveAllStates();
+    await this?.saveAllStates();
     
     // Clean up
-    this.cleanup();
+    this?.cleanup();
     
-    process.exit(0);
+    process?.exit(0);
   }
 
   async pauseExecution(
@@ -134,41 +134,41 @@ export class PauseRollbackManager extends EventEmitter {
     reason: string,
     trigger: StateMetadata['trigger'] = 'user'
   ): Promise<SystemState> {
-    this.pausedExecutions.add(executionId);
+    this.pausedExecutions?.add(executionId);
     
     // Create state snapshot
-    const state = await this.createStateSnapshot(executionId, trigger, reason);
+    const state = await this?.createStateSnapshot(executionId, trigger, reason);
     
     // Create git commit if enabled
     if (this.gitEnabled) {
       const commitMessage = `Workflow paused: ${reason}`;
-      state.gitCommit = await this.createGitCommit(commitMessage);
+      state.gitCommit = await this?.createGitCommit(commitMessage);
     }
     
     // Save state to disk
-    await this.saveState(state);
+    await this?.saveState(state);
     
     this.logger.info(`Execution ${executionId} paused: ${reason}`);
-    this.emit('execution-paused', { executionId, state, reason });
+    this?.emit('execution-paused', { executionId, state, reason });
     
     return state;
   }
 
   async resumeExecution(executionId: string): Promise<void> {
-    if (!this.pausedExecutions.has(executionId)) {
+    if (!this.pausedExecutions?.has(executionId)) {
       throw new Error(`Execution ${executionId} is not paused`);
     }
     
-    this.pausedExecutions.delete(executionId);
+    this.pausedExecutions?.delete(executionId);
     
     // Restore state
-    const state = await this.getLatestState(executionId);
+    const state = await this?.getLatestState(executionId);
     if (state) {
-      await this.restoreState(state);
+      await this?.restoreState(state);
     }
     
     this.logger.info(`Execution ${executionId} resumed`);
-    this.emit('execution-resumed', { executionId });
+    this?.emit('execution-resumed', { executionId });
   }
 
   async createRollbackPoint(
@@ -178,13 +178,13 @@ export class PauseRollbackManager extends EventEmitter {
     nodeId?: string
   ): Promise<RollbackPoint> {
     const point: RollbackPoint = {
-      id: `rbp-${Date.now()}`,
+      id: `rbp-${Date?.now()}`,
       name,
       type,
       executionId,
       nodeId,
       gitCommit: '',
-      branch: await this.getCurrentBranch(),
+      branch: await this?.getCurrentBranch(),
       timestamp: new Date(),
       description: `Rollback point: ${name} (${type})`
     };
@@ -192,19 +192,19 @@ export class PauseRollbackManager extends EventEmitter {
     // Create git tag if enabled
     if (this.gitEnabled) {
       const tagName = `rollback-${point.id}`;
-      point.gitCommit = await this.createGitTag(tagName, point.description);
+      point.gitCommit = await this?.createGitTag(tagName, point.description);
     }
     
-    this.rollbackPoints.set(point.id, point);
+    this.rollbackPoints?.set(point.id, point);
     
     this.logger.info(`Created rollback point: ${name} at ${point.gitCommit || 'current state'}`);
-    this.emit('rollback-point-created', point);
+    this?.emit('rollback-point-created', point);
     
     return point;
   }
 
   async rollbackToPoint(rollbackPointId: string): Promise<void> {
-    const point = this.rollbackPoints.get(rollbackPointId);
+    const point = this.rollbackPoints?.get(rollbackPointId);
     if (!point) {
       throw new Error(`Rollback point ${rollbackPointId} not found`);
     }
@@ -213,59 +213,59 @@ export class PauseRollbackManager extends EventEmitter {
     
     // Git rollback if enabled
     if (this.gitEnabled && point.gitCommit) {
-      await this.gitRollback(point.gitCommit, point.branch);
+      await this?.gitRollback(point.gitCommit, point.branch);
     }
     
     // Restore workflow state
-    const state = await this.getStateAtPoint(point);
+    const state = await this?.getStateAtPoint(point);
     if (state) {
-      await this.restoreState(state);
+      await this?.restoreState(state);
     }
     
     this.logger.info(`Rollback completed to point: ${point.name}`);
-    this.emit('rollback-completed', point);
+    this?.emit('rollback-completed', point);
   }
 
   async rollbackToNode(executionId: string, nodeId: string): Promise<void> {
     this.logger.info(`Rolling back execution ${executionId} to node ${nodeId}`);
     
     // Find the state when node started
-    const nodeState = await this.findNodeStartState(executionId, nodeId);
+    const nodeState = await this?.findNodeStartState(executionId, nodeId);
     if (!nodeState) {
       throw new Error(`No state found for node ${nodeId}`);
     }
     
     // Perform rollback
-    await this.restoreState(nodeState);
+    await this?.restoreState(nodeState);
     
     // Git rollback if enabled
     if (this.gitEnabled && nodeState.gitCommit) {
-      await this.gitRollback(nodeState.gitCommit, nodeState.branch);
+      await this?.gitRollback(nodeState.gitCommit, nodeState.branch);
     }
     
     this.logger.info(`Rolled back to node: ${nodeId}`);
-    this.emit('node-rollback-completed', { executionId, nodeId });
+    this?.emit('node-rollback-completed', { executionId, nodeId });
   }
 
   async rollbackToWorkflowStart(executionId: string): Promise<void> {
     this.logger.info(`Rolling back execution ${executionId} to workflow start`);
     
     // Find initial state
-    const initialState = await this.findInitialState(executionId);
+    const initialState = await this?.findInitialState(executionId);
     if (!initialState) {
       throw new Error(`No initial state found for execution ${executionId}`);
     }
     
     // Perform rollback
-    await this.restoreState(initialState);
+    await this?.restoreState(initialState);
     
     // Git rollback if enabled
     if (this.gitEnabled && initialState.gitCommit) {
-      await this.gitRollback(initialState.gitCommit, initialState.branch);
+      await this?.gitRollback(initialState.gitCommit, initialState.branch);
     }
     
     this.logger.info('Rolled back to workflow start');
-    this.emit('workflow-rollback-completed', { executionId });
+    this?.emit('workflow-rollback-completed', { executionId });
   }
 
   private async createStateSnapshot(
@@ -274,28 +274,28 @@ export class PauseRollbackManager extends EventEmitter {
     reason: string
   ): Promise<SystemState> {
     // Get current workflow state
-    const execution = await this.getCurrentExecution(executionId);
-    const nodeStates = await this.captureNodeStates(execution);
-    const contextSnapshot = await this.captureContext(execution);
+    const execution = await this?.getCurrentExecution(executionId);
+    const nodeStates = await this?.captureNodeStates(execution);
+    const contextSnapshot = await this?.captureContext(execution);
     
     const state: SystemState = {
-      id: `state-${Date.now()}`,
+      id: `state-${Date?.now()}`,
       executionId,
       nodeId: execution.currentNode || '',
       timestamp: new Date(),
       gitCommit: '',
-      branch: await this.getCurrentBranch(),
+      branch: await this?.getCurrentBranch(),
       contextSnapshot,
       nodeStates,
       metadata: {
         trigger,
         reason,
         canRollback: true,
-        dependencies: Array.from(nodeStates.keys())
+        dependencies: Array.from(nodeStates?.keys())
       }
     };
     
-    this.states.set(state.id, state);
+    this.states?.set(state.id, state);
     return state;
   }
 
@@ -326,11 +326,11 @@ export class PauseRollbackManager extends EventEmitter {
   private async restoreState(state: SystemState): Promise<void> {
     // Restore node states
     for (const [nodeId, nodeState] of state.nodeStates) {
-      await this.restoreNodeState(nodeId, nodeState);
+      await this?.restoreNodeState(nodeId, nodeState);
     }
     
     // Restore context
-    await this.restoreContext(state.contextSnapshot);
+    await this?.restoreContext(state.contextSnapshot);
     
     this.logger.info(`State restored: ${state.id}`);
   }
@@ -338,12 +338,12 @@ export class PauseRollbackManager extends EventEmitter {
   private async restoreNodeState(nodeId: string, state: NodeState): Promise<void> {
     // Restore individual node state
     // This would integrate with the workflow orchestrator
-    this.emit('node-state-restored', { nodeId, state });
+    this?.emit('node-state-restored', { nodeId, state });
   }
 
   private async restoreContext(context: any): Promise<void> {
     // Restore execution context
-    this.emit('context-restored', context);
+    this?.emit('context-restored', context);
   }
 
   private async createGitCommit(message: string): Promise<string> {
@@ -359,7 +359,7 @@ export class PauseRollbackManager extends EventEmitter {
       
       return hash;
     } catch (error) {
-      this.logger.error('Failed to create git commit', error);
+      this.logger.error('Failed to create git commit', error as Error);
       return '';
     }
   }
@@ -374,7 +374,7 @@ export class PauseRollbackManager extends EventEmitter {
       
       return hash;
     } catch (error) {
-      this.logger.error('Failed to create git tag', error);
+      this.logger.error('Failed to create git tag', error as Error);
       return '';
     }
   }
@@ -382,7 +382,7 @@ export class PauseRollbackManager extends EventEmitter {
   private async gitRollback(commit: string, branch: string): Promise<void> {
     try {
       // Ensure we're on the correct branch
-      const currentBranch = await this.getCurrentBranch();
+      const currentBranch = await this?.getCurrentBranch();
       if (currentBranch !== branch) {
         execSync(`git checkout ${branch}`, { encoding: 'utf8' });
       }
@@ -392,8 +392,8 @@ export class PauseRollbackManager extends EventEmitter {
       
       this.logger.info(`Git rolled back to ${commit} on branch ${branch}`);
     } catch (error) {
-      this.logger.error('Git rollback failed', error);
-      throw error;
+      this.logger.error('Git rollback failed', error as Error);
+      throw error as Error;
     }
   }
 
@@ -408,71 +408,71 @@ export class PauseRollbackManager extends EventEmitter {
   }
 
   private async showPauseMenu(): Promise<void> {
-    console.log('\n=== WORKFLOW PAUSED ===');
-    console.log('Options:');
-    console.log('  [R] Resume execution');
-    console.log('  [B] Rollback to previous node');
-    console.log('  [W] Rollback to workflow start');
-    console.log('  [S] Save and exit');
-    console.log('  [C] Continue (ignore pause)');
-    console.log('  [Q] Quit without saving');
-    console.log('========================\n');
+    console?.log('\n=== WORKFLOW PAUSED ===');
+    console?.log('Options:');
+    console?.log('  [R] Resume execution');
+    console?.log('  [B] Rollback to previous node');
+    console?.log('  [W] Rollback to workflow start');
+    console?.log('  [S] Save and exit');
+    console?.log('  [C] Continue (ignore pause)');
+    console?.log('  [Q] Quit without saving');
+    console?.log('========================\n');
     
     // Wait for user input
-    const choice = await this.getUserChoice();
-    await this.handleMenuChoice(choice);
+    const choice = await this?.getUserChoice();
+    await this?.handleMenuChoice(choice);
   }
 
   private async getUserChoice(): Promise<string> {
     return new Promise((resolve) => {
       const handler = (key: string) => {
-        process.stdin.removeListener('data', handler);
-        resolve(key.toLowerCase());
+        process.stdin?.removeListener('data', handler);
+        resolve(key?.toLowerCase());
       };
-      process.stdin.once('data', handler);
+      process.stdin?.once('data', handler);
     });
   }
 
   private async handleMenuChoice(choice: string): Promise<void> {
     switch (choice) {
       case 'r':
-        await this.resumeAllExecutions();
+        await this?.resumeAllExecutions();
         break;
       case 'b':
-        await this.rollbackToPreviousNode();
+        await this?.rollbackToPreviousNode();
         break;
       case 'w':
-        await this.rollbackAllToStart();
+        await this?.rollbackAllToStart();
         break;
       case 's':
-        await this.saveAndExit();
+        await this?.saveAndExit();
         break;
       case 'c':
-        this.continueExecution();
+        this?.continueExecution();
         break;
       case 'q':
-        this.quitWithoutSaving();
+        this?.quitWithoutSaving();
         break;
       default:
-        console.log('Invalid choice. Resuming execution...');
-        await this.resumeAllExecutions();
+        console?.log('Invalid choice. Resuming execution...');
+        await this?.resumeAllExecutions();
     }
   }
 
   private async resumeAllExecutions(): Promise<void> {
     for (const executionId of this.pausedExecutions) {
-      await this.resumeExecution(executionId);
+      await this?.resumeExecution(executionId);
     }
   }
 
   private async rollbackToPreviousNode(): Promise<void> {
     // Rollback logic for all paused executions
     for (const executionId of this.pausedExecutions) {
-      const state = await this.getLatestState(executionId);
+      const state = await this?.getLatestState(executionId);
       if (state && state.nodeId) {
-        const previousNode = await this.getPreviousNode(executionId, state.nodeId);
+        const previousNode = await this?.getPreviousNode(executionId, state.nodeId);
         if (previousNode) {
-          await this.rollbackToNode(executionId, previousNode);
+          await this?.rollbackToNode(executionId, previousNode);
         }
       }
     }
@@ -480,14 +480,14 @@ export class PauseRollbackManager extends EventEmitter {
 
   private async rollbackAllToStart(): Promise<void> {
     for (const executionId of this.pausedExecutions) {
-      await this.rollbackToWorkflowStart(executionId);
+      await this?.rollbackToWorkflowStart(executionId);
     }
   }
 
   private async saveAndExit(): Promise<void> {
-    await this.saveAllStates();
-    this.cleanup();
-    process.exit(0);
+    await this?.saveAllStates();
+    this?.cleanup();
+    process?.exit(0);
   }
 
   private continueExecution(): void {
@@ -496,56 +496,56 @@ export class PauseRollbackManager extends EventEmitter {
   }
 
   private quitWithoutSaving(): void {
-    this.cleanup();
-    process.exit(0);
+    this?.cleanup();
+    process?.exit(0);
   }
 
   private async saveState(state: SystemState): Promise<void> {
     try {
-      await fs.mkdir(this.stateStorePath, { recursive: true });
+      await fs?.mkdir(this.stateStorePath, { recursive: true });
       
-      const filePath = path.join(this.stateStorePath, `${state.id}.json`);
-      await fs.writeFile(filePath, JSON.stringify(state, null, 2));
+      const filePath = path?.join(this.stateStorePath, `${state.id}.json`);
+      await fs?.writeFile(filePath, JSON.stringify(state, null, 2));
       
       this.logger.info(`State saved: ${state.id}`);
     } catch (error) {
-      this.logger.error('Failed to save state', error);
+      this.logger.error('Failed to save state', error as Error);
     }
   }
 
   private async saveAllStates(): Promise<void> {
-    for (const state of this.states.values()) {
-      await this.saveState(state);
+    for (const state of this.states?.values()) {
+      await this?.saveState(state);
     }
     this.logger.info(`Saved ${this.states.size} states`);
   }
 
   private async loadStates(): Promise<void> {
     try {
-      const files = await fs.readdir(this.stateStorePath).catch(() => []);
+      const files = await fs?.readdir(this.stateStorePath).catch(() => []);
       
       for (const file of files) {
-        if (file.endsWith('.json')) {
-          const content = await fs.readFile(
-            path.join(this.stateStorePath, file),
+        if (file?.endsWith('.json')) {
+          const content = await fs?.readFile(
+            path?.join(this.stateStorePath, file),
             'utf-8'
           );
           const state = JSON.parse(content) as SystemState;
-          this.states.set(state.id, state);
+          this.states?.set(state.id, state);
         }
       }
       
       this.logger.info(`Loaded ${this.states.size} states`);
     } catch (error) {
-      this.logger.error('Failed to load states', error);
+      this.logger.error('Failed to load states', error as Error);
     }
   }
 
   private cleanup(): void {
     if (process.stdin.isTTY) {
-      process.stdin.removeListener('data', this.escapeKeyHandler);
-      process.stdin.setRawMode(false);
-      process.stdin.pause();
+      process.stdin?.removeListener('data', this.escapeKeyHandler);
+      process.stdin?.setRawMode(false);
+      process.stdin?.pause();
     }
   }
 
@@ -569,35 +569,35 @@ export class PauseRollbackManager extends EventEmitter {
   }
 
   private async getLatestState(executionId: string): Promise<SystemState | null> {
-    const states = Array.from(this.states.values())
-      .filter(s => s.executionId === executionId)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    const states = Array.from(this.states?.values())
+      .filter(s => s?.executionId === executionId)
+      .sort((a, b) => b.timestamp?.getTime() - a.timestamp?.getTime());
     
     return states[0] || null;
   }
 
   private async getStateAtPoint(point: RollbackPoint): Promise<SystemState | null> {
     // Find state at rollback point
-    const states = Array.from(this.states.values())
-      .filter(s => s.executionId === point.executionId)
+    const states = Array.from(this.states?.values())
+      .filter(s => s?.executionId === point.executionId)
       .filter(s => s.timestamp <= point.timestamp)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      .sort((a, b) => b.timestamp?.getTime() - a.timestamp?.getTime());
     
     return states[0] || null;
   }
 
   private async findNodeStartState(executionId: string, nodeId: string): Promise<SystemState | null> {
-    const states = Array.from(this.states.values())
-      .filter(s => s.executionId === executionId && s.nodeId === nodeId)
-      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    const states = Array.from(this.states?.values())
+      .filter(s => s?.executionId === executionId && s?.nodeId === nodeId)
+      .sort((a, b) => a.timestamp?.getTime() - b.timestamp?.getTime());
     
     return states[0] || null;
   }
 
   private async findInitialState(executionId: string): Promise<SystemState | null> {
-    const states = Array.from(this.states.values())
-      .filter(s => s.executionId === executionId)
-      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    const states = Array.from(this.states?.values())
+      .filter(s => s?.executionId === executionId)
+      .sort((a, b) => a.timestamp?.getTime() - b.timestamp?.getTime());
     
     return states[0] || null;
   }
@@ -610,24 +610,24 @@ export class PauseRollbackManager extends EventEmitter {
 
   // Public API
   isPaused(executionId: string): boolean {
-    return this.pausedExecutions.has(executionId);
+    return this.pausedExecutions?.has(executionId);
   }
 
   async getRollbackPoints(executionId?: string): Promise<RollbackPoint[]> {
-    const points = Array.from(this.rollbackPoints.values());
+    const points = Array.from(this.rollbackPoints?.values());
     
     if (executionId) {
-      return points.filter(p => p.executionId === executionId);
+      return points?.filter(p => p?.executionId === executionId);
     }
     
     return points;
   }
 
   async getStates(executionId?: string): Promise<SystemState[]> {
-    const states = Array.from(this.states.values());
+    const states = Array.from(this.states?.values());
     
     if (executionId) {
-      return states.filter(s => s.executionId === executionId);
+      return states?.filter(s => s?.executionId === executionId);
     }
     
     return states;

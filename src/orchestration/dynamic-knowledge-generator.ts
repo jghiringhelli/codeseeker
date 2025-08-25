@@ -125,8 +125,8 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     this.knowledgeGraph = knowledgeGraph;
     this.knowledgeRepo = knowledgeRepo;
     this.projectKB = projectKB;
-    this.initializeRoleSpecializations();
-    this.initializeAdaptationRules();
+    this?.initializeRoleSpecializations();
+    this?.initializeAdaptationRules();
   }
 
   async generateDynamicContext(
@@ -138,18 +138,18 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     const cacheKey = `${roleType}-${step}-${JSON.stringify(constraints)}`;
     
     // Check cache first
-    if (this.contextCache.has(cacheKey) && !this.shouldRegenerate(cacheKey, constraints)) {
+    if (this.contextCache?.has(cacheKey) && !this?.shouldRegenerate(cacheKey, constraints)) {
       this.logger.info(`Using cached dynamic context for ${roleType}-${step}`);
-      return this.contextCache.get(cacheKey)!;
+      return this.contextCache?.get(cacheKey)!;
     }
 
     this.logger.info(`Generating dynamic context for ${roleType} in step: ${step}`);
     
     // Get role specialization
-    const specialization = this.roleSpecializations.get(roleType)!;
+    const specialization = this.roleSpecializations?.get(roleType)!;
     
     // Adapt content based on role needs and constraints
-    const adaptedContent = await this.adaptContentForRole(
+    const adaptedContent = await this?.adaptContentForRole(
       baseContext.knowledgePacket,
       roleType,
       step,
@@ -158,19 +158,19 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     );
 
     // Generate reasoning for the adaptation
-    const reasoning = this.generateAdaptationReasoning(
+    const reasoning = this?.generateAdaptationReasoning(
       roleType,
       adaptedContent,
       constraints
     );
 
     // Calculate confidence and compression metrics
-    const confidenceScore = this.calculateContextConfidence(adaptedContent, baseContext);
-    const compressionRatio = this.calculateCompressionRatio(baseContext, adaptedContent);
-    const tokenUsage = this.estimateTokenUsage(adaptedContent);
+    const confidenceScore = this?.calculateContextConfidence(adaptedContent, baseContext);
+    const compressionRatio = this?.calculateCompressionRatio(baseContext, adaptedContent);
+    const tokenUsage = this?.estimateTokenUsage(adaptedContent);
 
     // Define regeneration triggers
-    const regenerationTriggers = this.defineRegenerationTriggers(roleType, constraints);
+    const regenerationTriggers = this?.defineRegenerationTriggers(roleType, constraints);
 
     const dynamicContext: DynamicContext = {
       roleType,
@@ -184,9 +184,9 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     };
 
     // Cache the context
-    this.contextCache.set(cacheKey, dynamicContext);
+    this.contextCache?.set(cacheKey, dynamicContext);
     
-    this.emit('dynamic-context-generated', {
+    this?.emit('dynamic-context-generated', {
       roleType,
       step,
       confidenceScore,
@@ -205,24 +205,24 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     specialization: RoleSpecialization
   ): Promise<AdaptedContent> {
     // Get adaptation rules for this role
-    const rules = this.adaptationRules.get(roleType) || [];
+    const rules = this.adaptationRules?.get(roleType) || [];
     
     // Extract essentials based on role focus
-    const essentials = await this.extractRoleEssentials(
+    const essentials = await this?.extractRoleEssentials(
       knowledgePacket,
       specialization,
       constraints
     );
 
     // Generate contextual information
-    const contextual = await this.generateContextualInfo(
+    const contextual = await this?.generateContextualInfo(
       knowledgePacket,
       roleType,
       constraints
     );
 
     // Create actionable recommendations
-    const actionable = await this.generateActionableKnowledge(
+    const actionable = await this?.generateActionableKnowledge(
       knowledgePacket,
       roleType,
       step,
@@ -230,14 +230,14 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     );
 
     // Extract learning opportunities
-    const learning = await this.extractLearningOpportunities(
+    const learning = await this?.extractLearningOpportunities(
       knowledgePacket,
       roleType,
       specialization
     );
 
     // Apply adaptation rules
-    return this.applyAdaptationRules({
+    return this?.applyAdaptationRules({
       essentials,
       contextual,
       actionable,
@@ -258,20 +258,20 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     };
 
     // Filter triads based on role focus
-    essentials.triads = packet.triads.relevant.filter(triad =>
-      specialization.focusAreas.some(area => 
-        triad.predicate.includes(area.toUpperCase())
+    essentials.triads = packet.triads.relevant?.filter(triad =>
+      specialization.focusAreas?.some(area => 
+        triad.predicate?.includes(area?.toUpperCase())
       )
     ).slice(0, constraints.maxTriads || 10);
 
     // Extract key insights from RAG context
     if (packet.ragContext.synthesizedKnowledge) {
-      const sentences = packet.ragContext.synthesizedKnowledge.split(/[.!?]+/);
+      const sentences = packet.ragContext.synthesizedKnowledge?.split(/[.!?]+/);
       essentials.insights = sentences
-        .filter(sentence => sentence.length > 20)
+        .filter(sentence => sentence?.length > 20)
         .filter(sentence => 
-          specialization.keywords.some(keyword =>
-            sentence.toLowerCase().includes(keyword.toLowerCase())
+          specialization.keywords?.some(keyword =>
+            sentence?.toLowerCase().includes(keyword?.toLowerCase())
           )
         )
         .slice(0, constraints.maxInsights || 5);
@@ -280,9 +280,9 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     // Extract relevant patterns
     essentials.patterns = packet.triads.patterns
       .filter(pattern => 
-        specialization.relevantPatterns.includes(pattern.name) ||
-        specialization.focusAreas.some(area => 
-          pattern.name.toLowerCase().includes(area.toLowerCase())
+        specialization.relevantPatterns?.includes(pattern.name) ||
+        specialization.focusAreas?.some(area => 
+          pattern.name?.toLowerCase().includes(area?.toLowerCase())
         )
       )
       .slice(0, constraints.maxPatterns || 3);
@@ -291,8 +291,8 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     essentials.decisions = packet.peers.completedRoles
       .flatMap((outcome: any) => outcome.decisions || [])
       .filter((decision: any) => 
-        specialization.decisionTypes.some(type =>
-          decision.description.toLowerCase().includes(type.toLowerCase())
+        specialization.decisionTypes?.some(type =>
+          decision.description?.toLowerCase().includes(type?.toLowerCase())
         )
       )
       .slice(0, constraints.maxDecisions || 5);
@@ -316,23 +316,23 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     contextual.projectStatus = {
       phase: packet.project.currentPhase?.name || 'Unknown',
       progress: packet.project.currentPhase?.progress || 0,
-      objectives: packet.project.objectives.slice(0, 3),
-      constraints: packet.project.constraints.slice(0, 3)
+      objectives: packet.project.objectives?.slice(0, 3),
+      constraints: packet.project.constraints?.slice(0, 3)
     };
 
     // Filter peer outcomes to most relevant
     contextual.peerOutcomes = packet.peers.completedRoles
-      .filter((outcome: any) => this.isPeerOutcomeRelevant(outcome, roleType))
+      .filter((outcome: any) => this?.isPeerOutcomeRelevant(outcome, roleType))
       .slice(0, constraints.maxPeerOutcomes || 3);
 
     // Extract actionable historical lessons
     contextual.historicalLessons = packet.historical.bestPractices
-      .filter(practice => practice.length > 10)
+      .filter(practice => practice?.length > 10)
       .slice(0, constraints.maxLessons || 5);
 
     // Identify relevant risk factors
     contextual.riskFactors = packet.project.riskFactors
-      .filter((risk: any) => this.isRiskRelevant(risk, roleType))
+      .filter((risk: any) => this?.isRiskRelevant(risk, roleType))
       .slice(0, constraints.maxRisks || 3);
 
     return contextual;
@@ -352,28 +352,28 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     };
 
     // Generate role-specific recommended actions
-    actionable.recommendedActions = await this.generateRecommendedActions(
+    actionable.recommendedActions = await this?.generateRecommendedActions(
       packet,
       roleType,
       specialization
     );
 
     // Identify warning signals based on historical data
-    actionable.warningSignals = await this.identifyWarningSignals(
+    actionable.warningSignals = await this?.identifyWarningSignals(
       packet,
       roleType,
       specialization
     );
 
     // Extract success patterns from historical data
-    actionable.successPatterns = await this.extractSuccessPatterns(
+    actionable.successPatterns = await this?.extractSuccessPatterns(
       packet,
       roleType,
       specialization
     );
 
     // Define quality checks for this role and step
-    actionable.qualityChecks = await this.defineQualityChecks(
+    actionable.qualityChecks = await this?.defineQualityChecks(
       roleType,
       step,
       specialization
@@ -395,7 +395,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     };
 
     // Find similar situations from historical data
-    learning.similarSituations = await this.findSimilarSituations(
+    learning.similarSituations = await this?.findSimilarSituations(
       packet,
       roleType,
       specialization
@@ -404,8 +404,8 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     // Extract expert advice from knowledge repository
     learning.expertAdvice = packet.domain.expertAdvice
       .filter(advice => 
-        specialization.keywords.some(keyword =>
-          advice.toLowerCase().includes(keyword.toLowerCase())
+        specialization.keywords?.some(keyword =>
+          advice?.toLowerCase().includes(keyword?.toLowerCase())
         )
       )
       .slice(0, 3);
@@ -413,8 +413,8 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     // Identify emerging trends
     learning.emergingTrends = packet.domain.emergingTrends
       .filter(trend => 
-        specialization.focusAreas.some(area =>
-          trend.toLowerCase().includes(area.toLowerCase())
+        specialization.focusAreas?.some(area =>
+          trend?.toLowerCase().includes(area?.toLowerCase())
         )
       )
       .slice(0, 2);
@@ -422,8 +422,8 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     // Extract relevant anti-patterns
     learning.antiPatterns = packet.historical.antiPatterns
       .filter(pattern => 
-        specialization.keywords.some(keyword =>
-          pattern.toLowerCase().includes(keyword.toLowerCase())
+        specialization.keywords?.some(keyword =>
+          pattern?.toLowerCase().includes(keyword?.toLowerCase())
         )
       )
       .slice(0, 3);
@@ -440,7 +440,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
 
     switch (roleType) {
       case RoleType.REQUIREMENT_ANALYST:
-        actions.push({
+        actions?.push({
           description: 'Review existing system architecture before defining new requirements',
           priority: 'high',
           effort: 'moderate',
@@ -451,7 +451,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
         break;
 
       case RoleType.TEST_DESIGNER:
-        actions.push({
+        actions?.push({
           description: 'Create test cases for edge cases identified in similar features',
           priority: 'high',
           effort: 'moderate',
@@ -462,7 +462,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
         break;
 
       case RoleType.IMPLEMENTATION_DEVELOPER:
-        actions.push({
+        actions?.push({
           description: 'Follow established architectural patterns for consistency',
           priority: 'high',
           effort: 'minimal',
@@ -473,7 +473,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
         break;
 
       case RoleType.SECURITY_AUDITOR:
-        actions.push({
+        actions?.push({
           description: 'Verify input validation for all user-facing interfaces',
           priority: 'immediate',
           effort: 'moderate',
@@ -484,7 +484,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
         break;
 
       default:
-        actions.push({
+        actions?.push({
           description: `Apply ${roleType} best practices from knowledge base`,
           priority: 'medium',
           effort: 'moderate',
@@ -505,11 +505,11 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     const warnings: Warning[] = [];
 
     // Analyze historical failures to identify warning patterns
-    packet.historical.antiPatterns.forEach(pattern => {
-      if (specialization.keywords.some(keyword => 
-        pattern.toLowerCase().includes(keyword.toLowerCase())
+    packet.historical.antiPatterns?.forEach(pattern => {
+      if (specialization.keywords?.some(keyword => 
+        pattern?.toLowerCase().includes(keyword?.toLowerCase())
       )) {
-        warnings.push({
+        warnings?.push({
           type: 'quality',
           description: `Historical issue pattern detected: ${pattern}`,
           severity: 'medium',
@@ -520,8 +520,8 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     });
 
     // Check for resource constraints
-    if (packet.project.constraints.some((c: any) => c.type === 'timeline')) {
-      warnings.push({
+    if (packet.project.constraints?.some((c: any) => c?.type === 'timeline')) {
+      warnings?.push({
         type: 'timeline',
         description: 'Timeline constraints may impact quality',
         severity: 'high',
@@ -541,8 +541,8 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     const patterns: Pattern[] = [];
 
     // Extract patterns from successful outcomes
-    packet.historical.bestPractices.forEach(practice => {
-      patterns.push({
+    packet.historical.bestPractices?.forEach(practice => {
+      patterns?.push({
         name: `Best Practice Pattern`,
         description: practice,
         applicability: [roleType],
@@ -552,7 +552,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
       });
     });
 
-    return patterns.slice(0, 3);
+    return patterns?.slice(0, 3);
   }
 
   private async defineQualityChecks(
@@ -564,7 +564,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
 
     switch (roleType) {
       case RoleType.IMPLEMENTATION_DEVELOPER:
-        checks.push({
+        checks?.push({
           name: 'Code Quality Check',
           description: 'Verify code meets quality standards',
           criteria: ['No code smells', 'Proper error handling', 'Adequate comments'],
@@ -574,7 +574,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
         break;
 
       case RoleType.SECURITY_AUDITOR:
-        checks.push({
+        checks?.push({
           name: 'Security Vulnerability Check',
           description: 'Scan for common security vulnerabilities',
           criteria: ['No SQL injection', 'Proper authentication', 'Secure data handling'],
@@ -584,7 +584,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
         break;
 
       default:
-        checks.push({
+        checks?.push({
           name: 'General Quality Check',
           description: 'Ensure output meets basic quality standards',
           criteria: ['Complete deliverable', 'Meets requirements', 'Proper documentation'],
@@ -603,9 +603,9 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
   ): AdaptedContent {
     let adaptedContent = { ...content };
 
-    rules.forEach(rule => {
-      if (this.evaluateRuleCondition(rule.condition, content, constraints)) {
-        adaptedContent = rule.transformation(adaptedContent);
+    rules?.forEach(rule => {
+      if (this?.evaluateRuleCondition(rule.condition, content, constraints)) {
+        adaptedContent = rule?.transformation(adaptedContent);
       }
     });
 
@@ -614,7 +614,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
 
   private initializeRoleSpecializations(): void {
     // Define specializations for each role
-    this.roleSpecializations.set(RoleType.REQUIREMENT_ANALYST, {
+    this.roleSpecializations?.set(RoleType.REQUIREMENT_ANALYST, {
       focusAreas: ['requirements', 'stakeholder', 'business', 'functional'],
       keywords: ['requirement', 'stakeholder', 'business rule', 'acceptance criteria', 'user story'],
       relevantPatterns: ['Repository', 'Service Layer', 'MVC'],
@@ -624,7 +624,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
       riskTolerance: 'low'
     });
 
-    this.roleSpecializations.set(RoleType.TEST_DESIGNER, {
+    this.roleSpecializations?.set(RoleType.TEST_DESIGNER, {
       focusAreas: ['testing', 'quality', 'validation', 'coverage'],
       keywords: ['test', 'coverage', 'validation', 'quality', 'TDD', 'BDD'],
       relevantPatterns: ['Factory', 'Builder', 'Mock', 'Stub'],
@@ -634,7 +634,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
       riskTolerance: 'low'
     });
 
-    this.roleSpecializations.set(RoleType.IMPLEMENTATION_DEVELOPER, {
+    this.roleSpecializations?.set(RoleType.IMPLEMENTATION_DEVELOPER, {
       focusAreas: ['implementation', 'architecture', 'coding', 'design'],
       keywords: ['code', 'implementation', 'architecture', 'design pattern', 'algorithm'],
       relevantPatterns: ['All patterns'],
@@ -644,7 +644,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
       riskTolerance: 'medium'
     });
 
-    this.roleSpecializations.set(RoleType.SECURITY_AUDITOR, {
+    this.roleSpecializations?.set(RoleType.SECURITY_AUDITOR, {
       focusAreas: ['security', 'vulnerability', 'compliance', 'risk'],
       keywords: ['security', 'vulnerability', 'authentication', 'authorization', 'encryption'],
       relevantPatterns: ['Authentication', 'Authorization', 'Encryption'],
@@ -682,18 +682,18 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
       }
     ];
 
-    this.adaptationRules.set(RoleType.REQUIREMENT_ANALYST, requirementRules);
+    this.adaptationRules?.set(RoleType.REQUIREMENT_ANALYST, requirementRules);
 
     // Add rules for other roles...
   }
 
   // Helper methods
   private shouldRegenerate(cacheKey: string, constraints: ContextConstraints): boolean {
-    const context = this.contextCache.get(cacheKey);
+    const context = this.contextCache?.get(cacheKey);
     if (!context) return true;
 
-    return context.regenerationTriggers.some(trigger => 
-      this.evaluateTrigger(trigger, constraints)
+    return context.regenerationTriggers?.some(trigger => 
+      this?.evaluateTrigger(trigger, constraints)
     );
   }
 
@@ -711,8 +711,8 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
 
   private calculateContextConfidence(content: AdaptedContent, baseContext: RoleKnowledgeContext): number {
     // Calculate confidence based on knowledge completeness and relevance
-    const triadsScore = Math.min(1, content.essentials.triads.length / 10);
-    const insightsScore = Math.min(1, content.essentials.insights.length / 5);
+    const triadsScore = Math.min(1, content.essentials.triads?.length / 10);
+    const insightsScore = Math.min(1, content.essentials.insights?.length / 5);
     const ragScore = baseContext.knowledgePacket.ragContext.confidence;
     
     return (triadsScore * 0.3 + insightsScore * 0.3 + ragScore * 0.4);
@@ -727,14 +727,14 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
 
   private estimateTokenUsage(content: AdaptedContent): number {
     const contentString = JSON.stringify(content);
-    return Math.ceil(contentString.length / 4); // Rough token estimation
+    return Math.ceil(contentString?.length / 4); // Rough token estimation
   }
 
   private defineRegenerationTriggers(roleType: RoleType, constraints: ContextConstraints): RegenerationTrigger[] {
     return [
       {
         condition: 'token_limit_approaching',
-        threshold: constraints.maxTokens ? constraints.maxTokens * 0.9 : 8000,
+        threshold: constraints.maxTokens ? constraints?.maxTokens * 0.9 : 8000,
         action: 'compress'
       },
       {
@@ -757,28 +757,28 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
   ): string[] {
     const reasoning = [];
     
-    reasoning.push(`Adapted context for ${roleType} based on role specialization`);
-    reasoning.push(`Selected ${content.essentials.triads.length} most relevant code relationships`);
-    reasoning.push(`Included ${content.actionable.recommendedActions.length} actionable recommendations`);
+    reasoning?.push(`Adapted context for ${roleType} based on role specialization`);
+    reasoning?.push(`Selected ${content.essentials.triads?.length} most relevant code relationships`);
+    reasoning?.push(`Included ${content.actionable.recommendedActions?.length} actionable recommendations`);
     
     if (constraints.maxTokens) {
-      reasoning.push(`Compressed content to fit ${constraints.maxTokens} token limit`);
+      reasoning?.push(`Compressed content to fit ${constraints.maxTokens} token limit`);
     }
     
     return reasoning;
   }
 
   private isPeerOutcomeRelevant(outcome: any, roleType: RoleType): boolean {
-    const relevantRoles = this.getRelevantRoles(roleType);
-    return relevantRoles.includes(outcome.roleType);
+    const relevantRoles = this?.getRelevantRoles(roleType);
+    return relevantRoles?.includes(outcome.roleType);
   }
 
   private isRiskRelevant(risk: any, roleType: RoleType): boolean {
-    const specialization = this.roleSpecializations.get(roleType);
+    const specialization = this.roleSpecializations?.get(roleType);
     if (!specialization) return true;
     
-    return specialization.focusAreas.some(area =>
-      risk.description.toLowerCase().includes(area.toLowerCase())
+    return specialization.focusAreas?.some(area =>
+      risk.description?.toLowerCase().includes(area?.toLowerCase())
     );
   }
 
@@ -801,9 +801,9 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
     const situations: Situation[] = [];
     
     // Extract situations from historical data
-    packet.historical.previousOutcomes.forEach((outcome: any) => {
-      if (outcome.roleType === roleType && outcome.success) {
-        situations.push({
+    packet.historical.previousOutcomes?.forEach((outcome: any) => {
+      if (outcome?.roleType === roleType && outcome.success) {
+        situations?.push({
           description: `Successful ${roleType} execution`,
           context: outcome.inputs?.context || 'Similar context',
           outcome: 'success',
@@ -814,7 +814,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
       }
     });
     
-    return situations.slice(0, 3);
+    return situations?.slice(0, 3);
   }
 
   private evaluateRuleCondition(
@@ -826,7 +826,7 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
       case 'high_complexity':
         return content.contextual.projectStatus.progress > 0.7;
       case 'tight_timeline':
-        return constraints.timeConstraint === 'urgent';
+        return constraints?.timeConstraint === 'urgent';
       default:
         return false;
     }
@@ -834,14 +834,14 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
 
   // Public API
   async refreshContext(cacheKey: string): Promise<void> {
-    this.contextCache.delete(cacheKey);
+    this.contextCache?.delete(cacheKey);
   }
 
   async getContextStatistics(): Promise<any> {
     return {
       totalCachedContexts: this.contextCache.size,
       roleSpecializations: this.roleSpecializations.size,
-      adaptationRules: Array.from(this.adaptationRules.values()).flat().length
+      adaptationRules: Array.from(this.adaptationRules?.values()).flat().length
     };
   }
 }

@@ -140,7 +140,7 @@ export interface NodeMetadata {
 }
 
 export interface TriadMetadata {
-  strength?: number; // Relationship strength 0.0-1.0
+  strength?: number; // Relationship strength 0?.0-1.0
   frequency?: number; // How often this relationship occurs
   context?: string; // Contextual information
   evidence?: Evidence[]; // Supporting evidence

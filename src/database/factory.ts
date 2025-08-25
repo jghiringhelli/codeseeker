@@ -8,7 +8,7 @@ import { PostgreSQLAdapter } from './adapters/postgresql';
 
 export class DatabaseFactory {
   static create(config: DatabaseConfig, logger: Logger): DatabaseAdapter {
-    if (config.type !== 'postgresql') {
+    if (config?.type !== 'postgresql') {
       throw new Error('Only PostgreSQL is supported');
     }
     return new PostgreSQLAdapter(config, logger);
@@ -31,7 +31,7 @@ export class DatabaseFactory {
         database: process.env.DB_NAME || 'codemind',
         username: process.env.DB_USER || 'codemind',
         password: process.env.DB_PASSWORD || 'codemind123',
-        ssl: process.env.DB_SSL === 'true'
+        ssl: process.env?.DB_SSL === 'true'
       };
     }
   }

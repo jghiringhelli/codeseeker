@@ -54,24 +54,24 @@ export class ChangeDetector {
   private logger: Logger;
 
   constructor(logger?: Logger) {
-    this.logger = logger || Logger.getInstance();
+    this.logger = logger || Logger?.getInstance();
   }
 
   async analyzeChanges(diff: GitDiffResult[]): Promise<ChangeSignificance> {
-    this.logger.debug(`Analyzing ${diff.length} file changes`);
+    this.logger.debug(`Analyzing ${diff?.length} file changes`);
 
-    const fileAnalyses = await Promise.all(
-      diff.map(file => this.analyzeFileChange(file))
+    const fileAnalyses = await Promise?.all(
+      diff?.map(file => this?.analyzeFileChange(file))
     );
 
-    const significance = this.calculateSignificance(fileAnalyses);
-    const categories = this.categorizeChanges(fileAnalyses);
-    const riskLevel = this.assessRiskLevel(significance, fileAnalyses);
-    const impactAreas = this.identifyImpactAreas(fileAnalyses);
+    const significance = this?.calculateSignificance(fileAnalyses);
+    const categories = this?.categorizeChanges(fileAnalyses);
+    const riskLevel = this?.assessRiskLevel(significance, fileAnalyses);
+    const impactAreas = this?.identifyImpactAreas(fileAnalyses);
 
     return {
       score: significance.score,
-      filesChanged: diff.length,
+      filesChanged: diff?.length,
       linesAdded: significance.linesAdded,
       linesDeleted: significance.linesDeleted,
       newFeatures: significance.newFeatures,
@@ -86,15 +86,15 @@ export class ChangeDetector {
 
   private async analyzeFileChange(diff: GitDiffResult): Promise<FileChangeAnalysis> {
     const file = diff.file;
-    const isTest = this.isTestFile(file);
-    const isConfig = this.isConfigFile(file);
-    const isDoc = this.isDocumentationFile(file);
+    const isTest = this?.isTestFile(file);
+    const isConfig = this?.isConfigFile(file);
+    const isDoc = this?.isDocumentationFile(file);
 
     // Calculate complexity based on change patterns
-    const complexity = this.calculateFileComplexity(diff);
+    const complexity = this?.calculateFileComplexity(diff);
     
     // Analyze semantic changes
-    const semanticChanges = await this.analyzeSemanticChanges(diff);
+    const semanticChanges = await this?.analyzeSemanticChanges(diff);
 
     return {
       file,
@@ -128,10 +128,10 @@ export class ChangeDetector {
       /export\s+(default\s+)?/g // Exports
     ];
 
-    complexPatterns.forEach(pattern => {
-      const matches = lines.match(pattern);
+    complexPatterns?.forEach(pattern => {
+      const matches = lines?.match(pattern);
       if (matches) {
-        complexity += matches.length * 0.2;
+        complexity += matches?.length * 0.2;
       }
     });
 
@@ -142,20 +142,20 @@ export class ChangeDetector {
   private async analyzeSemanticChanges(diff: GitDiffResult): Promise<SemanticChange[]> {
     const changes: SemanticChange[] = [];
     const patch = diff.patch || '';
-    const lines = patch.split('\n');
+    const lines = patch?.split('\n');
 
     let currentLine = 0;
     for (const line of lines) {
       currentLine++;
       
-      if (line.startsWith('+') || line.startsWith('-')) {
-        const isAddition = line.startsWith('+');
-        const content = line.substring(1).trim();
+      if (line?.startsWith('+') || line?.startsWith('-')) {
+        const isAddition = line?.startsWith('+');
+        const content = line?.substring(1).trim();
 
         // Detect function changes
-        const functionMatch = content.match(/(?:function\s+|const\s+|let\s+|var\s+)?(\w+)\s*[=:]?\s*(?:function\s*)?[(\[]/);
+        const functionMatch = content?.match(/(?:function\s+|const\s+|let\s+|var\s+)?(\w+)\s*[=:]?\s*(?:function\s*)?[(\[]/);
         if (functionMatch) {
-          changes.push({
+          changes?.push({
             type: isAddition ? 'function_added' : 'function_deleted',
             name: functionMatch[1],
             confidence: 0.8,
@@ -164,9 +164,9 @@ export class ChangeDetector {
         }
 
         // Detect class changes
-        const classMatch = content.match(/class\s+(\w+)/);
+        const classMatch = content?.match(/class\s+(\w+)/);
         if (classMatch) {
-          changes.push({
+          changes?.push({
             type: isAddition ? 'class_added' : 'class_deleted',
             name: classMatch[1],
             confidence: 0.9,
@@ -175,9 +175,9 @@ export class ChangeDetector {
         }
 
         // Detect interface changes
-        const interfaceMatch = content.match(/interface\s+(\w+)/);
+        const interfaceMatch = content?.match(/interface\s+(\w+)/);
         if (interfaceMatch) {
-          changes.push({
+          changes?.push({
             type: isAddition ? 'interface_added' : 'interface_deleted',
             name: interfaceMatch[1],
             confidence: 0.9,
@@ -186,9 +186,9 @@ export class ChangeDetector {
         }
 
         // Detect import/export changes
-        const importMatch = content.match(/import\s+.*?\s+from\s+['"](.*?)['"]/);
+        const importMatch = content?.match(/import\s+.*?\s+from\s+['"](.*?)['"]/);
         if (importMatch) {
-          changes.push({
+          changes?.push({
             type: isAddition ? 'import_added' : 'import_removed',
             name: importMatch[1],
             confidence: 0.7,
@@ -196,9 +196,9 @@ export class ChangeDetector {
           });
         }
 
-        const exportMatch = content.match(/export\s+(?:default\s+)?(?:class\s+|function\s+|const\s+|let\s+|var\s+)?(\w+)/);
+        const exportMatch = content?.match(/export\s+(?:default\s+)?(?:class\s+|function\s+|const\s+|let\s+|var\s+)?(\w+)/);
         if (exportMatch) {
-          changes.push({
+          changes?.push({
             type: isAddition ? 'export_added' : 'export_removed',
             name: exportMatch[1],
             confidence: 0.7,
@@ -233,18 +233,18 @@ export class ChangeDetector {
       linesDeleted += analysis.linesDeleted;
 
       // Base score from line changes
-      const lineScore = Math.min((analysis.linesAdded + analysis.linesDeleted) * 0.01, 1.0);
+      const lineScore = Math.min((analysis?.linesAdded + analysis.linesDeleted) * 0.01, 1.0);
       score += lineScore;
 
       // Complexity multiplier
-      score += analysis.complexity * 0.2;
+      score += analysis?.complexity * 0.2;
 
       // File type bonuses
       if (analysis.isTest) {
-        testChanges.push(path.basename(analysis.file));
+        testChanges?.push(path?.basename(analysis.file));
         score += 0.3; // Tests are important but not as significant as features
       } else if (analysis.isConfig) {
-        configChanges.push(path.basename(analysis.file));
+        configChanges?.push(path?.basename(analysis.file));
         score += 0.5; // Config changes can be significant
       } else if (!analysis.isDoc) {
         // Main code files
@@ -257,7 +257,7 @@ export class ChangeDetector {
           case 'function_added':
           case 'class_added':
           case 'interface_added':
-            newFeatures.push(`${semanticChange.type.split('_')[0]} ${semanticChange.name}`);
+            newFeatures?.push(`${semanticChange.type?.split('_')[0]} ${semanticChange.name}`);
             score += 0.5;
             break;
           case 'function_modified':
@@ -277,8 +277,8 @@ export class ChangeDetector {
       }
 
       // Detect potential bug fixes
-      if (this.isPotentialBugFix(analysis)) {
-        bugFixes.push(path.basename(analysis.file));
+      if (this?.isPotentialBugFix(analysis)) {
+        bugFixes?.push(path?.basename(analysis.file));
         score += 0.4;
       }
     }
@@ -301,49 +301,49 @@ export class ChangeDetector {
     const categories: ChangeCategory[] = [];
 
     // Feature category
-    const featureFiles = analyses.filter(a => 
+    const featureFiles = analyses?.filter(a => 
       !a.isTest && !a.isConfig && !a.isDoc &&
-      a.semanticChanges.some(c => c.type.includes('_added'))
+      a.semanticChanges?.some(c => c.type?.includes('_added'))
     );
-    if (featureFiles.length > 0) {
-      categories.push({
+    if (featureFiles?.length > 0) {
+      categories?.push({
         type: 'feature',
         confidence: 0.8,
-        evidence: featureFiles.flatMap(f => f.semanticChanges.map(c => c.name)),
-        filesInvolved: featureFiles.map(f => f.file)
+        evidence: featureFiles?.flatMap(f => f.semanticChanges?.map(c => c.name)),
+        filesInvolved: featureFiles?.map(f => f.file)
       });
     }
 
     // Test category
-    const testFiles = analyses.filter(a => a.isTest);
-    if (testFiles.length > 0) {
-      categories.push({
+    const testFiles = analyses?.filter(a => a.isTest);
+    if (testFiles?.length > 0) {
+      categories?.push({
         type: 'test',
         confidence: 0.9,
-        evidence: [`${testFiles.length} test files modified`],
-        filesInvolved: testFiles.map(f => f.file)
+        evidence: [`${testFiles?.length} test files modified`],
+        filesInvolved: testFiles?.map(f => f.file)
       });
     }
 
     // Config category
-    const configFiles = analyses.filter(a => a.isConfig);
-    if (configFiles.length > 0) {
-      categories.push({
+    const configFiles = analyses?.filter(a => a.isConfig);
+    if (configFiles?.length > 0) {
+      categories?.push({
         type: 'config',
         confidence: 0.9,
-        evidence: configFiles.map(f => path.basename(f.file)),
-        filesInvolved: configFiles.map(f => f.file)
+        evidence: configFiles?.map(f => path?.basename(f.file)),
+        filesInvolved: configFiles?.map(f => f.file)
       });
     }
 
     // Bugfix category (heuristic-based)
-    const bugfixFiles = analyses.filter(a => this.isPotentialBugFix(a));
-    if (bugfixFiles.length > 0) {
-      categories.push({
+    const bugfixFiles = analyses?.filter(a => this?.isPotentialBugFix(a));
+    if (bugfixFiles?.length > 0) {
+      categories?.push({
         type: 'bugfix',
         confidence: 0.6,
-        evidence: [`${bugfixFiles.length} files with potential bug fixes`],
-        filesInvolved: bugfixFiles.map(f => f.file)
+        evidence: [`${bugfixFiles?.length} files with potential bug fixes`],
+        filesInvolved: bugfixFiles?.map(f => f.file)
       });
     }
 
@@ -352,16 +352,16 @@ export class ChangeDetector {
 
   private isPotentialBugFix(analysis: FileChangeAnalysis): boolean {
     // Heuristics for detecting bug fixes
-    const hasErrorHandling = analysis.semanticChanges.some(c => 
-      c.name.includes('try') || c.name.includes('catch') || c.name.includes('error')
+    const hasErrorHandling = analysis.semanticChanges?.some(c => 
+      c.name?.includes('try') || c.name?.includes('catch') || c.name?.includes('error')
     );
 
-    const hasValidation = analysis.semanticChanges.some(c =>
-      c.name.includes('validate') || c.name.includes('check') || c.name.includes('verify')
+    const hasValidation = analysis.semanticChanges?.some(c =>
+      c.name?.includes('validate') || c.name?.includes('check') || c.name?.includes('verify')
     );
 
-    const smallChanges = analysis.linesAdded + analysis.linesDeleted < 20;
-    const modifiesExisting = analysis.semanticChanges.some(c => c.type.includes('_modified'));
+    const smallChanges = analysis?.linesAdded + analysis.linesDeleted < 20;
+    const modifiesExisting = analysis.semanticChanges?.some(c => c.type?.includes('_modified'));
 
     return (hasErrorHandling || hasValidation) || (smallChanges && modifiesExisting);
   }
@@ -374,12 +374,12 @@ export class ChangeDetector {
     if (significance.score >= 2.0) return 'medium';
     
     // Check for specific risk factors
-    const hasComplexChanges = analyses.some(a => a.complexity > 3.0);
-    const affectsCore = analyses.some(a => 
-      a.file.includes('core/') || a.file.includes('lib/') || a.file.includes('utils/')
+    const hasComplexChanges = analyses?.some(a => a.complexity > 3.0);
+    const affectsCore = analyses?.some(a => 
+      a.file?.includes('core/') || a.file?.includes('lib/') || a.file?.includes('utils/')
     );
-    const deletesCode = analyses.some(a => 
-      a.semanticChanges.some(c => c.type.includes('_deleted'))
+    const deletesCode = analyses?.some(a => 
+      a.semanticChanges?.some(c => c.type?.includes('_deleted'))
     );
 
     if (hasComplexChanges || affectsCore || deletesCode) return 'medium';
@@ -393,28 +393,28 @@ export class ChangeDetector {
       const filePath = analysis.file;
       
       // Extract module/area from path
-      const parts = filePath.split('/');
-      if (parts.length > 1) {
-        areas.add(parts[1]); // Usually the module name
+      const parts = filePath?.split('/');
+      if (parts?.length > 1) {
+        areas?.add(parts[1]); // Usually the module name
       }
 
       // Identify by file type/purpose
-      if (analysis.isTest) areas.add('testing');
-      if (analysis.isConfig) areas.add('configuration');
-      if (analysis.isDoc) areas.add('documentation');
+      if (analysis.isTest) areas?.add('testing');
+      if (analysis.isConfig) areas?.add('configuration');
+      if (analysis.isDoc) areas?.add('documentation');
 
       // Identify by semantic changes
-      const hasApiChanges = analysis.semanticChanges.some(c => 
-        c.type.includes('export') || c.type.includes('interface')
+      const hasApiChanges = analysis.semanticChanges?.some(c => 
+        c.type?.includes('export') || c.type?.includes('interface')
       );
-      if (hasApiChanges) areas.add('api');
+      if (hasApiChanges) areas?.add('api');
 
-      const hasDatabaseChanges = analysis.semanticChanges.some(c =>
-        c.name.toLowerCase().includes('db') || 
-        c.name.toLowerCase().includes('database') ||
-        c.name.toLowerCase().includes('migration')
+      const hasDatabaseChanges = analysis.semanticChanges?.some(c =>
+        c.name?.toLowerCase().includes('db') || 
+        c.name?.toLowerCase().includes('database') ||
+        c.name?.toLowerCase().includes('migration')
       );
-      if (hasDatabaseChanges) areas.add('database');
+      if (hasDatabaseChanges) areas?.add('database');
     }
 
     return Array.from(areas);
@@ -429,7 +429,7 @@ export class ChangeDetector {
       /__tests__[\/\\]/
     ];
     
-    return testPatterns.some(pattern => pattern.test(filePath));
+    return testPatterns?.some(pattern => pattern?.test(filePath));
   }
 
   private isConfigFile(filePath: string): boolean {
@@ -446,8 +446,8 @@ export class ChangeDetector {
       /^vite\.config/
     ];
 
-    const fileName = path.basename(filePath);
-    return configPatterns.some(pattern => pattern.test(fileName));
+    const fileName = path?.basename(filePath);
+    return configPatterns?.some(pattern => pattern?.test(fileName));
   }
 
   private isDocumentationFile(filePath: string): boolean {
@@ -460,6 +460,6 @@ export class ChangeDetector {
       /docs[\/\\]/
     ];
 
-    return docPatterns.some(pattern => pattern.test(filePath));
+    return docPatterns?.some(pattern => pattern?.test(filePath));
   }
 }

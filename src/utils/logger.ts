@@ -47,19 +47,19 @@ export class Logger implements ILogger {
 
   debug(message: string, meta?: any): void {
     if (this.level <= LogLevel.DEBUG) {
-      this.log('DEBUG', message, meta);
+      this?.log('DEBUG', message, meta);
     }
   }
 
   info(message: string, meta?: any): void {
     if (this.level <= LogLevel.INFO) {
-      this.log('INFO', message, meta);
+      this?.log('INFO', message, meta);
     }
   }
 
   warn(message: string, meta?: any): void {
     if (this.level <= LogLevel.WARN) {
-      this.log('WARN', message, meta);
+      this?.log('WARN', message, meta);
     }
   }
 
@@ -71,7 +71,7 @@ export class Logger implements ILogger {
         name: error.name
       } : undefined;
 
-      this.log('ERROR', message, { error: errorInfo, ...meta });
+      this?.log('ERROR', message, { error: errorInfo, ...meta });
     }
   }
 
@@ -85,11 +85,11 @@ export class Logger implements ILogger {
     const contextStr = this.context ? ` [${this.context}]` : '';
     const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
 
-    console.log(`${timestamp} ${level}${contextStr}: ${message}${metaStr}`);
+    console?.log(`${timestamp} ${level}${contextStr}: ${message}${metaStr}`);
   }
 }
 
 // Default logger instance
 export const defaultLogger = new Logger(
-  process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO
+  process.env?.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO
 );

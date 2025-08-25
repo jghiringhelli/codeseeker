@@ -126,7 +126,7 @@ export abstract class DatabaseAdapter {
 
   // Helper methods
   protected handleError(operation: string, error: any): SystemError {
-    this.logger.error(`Database ${operation} failed`, error);
+    this.logger.error(`Database ${operation} failed`, error as Error);
     return {
       code: 'DATABASE_ERROR' as any,
       message: `Database ${operation} failed`,

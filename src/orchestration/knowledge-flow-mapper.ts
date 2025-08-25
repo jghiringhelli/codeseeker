@@ -62,25 +62,25 @@ export class KnowledgeFlowMapper {
     const flowMap = new Map<RoleType, KnowledgeFlowStep>();
     
     // Map each role to its knowledge flow
-    flowMap.set(RoleType.WORK_CLASSIFIER, this.getWorkClassifierFlow());
-    flowMap.set(RoleType.REQUIREMENT_ANALYST, this.getRequirementAnalystFlow());
-    flowMap.set(RoleType.TEST_DESIGNER, this.getTestDesignerFlow());
-    flowMap.set(RoleType.IMPLEMENTATION_DEVELOPER, this.getImplementationDeveloperFlow());
-    flowMap.set(RoleType.CODE_REVIEWER, this.getCodeReviewerFlow());
-    flowMap.set(RoleType.COMPILER_BUILDER, this.getCompilerBuilderFlow());
-    flowMap.set(RoleType.SECURITY_AUDITOR, this.getSecurityAuditorFlow());
-    flowMap.set(RoleType.PERFORMANCE_AUDITOR, this.getPerformanceAuditorFlow());
-    flowMap.set(RoleType.QUALITY_AUDITOR, this.getQualityAuditorFlow());
-    flowMap.set(RoleType.DEVOPS_ENGINEER, this.getDevOpsEngineerFlow());
-    flowMap.set(RoleType.DEPLOYER, this.getDeployerFlow());
-    flowMap.set(RoleType.UNIT_TEST_EXECUTOR, this.getUnitTestExecutorFlow());
-    flowMap.set(RoleType.INTEGRATION_TEST_ENGINEER, this.getIntegrationTestEngineerFlow());
-    flowMap.set(RoleType.E2E_TEST_ENGINEER, this.getE2ETestEngineerFlow());
-    flowMap.set(RoleType.TECHNICAL_DOCUMENTER, this.getTechnicalDocumenterFlow());
-    flowMap.set(RoleType.USER_DOCUMENTER, this.getUserDocumenterFlow());
-    flowMap.set(RoleType.RELEASE_MANAGER, this.getReleaseManagerFlow());
-    flowMap.set(RoleType.COMMITTER, this.getCommitterFlow());
-    flowMap.set(RoleType.ORCHESTRATOR, this.getOrchestratorFlow());
+    flowMap?.set(RoleType.WORK_CLASSIFIER, this?.getWorkClassifierFlow());
+    flowMap?.set(RoleType.REQUIREMENT_ANALYST, this?.getRequirementAnalystFlow());
+    flowMap?.set(RoleType.TEST_DESIGNER, this?.getTestDesignerFlow());
+    flowMap?.set(RoleType.IMPLEMENTATION_DEVELOPER, this?.getImplementationDeveloperFlow());
+    flowMap?.set(RoleType.CODE_REVIEWER, this?.getCodeReviewerFlow());
+    flowMap?.set(RoleType.COMPILER_BUILDER, this?.getCompilerBuilderFlow());
+    flowMap?.set(RoleType.SECURITY_AUDITOR, this?.getSecurityAuditorFlow());
+    flowMap?.set(RoleType.PERFORMANCE_AUDITOR, this?.getPerformanceAuditorFlow());
+    flowMap?.set(RoleType.QUALITY_AUDITOR, this?.getQualityAuditorFlow());
+    flowMap?.set(RoleType.DEVOPS_ENGINEER, this?.getDevOpsEngineerFlow());
+    flowMap?.set(RoleType.DEPLOYER, this?.getDeployerFlow());
+    flowMap?.set(RoleType.UNIT_TEST_EXECUTOR, this?.getUnitTestExecutorFlow());
+    flowMap?.set(RoleType.INTEGRATION_TEST_ENGINEER, this?.getIntegrationTestEngineerFlow());
+    flowMap?.set(RoleType.E2E_TEST_ENGINEER, this?.getE2ETestEngineerFlow());
+    flowMap?.set(RoleType.TECHNICAL_DOCUMENTER, this?.getTechnicalDocumenterFlow());
+    flowMap?.set(RoleType.USER_DOCUMENTER, this?.getUserDocumenterFlow());
+    flowMap?.set(RoleType.RELEASE_MANAGER, this?.getReleaseManagerFlow());
+    flowMap?.set(RoleType.COMMITTER, this?.getCommitterFlow());
+    flowMap?.set(RoleType.ORCHESTRATOR, this?.getOrchestratorFlow());
     
     return flowMap;
   }
@@ -963,11 +963,11 @@ export class KnowledgeFlowMapper {
       criticalPaths: []
     };
 
-    flow.forEach((step, roleType) => {
-      step.knowledgeInputs.forEach(input => analysis.knowledgeInputTypes.add(input.type));
-      step.knowledgeOutputs.forEach(output => analysis.outputTypes.add(output.type));
-      analysis.feedbackLoops += step.feedbackLoops.length;
-      analysis.qualityGates += step.qualityGates.length;
+    flow?.forEach((step, roleType) => {
+      step.knowledgeInputs?.forEach(input => analysis.knowledgeInputTypes?.add(input.type));
+      step.knowledgeOutputs?.forEach(output => analysis.outputTypes?.add(output.type));
+      analysis?.feedbackLoops += step.feedbackLoops?.length;
+      analysis?.qualityGates += step.qualityGates?.length;
     });
 
     return analysis;
@@ -976,11 +976,11 @@ export class KnowledgeFlowMapper {
   static generateFlowDiagram(flow: Map<RoleType, KnowledgeFlowStep>): string {
     let diagram = 'Knowledge Flow Diagram:\n\n';
     
-    flow.forEach((step, roleType) => {
+    flow?.forEach((step, roleType) => {
       diagram += `${roleType}:\n`;
-      diagram += `  Inputs: ${step.knowledgeInputs.map(i => i.type).join(', ')}\n`;
-      diagram += `  Outputs: ${step.knowledgeOutputs.map(o => o.type).join(', ')}\n`;
-      diagram += `  Quality Gates: ${step.qualityGates.length}\n\n`;
+      diagram += `  Inputs: ${step.knowledgeInputs?.map(i => i.type).join(', ')}\n`;
+      diagram += `  Outputs: ${step.knowledgeOutputs?.map(o => o.type).join(', ')}\n`;
+      diagram += `  Quality Gates: ${step.qualityGates?.length}\n\n`;
     });
     
     return diagram;

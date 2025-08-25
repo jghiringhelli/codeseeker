@@ -32,19 +32,19 @@ export class SemanticKnowledgeGraph {
   private relationIndex: Map<RelationType, Set<string>> = new Map();
   
   constructor(private projectPath: string) {
-    this.logger = Logger.getInstance().child('KnowledgeGraph');
-    this.initializeDatabase();
-    this.initializeIndexes();
+    this.logger = Logger?.getInstance().child('KnowledgeGraph');
+    this?.initializeDatabase();
+    this?.initializeIndexes();
   }
 
   private async initializeDatabase(): Promise<void> {
     try {
-      const config = DatabaseFactory.parseConfigFromEnv();
+      const config = DatabaseFactory?.parseConfigFromEnv();
       
       if (config) {
-        this.db = DatabaseFactory.create(config, this.logger);
-        await this.db.initialize();
-        await this.createKnowledgeGraphTables();
+        this.db = DatabaseFactory?.create(config, this.logger);
+        await this.db?.initialize();
+        await this?.createKnowledgeGraphTables();
       } else {
         this.logger.warn('No database configuration found, using in-memory storage');
       }
@@ -55,12 +55,12 @@ export class SemanticKnowledgeGraph {
 
   private initializeIndexes(): void {
     // Initialize type and relation indexes for fast queries
-    Object.values(NodeType).forEach(type => {
-      this.nodeIndex.set(type as NodeType, new Set());
+    Object.values(NodeType)?.forEach(type => {
+      this.nodeIndex?.set(type as NodeType, new Set());
     });
     
-    Object.values(RelationType).forEach(relation => {
-      this.relationIndex.set(relation as RelationType, new Set());
+    Object.values(RelationType)?.forEach(relation => {
+      this.relationIndex?.set(relation as RelationType, new Set());
     });
   }
 
@@ -112,7 +112,7 @@ export class SemanticKnowledgeGraph {
 
     for (const table of tables) {
       try {
-        await this.db.query(table);
+        await this.db?.query(table);
       } catch (error) {
         this.logger.error(`Failed to create knowledge graph table: ${table}`, error as Error);
       }
@@ -122,7 +122,7 @@ export class SemanticKnowledgeGraph {
   // Node Management
 
   async addNode(node: Omit<KnowledgeNode, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = this.generateNodeId(node.type, node.name, node.namespace);
+    const id = this?.generateNodeId(node.type, node.name, node.namespace);
     const now = new Date();
     
     const knowledgeNode: KnowledgeNode = {
@@ -132,12 +132,12 @@ export class SemanticKnowledgeGraph {
       updatedAt: now
     };
 
-    this.nodes.set(id, knowledgeNode);
-    this.nodeIndex.get(node.type)?.add(id);
+    this.nodes?.set(id, knowledgeNode);
+    this.nodeIndex?.get(node.type)?.add(id);
 
     if (this.db) {
       try {
-        await this.db.query(
+        await this.db?.query(
           `INSERT INTO knowledge_nodes (id, type, name, namespace, source_location, metadata, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            ON CONFLICT (id) DO UPDATE SET
@@ -166,7 +166,7 @@ export class SemanticKnowledgeGraph {
   }
 
   async addTriad(triad: Omit<KnowledgeTriad, 'id' | 'createdAt'>): Promise<string> {
-    const id = this.generateTriadId(triad.subject, triad.predicate, triad.object);
+    const id = this?.generateTriadId(triad.subject, triad.predicate, triad.object);
     const now = new Date();
     
     const knowledgeTriad: KnowledgeTriad = {
@@ -175,12 +175,12 @@ export class SemanticKnowledgeGraph {
       createdAt: now
     };
 
-    this.triads.set(id, knowledgeTriad);
-    this.relationIndex.get(triad.predicate)?.add(id);
+    this.triads?.set(id, knowledgeTriad);
+    this.relationIndex?.get(triad.predicate)?.add(id);
 
     if (this.db) {
       try {
-        await this.db.query(
+        await this.db?.query(
           `INSERT INTO knowledge_triads (id, subject, predicate, object, confidence, source, metadata, created_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            ON CONFLICT (id) DO UPDATE SET
@@ -208,78 +208,78 @@ export class SemanticKnowledgeGraph {
   // Query and Search
 
   async queryNodes(query: GraphQuery): Promise<KnowledgeNode[]> {
-    let candidateNodes: KnowledgeNode[] = Array.from(this.nodes.values());
+    let candidateNodes: KnowledgeNode[] = Array.from(this.nodes?.values());
 
     if (query.nodes) {
       const { types, names, namespaces, metadata } = query.nodes;
 
       if (types) {
         const typeNodes = new Set<string>();
-        types.forEach(type => {
-          this.nodeIndex.get(type)?.forEach(id => typeNodes.add(id));
+        types?.forEach(type => {
+          this.nodeIndex?.get(type)?.forEach(id => typeNodes?.add(id));
         });
-        candidateNodes = candidateNodes.filter(node => typeNodes.has(node.id));
+        candidateNodes = candidateNodes?.filter(node => typeNodes?.has(node.id));
       }
 
       if (names) {
-        candidateNodes = candidateNodes.filter(node => 
-          names.some(name => node.name.includes(name))
+        candidateNodes = candidateNodes?.filter(node => 
+          names?.some(name => node.name?.includes(name))
         );
       }
 
       if (namespaces) {
-        candidateNodes = candidateNodes.filter(node => 
-          node.namespace && namespaces.includes(node.namespace)
+        candidateNodes = candidateNodes?.filter(node => 
+          node.namespace && namespaces?.includes(node.namespace)
         );
       }
 
       if (metadata) {
-        candidateNodes = candidateNodes.filter(node => 
-          this.matchesMetadata(node.metadata, metadata)
+        candidateNodes = candidateNodes?.filter(node => 
+          this?.matchesMetadata(node.metadata, metadata)
         );
       }
     }
 
     // Apply limit and offset
     if (query.offset) {
-      candidateNodes = candidateNodes.slice(query.offset);
+      candidateNodes = candidateNodes?.slice(query.offset);
     }
     
     if (query.limit) {
-      candidateNodes = candidateNodes.slice(0, query.limit);
+      candidateNodes = candidateNodes?.slice(0, query.limit);
     }
 
     return candidateNodes;
   }
 
   async queryTriads(query: GraphQuery): Promise<KnowledgeTriad[]> {
-    let candidateTriads: KnowledgeTriad[] = Array.from(this.triads.values());
+    let candidateTriads: KnowledgeTriad[] = Array.from(this.triads?.values());
 
     if (query.triads) {
       const { subjects, predicates, objects, confidence, sources } = query.triads;
 
       if (subjects) {
-        candidateTriads = candidateTriads.filter(triad => 
-          subjects.includes(triad.subject)
+        candidateTriads = candidateTriads?.filter(triad => 
+          subjects?.includes(triad.subject)
         );
       }
 
       if (predicates) {
         const predicateTriads = new Set<string>();
-        predicates.forEach(predicate => {
-          this.relationIndex.get(predicate)?.forEach(id => predicateTriads.add(id));
+        predicates?.forEach(predicate => {
+          this.relationIndex?.get(predicate)?.forEach(id => predicateTriads?.add(id));
         });
-        candidateTriads = candidateTriads.filter(triad => predicateTriads.has(triad.id));
+        candidateTriads = candidateTriads?.filter(triad => predicateTriads?.has(triad.id));
       }
 
       if (objects) {
-        candidateTriads = candidateTriads.filter(triad => 
-          objects.includes(triad.object)
+        candidateTriads = candidateTriads?.filter(triad => 
+          objects?.includes(triad.object)
         );
       }
 
       if (confidence) {
-        candidateTriads = candidateTriads.filter(triad => {
+        candidateTriads = candidateTriads?.filter(triad => {
           const conf = triad.confidence;
           return (!confidence.min || conf >= confidence.min) &&
                  (!confidence.max || conf <= confidence.max);
@@ -287,8 +287,8 @@ export class SemanticKnowledgeGraph {
       }
 
       if (sources) {
-        candidateTriads = candidateTriads.filter(triad => 
-          sources.includes(triad.source)
+        candidateTriads = candidateTriads?.filter(triad => 
+          sources?.includes(triad.source)
         );
       }
     }
@@ -315,7 +315,7 @@ export class SemanticKnowledgeGraph {
     }> = [];
 
     for (const startNodeId of query.startNodes) {
-      await this.traverseFromNode(
+      await this?.traverseFromNode(
         startNodeId,
         query,
         visited,
@@ -338,34 +338,34 @@ export class SemanticKnowledgeGraph {
     currentPath: KnowledgeTriad[],
     depth: number
   ): Promise<void> {
-    if (visited.has(nodeId) || (query.maxDepth && depth > query.maxDepth)) {
+    if (visited?.has(nodeId) || (query.maxDepth && depth > query.maxDepth)) {
       return;
     }
 
-    visited.add(nodeId);
-    const node = this.nodes.get(nodeId);
+    visited?.add(nodeId);
+    const node = this.nodes?.get(nodeId);
     if (node) {
-      result.push(node);
+      result?.push(node);
     }
 
     // Find related triads
-    const relatedTriads = Array.from(this.triads.values()).filter(triad => {
-      const isRelated = query.direction === 'incoming' ? triad.object === nodeId :
-                       query.direction === 'outgoing' ? triad.subject === nodeId :
-                       triad.subject === nodeId || triad.object === nodeId;
+    const relatedTriads = Array.from(this.triads?.values()).filter(triad => {
+      const isRelated = query?.direction === 'incoming' ? triad?.object === nodeId :
+                       query?.direction === 'outgoing' ? triad?.subject === nodeId :
+                       triad?.subject === nodeId || triad?.object === nodeId;
       
-      return isRelated && query.relations.includes(triad.predicate);
+      return isRelated && query.relations?.includes(triad.predicate);
     });
 
     for (const triad of relatedTriads) {
-      const nextNodeId = triad.subject === nodeId ? triad.object : triad.subject;
-      const nextNode = this.nodes.get(nextNodeId);
+      const nextNodeId = triad?.subject === nodeId ? triad.object : triad.subject;
+      const nextNode = this.nodes?.get(nextNodeId);
       
-      if (nextNode && this.matchesNodeFilter(nextNode, query.filters)) {
+      if (nextNode && this?.matchesNodeFilter(nextNode, query.filters)) {
         const newPath = [...currentPath, triad];
         
         if (depth > 0) {
-          paths.push({
+          paths?.push({
             startNode: query.startNodes[0], // Simplified for now
             endNode: nextNodeId,
             path: newPath,
@@ -373,7 +373,7 @@ export class SemanticKnowledgeGraph {
           });
         }
 
-        await this.traverseFromNode(
+        await this?.traverseFromNode(
           nextNodeId,
           query,
           visited,
@@ -396,24 +396,24 @@ export class SemanticKnowledgeGraph {
     const nodeTypeDistribution = {} as Record<NodeType, number>;
 
     // Count relationships and node types
-    for (const triad of this.triads.values()) {
+    for (const triad of this.triads?.values()) {
       relationshipDistribution[triad.predicate] = 
         (relationshipDistribution[triad.predicate] || 0) + 1;
     }
 
-    for (const node of this.nodes.values()) {
+    for (const node of this.nodes?.values()) {
       nodeTypeDistribution[node.type] = 
         (nodeTypeDistribution[node.type] || 0) + 1;
     }
 
     // Calculate centrality scores (simplified PageRank-like algorithm)
-    const centralityScores = await this.calculateCentralityScores();
+    const centralityScores = await this?.calculateCentralityScores();
 
     // Find strongly connected components
-    const stronglyConnectedComponents = await this.findStronglyConnectedComponents();
+    const stronglyConnectedComponents = await this?.findStronglyConnectedComponents();
 
     // Calculate clustering coefficient
-    const clusteringCoefficient = this.calculateClusteringCoefficient();
+    const clusteringCoefficient = this?.calculateClusteringCoefficient();
 
     return {
       nodeCount,
@@ -430,12 +430,12 @@ export class SemanticKnowledgeGraph {
     const clusters: SemanticCluster[] = [];
     const visited = new Set<string>();
 
-    for (const node of this.nodes.values()) {
-      if (visited.has(node.id)) continue;
+    for (const node of this.nodes?.values()) {
+      if (visited?.has(node.id)) continue;
 
-      const cluster = await this.expandSemanticCluster(node.id, visited);
-      if (cluster.nodes.length >= minClusterSize) {
-        clusters.push(cluster);
+      const cluster = await this?.expandSemanticCluster(node.id, visited);
+      if (cluster.nodes?.length >= minClusterSize) {
+        clusters?.push(cluster);
       }
     }
 
@@ -446,16 +446,16 @@ export class SemanticKnowledgeGraph {
     const insights: ArchitecturalInsight[] = [];
 
     // Detect design patterns
-    insights.push(...await this.detectDesignPatterns());
+    insights?.push(...await this?.detectDesignPatterns());
 
     // Detect anti-patterns
-    insights.push(...await this.detectAntiPatterns());
+    insights?.push(...await this?.detectAntiPatterns());
 
     // Detect coupling issues
-    insights.push(...await this.detectCouplingIssues());
+    insights?.push(...await this?.detectCouplingIssues());
 
     // Detect refactoring opportunities
-    insights.push(...await this.detectRefactoringOpportunities());
+    insights?.push(...await this?.detectRefactoringOpportunities());
 
     return insights;
   }
@@ -465,25 +465,25 @@ export class SemanticKnowledgeGraph {
   async mutateGraph(mutation: GraphMutation): Promise<void> {
     if (mutation.addNodes) {
       for (const node of mutation.addNodes) {
-        await this.addNode(node);
+        await this?.addNode(node);
       }
     }
 
     if (mutation.addTriads) {
       for (const triad of mutation.addTriads) {
-        await this.addTriad(triad);
+        await this?.addTriad(triad);
       }
     }
 
     if (mutation.removeNodes) {
       for (const nodeId of mutation.removeNodes) {
-        await this.removeNode(nodeId);
+        await this?.removeNode(nodeId);
       }
     }
 
     if (mutation.removeTriads) {
       for (const triadId of mutation.removeTriads) {
-        await this.removeTriad(triadId);
+        await this?.removeTriad(triadId);
       }
     }
 
@@ -491,7 +491,7 @@ export class SemanticKnowledgeGraph {
     if (mutation.updateNodes) {
       for (const update of mutation.updateNodes) {
         if (update.id) {
-          await this.updateNode(update.id, update);
+          await this?.updateNode(update.id, update);
         }
       }
     }
@@ -499,7 +499,7 @@ export class SemanticKnowledgeGraph {
     if (mutation.updateTriads) {
       for (const update of mutation.updateTriads) {
         if (update.id) {
-          await this.updateTriad(update.id, update);
+          await this?.updateTriad(update.id, update);
         }
       }
     }
@@ -509,12 +509,12 @@ export class SemanticKnowledgeGraph {
 
   private generateNodeId(type: NodeType, name: string, namespace?: string): string {
     const key = `${type}:${namespace || ''}:${name}`;
-    return crypto.createHash('sha256').update(key).digest('hex').substring(0, 16);
+    return crypto?.createHash('sha256').update(key).digest('hex').substring(0, 16);
   }
 
   private generateTriadId(subject: string, predicate: RelationType, object: string): string {
     const key = `${subject}:${predicate}:${object}`;
-    return crypto.createHash('sha256').update(key).digest('hex').substring(0, 16);
+    return crypto?.createHash('sha256').update(key).digest('hex').substring(0, 16);
   }
 
   private matchesMetadata(nodeMetadata: any, queryMetadata: any): boolean {
@@ -526,9 +526,9 @@ export class SemanticKnowledgeGraph {
   private matchesNodeFilter(node: KnowledgeNode, filters?: any): boolean {
     if (!filters) return true;
     
-    if (filters.types && !filters.types.includes(node.type)) return false;
-    if (filters.names && !filters.names.some((name: string) => node.name.includes(name))) return false;
-    if (filters.namespaces && node.namespace && !filters.namespaces.includes(node.namespace)) return false;
+    if (filters.types && !filters.types?.includes(node.type)) return false;
+    if (filters.names && !filters.names?.some((name: string) => node.name?.includes(name))) return false;
+    if (filters.namespaces && node.namespace && !filters.namespaces?.includes(node.namespace)) return false;
     
     return true;
   }
@@ -539,7 +539,7 @@ export class SemanticKnowledgeGraph {
     const iterations = 100;
 
     // Initialize scores
-    for (const nodeId of this.nodes.keys()) {
+    for (const nodeId of this.nodes?.keys()) {
       scores[nodeId] = 1.0;
     }
 
@@ -547,17 +547,17 @@ export class SemanticKnowledgeGraph {
     for (let i = 0; i < iterations; i++) {
       const newScores: Record<string, number> = {};
       
-      for (const nodeId of this.nodes.keys()) {
+      for (const nodeId of this.nodes?.keys()) {
         let score = (1 - damping);
         
         // Find incoming edges
-        const incomingTriads = Array.from(this.triads.values())
-          .filter(triad => triad.object === nodeId);
+        const incomingTriads = Array.from(this.triads?.values())
+          .filter(triad => triad?.object === nodeId);
         
         for (const triad of incomingTriads) {
           const sourceNode = triad.subject;
-          const outDegree = Array.from(this.triads.values())
-            .filter(t => t.subject === sourceNode).length;
+          const outDegree = Array.from(this.triads?.values())
+            .filter(t => t?.subject === sourceNode).length;
           
           if (outDegree > 0) {
             score += damping * (scores[sourceNode]! / outDegree);
@@ -578,11 +578,11 @@ export class SemanticKnowledgeGraph {
     const visited = new Set<string>();
     const components: string[][] = [];
 
-    for (const nodeId of this.nodes.keys()) {
-      if (!visited.has(nodeId)) {
-        const component = await this.dfsComponent(nodeId, visited);
-        if (component.length > 1) {
-          components.push(component);
+    for (const nodeId of this.nodes?.keys()) {
+      if (!visited?.has(nodeId)) {
+        const component = await this?.dfsComponent(nodeId, visited);
+        if (component?.length > 1) {
+          components?.push(component);
         }
       }
     }
@@ -594,21 +594,21 @@ export class SemanticKnowledgeGraph {
     const component: string[] = [];
     const stack = [startNode];
 
-    while (stack.length > 0) {
-      const nodeId = stack.pop()!;
-      if (visited.has(nodeId)) continue;
+    while (stack?.length > 0) {
+      const nodeId = stack?.pop()!;
+      if (visited?.has(nodeId)) continue;
 
-      visited.add(nodeId);
-      component.push(nodeId);
+      visited?.add(nodeId);
+      component?.push(nodeId);
 
       // Find connected nodes
-      const connectedTriads = Array.from(this.triads.values())
-        .filter(triad => triad.subject === nodeId || triad.object === nodeId);
+      const connectedTriads = Array.from(this.triads?.values())
+        .filter(triad => triad?.subject === nodeId || triad?.object === nodeId);
 
       for (const triad of connectedTriads) {
-        const connectedNode = triad.subject === nodeId ? triad.object : triad.subject;
-        if (!visited.has(connectedNode)) {
-          stack.push(connectedNode);
+        const connectedNode = triad?.subject === nodeId ? triad.object : triad.subject;
+        if (!visited?.has(connectedNode)) {
+          stack?.push(connectedNode);
         }
       }
     }
@@ -620,16 +620,16 @@ export class SemanticKnowledgeGraph {
     let totalCoefficient = 0;
     let nodeCount = 0;
 
-    for (const nodeId of this.nodes.keys()) {
-      const neighbors = this.getNeighbors(nodeId);
-      if (neighbors.length < 2) continue;
+    for (const nodeId of this.nodes?.keys()) {
+      const neighbors = this?.getNeighbors(nodeId);
+      if (neighbors?.length < 2) continue;
 
       let edgeCount = 0;
-      const maxEdges = neighbors.length * (neighbors.length - 1) / 2;
+      const maxEdges = neighbors?.length * (neighbors?.length - 1) / 2;
 
-      for (let i = 0; i < neighbors.length; i++) {
-        for (let j = i + 1; j < neighbors.length; j++) {
-          if (this.hasConnection(neighbors[i]!, neighbors[j]!)) {
+      for (let i = 0; i < neighbors?.length; i++) {
+        for (let j = i + 1; j < neighbors?.length; j++) {
+          if (this?.hasConnection(neighbors[i]!, neighbors[j]!)) {
             edgeCount++;
           }
         }
@@ -645,11 +645,11 @@ export class SemanticKnowledgeGraph {
   private getNeighbors(nodeId: string): string[] {
     const neighbors = new Set<string>();
     
-    for (const triad of this.triads.values()) {
-      if (triad.subject === nodeId) {
-        neighbors.add(triad.object);
-      } else if (triad.object === nodeId) {
-        neighbors.add(triad.subject);
+    for (const triad of this.triads?.values()) {
+      if (triad?.subject === nodeId) {
+        neighbors?.add(triad.object);
+      } else if (triad?.object === nodeId) {
+        neighbors?.add(triad.subject);
       }
     }
 
@@ -657,9 +657,9 @@ export class SemanticKnowledgeGraph {
   }
 
   private hasConnection(node1: string, node2: string): boolean {
-    return Array.from(this.triads.values()).some(triad =>
-      (triad.subject === node1 && triad.object === node2) ||
-      (triad.subject === node2 && triad.object === node1)
+    return Array.from(this.triads?.values()).some(triad =>
+      (triad?.subject === node1 && triad?.object === node2) ||
+      (triad?.subject === node2 && triad?.object === node1)
     );
   }
 
@@ -668,34 +668,34 @@ export class SemanticKnowledgeGraph {
     const representativeTriads: KnowledgeTriad[] = [];
     const queue = [startNodeId];
 
-    while (queue.length > 0) {
-      const nodeId = queue.shift()!;
-      if (visited.has(nodeId)) continue;
+    while (queue?.length > 0) {
+      const nodeId = queue?.shift()!;
+      if (visited?.has(nodeId)) continue;
 
-      visited.add(nodeId);
-      clusterNodes.add(nodeId);
+      visited?.add(nodeId);
+      clusterNodes?.add(nodeId);
 
       // Find semantically similar nodes
-      const similarTriads = Array.from(this.triads.values()).filter(triad =>
-        (triad.subject === nodeId && triad.predicate === RelationType.IS_SIMILAR_TO) ||
-        (triad.object === nodeId && triad.predicate === RelationType.IS_SIMILAR_TO) ||
-        (triad.subject === nodeId && triad.predicate === RelationType.IS_TYPE_OF) ||
-        (triad.object === nodeId && triad.predicate === RelationType.IS_TYPE_OF)
+      const similarTriads = Array.from(this.triads?.values()).filter(triad =>
+        (triad?.subject === nodeId && triad?.predicate === RelationType.IS_SIMILAR_TO) ||
+        (triad?.object === nodeId && triad?.predicate === RelationType.IS_SIMILAR_TO) ||
+        (triad?.subject === nodeId && triad?.predicate === RelationType.IS_TYPE_OF) ||
+        (triad?.object === nodeId && triad?.predicate === RelationType.IS_TYPE_OF)
       );
 
       for (const triad of similarTriads) {
-        representativeTriads.push(triad);
-        const relatedNode = triad.subject === nodeId ? triad.object : triad.subject;
-        if (!visited.has(relatedNode)) {
-          queue.push(relatedNode);
+        representativeTriads?.push(triad);
+        const relatedNode = triad?.subject === nodeId ? triad.object : triad.subject;
+        if (!visited?.has(relatedNode)) {
+          queue?.push(relatedNode);
         }
       }
     }
 
-    const coherenceScore = this.calculateClusterCoherence(Array.from(clusterNodes));
+    const coherenceScore = this?.calculateClusterCoherence(Array.from(clusterNodes));
 
     return {
-      id: this.generateNodeId(NodeType.CONCEPT, `cluster_${startNodeId}`, 'semantic'),
+      id: this?.generateNodeId(NodeType.CONCEPT, `cluster_${startNodeId}`, 'semantic'),
       name: `Semantic Cluster ${startNodeId}`,
       nodes: Array.from(clusterNodes),
       coherenceScore,
@@ -704,14 +704,14 @@ export class SemanticKnowledgeGraph {
   }
 
   private calculateClusterCoherence(nodes: string[]): number {
-    if (nodes.length < 2) return 1.0;
+    if (nodes?.length < 2) return 1.0;
 
     let totalConnections = 0;
-    let possibleConnections = nodes.length * (nodes.length - 1) / 2;
+    let possibleConnections = nodes?.length * (nodes?.length - 1) / 2;
 
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        if (this.hasConnection(nodes[i]!, nodes[j]!)) {
+    for (let i = 0; i < nodes?.length; i++) {
+      for (let j = i + 1; j < nodes?.length; j++) {
+        if (this?.hasConnection(nodes[i]!, nodes[j]!)) {
           totalConnections++;
         }
       }
@@ -725,17 +725,17 @@ export class SemanticKnowledgeGraph {
     const insights: ArchitecturalInsight[] = [];
     
     // Look for Singleton pattern
-    const singletons = Array.from(this.nodes.values()).filter(node => 
-      node.type === NodeType.CLASS &&
+    const singletons = Array.from(this.nodes?.values()).filter(node => 
+      node?.type === NodeType.CLASS &&
       node.metadata.tags?.includes('singleton')
     );
 
-    if (singletons.length > 0) {
-      insights.push({
+    if (singletons?.length > 0) {
+      insights?.push({
         type: 'design_pattern_detected' as any,
         confidence: 0.8,
         description: 'Singleton pattern detected',
-        affectedNodes: singletons.map(s => s.id),
+        affectedNodes: singletons?.map(s => s.id),
         recommendations: ['Ensure thread safety', 'Consider dependency injection'],
         evidence: [{
           type: EvidenceType.STATIC_ANALYSIS,
@@ -753,13 +753,13 @@ export class SemanticKnowledgeGraph {
     const insights: ArchitecturalInsight[] = [];
 
     // Detect God Class anti-pattern
-    const godClasses = Array.from(this.nodes.values()).filter(node => 
-      node.type === NodeType.CLASS &&
+    const godClasses = Array.from(this.nodes?.values()).filter(node => 
+      node?.type === NodeType.CLASS &&
       (node.metadata.complexity || 0) > 50
     );
 
     for (const godClass of godClasses) {
-      insights.push({
+      insights?.push({
         type: 'anti_pattern_detected' as any,
         confidence: 0.7,
         description: `God Class detected: ${godClass.name}`,
@@ -781,22 +781,22 @@ export class SemanticKnowledgeGraph {
     const insights: ArchitecturalInsight[] = [];
 
     // Find nodes with high coupling (many dependencies)
-    for (const nodeId of this.nodes.keys()) {
-      const dependencyTriads = Array.from(this.triads.values())
-        .filter(triad => triad.subject === nodeId && triad.predicate === RelationType.DEPENDS_ON);
+    for (const nodeId of this.nodes?.keys()) {
+      const dependencyTriads = Array.from(this.triads?.values())
+        .filter(triad => triad?.subject === nodeId && triad?.predicate === RelationType.DEPENDS_ON);
 
-      if (dependencyTriads.length > 10) {
-        insights.push({
+      if (dependencyTriads?.length > 10) {
+        insights?.push({
           type: 'coupling_issue' as any,
           confidence: 0.6,
-          description: `High coupling detected in ${this.nodes.get(nodeId)?.name}`,
+          description: `High coupling detected in ${this.nodes?.get(nodeId)?.name}`,
           affectedNodes: [nodeId],
           recommendations: ['Reduce dependencies', 'Apply dependency inversion', 'Use interfaces'],
           evidence: [{
             type: EvidenceType.STATIC_ANALYSIS,
             source: 'dependency_analyzer',
             confidence: 0.6,
-            description: `${dependencyTriads.length} dependencies detected`
+            description: `${dependencyTriads?.length} dependencies detected`
           }]
         });
       }
@@ -809,14 +809,14 @@ export class SemanticKnowledgeGraph {
     const insights: ArchitecturalInsight[] = [];
 
     // Find duplicate code patterns
-    const duplicateTriads = Array.from(this.triads.values())
-      .filter(triad => triad.predicate === RelationType.DUPLICATES);
+    const duplicateTriads = Array.from(this.triads?.values())
+      .filter(triad => triad?.predicate === RelationType.DUPLICATES);
 
-    if (duplicateTriads.length > 0) {
-      const duplicateGroups = this.groupDuplicates(duplicateTriads);
+    if (duplicateTriads?.length > 0) {
+      const duplicateGroups = this?.groupDuplicates(duplicateTriads);
       
       for (const group of duplicateGroups) {
-        insights.push({
+        insights?.push({
           type: 'refactoring_opportunity' as any,
           confidence: 0.8,
           description: 'Duplicate code detected - consider extracting common functionality',
@@ -826,7 +826,7 @@ export class SemanticKnowledgeGraph {
             type: EvidenceType.PATTERN_MATCHING,
             source: 'duplication_detector',
             confidence: 0.8,
-            description: `${group.length} nodes contain duplicate logic`
+            description: `${group?.length} nodes contain duplicate logic`
           }]
         });
       }
@@ -840,48 +840,48 @@ export class SemanticKnowledgeGraph {
     const processed = new Set<string>();
 
     for (const triad of duplicateTriads) {
-      if (processed.has(triad.id)) continue;
+      if (processed?.has(triad.id)) continue;
 
       const group = [triad.subject, triad.object];
-      processed.add(triad.id);
+      processed?.add(triad.id);
 
       // Find transitively connected duplicates
-      const relatedTriads = duplicateTriads.filter(t => 
-        !processed.has(t.id) && 
-        (group.includes(t.subject) || group.includes(t.object))
+      const relatedTriads = duplicateTriads?.filter(t => 
+        !processed?.has(t.id) && 
+        (group?.includes(t.subject) || group?.includes(t.object))
       );
 
       for (const related of relatedTriads) {
-        if (!group.includes(related.subject)) group.push(related.subject);
-        if (!group.includes(related.object)) group.push(related.object);
-        processed.add(related.id);
+        if (!group?.includes(related.subject)) group?.push(related.subject);
+        if (!group?.includes(related.object)) group?.push(related.object);
+        processed?.add(related.id);
       }
 
-      groups.push(group);
+      groups?.push(group);
     }
 
     return groups;
   }
 
   private async removeNode(nodeId: string): Promise<void> {
-    this.nodes.delete(nodeId);
+    this.nodes?.delete(nodeId);
     
     // Remove from indexes
-    for (const nodeSet of this.nodeIndex.values()) {
-      nodeSet.delete(nodeId);
+    for (const nodeSet of this.nodeIndex?.values()) {
+      nodeSet?.delete(nodeId);
     }
 
     // Remove related triads
-    const relatedTriads = Array.from(this.triads.values())
-      .filter(triad => triad.subject === nodeId || triad.object === nodeId);
+    const relatedTriads = Array.from(this.triads?.values())
+      .filter(triad => triad?.subject === nodeId || triad?.object === nodeId);
 
     for (const triad of relatedTriads) {
-      await this.removeTriad(triad.id);
+      await this?.removeTriad(triad.id);
     }
 
     if (this.db) {
       try {
-        await this.db.query('DELETE FROM knowledge_nodes WHERE id = $1', [nodeId]);
+        await this.db?.query('DELETE FROM knowledge_nodes WHERE id = $1', [nodeId]);
       } catch (error) {
         this.logger.error('Failed to remove node from database', error as Error);
       }
@@ -889,14 +889,14 @@ export class SemanticKnowledgeGraph {
   }
 
   private async removeTriad(triadId: string): Promise<void> {
-    const triad = this.triads.get(triadId);
+    const triad = this.triads?.get(triadId);
     if (triad) {
-      this.triads.delete(triadId);
-      this.relationIndex.get(triad.predicate)?.delete(triadId);
+      this.triads?.delete(triadId);
+      this.relationIndex?.get(triad.predicate)?.delete(triadId);
 
       if (this.db) {
         try {
-          await this.db.query('DELETE FROM knowledge_triads WHERE id = $1', [triadId]);
+          await this.db?.query('DELETE FROM knowledge_triads WHERE id = $1', [triadId]);
         } catch (error) {
           this.logger.error('Failed to remove triad from database', error as Error);
         }
@@ -905,10 +905,10 @@ export class SemanticKnowledgeGraph {
   }
 
   private async updateNode(nodeId: string, updates: Partial<KnowledgeNode>): Promise<void> {
-    const node = this.nodes.get(nodeId);
+    const node = this.nodes?.get(nodeId);
     if (node) {
       const updatedNode = { ...node, ...updates, updatedAt: new Date() };
-      this.nodes.set(nodeId, updatedNode);
+      this.nodes?.set(nodeId, updatedNode);
 
       if (this.db) {
         try {
@@ -921,7 +921,7 @@ export class SemanticKnowledgeGraph {
             Object.keys(updates)[index] !== 'id' && Object.keys(updates)[index] !== 'createdAt'
           )];
 
-          await this.db.query(
+          await this.db?.query(
             `UPDATE knowledge_nodes SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
             values
           );
@@ -933,10 +933,10 @@ export class SemanticKnowledgeGraph {
   }
 
   private async updateTriad(triadId: string, updates: Partial<KnowledgeTriad>): Promise<void> {
-    const triad = this.triads.get(triadId);
+    const triad = this.triads?.get(triadId);
     if (triad) {
       const updatedTriad = { ...triad, ...updates };
-      this.triads.set(triadId, updatedTriad);
+      this.triads?.set(triadId, updatedTriad);
 
       if (this.db) {
         try {
@@ -949,7 +949,7 @@ export class SemanticKnowledgeGraph {
             Object.keys(updates)[index] !== 'id' && Object.keys(updates)[index] !== 'createdAt'
           )];
 
-          await this.db.query(
+          await this.db?.query(
             `UPDATE knowledge_triads SET ${setClause} WHERE id = $1`,
             values
           );
@@ -972,20 +972,20 @@ export class SemanticKnowledgeGraph {
 
   async exportGraph(): Promise<{ nodes: KnowledgeNode[]; triads: KnowledgeTriad[] }> {
     return {
-      nodes: Array.from(this.nodes.values()),
-      triads: Array.from(this.triads.values())
+      nodes: Array.from(this.nodes?.values()),
+      triads: Array.from(this.triads?.values())
     };
   }
 
   async importGraph(data: { nodes: KnowledgeNode[]; triads: KnowledgeTriad[] }): Promise<void> {
     for (const node of data.nodes) {
-      this.nodes.set(node.id, node);
-      this.nodeIndex.get(node.type)?.add(node.id);
+      this.nodes?.set(node.id, node);
+      this.nodeIndex?.get(node.type)?.add(node.id);
     }
 
     for (const triad of data.triads) {
-      this.triads.set(triad.id, triad);
-      this.relationIndex.get(triad.predicate)?.add(triad.id);
+      this.triads?.set(triad.id, triad);
+      this.relationIndex?.get(triad.predicate)?.add(triad.id);
     }
   }
 
@@ -996,7 +996,7 @@ export class SemanticKnowledgeGraph {
   }
 
   async findPatterns(patterns: string[]): Promise<any[]> {
-    this.logger.info(`Finding patterns: ${patterns.join(', ')}`);
+    this.logger.info(`Finding patterns: ${patterns?.join(', ')}`);
     return [];
   }
 
@@ -1026,7 +1026,7 @@ export class SemanticKnowledgeGraph {
   }
 
   async analyzeDependencyGraph(modules: string[]): Promise<any[]> {
-    this.logger.info(`Analyzing dependency graph for modules: ${modules.join(', ')}`);
+    this.logger.info(`Analyzing dependency graph for modules: ${modules?.join(', ')}`);
     return [];
   }
 
@@ -1036,22 +1036,22 @@ export class SemanticKnowledgeGraph {
   }
 
   async findSecurityRelationships(codeFiles: string[]): Promise<any[]> {
-    this.logger.info(`Finding security relationships in files: ${codeFiles.join(', ')}`);
+    this.logger.info(`Finding security relationships in files: ${codeFiles?.join(', ')}`);
     return [];
   }
 
   async getSecurityDependencies(dependencies: string[]): Promise<any[]> {
-    this.logger.info(`Getting security dependencies: ${dependencies.join(', ')}`);
+    this.logger.info(`Getting security dependencies: ${dependencies?.join(', ')}`);
     return [];
   }
 
   async findSimilarSecurityIssues(vulnerabilityReports: string[]): Promise<any[]> {
-    this.logger.info(`Finding similar security issues from reports: ${vulnerabilityReports.join(', ')}`);
+    this.logger.info(`Finding similar security issues from reports: ${vulnerabilityReports?.join(', ')}`);
     return [];
   }
 
   async findPerformanceRelationships(codeFiles: string[]): Promise<any[]> {
-    this.logger.info(`Finding performance relationships in files: ${codeFiles.join(', ')}`);
+    this.logger.info(`Finding performance relationships in files: ${codeFiles?.join(', ')}`);
     return [];
   }
 
@@ -1061,22 +1061,22 @@ export class SemanticKnowledgeGraph {
   }
 
   async findSimilarPerformanceIssues(metrics: string[]): Promise<any[]> {
-    this.logger.info(`Finding similar performance issues for metrics: ${metrics.join(', ')}`);
+    this.logger.info(`Finding similar performance issues for metrics: ${metrics?.join(', ')}`);
     return [];
   }
 
   async findQualityRelationships(codeFiles: string[]): Promise<any[]> {
-    this.logger.info(`Finding quality relationships in files: ${codeFiles.join(', ')}`);
+    this.logger.info(`Finding quality relationships in files: ${codeFiles?.join(', ')}`);
     return [];
   }
 
   async getQualityDependencies(modules: string[]): Promise<any[]> {
-    this.logger.info(`Getting quality dependencies for modules: ${modules.join(', ')}`);
+    this.logger.info(`Getting quality dependencies for modules: ${modules?.join(', ')}`);
     return [];
   }
 
   async findSimilarQualityIssues(metrics: string[]): Promise<any[]> {
-    this.logger.info(`Finding similar quality issues for metrics: ${metrics.join(', ')}`);
+    this.logger.info(`Finding similar quality issues for metrics: ${metrics?.join(', ')}`);
     return [];
   }
 }

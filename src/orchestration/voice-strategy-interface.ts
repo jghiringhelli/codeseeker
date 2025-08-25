@@ -125,7 +125,7 @@ export class VoiceStrategyInterface extends EventEmitter {
       enableRealTimeInsights: true
     };
 
-    this.initializeVoiceServices();
+    this?.initializeVoiceServices();
   }
 
   private initializeVoiceServices(): void {
@@ -136,8 +136,8 @@ export class VoiceStrategyInterface extends EventEmitter {
       this.speechRecognition.interimResults = true;
       this.speechRecognition.lang = this.voiceSettings.language;
       
-      this.speechRecognition.onresult = this.handleSpeechResult.bind(this);
-      this.speechRecognition.onerror = this.handleSpeechError.bind(this);
+      this.speechRecognition.onresult = this.handleSpeechResult?.bind(this);
+      this.speechRecognition.onerror = this.handleSpeechError?.bind(this);
       
       this.logger.info('Speech recognition initialized');
     } else {
@@ -157,7 +157,7 @@ export class VoiceStrategyInterface extends EventEmitter {
     userId: string,
     topic: string = 'Project Strategy Review'
   ): Promise<string> {
-    const sessionId = `voice-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = `voice-${Date?.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     const session: VoiceSession = {
       id: sessionId,
@@ -171,18 +171,18 @@ export class VoiceStrategyInterface extends EventEmitter {
       mood: 'exploratory'
     };
 
-    this.activeSessions.set(sessionId, session);
+    this.activeSessions?.set(sessionId, session);
     
     // Start with orchestrator greeting
-    await this.addOrchestratorResponse(
+    await this?.addOrchestratorResponse(
       sessionId,
-      this.generateGreeting(topic),
+      this?.generateGreeting(topic),
       'question',
       'strategy'
     );
 
     this.logger.info(`Strategic conversation started: ${sessionId} - ${topic}`);
-    this.emit('conversation-started', { sessionId, topic });
+    this?.emit('conversation-started', { sessionId, topic });
 
     return sessionId;
   }
@@ -192,22 +192,22 @@ export class VoiceStrategyInterface extends EventEmitter {
     input: string,
     isVoice: boolean = false
   ): Promise<string> {
-    const session = this.activeSessions.get(sessionId);
+    const session = this.activeSessions?.get(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
 
     // Add user input to conversation
-    const userTurn = await this.addUserInput(sessionId, input, isVoice);
+    const userTurn = await this?.addUserInput(sessionId, input, isVoice);
     
     // Process the input for insights and decisions
-    await this.processForInsights(session, userTurn);
+    await this?.processForInsights(session, userTurn);
     
     // Generate orchestrator response
-    const response = await this.generateOrchestratorResponse(session, userTurn);
+    const response = await this?.generateOrchestratorResponse(session, userTurn);
     
     // Add orchestrator response
-    const orchestratorTurn = await this.addOrchestratorResponse(
+    const orchestratorTurn = await this?.addOrchestratorResponse(
       sessionId,
       response.content,
       response.intent.type,
@@ -216,11 +216,11 @@ export class VoiceStrategyInterface extends EventEmitter {
 
     // Speak the response if voice is enabled
     if (this.speechSynthesis && this.voiceSettings.voice) {
-      this.speakResponse(response.content);
+      this?.speakResponse(response.content);
     }
 
     // Save session periodically
-    await this.saveSession(session);
+    await this?.saveSession(session);
 
     return response.content;
   }
@@ -230,24 +230,24 @@ export class VoiceStrategyInterface extends EventEmitter {
     input: string,
     isVoice: boolean
   ): Promise<ConversationTurn> {
-    const session = this.activeSessions.get(sessionId)!;
+    const session = this.activeSessions?.get(sessionId)!;
     
-    const intent = await this.analyzeIntent(input);
-    const sentiment = await this.analyzeSentiment(input);
+    const intent = await this?.analyzeIntent(input);
+    const sentiment = await this?.analyzeSentiment(input);
     
     const turn: ConversationTurn = {
-      id: `turn-${Date.now()}`,
+      id: `turn-${Date?.now()}`,
       timestamp: new Date(),
       speaker: 'user',
       content: input,
       transcription: isVoice ? input : undefined,
       sentiment,
       intent,
-      context: this.extractContext(session)
+      context: this?.extractContext(session)
     };
 
-    session.conversationHistory.push(turn);
-    this.emit('user-input-processed', { sessionId, turn });
+    session.conversationHistory?.push(turn);
+    this?.emit('user-input-processed', { sessionId, turn });
     
     return turn;
   }
@@ -258,10 +258,10 @@ export class VoiceStrategyInterface extends EventEmitter {
     intentType: ConversationIntent['type'],
     intentCategory: ConversationIntent['category']
   ): Promise<ConversationTurn> {
-    const session = this.activeSessions.get(sessionId)!;
+    const session = this.activeSessions?.get(sessionId)!;
     
     const turn: ConversationTurn = {
-      id: `turn-${Date.now()}`,
+      id: `turn-${Date?.now()}`,
       timestamp: new Date(),
       speaker: 'orchestrator',
       content,
@@ -272,11 +272,11 @@ export class VoiceStrategyInterface extends EventEmitter {
         entities: [],
         confidence: 1.0
       },
-      context: this.extractContext(session)
+      context: this?.extractContext(session)
     };
 
-    session.conversationHistory.push(turn);
-    this.emit('orchestrator-response-generated', { sessionId, turn });
+    session.conversationHistory?.push(turn);
+    this?.emit('orchestrator-response-generated', { sessionId, turn });
     
     return turn;
   }
@@ -286,9 +286,9 @@ export class VoiceStrategyInterface extends EventEmitter {
     userTurn: ConversationTurn
   ): Promise<{ content: string; intent: ConversationIntent }> {
     // Get strategic context
-    const strategicContext = await this.projectKB.getStrategicContext();
-    const recentInsights = session.insights.slice(-3);
-    const pendingDecisions = session.decisions.filter(d => !d.recommendation);
+    const strategicContext = await this.projectKB?.getStrategicContext();
+    const recentInsights = session.insights?.slice(-3);
+    const pendingDecisions = session.decisions?.filter(d => !d.recommendation);
 
     // Generate response based on intent and context
     let response = '';
@@ -296,27 +296,27 @@ export class VoiceStrategyInterface extends EventEmitter {
 
     switch (userTurn.intent.type) {
       case 'question':
-        response = await this.handleStrategicQuestion(userTurn, strategicContext);
+        response = await this?.handleStrategicQuestion(userTurn, strategicContext);
         intent = { type: 'statement', category: userTurn.intent.category, entities: [], confidence: 0.9 };
         break;
         
       case 'concern':
-        response = await this.handleStrategicConcern(userTurn, strategicContext, recentInsights);
+        response = await this?.handleStrategicConcern(userTurn, strategicContext, recentInsights);
         intent = { type: 'question', category: 'strategy', entities: [], confidence: 0.8 };
         break;
         
       case 'idea':
-        response = await this.handleStrategicIdea(userTurn, strategicContext);
+        response = await this?.handleStrategicIdea(userTurn, strategicContext);
         intent = { type: 'question', category: 'strategy', entities: [], confidence: 0.9 };
         break;
         
       case 'decision':
-        response = await this.handleDecisionMaking(userTurn, strategicContext, pendingDecisions);
+        response = await this?.handleDecisionMaking(userTurn, strategicContext, pendingDecisions);
         intent = { type: 'statement', category: 'strategy', entities: [], confidence: 0.95 };
         break;
         
       default:
-        response = await this.handleGeneralDiscussion(userTurn, strategicContext);
+        response = await this?.handleGeneralDiscussion(userTurn, strategicContext);
         intent = { type: 'question', category: 'strategy', entities: [], confidence: 0.7 };
     }
 
@@ -328,15 +328,15 @@ export class VoiceStrategyInterface extends EventEmitter {
     context: any
   ): Promise<string> {
     // Search knowledge repository for relevant information
-    const searchResults = await this.knowledgeRepo.searchKnowledge(
+    const searchResults = await this.knowledgeRepo?.searchKnowledge(
       userTurn.content,
       { limit: 3, useHybrid: true }
     );
 
     let response = '';
 
-    if (userTurn.content.toLowerCase().includes('progress') || 
-        userTurn.content.toLowerCase().includes('status')) {
+    if (userTurn.content?.toLowerCase().includes('progress') || 
+        userTurn.content?.toLowerCase().includes('status')) {
       response = `Based on our current project status:\n\n`;
       response += `We're at ${context.metrics?.overallProgress || 0}% overall progress. `;
       response += `${context.currentPhase ? `Currently in ${context.currentPhase.name} phase. ` : ''}`;
@@ -345,16 +345,16 @@ export class VoiceStrategyInterface extends EventEmitter {
       if (context.recommendations?.length > 0) {
         response += `Key recommendations: ${context.recommendations[0]}\n\n`;
       }
-    } else if (userTurn.content.toLowerCase().includes('risk')) {
+    } else if (userTurn.content?.toLowerCase().includes('risk')) {
       response = `Regarding risks: Our current risk level is ${context.metrics?.riskLevel || 'unknown'}. `;
       
       if (context.highRisks?.length > 0) {
-        response += `We have ${context.highRisks.length} high-priority risks that need attention. `;
+        response += `We have ${context.highRisks?.length} high-priority risks that need attention. `;
         response += `The most critical one appears to be related to ${context.highRisks[0]?.category || 'project delivery'}.\n\n`;
       }
-    } else if (searchResults.length > 0) {
+    } else if (searchResults?.length > 0) {
       response = `Based on industry knowledge and best practices:\n\n`;
-      response += searchResults[0].document.content.substring(0, 300) + '...\n\n';
+      response += searchResults?.[0].document.content?.substring(0, 300) + '...\n\n';
       response += `This aligns with our current ${context.currentPhase?.name || 'project'} phase. `;
     } else {
       response = `That's an interesting strategic question. Let me think about this in the context of our `;
@@ -374,30 +374,30 @@ export class VoiceStrategyInterface extends EventEmitter {
   ): Promise<string> {
     // Create a strategic insight from the concern
     const insight: StrategicInsight = {
-      id: `insight-${Date.now()}`,
+      id: `insight-${Date?.now()}`,
       type: 'risk',
       description: `User concern: ${userTurn.content}`,
       evidence: [userTurn.content],
       implications: [],
-      priority: this.assessConcernPriority(userTurn.content),
+      priority: this?.assessConcernPriority(userTurn.content),
       createdAt: new Date()
     };
 
-    const session = this.activeSessions.get(userTurn.context[0])!;
-    session.insights.push(insight);
+    const session = this.activeSessions?.get(userTurn.context[0])!;
+    session.insights?.push(insight);
 
     let response = `I appreciate you raising this concern. It's important to address these issues proactively.\n\n`;
     
-    if (userTurn.content.toLowerCase().includes('timeline') || 
-        userTurn.content.toLowerCase().includes('deadline')) {
+    if (userTurn.content?.toLowerCase().includes('timeline') || 
+        userTurn.content?.toLowerCase().includes('deadline')) {
       response += `Regarding timeline concerns: `;
       response += `We're currently ${context.metrics?.overallProgress || 0}% complete. `;
       if (context.currentPhase) {
         response += `The ${context.currentPhase.name} phase is scheduled to end ${context.currentPhase.endDate}. `;
       }
       response += `\n\nWhat specific timeline pressures are you most worried about?`;
-    } else if (userTurn.content.toLowerCase().includes('quality') || 
-               userTurn.content.toLowerCase().includes('technical')) {
+    } else if (userTurn.content?.toLowerCase().includes('quality') || 
+               userTurn.content?.toLowerCase().includes('technical')) {
       response += `On the technical quality front: `;
       response += `Our quality trend is currently ${context.metrics?.qualityTrend || 'stable'}. `;
       response += `We should examine this concern in detail.\n\n`;
@@ -418,7 +418,7 @@ export class VoiceStrategyInterface extends EventEmitter {
   ): Promise<string> {
     // Create a strategic insight from the idea
     const insight: StrategicInsight = {
-      id: `insight-${Date.now()}`,
+      id: `insight-${Date?.now()}`,
       type: 'opportunity',
       description: `Strategic idea: ${userTurn.content}`,
       evidence: [userTurn.content],
@@ -428,15 +428,15 @@ export class VoiceStrategyInterface extends EventEmitter {
     };
 
     const sessionId = userTurn.context[0];
-    const session = this.activeSessions.get(sessionId)!;
-    session.insights.push(insight);
+    const session = this.activeSessions?.get(sessionId)!;
+    session.insights?.push(insight);
 
     let response = `That's a fascinating strategic idea. Let me think through the implications...\n\n`;
     
     // Analyze the idea against current context
     if (context.currentPhase) {
       response += `In the context of our current ${context.currentPhase.name} phase, this could `;
-      response += `${this.assessIdeaImpact(userTurn.content, context)}.\n\n`;
+      response += `${this?.assessIdeaImpact(userTurn.content, context)}.\n\n`;
     }
 
     response += `To explore this further:\n`;
@@ -455,8 +455,8 @@ export class VoiceStrategyInterface extends EventEmitter {
   ): Promise<string> {
     // Create a strategic decision from the input
     const decision: StrategicDecision = {
-      id: `decision-${Date.now()}`,
-      title: this.extractDecisionTitle(userTurn.content),
+      id: `decision-${Date?.now()}`,
+      title: this?.extractDecisionTitle(userTurn.content),
       description: userTurn.content,
       options: [],
       criteria: ['feasibility', 'impact', 'risk', 'alignment'],
@@ -470,8 +470,8 @@ export class VoiceStrategyInterface extends EventEmitter {
     };
 
     const sessionId = userTurn.context[0];
-    const session = this.activeSessions.get(sessionId)!;
-    session.decisions.push(decision);
+    const session = this.activeSessions?.get(sessionId)!;
+    session.decisions?.push(decision);
 
     let response = `This sounds like an important strategic decision. Let me help you think through it systematically.\n\n`;
     response += `**Decision**: ${decision.title}\n\n`;
@@ -500,7 +500,7 @@ export class VoiceStrategyInterface extends EventEmitter {
       "Your observation connects to a deeper pattern I've noticed:"
     ];
 
-    const starter = philosophicalStarters[Math.floor(Math.random() * philosophicalStarters.length)];
+    const starter = philosophicalStarters[Math.floor(Math.random() * philosophicalStarters?.length)];
     response = `${starter} `;
 
     // Add contextual insight
@@ -517,61 +517,61 @@ export class VoiceStrategyInterface extends EventEmitter {
 
   private generateGreeting(topic: string): string {
     const greetings = [
-      `Hello! I'm excited to have this strategic conversation with you about ${topic.toLowerCase()}.`,
-      `Welcome to our strategic discussion on ${topic.toLowerCase()}. I'm here to help you think through the complexities.`,
-      `Good to connect with you for this strategic dialogue about ${topic.toLowerCase()}.`,
-      `I'm looking forward to exploring ${topic.toLowerCase()} with you from multiple angles.`
+      `Hello! I'm excited to have this strategic conversation with you about ${topic?.toLowerCase()}.`,
+      `Welcome to our strategic discussion on ${topic?.toLowerCase()}. I'm here to help you think through the complexities.`,
+      `Good to connect with you for this strategic dialogue about ${topic?.toLowerCase()}.`,
+      `I'm looking forward to exploring ${topic?.toLowerCase()} with you from multiple angles.`
     ];
 
-    const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+    const greeting = greetings[Math.floor(Math.random() * greetings?.length)];
     
     return `${greeting}\n\nAs your orchestrator, I bring a unique perspective from coordinating hundreds of development workflows, seeing patterns across projects, and understanding how strategic decisions ripple through technical implementation.\n\nWhat's on your mind today? What strategic challenges or opportunities are you thinking about?`;
   }
 
   private async analyzeIntent(input: string): Promise<ConversationIntent> {
     // Simplified intent analysis - in production, use actual NLP service
-    const lowerInput = input.toLowerCase();
+    const lowerInput = input?.toLowerCase();
     
     let type: ConversationIntent['type'] = 'statement';
     let category: ConversationIntent['category'] = 'strategy';
     
     // Analyze type
-    if (lowerInput.includes('?') || lowerInput.startsWith('what') || 
-        lowerInput.startsWith('how') || lowerInput.startsWith('why') ||
-        lowerInput.startsWith('when') || lowerInput.startsWith('where')) {
+    if (lowerInput?.includes('?') || lowerInput?.startsWith('what') || 
+        lowerInput?.startsWith('how') || lowerInput?.startsWith('why') ||
+        lowerInput?.startsWith('when') || lowerInput?.startsWith('where')) {
       type = 'question';
-    } else if (lowerInput.includes('concerned') || lowerInput.includes('worried') ||
-               lowerInput.includes('problem') || lowerInput.includes('issue')) {
+    } else if (lowerInput?.includes('concerned') || lowerInput?.includes('worried') ||
+               lowerInput?.includes('problem') || lowerInput?.includes('issue')) {
       type = 'concern';
-    } else if (lowerInput.includes('idea') || lowerInput.includes('suggest') ||
-               lowerInput.includes('propose') || lowerInput.startsWith('what if')) {
+    } else if (lowerInput?.includes('idea') || lowerInput?.includes('suggest') ||
+               lowerInput?.includes('propose') || lowerInput?.startsWith('what if')) {
       type = 'idea';
-    } else if (lowerInput.includes('decide') || lowerInput.includes('choose') ||
-               lowerInput.includes('should we')) {
+    } else if (lowerInput?.includes('decide') || lowerInput?.includes('choose') ||
+               lowerInput?.includes('should we')) {
       type = 'decision';
-    } else if (lowerInput.includes('think') || lowerInput.includes('feel') ||
-               lowerInput.includes('believe')) {
+    } else if (lowerInput?.includes('think') || lowerInput?.includes('feel') ||
+               lowerInput?.includes('believe')) {
       type = 'reflection';
     }
     
     // Analyze category
-    if (lowerInput.includes('technical') || lowerInput.includes('code') ||
-        lowerInput.includes('architecture') || lowerInput.includes('development')) {
+    if (lowerInput?.includes('technical') || lowerInput?.includes('code') ||
+        lowerInput?.includes('architecture') || lowerInput?.includes('development')) {
       category = 'technical';
-    } else if (lowerInput.includes('process') || lowerInput.includes('workflow') ||
-               lowerInput.includes('methodology')) {
+    } else if (lowerInput?.includes('process') || lowerInput?.includes('workflow') ||
+               lowerInput?.includes('methodology')) {
       category = 'process';
-    } else if (lowerInput.includes('team') || lowerInput.includes('people') ||
-               lowerInput.includes('communication')) {
+    } else if (lowerInput?.includes('team') || lowerInput?.includes('people') ||
+               lowerInput?.includes('communication')) {
       category = 'people';
-    } else if (lowerInput.includes('timeline') || lowerInput.includes('schedule') ||
-               lowerInput.includes('deadline')) {
+    } else if (lowerInput?.includes('timeline') || lowerInput?.includes('schedule') ||
+               lowerInput?.includes('deadline')) {
       category = 'timeline';
-    } else if (lowerInput.includes('quality') || lowerInput.includes('test') ||
-               lowerInput.includes('bug')) {
+    } else if (lowerInput?.includes('quality') || lowerInput?.includes('test') ||
+               lowerInput?.includes('bug')) {
       category = 'quality';
-    } else if (lowerInput.includes('risk') || lowerInput.includes('problem') ||
-               lowerInput.includes('challenge')) {
+    } else if (lowerInput?.includes('risk') || lowerInput?.includes('problem') ||
+               lowerInput?.includes('challenge')) {
       category = 'risks';
     }
 
@@ -585,17 +585,17 @@ export class VoiceStrategyInterface extends EventEmitter {
 
   private async analyzeSentiment(input: string): Promise<ConversationTurn['sentiment']> {
     // Simplified sentiment analysis
-    const lowerInput = input.toLowerCase();
+    const lowerInput = input?.toLowerCase();
     
     const negativeWords = ['concerned', 'worried', 'problem', 'issue', 'difficult', 'challenge', 'wrong'];
     const positiveWords = ['great', 'excellent', 'good', 'success', 'opportunity', 'excited', 'optimistic'];
     const concernedWords = ['uncertain', 'unsure', 'risky', 'doubt', 'hesitant'];
     const excitedWords = ['amazing', 'fantastic', 'thrilled', 'love', 'perfect'];
     
-    if (excitedWords.some(word => lowerInput.includes(word))) return 'excited';
-    if (concernedWords.some(word => lowerInput.includes(word))) return 'concerned';
-    if (negativeWords.some(word => lowerInput.includes(word))) return 'negative';
-    if (positiveWords.some(word => lowerInput.includes(word))) return 'positive';
+    if (excitedWords?.some(word => lowerInput?.includes(word))) return 'excited';
+    if (concernedWords?.some(word => lowerInput?.includes(word))) return 'concerned';
+    if (negativeWords?.some(word => lowerInput?.includes(word))) return 'negative';
+    if (positiveWords?.some(word => lowerInput?.includes(word))) return 'positive';
     
     return 'neutral';
   }
@@ -605,23 +605,23 @@ export class VoiceStrategyInterface extends EventEmitter {
       session.id,
       session.topic,
       session.mood,
-      `turns:${session.conversationHistory.length}`
+      `turns:${session.conversationHistory?.length}`
     ];
   }
 
   private assessConcernPriority(concern: string): StrategicInsight['priority'] {
-    const lowerConcern = concern.toLowerCase();
+    const lowerConcern = concern?.toLowerCase();
     
-    if (lowerConcern.includes('critical') || lowerConcern.includes('urgent') ||
-        lowerConcern.includes('immediate') || lowerConcern.includes('blocking')) {
+    if (lowerConcern?.includes('critical') || lowerConcern?.includes('urgent') ||
+        lowerConcern?.includes('immediate') || lowerConcern?.includes('blocking')) {
       return 'critical';
     }
-    if (lowerConcern.includes('important') || lowerConcern.includes('significant') ||
-        lowerConcern.includes('major')) {
+    if (lowerConcern?.includes('important') || lowerConcern?.includes('significant') ||
+        lowerConcern?.includes('major')) {
       return 'high';
     }
-    if (lowerConcern.includes('minor') || lowerConcern.includes('small') ||
-        lowerConcern.includes('slight')) {
+    if (lowerConcern?.includes('minor') || lowerConcern?.includes('small') ||
+        lowerConcern?.includes('slight')) {
       return 'low';
     }
     
@@ -638,16 +638,16 @@ export class VoiceStrategyInterface extends EventEmitter {
       'require careful consideration of trade-offs'
     ];
     
-    return impacts[Math.floor(Math.random() * impacts.length)];
+    return impacts[Math.floor(Math.random() * impacts?.length)];
   }
 
   private extractDecisionTitle(content: string): string {
     // Extract a title from decision content
-    const sentences = content.split(/[.!?]+/);
-    const firstSentence = sentences[0].trim();
+    const sentences = content?.split(/[.!?]+/);
+    const firstSentence = sentences?.[0].trim();
     
-    if (firstSentence.length > 50) {
-      return firstSentence.substring(0, 47) + '...';
+    if (firstSentence?.length > 50) {
+      return firstSentence?.substring(0, 47) + '...';
     }
     
     return firstSentence;
@@ -658,95 +658,95 @@ export class VoiceStrategyInterface extends EventEmitter {
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = this.voiceSettings.language;
-    utterance.rate = this.voiceSettings.pace === 'fast' ? 1.2 : 
-                     this.voiceSettings.pace === 'slow' ? 0.8 : 1.0;
+    utterance.rate = this.voiceSettings?.pace === 'fast' ? 1.2 : 
+                     this.voiceSettings?.pace === 'slow' ? 0.8 : 1.0;
     
-    this.speechSynthesis.speak(utterance);
+    this.speechSynthesis?.speak(utterance);
   }
 
   private handleSpeechResult(event: any): void {
     const results = event.results;
-    const lastResult = results[results.length - 1];
+    const lastResult = results[results?.length - 1];
     
     if (lastResult.isFinal) {
-      const transcript = lastResult[0].transcript;
-      this.emit('speech-recognized', { transcript });
+      const transcript = lastResult?.[0].transcript;
+      this?.emit('speech-recognized', { transcript });
     }
   }
 
   private handleSpeechError(event: any): void {
     this.logger.error('Speech recognition error:', event.error);
-    this.emit('speech-error', event.error);
+    this?.emit('speech-error', event.error);
   }
 
   private async saveSession(session: VoiceSession): Promise<void> {
     try {
-      await fs.mkdir(this.sessionsPath, { recursive: true });
+      await fs?.mkdir(this.sessionsPath, { recursive: true });
       const sessionPath = `${this.sessionsPath}/${session.id}.json`;
-      await fs.writeFile(sessionPath, JSON.stringify(session, null, 2));
+      await fs?.writeFile(sessionPath, JSON.stringify(session, null, 2));
     } catch (error) {
-      this.logger.error('Failed to save voice session', error);
+      this.logger.error('Failed to save voice session', error as Error);
     }
   }
 
   private async processForInsights(session: VoiceSession, turn: ConversationTurn): Promise<void> {
     // Real-time insight generation would happen here
     // For now, just emit event for monitoring
-    this.emit('insight-processed', { sessionId: session.id, turn });
+    this?.emit('insight-processed', { sessionId: session.id, turn });
   }
 
   // Public API
   async endConversation(sessionId: string): Promise<VoiceSession> {
-    const session = this.activeSessions.get(sessionId);
+    const session = this.activeSessions?.get(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
 
     session.endTime = new Date();
-    await this.saveSession(session);
+    await this?.saveSession(session);
     
-    this.activeSessions.delete(sessionId);
+    this.activeSessions?.delete(sessionId);
     
     this.logger.info(`Strategic conversation ended: ${sessionId}`);
-    this.emit('conversation-ended', session);
+    this?.emit('conversation-ended', session);
     
     return session;
   }
 
   async getConversationSummary(sessionId: string): Promise<string> {
-    const session = this.activeSessions.get(sessionId);
+    const session = this.activeSessions?.get(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
 
     let summary = `# Strategic Conversation Summary\n\n`;
     summary += `**Topic**: ${session.topic}\n`;
-    summary += `**Duration**: ${session.startTime.toLocaleString()}`;
+    summary += `**Duration**: ${session.startTime?.toLocaleString()}`;
     if (session.endTime) {
-      const duration = (session.endTime.getTime() - session.startTime.getTime()) / 60000;
-      summary += ` - ${session.endTime.toLocaleString()} (${duration.toFixed(1)} minutes)`;
+      const duration = (session.endTime?.getTime() - session.startTime?.getTime()) / 60000;
+      summary += ` - ${session.endTime?.toLocaleString()} (${duration?.toFixed(1)} minutes)`;
     }
     summary += `\n**Mood**: ${session.mood}\n\n`;
 
-    if (session.insights.length > 0) {
-      summary += `## Strategic Insights (${session.insights.length})\n`;
-      session.insights.forEach(insight => {
+    if (session.insights?.length > 0) {
+      summary += `## Strategic Insights (${session.insights?.length})\n`;
+      session.insights?.forEach(insight => {
         summary += `- **${insight.type}**: ${insight.description} (${insight.priority} priority)\n`;
       });
       summary += '\n';
     }
 
-    if (session.decisions.length > 0) {
-      summary += `## Decisions Discussed (${session.decisions.length})\n`;
-      session.decisions.forEach(decision => {
+    if (session.decisions?.length > 0) {
+      summary += `## Decisions Discussed (${session.decisions?.length})\n`;
+      session.decisions?.forEach(decision => {
         summary += `- **${decision.title}**: ${decision.impact} impact, ${decision.urgency} urgency\n`;
       });
       summary += '\n';
     }
 
-    if (session.actionItems.length > 0) {
-      summary += `## Action Items (${session.actionItems.length})\n`;
-      session.actionItems.forEach(item => {
+    if (session.actionItems?.length > 0) {
+      summary += `## Action Items (${session.actionItems?.length})\n`;
+      session.actionItems?.forEach(item => {
         summary += `- ${item.description} (${item.priority} priority)\n`;
       });
     }
@@ -755,7 +755,7 @@ export class VoiceStrategyInterface extends EventEmitter {
   }
 
   getActiveSessionIds(): string[] {
-    return Array.from(this.activeSessions.keys());
+    return Array.from(this.activeSessions?.keys());
   }
 
   updateVoiceSettings(settings: Partial<VoiceSettings>): void {

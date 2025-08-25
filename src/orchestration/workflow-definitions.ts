@@ -20,7 +20,7 @@ export class WorkflowDefinitions {
     const nodes = new Map<string, WorkflowNode>();
     
     // Entry Point: Work Classification
-    nodes.set('classify-work', {
+    nodes?.set('classify-work', {
       id: 'classify-work',
       roleType: RoleType.WORK_CLASSIFIER,
       name: 'Classify Feature Request',
@@ -39,7 +39,7 @@ export class WorkflowDefinitions {
     });
 
     // Concurrent Analysis Phase
-    nodes.set('analyze-requirements', {
+    nodes?.set('analyze-requirements', {
       id: 'analyze-requirements',
       roleType: RoleType.REQUIREMENT_ANALYST,
       name: 'Analyze Requirements',
@@ -69,7 +69,7 @@ export class WorkflowDefinitions {
     });
 
     // TDD Test Design Phase
-    nodes.set('design-tests', {
+    nodes?.set('design-tests', {
       id: 'design-tests',
       roleType: RoleType.TEST_DESIGNER,
       name: 'Design Test Suite',
@@ -88,7 +88,7 @@ export class WorkflowDefinitions {
     });
 
     // Implementation Phase
-    nodes.set('implement-feature', {
+    nodes?.set('implement-feature', {
       id: 'implement-feature',
       roleType: RoleType.IMPLEMENTATION_DEVELOPER,
       name: 'Implement Feature',
@@ -107,7 +107,7 @@ export class WorkflowDefinitions {
     });
 
     // Code Review
-    nodes.set('review-code', {
+    nodes?.set('review-code', {
       id: 'review-code',
       roleType: RoleType.CODE_REVIEWER,
       name: 'Code Review',
@@ -138,7 +138,7 @@ export class WorkflowDefinitions {
     });
 
     // Build Phase
-    nodes.set('build-artifact', {
+    nodes?.set('build-artifact', {
       id: 'build-artifact',
       roleType: RoleType.COMPILER_BUILDER,
       name: 'Build Artifacts',
@@ -157,7 +157,7 @@ export class WorkflowDefinitions {
     });
 
     // Parallel Quality Analysis
-    nodes.set('security-audit', {
+    nodes?.set('security-audit', {
       id: 'security-audit',
       roleType: RoleType.SECURITY_AUDITOR,
       name: 'Security Audit',
@@ -187,7 +187,7 @@ export class WorkflowDefinitions {
       }
     });
 
-    nodes.set('performance-audit', {
+    nodes?.set('performance-audit', {
       id: 'performance-audit',
       roleType: RoleType.PERFORMANCE_AUDITOR,
       name: 'Performance Audit',
@@ -218,7 +218,7 @@ export class WorkflowDefinitions {
       }
     });
 
-    nodes.set('quality-audit', {
+    nodes?.set('quality-audit', {
       id: 'quality-audit',
       roleType: RoleType.QUALITY_AUDITOR,
       name: 'Quality Audit',
@@ -251,7 +251,7 @@ export class WorkflowDefinitions {
     });
 
     // DevOps Phase
-    nodes.set('devops-setup', {
+    nodes?.set('devops-setup', {
       id: 'devops-setup',
       roleType: RoleType.DEVOPS_ENGINEER,
       name: 'DevOps Setup',
@@ -270,7 +270,7 @@ export class WorkflowDefinitions {
     });
 
     // Deployment Phase
-    nodes.set('deploy-staging', {
+    nodes?.set('deploy-staging', {
       id: 'deploy-staging',
       roleType: RoleType.DEPLOYER,
       name: 'Deploy to Staging',
@@ -299,7 +299,7 @@ export class WorkflowDefinitions {
     });
 
     // Testing Phase - Parallel Testing
-    nodes.set('unit-tests', {
+    nodes?.set('unit-tests', {
       id: 'unit-tests',
       roleType: RoleType.UNIT_TEST_EXECUTOR,
       name: 'Execute Unit Tests',
@@ -318,7 +318,7 @@ export class WorkflowDefinitions {
       }
     });
 
-    nodes.set('integration-tests', {
+    nodes?.set('integration-tests', {
       id: 'integration-tests',
       roleType: RoleType.INTEGRATION_TEST_ENGINEER,
       name: 'Integration Tests',
@@ -337,7 +337,7 @@ export class WorkflowDefinitions {
       }
     });
 
-    nodes.set('e2e-tests', {
+    nodes?.set('e2e-tests', {
       id: 'e2e-tests',
       roleType: RoleType.E2E_TEST_ENGINEER,
       name: 'End-to-End Tests',
@@ -356,7 +356,7 @@ export class WorkflowDefinitions {
     });
 
     // Documentation Phase - Parallel Documentation
-    nodes.set('tech-docs', {
+    nodes?.set('tech-docs', {
       id: 'tech-docs',
       roleType: RoleType.TECHNICAL_DOCUMENTER,
       name: 'Technical Documentation',
@@ -375,7 +375,7 @@ export class WorkflowDefinitions {
       }
     });
 
-    nodes.set('user-docs', {
+    nodes?.set('user-docs', {
       id: 'user-docs',
       roleType: RoleType.USER_DOCUMENTER,
       name: 'User Documentation',
@@ -395,7 +395,7 @@ export class WorkflowDefinitions {
     });
 
     // Release Management
-    nodes.set('release-prep', {
+    nodes?.set('release-prep', {
       id: 'release-prep',
       roleType: RoleType.RELEASE_MANAGER,
       name: 'Release Preparation',
@@ -426,7 +426,7 @@ export class WorkflowDefinitions {
     });
 
     // Final Commit
-    nodes.set('commit-changes', {
+    nodes?.set('commit-changes', {
       id: 'commit-changes',
       roleType: RoleType.COMMITTER,
       name: 'Commit Changes',
@@ -523,7 +523,7 @@ export class WorkflowDefinitions {
     // Simplified defect resolution workflow
     const nodes = new Map<string, WorkflowNode>();
 
-    nodes.set('classify-defect', {
+    nodes?.set('classify-defect', {
       id: 'classify-defect',
       roleType: RoleType.WORK_CLASSIFIER,
       name: 'Classify Defect',
@@ -541,7 +541,7 @@ export class WorkflowDefinitions {
       }
     });
 
-    nodes.set('reproduce-issue', {
+    nodes?.set('reproduce-issue', {
       id: 'reproduce-issue',
       roleType: RoleType.TEST_DESIGNER,
       name: 'Reproduce Issue',
@@ -619,10 +619,10 @@ export class WorkflowDefinitions {
 
   static getAllWorkflows(): WorkflowDAG[] {
     return [
-      this.createFeatureDevelopmentWorkflow(),
-      this.createDefectResolutionWorkflow(),
-      this.createTechDebtWorkflow(),
-      this.createHotfixWorkflow()
+      this?.createFeatureDevelopmentWorkflow(),
+      this?.createDefectResolutionWorkflow(),
+      this?.createTechDebtWorkflow(),
+      this?.createHotfixWorkflow()
     ];
   }
 }

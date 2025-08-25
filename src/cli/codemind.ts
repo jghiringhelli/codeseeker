@@ -17,7 +17,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const program = new Command();
-const logger = Logger.getInstance();
+const logger = Logger?.getInstance();
 
 // Initialize core services
 const claudeIntegration = new ClaudeIntegration();
@@ -68,7 +68,7 @@ program
     try {
       logger.info('Processing question with context optimization...');
       
-      const optimization = await contextOptimizer.optimizeContext({
+      const optimization = await contextOptimizer?.optimizeContext({
         projectPath: options.project,
         query: question,
         tokenBudget: parseInt(options.budget),
@@ -76,22 +76,22 @@ program
         focusArea: options.focus
       });
 
-      const response = await claudeIntegration.askQuestion(question, optimization);
+      const response = await claudeIntegration?.askQuestion(question, optimization);
       
-      console.log('\n🤖 Claude Response:');
-      console.log('─'.repeat(50));
-      console.log(response.content);
+      console?.log('\n🤖 Claude Response:');
+      console?.log('─'.repeat(50));
+      console?.log(response.content);
       
       if (response.contextUsed) {
-        console.log('\n📊 Context Info:');
-        console.log(`- Tokens used: ${response.contextUsed.tokensUsed}/${options.budget}`);
-        console.log(`- Files included: ${response.contextUsed.filesIncluded.length}`);
-        console.log(`- Optimization: ${response.contextUsed.optimizationStrategy}`);
+        console?.log('\n📊 Context Info:');
+        console?.log(`- Tokens used: ${response.contextUsed.tokensUsed}/${options.budget}`);
+        console?.log(`- Files included: ${response.contextUsed.filesIncluded?.length}`);
+        console?.log(`- Optimization: ${response.contextUsed.optimizationStrategy}`);
       }
       
     } catch (error) {
-      logger.error('Failed to process question', error);
-      process.exit(1);
+      logger.error('Failed to process question', error as Error);
+      process?.exit(1);
     }
   });
 
@@ -103,29 +103,29 @@ program
   .option('--project <path>', 'Project path', '.')
   .action(async (options: any) => {
     try {
-      const analysis = await contextOptimizer.analyzeProject({
+      const analysis = await contextOptimizer?.analyzeProject({
         projectPath: options.project,
         tokenBudget: parseInt(options.budget),
         focusArea: options.focus
       });
 
-      console.log('\n📈 Context Optimization Analysis:');
-      console.log('─'.repeat(50));
-      console.log(`Project type: ${analysis.type}`);
-      console.log(`Total files: ${analysis.totalFiles}`);
-      console.log(`Primary language: ${analysis.primaryLanguage}`);
-      console.log(`Framework: ${analysis.framework || 'None detected'}`);
+      console?.log('\n📈 Context Optimization Analysis:');
+      console?.log('─'.repeat(50));
+      console?.log(`Project type: ${analysis.type}`);
+      console?.log(`Total files: ${analysis.totalFiles}`);
+      console?.log(`Primary language: ${analysis.primaryLanguage}`);
+      console?.log(`Framework: ${analysis.framework || 'None detected'}`);
       
       if ('recommendations' in analysis && analysis.recommendations) {
-        console.log('\n💡 Recommendations:');
-        analysis.recommendations.forEach((rec: string, i: number) => {
-          console.log(`${i + 1}. ${rec}`);
+        console?.log('\n💡 Recommendations:');
+        analysis.recommendations?.forEach((rec: string, i: number) => {
+          console?.log(`${i + 1}. ${rec}`);
         });
       }
 
     } catch (error) {
-      logger.error('Failed to optimize context', error);
-      process.exit(1);
+      logger.error('Failed to optimize context', error as Error);
+      process?.exit(1);
     }
   });
 
@@ -142,34 +142,34 @@ program
     try {
       logger.info('Scanning for code duplications...');
       
-      const results = await duplicationDetector.findDuplicates({
+      const results = await duplicationDetector?.findDuplicates({
         projectPath: options.project,
         includeSemantic: options.semantic,
         similarityThreshold: parseFloat(options.threshold),
         includeRefactoringSuggestions: options.suggestRefactor
       });
 
-      if (options.output === 'json') {
-        console.log(JSON.stringify(results, null, 2));
+      if (options?.output === 'json') {
+        console?.log(JSON.stringify(results, null, 2));
       } else {
-        console.log('\n🔍 Duplication Analysis Results:');
-        console.log('─'.repeat(50));
-        console.log(`Found ${results.duplicates.length} duplication groups`);
+        console?.log('\n🔍 Duplication Analysis Results:');
+        console?.log('─'.repeat(50));
+        console?.log(`Found ${results.duplicates?.length} duplication groups`);
         
-        results.duplicates.forEach((group, i) => {
-          console.log(`\n${i + 1}. ${group.type} duplication (${group.similarity.toFixed(2)} similarity)`);
-          console.log(`   Files: ${group.locations.map(l => l.file).join(', ')}`);
+        results.duplicates?.forEach((group, i) => {
+          console?.log(`\n${i + 1}. ${group.type} duplication (${group.similarity?.toFixed(2)} similarity)`);
+          console?.log(`   Files: ${group.locations?.map(l => l.file).join(', ')}`);
           
           if (group.refactoring && options.suggestRefactor) {
-            console.log(`   💡 Suggestion: ${group.refactoring.approach}`);
-            console.log(`   ⏱️  Estimated effort: ${group.refactoring.estimatedEffort}`);
+            console?.log(`   💡 Suggestion: ${group.refactoring.approach}`);
+            console?.log(`   ⏱️  Estimated effort: ${group.refactoring.estimatedEffort}`);
           }
         });
       }
 
     } catch (error) {
-      logger.error('Failed to find duplicates', error);
-      process.exit(1);
+      logger.error('Failed to find duplicates', error as Error);
+      process?.exit(1);
     }
   });
 
@@ -186,7 +186,7 @@ program
     try {
       logger.info('Building dependency tree...');
       
-      const tree = await treeNavigator.buildTree({
+      const tree = await treeNavigator?.buildTree({
         projectPath: options.project,
         filePattern: options.filter,
         showDependencies: options.showDeps,
@@ -194,23 +194,23 @@ program
       });
 
       if (options.interactive) {
-        await treeNavigator.startInteractiveMode(tree);
+        await treeNavigator?.startInteractiveMode(tree);
       } else {
-        console.log('\n🌲 Project Dependency Tree:');
-        console.log('─'.repeat(50));
-        treeNavigator.printTree(tree);
+        console?.log('\n🌲 Project Dependency Tree:');
+        console?.log('─'.repeat(50));
+        treeNavigator?.printTree(tree);
         
-        if (tree.circularDependencies.length > 0) {
-          console.log('\n⚠️  Circular Dependencies:');
-          tree.circularDependencies.forEach((cycle, i) => {
-            console.log(`${i + 1}. ${cycle.path.join(' → ')}`);
+        if (tree.circularDependencies?.length > 0) {
+          console?.log('\n⚠️  Circular Dependencies:');
+          tree.circularDependencies?.forEach((cycle, i) => {
+            console?.log(`${i + 1}. ${cycle.path?.join(' → ')}`);
           });
         }
       }
 
     } catch (error) {
-      logger.error('Failed to build tree', error);
-      process.exit(1);
+      logger.error('Failed to build tree', error as Error);
+      process?.exit(1);
     }
   });
 
@@ -227,7 +227,7 @@ program
     try {
       logger.info('Searching with vector similarity...');
       
-      const results = await vectorSearch.search({
+      const results = await vectorSearch?.search({
         query,
         projectPath: options.project,
         limit: parseInt(options.limit),
@@ -235,20 +235,20 @@ program
         useSemanticSearch: options.semantic
       });
 
-      console.log('\n🔎 Search Results:');
-      console.log('─'.repeat(50));
+      console?.log('\n🔎 Search Results:');
+      console?.log('─'.repeat(50));
       
-      results.matches.forEach((match, i) => {
-        console.log(`\n${i + 1}. ${match.file}:${match.line} (${match.similarity.toFixed(3)} similarity)`);
-        console.log(`   ${match.codeSnippet}`);
+      results.matches?.forEach((match, i) => {
+        console?.log(`\n${i + 1}. ${match.file}:${match.line} (${match.similarity?.toFixed(3)} similarity)`);
+        console?.log(`   ${match.codeSnippet}`);
         if (match.context) {
-          console.log(`   📝 Context: ${match.context}`);
+          console?.log(`   📝 Context: ${match.context}`);
         }
       });
 
     } catch (error) {
-      logger.error('Failed to search', error);
-      process.exit(1);
+      logger.error('Failed to search', error as Error);
+      process?.exit(1);
     }
   });
 
@@ -265,31 +265,31 @@ program
     try {
       logger.info('Scanning for centralization opportunities...');
       
-      const results = await centralizationDetector.scanProject({
+      const results = await centralizationDetector?.scanProject({
         projectPath: options.project,
-        configTypes: options.type ? options.type.split(',') : undefined,
+        configTypes: options.type ? options.type?.split(',') : undefined,
         includeMigrationPlan: options.suggestMigrations,
         includeRiskAssessment: options.riskAssess
       });
 
-      console.log('\n🎯 Centralization Opportunities:');
-      console.log('─'.repeat(50));
+      console?.log('\n🎯 Centralization Opportunities:');
+      console?.log('─'.repeat(50));
       
-      results.opportunities.forEach((opp, i) => {
-        console.log(`\n${i + 1}. ${opp.configType} (${opp.scatteredLocations.length} locations)`);
-        console.log(`   Benefit score: ${opp.benefitScore.toFixed(2)}`);
-        console.log(`   Complexity: ${opp.complexityScore.toFixed(2)}`);
-        console.log(`   Locations: ${opp.scatteredLocations.map(l => l.file).join(', ')}`);
+      results.opportunities?.forEach((opp, i) => {
+        console?.log(`\n${i + 1}. ${opp.configType} (${opp.scatteredLocations?.length} locations)`);
+        console?.log(`   Benefit score: ${opp.benefitScore?.toFixed(2)}`);
+        console?.log(`   Complexity: ${opp.complexityScore?.toFixed(2)}`);
+        console?.log(`   Locations: ${opp.scatteredLocations?.map(l => l.file).join(', ')}`);
         
         if (opp.migrationPlan && options.suggestMigrations) {
-          console.log(`   📋 Migration: ${opp.migrationPlan.approach}`);
-          console.log(`   ⏱️  Estimated effort: ${opp.migrationPlan.estimatedEffort}`);
+          console?.log(`   📋 Migration: ${opp.migrationPlan.approach}`);
+          console?.log(`   ⏱️  Estimated effort: ${opp.migrationPlan.estimatedEffort}`);
         }
       });
 
     } catch (error) {
-      logger.error('Failed to detect centralization opportunities', error);
-      process.exit(1);
+      logger.error('Failed to detect centralization opportunities', error as Error);
+      process?.exit(1);
     }
   });
 
@@ -303,24 +303,24 @@ program
       .option('--project <path>', 'Project path', '.')
       .action(async (options: any) => {
         try {
-          const status = await gitIntegration.getIntegrationStatus(options.project);
+          const status = await gitIntegration?.getIntegrationStatus(options.project);
           
-          console.log('\n📊 Git Integration Status:');
-          console.log('─'.repeat(50));
-          console.log(`Repository: ${status.isRepository ? '✅ Valid' : '❌ Not a git repo'}`);
-          console.log(`Auto-commit: ${status.autoCommitEnabled ? '✅ Enabled' : '❌ Disabled'}`);
-          console.log(`Tracking: ${status.isTracking ? '🔍 Active' : '⏸️  Paused'}`);
+          console?.log('\n📊 Git Integration Status:');
+          console?.log('─'.repeat(50));
+          console?.log(`Repository: ${status.isRepository ? '✅ Valid' : '❌ Not a git repo'}`);
+          console?.log(`Auto-commit: ${status.autoCommitEnabled ? '✅ Enabled' : '❌ Disabled'}`);
+          console?.log(`Tracking: ${status.isTracking ? '🔍 Active' : '⏸️  Paused'}`);
           
-          if (status.recentCommits.length > 0) {
-            console.log('\n📝 Recent Commits:');
-            status.recentCommits.forEach(commit => {
-              console.log(`  ${commit.hash.substring(0, 8)} - ${commit.message} (${commit.timestamp.toLocaleDateString()})`);
+          if (status.recentCommits?.length > 0) {
+            console?.log('\n📝 Recent Commits:');
+            status.recentCommits?.forEach(commit => {
+              console?.log(`  ${commit.hash?.substring(0, 8)} - ${commit.message} (${commit.timestamp?.toLocaleDateString()})`);
             });
           }
 
         } catch (error) {
-          logger.error('Failed to get Git status', error);
-          process.exit(1);
+          logger.error('Failed to get Git status', error as Error);
+          process?.exit(1);
         }
       })
   )
@@ -334,29 +334,29 @@ program
         try {
           logger.info(`Analyzing changes from ${options.from} to ${options.to}...`);
           
-          const analysis = await gitIntegration.analyzeCommitRange(
+          const analysis = await gitIntegration?.analyzeCommitRange(
             options.project,
             options.from,
             options.to
           );
           
-          console.log('\n🔍 Change Analysis:');
-          console.log('─'.repeat(50));
-          console.log(`Significance Score: ${analysis.significanceScore.toFixed(2)}/5.0`);
-          console.log(`Files Changed: ${analysis.filesChanged}`);
-          console.log(`Lines Added: +${analysis.linesAdded}`);
-          console.log(`Lines Deleted: -${analysis.linesDeleted}`);
+          console?.log('\n🔍 Change Analysis:');
+          console?.log('─'.repeat(50));
+          console?.log(`Significance Score: ${analysis.significanceScore?.toFixed(2)}/5.0`);
+          console?.log(`Files Changed: ${analysis.filesChanged}`);
+          console?.log(`Lines Added: +${analysis.linesAdded}`);
+          console?.log(`Lines Deleted: -${analysis.linesDeleted}`);
           
-          if (analysis.newFeatures.length > 0) {
-            console.log(`\n✨ New Features Detected:`);
-            analysis.newFeatures.forEach(feature => {
-              console.log(`  • ${feature}`);
+          if (analysis.newFeatures?.length > 0) {
+            console?.log(`\n✨ New Features Detected:`);
+            analysis.newFeatures?.forEach(feature => {
+              console?.log(`  • ${feature}`);
             });
           }
 
         } catch (error) {
-          logger.error('Failed to analyze commits', error);
-          process.exit(1);
+          logger.error('Failed to analyze commits', error as Error);
+          process?.exit(1);
         }
       })
   )
@@ -377,17 +377,17 @@ program
             watchPatterns: ['src/**/*', 'test/**/*', 'tests/**/*']
           };
 
-          await gitIntegration.configureAutoCommit(options.project, rules);
-          await gitIntegration.startAutoCommitWatcher();
+          await gitIntegration?.configureAutoCommit(options.project, rules);
+          await gitIntegration?.startAutoCommitWatcher();
           
-          console.log('\n✅ Auto-commit system enabled');
-          console.log(`• Minimum score: ${rules.minSignificanceScore}`);
-          console.log(`• Compilation check: ${rules.requiresCompilation ? 'Yes' : 'No'}`);
-          console.log('• File watcher started');
+          console?.log('\n✅ Auto-commit system enabled');
+          console?.log(`• Minimum score: ${rules.minSignificanceScore}`);
+          console?.log(`• Compilation check: ${rules.requiresCompilation ? 'Yes' : 'No'}`);
+          console?.log('• File watcher started');
 
         } catch (error) {
-          logger.error('Failed to enable auto-commit', error);
-          process.exit(1);
+          logger.error('Failed to enable auto-commit', error as Error);
+          process?.exit(1);
         }
       })
   )
@@ -397,14 +397,14 @@ program
       .option('--project <path>', 'Project path', '.')
       .action(async (options: any) => {
         try {
-          await gitIntegration.configureAutoCommit(options.project, { enabled: false });
-          await gitIntegration.stopAutoCommitWatcher();
+          await gitIntegration?.configureAutoCommit(options.project, { enabled: false });
+          await gitIntegration?.stopAutoCommitWatcher();
           
-          console.log('✅ Auto-commit system disabled');
+          console?.log('✅ Auto-commit system disabled');
 
         } catch (error) {
-          logger.error('Failed to disable auto-commit', error);
-          process.exit(1);
+          logger.error('Failed to disable auto-commit', error as Error);
+          process?.exit(1);
         }
       })
   );
@@ -425,33 +425,33 @@ program
           
           const { knowledgeGraph, semanticAnalyzer } = initializeKnowledgeGraph(options.project);
           
-          const result = await semanticAnalyzer.analyzeProject();
+          const result = await semanticAnalyzer?.analyzeProject();
           
-          console.log('\n🧠 Semantic Knowledge Graph Analysis:');
-          console.log('─'.repeat(50));
-          console.log(`Nodes extracted: ${result.nodesExtracted}`);
-          console.log(`Triads created: ${result.triadsCreated}`);
-          console.log(`Patterns detected: ${result.patterns.length}`);
+          console?.log('\n🧠 Semantic Knowledge Graph Analysis:');
+          console?.log('─'.repeat(50));
+          console?.log(`Nodes extracted: ${result.nodesExtracted}`);
+          console?.log(`Triads created: ${result.triadsCreated}`);
+          console?.log(`Patterns detected: ${result.patterns?.length}`);
           
-          if (result.patterns.length > 0) {
-            console.log('\n📋 Detected Patterns:');
-            result.patterns.forEach((pattern, i) => {
-              console.log(`${i + 1}. ${pattern.name} (${pattern.type}) - ${(pattern.confidence * 100).toFixed(1)}% confidence`);
-              console.log(`   Description: ${pattern.description}`);
-              console.log(`   Affected nodes: ${pattern.nodes.length}`);
+          if (result.patterns?.length > 0) {
+            console?.log('\n📋 Detected Patterns:');
+            result.patterns?.forEach((pattern, i) => {
+              console?.log(`${i + 1}. ${pattern.name} (${pattern.type}) - ${(pattern?.confidence * 100).toFixed(1)}% confidence`);
+              console?.log(`   Description: ${pattern.description}`);
+              console?.log(`   Affected nodes: ${pattern.nodes?.length}`);
             });
           }
           
-          if (result.insights.length > 0) {
-            console.log('\n💡 Analysis Insights:');
-            result.insights.forEach((insight, i) => {
-              console.log(`${i + 1}. ${insight}`);
+          if (result.insights?.length > 0) {
+            console?.log('\n💡 Analysis Insights:');
+            result.insights?.forEach((insight, i) => {
+              console?.log(`${i + 1}. ${insight}`);
             });
           }
 
         } catch (error) {
-          logger.error('Failed to analyze knowledge graph', error);
-          process.exit(1);
+          logger.error('Failed to analyze knowledge graph', error as Error);
+          process?.exit(1);
         }
       })
   )
@@ -471,47 +471,47 @@ program
 
           switch (options.type) {
             case 'cypher':
-              result = await queryEngine.executeCypher({ query });
+              result = await queryEngine?.executeCypher({ query });
               break;
             case 'semantic':
-              result = await queryEngine.semanticSearch(query, 'both', parseInt(options.limit));
+              result = await queryEngine?.semanticSearch(query, 'both', parseInt(options.limit));
               break;
             case 'pattern':
               // For pattern queries, we'd need to parse the query into a pattern structure
-              console.log('Pattern queries not yet implemented. Use semantic or cypher queries.');
+              console?.log('Pattern queries not yet implemented. Use semantic or cypher queries.');
               return;
             default:
               throw new Error(`Unknown query type: ${options.type}`);
           }
 
-          console.log('\n🔍 Query Results:');
-          console.log('─'.repeat(50));
-          console.log(`Found ${result.data.length} results in ${result.metadata.executionTime}ms`);
-          console.log(`Nodes traversed: ${result.metadata.nodesTraversed}`);
-          console.log(`Triads examined: ${result.metadata.triadsExamined}`);
+          console?.log('\n🔍 Query Results:');
+          console?.log('─'.repeat(50));
+          console?.log(`Found ${result.data?.length} results in ${result.metadata.executionTime}ms`);
+          console?.log(`Nodes traversed: ${result.metadata.nodesTraversed}`);
+          console?.log(`Triads examined: ${result.metadata.triadsExamined}`);
           
-          if (options.type === 'semantic') {
-            result.data.forEach((item: any, i: number) => {
-              console.log(`\n${i + 1}. ${item.item.name || item.item.id} (${(item.similarity * 100).toFixed(1)}% similarity)`);
+          if (options?.type === 'semantic') {
+            result.data?.forEach((item: any, i: number) => {
+              console?.log(`\n${i + 1}. ${item.item.name || item.item.id} (${(item?.similarity * 100).toFixed(1)}% similarity)`);
               if (item.item.type) {
-                console.log(`   Type: ${item.item.type}`);
+                console?.log(`   Type: ${item.item.type}`);
               }
               if (item.item.sourceLocation) {
-                console.log(`   Location: ${item.item.sourceLocation.filePath}:${item.item.sourceLocation.startLine}`);
+                console?.log(`   Location: ${item.item.sourceLocation.filePath}:${item.item.sourceLocation.startLine}`);
               }
               if (item.item.metadata?.description) {
-                console.log(`   Description: ${item.item.metadata.description}`);
+                console?.log(`   Description: ${item.item.metadata.description}`);
               }
             });
           } else {
-            result.data.slice(0, parseInt(options.limit)).forEach((item: any, i: number) => {
-              console.log(`${i + 1}. ${JSON.stringify(item, null, 2)}`);
+            result.data?.slice(0, parseInt(options.limit))?.forEach((item: any, i: number) => {
+              console?.log(`${i + 1}. ${JSON.stringify(item, null, 2)}`);
             });
           }
 
         } catch (error) {
-          logger.error('Failed to execute query', error);
-          process.exit(1);
+          logger.error('Failed to execute query', error as Error);
+          process?.exit(1);
         }
       })
   )
@@ -531,62 +531,62 @@ program
           const { queryEngine } = initializeKnowledgeGraph(options.project);
           
           // Find nodes by name first
-          const fromResult = await queryEngine.semanticSearch(from, 'nodes', 1);
-          const toResult = await queryEngine.semanticSearch(to, 'nodes', 1);
+          const fromResult = await queryEngine?.semanticSearch(from, 'nodes', 1);
+          const toResult = await queryEngine?.semanticSearch(to, 'nodes', 1);
           
-          if (fromResult.data.length === 0) {
-            console.log(`❌ Source node '${from}' not found`);
+          if (fromResult.data?.length === 0) {
+            console?.log(`❌ Source node '${from}' not found`);
             return;
           }
           
-          if (toResult.data.length === 0) {
-            console.log(`❌ Target node '${to}' not found`);
+          if (toResult.data?.length === 0) {
+            console?.log(`❌ Target node '${to}' not found`);
             return;
           }
 
-          const fromNodeId = (fromResult.data[0].item as any).id;
-          const toNodeId = (toResult.data[0].item as any).id;
-          const relationTypes = options.relations ? options.relations.split(',') : undefined;
+          const fromNodeId = (fromResult.data?.[0].item as any).id;
+          const toNodeId = (toResult.data?.[0].item as any).id;
+          const relationTypes = options.relations ? options.relations?.split(',') : undefined;
           const maxDepth = parseInt(options.maxDepth);
 
           const result = options.allPaths 
-            ? await queryEngine.findAllPaths(fromNodeId, toNodeId, relationTypes, maxDepth, 10)
-            : await queryEngine.findShortestPath(fromNodeId, toNodeId, relationTypes, maxDepth);
+            ? await queryEngine?.findAllPaths(fromNodeId, toNodeId, relationTypes, maxDepth, 10)
+            : await queryEngine?.findShortestPath(fromNodeId, toNodeId, relationTypes, maxDepth);
 
-          console.log('\n🛤️  Path Analysis:');
-          console.log('─'.repeat(50));
+          console?.log('\n🛤️  Path Analysis:');
+          console?.log('─'.repeat(50));
           
           if (options.allPaths) {
-            console.log(`Found ${result.data.length} paths`);
-            result.data.forEach((path: any, i: number) => {
-              console.log(`\nPath ${i + 1} (confidence: ${(path.confidence * 100).toFixed(1)}%):`);
-              path.path.forEach((node: any, nodeIndex: number) => {
-                console.log(`  ${nodeIndex + 1}. ${node.name} (${node.type})`);
-                if (nodeIndex < path.relationships.length) {
+            console?.log(`Found ${result.data?.length} paths`);
+            result.data?.forEach((path: any, i: number) => {
+              console?.log(`\nPath ${i + 1} (confidence: ${(path?.confidence * 100).toFixed(1)}%):`);
+              path.path?.forEach((node: any, nodeIndex: number) => {
+                console?.log(`  ${nodeIndex + 1}. ${node.name} (${node.type})`);
+                if (nodeIndex < path.relationships?.length) {
                   const rel = path.relationships[nodeIndex];
-                  console.log(`     --[${rel.predicate}]-->`);
+                  console?.log(`     --[${rel.predicate}]-->`);
                 }
               });
             });
           } else if (result.data) {
-            console.log(`Shortest path found (confidence: ${(result.data.confidence * 100).toFixed(1)}%):`);
-            result.data.path.forEach((node: any, i: number) => {
-              console.log(`${i + 1}. ${node.name} (${node.type})`);
-              if (i < result.data.relationships.length) {
+            console?.log(`Shortest path found (confidence: ${(result.data?.confidence * 100).toFixed(1)}%):`);
+            result.data.path?.forEach((node: any, i: number) => {
+              console?.log(`${i + 1}. ${node.name} (${node.type})`);
+              if (i < result.data.relationships?.length) {
                 const rel = result.data.relationships[i];
-                console.log(`   --[${rel.predicate}]-->`);
+                console?.log(`   --[${rel.predicate}]-->`);
               }
             });
-            console.log(`\nTotal weight: ${result.data.totalWeight.toFixed(2)}`);
+            console?.log(`\nTotal weight: ${result.data.totalWeight?.toFixed(2)}`);
           } else {
-            console.log('❌ No path found between the specified nodes');
+            console?.log('❌ No path found between the specified nodes');
           }
           
-          console.log(`\nQuery took ${result.metadata.executionTime}ms`);
+          console?.log(`\nQuery took ${result.metadata.executionTime}ms`);
 
         } catch (error) {
-          logger.error('Failed to find paths', error);
-          process.exit(1);
+          logger.error('Failed to find paths', error as Error);
+          process?.exit(1);
         }
       })
   )
@@ -601,60 +601,60 @@ program
           
           const { knowledgeGraph, queryEngine } = initializeKnowledgeGraph(options.project);
           
-          console.log('\n🔬 Knowledge Graph Insights:');
-          console.log('─'.repeat(50));
+          console?.log('\n🔬 Knowledge Graph Insights:');
+          console?.log('─'.repeat(50));
 
-          const insightTypes = options.type.split(',');
+          const insightTypes = options.type?.split(',');
 
-          if (insightTypes.includes('patterns')) {
-            const insights = await knowledgeGraph.detectArchitecturalInsights();
+          if (insightTypes?.includes('patterns')) {
+            const insights = await knowledgeGraph?.detectArchitecturalInsights();
             
-            console.log('\n📐 Architectural Insights:');
-            insights.forEach((insight, i) => {
-              console.log(`${i + 1}. ${insight.description} (${(insight.confidence * 100).toFixed(1)}% confidence)`);
-              console.log(`   Type: ${insight.type}`);
-              console.log(`   Affected nodes: ${insight.affectedNodes.length}`);
-              if (insight.recommendations.length > 0) {
-                console.log(`   Recommendations:`);
-                insight.recommendations.forEach(rec => {
-                  console.log(`   - ${rec}`);
+            console?.log('\n📐 Architectural Insights:');
+            insights?.forEach((insight, i) => {
+              console?.log(`${i + 1}. ${insight.description} (${(insight?.confidence * 100).toFixed(1)}% confidence)`);
+              console?.log(`   Type: ${insight.type}`);
+              console?.log(`   Affected nodes: ${insight.affectedNodes?.length}`);
+              if (insight.recommendations?.length > 0) {
+                console?.log(`   Recommendations:`);
+                insight.recommendations?.forEach(rec => {
+                  console?.log(`   - ${rec}`);
                 });
               }
             });
           }
 
-          if (insightTypes.includes('communities')) {
-            const communities = await queryEngine.findCommunities();
+          if (insightTypes?.includes('communities')) {
+            const communities = await queryEngine?.findCommunities();
             
-            console.log('\n🏘️  Semantic Communities:');
-            communities.data.forEach((community, i) => {
-              console.log(`${i + 1}. ${community.name} (${community.nodes.length} nodes)`);
-              console.log(`   Coherence: ${(community.coherenceScore * 100).toFixed(1)}%`);
-              console.log(`   Representative triads: ${community.representativeTriads.length}`);
+            console?.log('\n🏘️  Semantic Communities:');
+            communities.data?.forEach((community, i) => {
+              console?.log(`${i + 1}. ${community.name} (${community.nodes?.length} nodes)`);
+              console?.log(`   Coherence: ${(community?.coherenceScore * 100).toFixed(1)}%`);
+              console?.log(`   Representative triads: ${community.representativeTriads?.length}`);
               if (community.description) {
-                console.log(`   Description: ${community.description}`);
+                console?.log(`   Description: ${community.description}`);
               }
             });
           }
 
-          if (insightTypes.includes('centrality')) {
+          if (insightTypes?.includes('centrality')) {
             // Analyze centrality for most important nodes
-            const allNodes = await knowledgeGraph.queryNodes({ limit: 10 });
+            const allNodes = await knowledgeGraph?.queryNodes({ limit: 10 });
             
-            console.log('\n📊 Node Centrality Analysis:');
+            console?.log('\n📊 Node Centrality Analysis:');
             for (const node of allNodes) {
-              const centrality = await queryEngine.analyzeNodeCentrality(node.id);
-              console.log(`\n${node.name} (${node.type}):`);
-              console.log(`  Betweenness: ${(centrality.data.betweennessCentrality * 100).toFixed(1)}%`);
-              console.log(`  Closeness: ${(centrality.data.closenessCentrality * 100).toFixed(1)}%`);
-              console.log(`  Degree: ${(centrality.data.degreeCentrality * 100).toFixed(1)}%`);
-              console.log(`  Eigenvector: ${(centrality.data.eigenvectorCentrality * 100).toFixed(1)}%`);
+              const centrality = await queryEngine?.analyzeNodeCentrality(node.id);
+              console?.log(`\n${node.name} (${node.type}):`);
+              console?.log(`  Betweenness: ${(centrality.data?.betweennessCentrality * 100).toFixed(1)}%`);
+              console?.log(`  Closeness: ${(centrality.data?.closenessCentrality * 100).toFixed(1)}%`);
+              console?.log(`  Degree: ${(centrality.data?.degreeCentrality * 100).toFixed(1)}%`);
+              console?.log(`  Eigenvector: ${(centrality.data?.eigenvectorCentrality * 100).toFixed(1)}%`);
             }
           }
 
         } catch (error) {
-          logger.error('Failed to analyze insights', error);
-          process.exit(1);
+          logger.error('Failed to analyze insights', error as Error);
+          process?.exit(1);
         }
       })
   )
@@ -670,7 +670,7 @@ program
           
           const { knowledgeGraph } = initializeKnowledgeGraph(options.project);
           
-          const graphData = await knowledgeGraph.exportGraph();
+          const graphData = await knowledgeGraph?.exportGraph();
           
           let exportData: string;
           let defaultFilename: string;
@@ -681,11 +681,11 @@ program
               defaultFilename = 'knowledge-graph.json';
               break;
             case 'graphml':
-              exportData = await this.convertToGraphML(graphData);
+              exportData = await this?.convertToGraphML(graphData);
               defaultFilename = 'knowledge-graph.graphml';
               break;
             case 'cypher':
-              exportData = await this.convertToCypher(graphData);
+              exportData = await this?.convertToCypher(graphData);
               defaultFilename = 'knowledge-graph.cypher';
               break;
             default:
@@ -693,16 +693,16 @@ program
           }
 
           const outputPath = options.output || defaultFilename;
-          await fs.writeFile(outputPath, exportData, 'utf-8');
+          await fs?.writeFile(outputPath, exportData, 'utf-8');
           
-          console.log(`✅ Knowledge graph exported to ${outputPath}`);
-          console.log(`   Nodes: ${graphData.nodes.length}`);
-          console.log(`   Triads: ${graphData.triads.length}`);
-          console.log(`   Size: ${(exportData.length / 1024).toFixed(2)} KB`);
+          console?.log(`✅ Knowledge graph exported to ${outputPath}`);
+          console?.log(`   Nodes: ${graphData.nodes?.length}`);
+          console?.log(`   Triads: ${graphData.triads?.length}`);
+          console?.log(`   Size: ${(exportData?.length / 1024).toFixed(2)} KB`);
 
         } catch (error) {
-          logger.error('Failed to export knowledge graph', error);
-          process.exit(1);
+          logger.error('Failed to export knowledge graph', error as Error);
+          process?.exit(1);
         }
       })
   );
@@ -719,60 +719,60 @@ program
       logger.info('🔄 Running self-improvement analysis...');
       
       const engine = new SelfImprovementEngine(options.project);
-      const report = await engine.runSelfImprovement();
+      const report = await engine?.runSelfImprovement();
       
-      console.log('\n🎯 Self-Improvement Report:');
-      console.log('─'.repeat(50));
-      console.log(`Analysis Date: ${report.timestamp.toISOString()}`);
-      console.log(`Total Improvements: ${report.improvements.length}`);
+      console?.log('\n🎯 Self-Improvement Report:');
+      console?.log('─'.repeat(50));
+      console?.log(`Analysis Date: ${report.timestamp?.toISOString()}`);
+      console?.log(`Total Improvements: ${report.improvements?.length}`);
       
       // Group by type
-      const byType = report.improvements.reduce((acc, imp) => {
+      const byType = report.improvements?.reduce((acc, imp) => {
         acc[imp.type] = (acc[imp.type] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
       
-      console.log('\n📊 Improvement Categories:');
+      console?.log('\n📊 Improvement Categories:');
       for (const [type, count] of Object.entries(byType)) {
-        console.log(`  ${type.replace('_', ' ')}: ${count}`);
+        console?.log(`  ${type?.replace('_', ' ')}: ${count}`);
       }
       
       // High priority items
-      const highPriority = report.improvements.filter(i => i.benefit > 7);
-      if (highPriority.length > 0) {
-        console.log('\n🔥 High Priority Improvements:');
-        highPriority.forEach((imp, i) => {
-          console.log(`${i + 1}. ${imp.description} (benefit: ${imp.benefit})`);
-          console.log(`   Target: ${imp.target}`);
-          console.log(`   Suggestion: ${imp.suggestion}`);
+      const highPriority = report.improvements?.filter(i => i.benefit > 7);
+      if (highPriority?.length > 0) {
+        console?.log('\n🔥 High Priority Improvements:');
+        highPriority?.forEach((imp, i) => {
+          console?.log(`${i + 1}. ${imp.description} (benefit: ${imp.benefit})`);
+          console?.log(`   Target: ${imp.target}`);
+          console?.log(`   Suggestion: ${imp.suggestion}`);
         });
       }
       
       // Recommendations
-      if (report.recommendations.length > 0) {
-        console.log('\n💡 Recommendations:');
-        report.recommendations.forEach((rec, i) => {
-          console.log(`${i + 1}. ${rec}`);
+      if (report.recommendations?.length > 0) {
+        console?.log('\n💡 Recommendations:');
+        report.recommendations?.forEach((rec, i) => {
+          console?.log(`${i + 1}. ${rec}`);
         });
       }
       
       // Metrics comparison
-      console.log('\n📈 Impact Metrics:');
-      console.log(`Before: ${report.metrics.before.totalDuplications || 0} duplications, ${report.metrics.before.circularDependencies || 0} circular deps`);
-      console.log(`After:  ${report.metrics.after.totalDuplications || 0} duplications, ${report.metrics.after.circularDependencies || 0} circular deps`);
+      console?.log('\n📈 Impact Metrics:');
+      console?.log(`Before: ${report.metrics.before.totalDuplications || 0} duplications, ${report.metrics.before.circularDependencies || 0} circular deps`);
+      console?.log(`After:  ${report.metrics.after.totalDuplications || 0} duplications, ${report.metrics.after.circularDependencies || 0} circular deps`);
       
       if (options.apply) {
-        console.log('\n🚀 Applying improvements...');
+        console?.log('\n🚀 Applying improvements...');
         // In a real scenario, you'd selectively apply improvements
         // For now, just mark them as ready for manual application
-        console.log('Manual application required. Review suggestions above.');
+        console?.log('Manual application required. Review suggestions above.');
       }
       
-      engine.close();
+      engine?.close();
       
     } catch (error) {
-      logger.error('Self-improvement failed', error);
-      process.exit(1);
+      logger.error('Self-improvement failed', error as Error);
+      process?.exit(1);
     }
   });
 
@@ -789,8 +789,8 @@ program
       switch (options.feature) {
         case 'duplicates':
         case 'all':
-          console.log('🔍 Finding duplicates in CodeMind codebase...');
-          const duplicates = await duplicationDetector.findDuplicates({
+          console?.log('🔍 Finding duplicates in CodeMind codebase...');
+          const duplicates = await duplicationDetector?.findDuplicates({
             projectPath,
             includeSemantic: true,
             similarityThreshold: 0.8,
@@ -798,64 +798,64 @@ program
             filePatterns: ['src/**/*.ts'],
             excludePatterns: ['**/node_modules/**', '**/dist/**']
           });
-          console.log(`Found ${duplicates.duplicates.length} duplication groups`);
+          console?.log(`Found ${duplicates.duplicates?.length} duplication groups`);
           
-          if (options.feature !== 'all') break;
+          if (options?.feature !== 'all') break;
           
         case 'tree':
-          console.log('🌳 Analyzing CodeMind dependency tree...');
-          const tree = await treeNavigator.buildDependencyTree({
+          console?.log('🌳 Analyzing CodeMind dependency tree...');
+          const tree = await treeNavigator?.buildDependencyTree({
             projectPath,
             filePattern: 'src/**/*.ts',
             showDependencies: true,
             circularOnly: false
           });
-          console.log(`Tree has ${tree.nodes.size} nodes and ${tree.circularDependencies.length} circular dependencies`);
+          console?.log(`Tree has ${tree.nodes.size} nodes and ${tree.circularDependencies?.length} circular dependencies`);
           
-          if (options.feature !== 'all') break;
+          if (options?.feature !== 'all') break;
           
         case 'search':
-          console.log('🔎 Testing semantic search on CodeMind...');
-          const searchResults = await vectorSearch.search({
+          console?.log('🔎 Testing semantic search on CodeMind...');
+          const searchResults = await vectorSearch?.search({
             query: 'AST analysis',
             projectPath,
             limit: 5,
             crossProject: false,
             useSemanticSearch: true
           });
-          console.log(`Found ${searchResults.matches.length} semantic matches`);
+          console?.log(`Found ${searchResults.matches?.length} semantic matches`);
           
-          if (options.feature !== 'all') break;
+          if (options?.feature !== 'all') break;
           
         case 'centralize':
-          console.log('🎯 Finding centralization opportunities in CodeMind...');
-          const centralization = await centralizationDetector.scanProject({
+          console?.log('🎯 Finding centralization opportunities in CodeMind...');
+          const centralization = await centralizationDetector?.scanProject({
             projectPath,
             includeMigrationPlan: true,
             includeRiskAssessment: true
           });
-          console.log(`Found ${centralization.opportunities.length} centralization opportunities`);
+          console?.log(`Found ${centralization.opportunities?.length} centralization opportunities`);
           break;
           
         default:
-          console.log('❌ Unknown feature. Use: duplicates, tree, search, centralize, or all');
+          console?.log('❌ Unknown feature. Use: duplicates, tree, search, centralize, or all');
           return;
       }
       
-      console.log('✅ Dogfooding complete. CodeMind has been analyzed by CodeMind!');
+      console?.log('✅ Dogfooding complete. CodeMind has been analyzed by CodeMind!');
       
     } catch (error) {
-      logger.error('Dogfooding failed', error);
-      process.exit(1);
+      logger.error('Dogfooding failed', error as Error);
+      process?.exit(1);
     }
   });
 
 // Global options
-program.option('-v, --verbose', 'Verbose logging', false);
-program.option('--debug', 'Debug mode', false);
+program?.option('-v, --verbose', 'Verbose logging', false);
+program?.option('--debug', 'Debug mode', false);
 
-program.hook('preAction', (thisCommand) => {
-  const options = thisCommand.opts();
+program?.hook('preAction', (thisCommand) => {
+  const options = thisCommand?.opts();
   if (options.verbose) {
     logger.setLevel('info');
   }
@@ -865,6 +865,6 @@ program.hook('preAction', (thisCommand) => {
 });
 
 // Parse CLI arguments
-program.parse();
+program?.parse();
 
 export { program };

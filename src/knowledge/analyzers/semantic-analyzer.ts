@@ -56,7 +56,7 @@ export class SemanticAnalyzer {
     private config: SemanticAnalysisConfig,
     knowledgeGraph: SemanticKnowledgeGraph
   ) {
-    this.logger = Logger.getInstance().child('SemanticAnalyzer');
+    this.logger = Logger?.getInstance().child('SemanticAnalyzer');
     this.astAnalyzer = new ASTAnalyzer();
     this.knowledgeGraph = knowledgeGraph;
   }
@@ -71,35 +71,35 @@ export class SemanticAnalyzer {
 
     try {
       // Discover files to analyze
-      const files = await this.discoverFiles();
-      this.logger.info(`Found ${files.length} files to analyze`);
+      const files = await this?.discoverFiles();
+      this.logger.info(`Found ${files?.length} files to analyze`);
 
       // Load file contents
-      await this.loadFileContents(files);
+      await this?.loadFileContents(files);
 
       // Phase 1: Extract code entities and basic relationships
       for (const filePath of files) {
-        const result = await this.analyzeFile(filePath);
+        const result = await this?.analyzeFile(filePath);
         nodesExtracted += result.nodes;
         triadsCreated += result.triads;
       }
 
       // Phase 2: Detect semantic relationships
       if (this.config.enableSemanticSimilarity) {
-        const semanticTriads = await this.detectSemanticSimilarities();
+        const semanticTriads = await this?.detectSemanticSimilarities();
         triadsCreated += semanticTriads;
-        insights.push(`Detected ${semanticTriads} semantic similarity relationships`);
+        insights?.push(`Detected ${semanticTriads} semantic similarity relationships`);
       }
 
       // Phase 3: Pattern detection
       if (this.config.enablePatternDetection) {
-        const detectedPatterns = await this.detectSemanticPatterns();
-        patterns.push(...detectedPatterns);
-        insights.push(`Detected ${detectedPatterns.length} semantic patterns`);
+        const detectedPatterns = await this?.detectSemanticPatterns();
+        patterns?.push(...detectedPatterns);
+        insights?.push(`Detected ${detectedPatterns?.length} semantic patterns`);
       }
 
       // Phase 4: Create higher-level abstractions
-      const abstractionTriads = await this.createAbstractions();
+      const abstractionTriads = await this?.createAbstractions();
       triadsCreated += abstractionTriads;
 
       this.logger.info(`Analysis complete: ${nodesExtracted} nodes, ${triadsCreated} triads`);
@@ -112,15 +112,15 @@ export class SemanticAnalyzer {
       };
 
     } catch (error) {
-      this.logger.error('Semantic analysis failed', error);
-      throw error;
+      this.logger.error('Semantic analysis failed', error as Error);
+      throw error as Error;
     }
   }
 
   private async discoverFiles(): Promise<string[]> {
     const patterns = this.config.includeTests 
       ? this.config.filePatterns 
-      : this.config.filePatterns.filter(p => !p.includes('test') && !p.includes('spec'));
+      : this.config.filePatterns?.filter(p => !p?.includes('test') && !p?.includes('spec'));
 
     const files = await glob(patterns, {
       cwd: this.config.projectPath,
@@ -134,8 +134,8 @@ export class SemanticAnalyzer {
   private async loadFileContents(files: string[]): Promise<void> {
     for (const filePath of files) {
       try {
-        const content = await fs.readFile(filePath, 'utf-8');
-        this.fileContents.set(filePath, content);
+        const content = await fs?.readFile(filePath, 'utf-8');
+        this.fileContents?.set(filePath, content);
       } catch (error) {
         this.logger.warn(`Failed to load file: ${filePath}`, error);
       }
@@ -143,17 +143,17 @@ export class SemanticAnalyzer {
   }
 
   private async analyzeFile(filePath: string): Promise<{ nodes: number; triads: number }> {
-    const content = this.fileContents.get(filePath);
+    const content = this.fileContents?.get(filePath);
     if (!content) return { nodes: 0, triads: 0 };
 
     try {
-      this.logger.debug(`Analyzing file: ${path.relative(this.config.projectPath, filePath)}`);
+      this.logger.debug(`Analyzing file: ${path?.relative(this.config.projectPath, filePath)}`);
 
-      const analysis = await this.astAnalyzer.analyzeCode(content, this.getLanguageFromPath(filePath));
+      const analysis = await this.astAnalyzer?.analyzeCode(content, this?.getLanguageFromPath(filePath));
       const sourceLocation: SourceLocation = {
-        filePath: path.relative(this.config.projectPath, filePath),
+        filePath: path?.relative(this.config.projectPath, filePath),
         startLine: 1,
-        endLine: content.split('\n').length
+        endLine: content?.split('\n').length
       };
 
       let nodeCount = 0;
@@ -161,10 +161,10 @@ export class SemanticAnalyzer {
 
       // Extract classes
       for (const cls of analysis.classes) {
-        const nodeId = await this.knowledgeGraph.addNode({
+        const nodeId = await this.knowledgeGraph?.addNode({
           type: NodeType.CLASS,
           name: cls.name,
-          namespace: this.extractNamespace(filePath),
+          namespace: this?.extractNamespace(filePath),
           sourceLocation: {
             ...sourceLocation,
             startLine: cls.location.line,
@@ -175,7 +175,7 @@ export class SemanticAnalyzer {
             complexity: cls.complexity || 0,
             visibility: cls.modifiers?.includes('public') ? 'public' : 'private',
             isAbstract: cls.modifiers?.includes('abstract') || false,
-            tags: this.extractTags(cls),
+            tags: this?.extractTags(cls),
             methods: cls.methods?.length || 0,
             properties: cls.properties?.length || 0
           }
@@ -184,8 +184,8 @@ export class SemanticAnalyzer {
 
         // Create inheritance relationships
         if (cls.extends) {
-          const superClassId = await this.findOrCreateNode(NodeType.CLASS, cls.extends, sourceLocation);
-          await this.knowledgeGraph.addTriad({
+          const superClassId = await this?.findOrCreateNode(NodeType.CLASS, cls.extends, sourceLocation);
+          await this.knowledgeGraph?.addTriad({
             subject: nodeId,
             predicate: RelationType.EXTENDS,
             object: superClassId,
@@ -207,8 +207,8 @@ export class SemanticAnalyzer {
         // Create interface implementation relationships
         if (cls.implements) {
           for (const interfaceName of cls.implements) {
-            const interfaceId = await this.findOrCreateNode(NodeType.INTERFACE, interfaceName, sourceLocation);
-            await this.knowledgeGraph.addTriad({
+            const interfaceId = await this?.findOrCreateNode(NodeType.INTERFACE, interfaceName, sourceLocation);
+            await this.knowledgeGraph?.addTriad({
               subject: nodeId,
               predicate: RelationType.IMPLEMENTS,
               object: interfaceId,
@@ -231,10 +231,10 @@ export class SemanticAnalyzer {
         // Extract methods
         if (cls.methods) {
           for (const method of cls.methods) {
-            const methodId = await this.knowledgeGraph.addNode({
+            const methodId = await this.knowledgeGraph?.addNode({
               type: NodeType.METHOD,
               name: method.name,
-              namespace: `${this.extractNamespace(filePath)}.${cls.name}`,
+              namespace: `${this?.extractNamespace(filePath)}.${cls.name}`,
               sourceLocation: {
                 ...sourceLocation,
                 startLine: method.location.line,
@@ -248,13 +248,13 @@ export class SemanticAnalyzer {
                 isAsync: method.isAsync || false,
                 parameters: method.parameters?.length || 0,
                 returnType: method.returnType,
-                tags: this.extractTags(method)
+                tags: this?.extractTags(method)
               }
             });
             nodeCount++;
 
             // Link method to class
-            await this.knowledgeGraph.addTriad({
+            await this.knowledgeGraph?.addTriad({
               subject: nodeId,
               predicate: RelationType.CONTAINS,
               object: methodId,
@@ -266,7 +266,7 @@ export class SemanticAnalyzer {
 
             // Create method call relationships
             if (method.calls) {
-              triadCount += await this.createMethodCallTriads(methodId, method.calls, filePath);
+              triadCount += await this?.createMethodCallTriads(methodId, method.calls, filePath);
             }
           }
         }
@@ -274,10 +274,10 @@ export class SemanticAnalyzer {
 
       // Extract functions
       for (const func of analysis.functions) {
-        const functionId = await this.knowledgeGraph.addNode({
+        const functionId = await this.knowledgeGraph?.addNode({
           type: NodeType.FUNCTION,
           name: func.name,
-          namespace: this.extractNamespace(filePath),
+          namespace: this?.extractNamespace(filePath),
           sourceLocation: {
             ...sourceLocation,
             startLine: func.location.line,
@@ -290,26 +290,26 @@ export class SemanticAnalyzer {
             isExported: func.isExported || false,
             parameters: func.parameters?.length || 0,
             returnType: func.returnType,
-            tags: this.extractTags(func)
+            tags: this?.extractTags(func)
           }
         });
         nodeCount++;
 
         // Create function call relationships
         if (func.calls) {
-          triadCount += await this.createMethodCallTriads(functionId, func.calls, filePath);
+          triadCount += await this?.createMethodCallTriads(functionId, func.calls, filePath);
         }
       }
 
       // Extract imports/exports
-      triadCount += await this.createImportExportTriads(analysis.imports || [], analysis.exports || [], filePath);
+      triadCount += await this?.createImportExportTriads(analysis.imports || [], analysis.exports || [], filePath);
 
       // Extract variables and constants
       for (const variable of analysis.variables || []) {
-        const varId = await this.knowledgeGraph.addNode({
+        const varId = await this.knowledgeGraph?.addNode({
           type: variable.isConstant ? NodeType.CONSTANT : NodeType.VARIABLE,
           name: variable.name,
-          namespace: this.extractNamespace(filePath),
+          namespace: this?.extractNamespace(filePath),
           sourceLocation,
           metadata: {
             type: variable.type,
@@ -323,7 +323,7 @@ export class SemanticAnalyzer {
       return { nodes: nodeCount, triads: triadCount };
 
     } catch (error) {
-      this.logger.error(`Failed to analyze file: ${filePath}`, error);
+      this.logger.error(`Failed to analyze file: ${filePath}`, error as Error);
       return { nodes: 0, triads: 0 };
     }
   }
@@ -332,13 +332,13 @@ export class SemanticAnalyzer {
     let triadCount = 0;
 
     for (const calledFunction of calls) {
-      const calleeId = await this.findOrCreateNode(NodeType.FUNCTION, calledFunction, {
-        filePath: path.relative(this.config.projectPath, filePath),
+      const calleeId = await this?.findOrCreateNode(NodeType.FUNCTION, calledFunction, {
+        filePath: path?.relative(this.config.projectPath, filePath),
         startLine: 1,
         endLine: 1
       });
 
-      await this.knowledgeGraph.addTriad({
+      await this.knowledgeGraph?.addTriad({
         subject: callerId,
         predicate: RelationType.CALLS,
         object: calleeId,
@@ -364,19 +364,19 @@ export class SemanticAnalyzer {
 
     // Handle imports
     for (const imp of imports) {
-      const moduleId = await this.findOrCreateNode(NodeType.MODULE, imp.module, {
+      const moduleId = await this?.findOrCreateNode(NodeType.MODULE, imp.module, {
         filePath: imp.module,
         startLine: 1,
         endLine: 1
       });
 
-      const importingModuleId = await this.findOrCreateNode(NodeType.MODULE, filePath, {
-        filePath: path.relative(this.config.projectPath, filePath),
+      const importingModuleId = await this?.findOrCreateNode(NodeType.MODULE, filePath, {
+        filePath: path?.relative(this.config.projectPath, filePath),
         startLine: 1,
         endLine: 1
       });
 
-      await this.knowledgeGraph.addTriad({
+      await this.knowledgeGraph?.addTriad({
         subject: importingModuleId,
         predicate: RelationType.IMPORTS,
         object: moduleId,
@@ -390,7 +390,7 @@ export class SemanticAnalyzer {
       triadCount++;
 
       // Create dependency relationship
-      await this.knowledgeGraph.addTriad({
+      await this.knowledgeGraph?.addTriad({
         subject: importingModuleId,
         predicate: RelationType.DEPENDS_ON,
         object: moduleId,
@@ -406,24 +406,24 @@ export class SemanticAnalyzer {
 
     // Handle exports
     for (const exp of exports) {
-      const exportingModuleId = await this.findOrCreateNode(NodeType.MODULE, filePath, {
-        filePath: path.relative(this.config.projectPath, filePath),
+      const exportingModuleId = await this?.findOrCreateNode(NodeType.MODULE, filePath, {
+        filePath: path?.relative(this.config.projectPath, filePath),
         startLine: 1,
         endLine: 1
       });
 
       if (exp.name) {
-        const exportedItemId = await this.findOrCreateNode(
-          this.inferNodeTypeFromName(exp.name),
+        const exportedItemId = await this?.findOrCreateNode(
+          this?.inferNodeTypeFromName(exp.name),
           exp.name,
           {
-            filePath: path.relative(this.config.projectPath, filePath),
+            filePath: path?.relative(this.config.projectPath, filePath),
             startLine: 1,
             endLine: 1
           }
         );
 
-        await this.knowledgeGraph.addTriad({
+        await this.knowledgeGraph?.addTriad({
           subject: exportingModuleId,
           predicate: RelationType.EXPORTS,
           object: exportedItemId,
@@ -444,20 +444,20 @@ export class SemanticAnalyzer {
     this.logger.info('Detecting semantic similarities...');
 
     let triadCount = 0;
-    const nodes = await this.knowledgeGraph.queryNodes({});
+    const nodes = await this.knowledgeGraph?.queryNodes({});
 
     // Compare functions with similar names or purposes
-    const functions = nodes.filter(n => n.type === NodeType.FUNCTION || n.type === NodeType.METHOD);
+    const functions = nodes?.filter(n => n?.type === NodeType.FUNCTION || n?.type === NodeType.METHOD);
     
-    for (let i = 0; i < functions.length; i++) {
-      for (let j = i + 1; j < functions.length; j++) {
-        const similarity = this.calculateSimilarity(functions[i], functions[j]);
+    for (let i = 0; i < functions?.length; i++) {
+      for (let j = i + 1; j < functions?.length; j++) {
+        const similarity = this?.calculateSimilarity(functions[i], functions[j]);
         
         if (similarity >= this.config.minConfidence) {
-          await this.knowledgeGraph.addTriad({
-            subject: functions[i].id,
+          await this.knowledgeGraph?.addTriad({
+            subject: functions?.[i].id,
             predicate: RelationType.IS_SIMILAR_TO,
-            object: functions[j].id,
+            object: functions?.[j].id,
             confidence: similarity,
             source: TriadSource.SEMANTIC_ANALYZER,
             metadata: {
@@ -476,17 +476,17 @@ export class SemanticAnalyzer {
     }
 
     // Compare classes for structural similarity
-    const classes = nodes.filter(n => n.type === NodeType.CLASS);
+    const classes = nodes?.filter(n => n?.type === NodeType.CLASS);
     
-    for (let i = 0; i < classes.length; i++) {
-      for (let j = i + 1; j < classes.length; j++) {
-        const similarity = this.calculateStructuralSimilarity(classes[i], classes[j]);
+    for (let i = 0; i < classes?.length; i++) {
+      for (let j = i + 1; j < classes?.length; j++) {
+        const similarity = this?.calculateStructuralSimilarity(classes[i], classes[j]);
         
         if (similarity >= this.config.minConfidence) {
-          await this.knowledgeGraph.addTriad({
-            subject: classes[i].id,
+          await this.knowledgeGraph?.addTriad({
+            subject: classes?.[i].id,
             predicate: RelationType.IS_SIMILAR_TO,
-            object: classes[j].id,
+            object: classes?.[j].id,
             confidence: similarity,
             source: TriadSource.SEMANTIC_ANALYZER,
             metadata: {
@@ -507,27 +507,27 @@ export class SemanticAnalyzer {
     this.logger.info('Detecting semantic patterns...');
 
     const patterns: SemanticPattern[] = [];
-    const nodes = await this.knowledgeGraph.queryNodes({});
+    const nodes = await this.knowledgeGraph?.queryNodes({});
 
     // Detect repository pattern
-    const repositoryPattern = await this.detectRepositoryPattern(nodes);
-    if (repositoryPattern) patterns.push(repositoryPattern);
+    const repositoryPattern = await this?.detectRepositoryPattern(nodes);
+    if (repositoryPattern) patterns?.push(repositoryPattern);
 
     // Detect service layer pattern
-    const servicePattern = await this.detectServicePattern(nodes);
-    if (servicePattern) patterns.push(servicePattern);
+    const servicePattern = await this?.detectServicePattern(nodes);
+    if (servicePattern) patterns?.push(servicePattern);
 
     // Detect factory pattern
-    const factoryPattern = await this.detectFactoryPattern(nodes);
-    if (factoryPattern) patterns.push(factoryPattern);
+    const factoryPattern = await this?.detectFactoryPattern(nodes);
+    if (factoryPattern) patterns?.push(factoryPattern);
 
     // Detect observer pattern
-    const observerPattern = await this.detectObserverPattern(nodes);
-    if (observerPattern) patterns.push(observerPattern);
+    const observerPattern = await this?.detectObserverPattern(nodes);
+    if (observerPattern) patterns?.push(observerPattern);
 
     // Create pattern nodes and relationships
     for (const pattern of patterns) {
-      const patternId = await this.knowledgeGraph.addNode({
+      const patternId = await this.knowledgeGraph?.addNode({
         type: NodeType.PATTERN,
         name: pattern.name,
         namespace: 'patterns',
@@ -541,7 +541,7 @@ export class SemanticAnalyzer {
 
       // Link pattern to involved nodes
       for (const nodeId of pattern.nodes) {
-        await this.knowledgeGraph.addTriad({
+        await this.knowledgeGraph?.addTriad({
           subject: nodeId,
           predicate: RelationType.FOLLOWS_PATTERN,
           object: patternId,
@@ -554,7 +554,7 @@ export class SemanticAnalyzer {
       }
     }
 
-    this.logger.info(`Detected ${patterns.length} semantic patterns`);
+    this.logger.info(`Detected ${patterns?.length} semantic patterns`);
     return patterns;
   }
 
@@ -565,33 +565,33 @@ export class SemanticAnalyzer {
 
     // Create module-level abstractions
     const modules = new Map<string, string[]>();
-    const nodes = await this.knowledgeGraph.queryNodes({});
+    const nodes = await this.knowledgeGraph?.queryNodes({});
 
     // Group nodes by module/namespace
     for (const node of nodes) {
       const module = node.namespace || 'global';
-      if (!modules.has(module)) {
-        modules.set(module, []);
+      if (!modules?.has(module)) {
+        modules?.set(module, []);
       }
-      modules.get(module)!.push(node.id);
+      modules?.get(module)!.push(node.id);
     }
 
     // Create module nodes and relationships
-    for (const [moduleName, nodeIds] of modules.entries()) {
-      if (nodeIds.length > 1) { // Only create modules with multiple members
-        const moduleId = await this.knowledgeGraph.addNode({
+    for (const [moduleName, nodeIds] of modules?.entries()) {
+      if (nodeIds?.length > 1) { // Only create modules with multiple members
+        const moduleId = await this.knowledgeGraph?.addNode({
           type: NodeType.MODULE,
           name: moduleName,
           namespace: 'modules',
           metadata: {
-            memberCount: nodeIds.length,
+            memberCount: nodeIds?.length,
             tags: ['abstraction', 'module']
           }
         });
 
         // Link nodes to module
         for (const nodeId of nodeIds) {
-          await this.knowledgeGraph.addTriad({
+          await this.knowledgeGraph?.addTriad({
             subject: nodeId,
             predicate: RelationType.PART_OF,
             object: moduleId,
@@ -607,21 +607,21 @@ export class SemanticAnalyzer {
     }
 
     // Create feature-level abstractions based on naming patterns
-    const features = await this.identifyFeatures(nodes);
-    for (const [featureName, featureNodes] of features.entries()) {
-      if (featureNodes.length > 2) {
-        const featureId = await this.knowledgeGraph.addNode({
+    const features = await this?.identifyFeatures(nodes);
+    for (const [featureName, featureNodes] of features?.entries()) {
+      if (featureNodes?.length > 2) {
+        const featureId = await this.knowledgeGraph?.addNode({
           type: NodeType.FEATURE,
           name: featureName,
           namespace: 'features',
           metadata: {
-            componentCount: featureNodes.length,
+            componentCount: featureNodes?.length,
             tags: ['abstraction', 'feature']
           }
         });
 
         for (const nodeId of featureNodes) {
-          await this.knowledgeGraph.addTriad({
+          await this.knowledgeGraph?.addTriad({
             subject: nodeId,
             predicate: RelationType.PART_OF,
             object: featureId,
@@ -643,7 +643,7 @@ export class SemanticAnalyzer {
   // Helper methods
 
   private getLanguageFromPath(filePath: string): string {
-    const ext = path.extname(filePath).toLowerCase();
+    const ext = path?.extname(filePath).toLowerCase();
     const languageMap: Record<string, string> = {
       '.ts': 'typescript',
       '.js': 'javascript',
@@ -662,45 +662,45 @@ export class SemanticAnalyzer {
   }
 
   private extractNamespace(filePath: string): string {
-    const relativePath = path.relative(this.config.projectPath, filePath);
-    const dirs = path.dirname(relativePath).split(path.sep);
+    const relativePath = path?.relative(this.config.projectPath, filePath);
+    const dirs = path?.dirname(relativePath).split(path.sep);
     
     // Skip common top-level directories
     const skipDirs = ['src', 'lib', 'app', 'components', 'utils'];
-    const meaningfulDirs = dirs.filter(dir => !skipDirs.includes(dir) && dir !== '.');
+    const meaningfulDirs = dirs?.filter(dir => !skipDirs?.includes(dir) && dir !== '.');
     
-    return meaningfulDirs.length > 0 ? meaningfulDirs.join('.') : 'global';
+    return meaningfulDirs?.length > 0 ? meaningfulDirs?.join('.') : 'global';
   }
 
   private extractTags(entity: any): string[] {
     const tags: string[] = [];
     
     if (entity.modifiers) {
-      tags.push(...entity.modifiers);
+      tags?.push(...entity.modifiers);
     }
     
-    if (entity.isAsync) tags.push('async');
-    if (entity.isExported) tags.push('exported');
-    if (entity.complexity && entity.complexity > 10) tags.push('complex');
+    if (entity.isAsync) tags?.push('async');
+    if (entity.isExported) tags?.push('exported');
+    if (entity.complexity && entity.complexity > 10) tags?.push('complex');
     
     return tags;
   }
 
   private async findOrCreateNode(type: NodeType, name: string, location: SourceLocation): Promise<string> {
     // Try to find existing node first
-    const existingNodes = await this.knowledgeGraph.queryNodes({
+    const existingNodes = await this.knowledgeGraph?.queryNodes({
       nodes: {
         types: [type],
         names: [name]
       }
     });
 
-    if (existingNodes.length > 0) {
-      return existingNodes[0].id;
+    if (existingNodes?.length > 0) {
+      return existingNodes?.[0].id;
     }
 
     // Create new node
-    return await this.knowledgeGraph.addNode({
+    return await this.knowledgeGraph?.addNode({
       type,
       name,
       sourceLocation: location,
@@ -711,17 +711,17 @@ export class SemanticAnalyzer {
   }
 
   private inferNodeTypeFromName(name: string): NodeType {
-    const lowerName = name.toLowerCase();
+    const lowerName = name?.toLowerCase();
     
-    if (lowerName.endsWith('service')) return NodeType.SERVICE;
-    if (lowerName.endsWith('repository')) return NodeType.REPOSITORY;
-    if (lowerName.endsWith('controller')) return NodeType.CONTROLLER;
-    if (lowerName.endsWith('component')) return NodeType.COMPONENT;
-    if (lowerName.endsWith('model')) return NodeType.MODEL;
-    if (lowerName.includes('config')) return NodeType.CONFIGURATION;
+    if (lowerName?.endsWith('service')) return NodeType.SERVICE;
+    if (lowerName?.endsWith('repository')) return NodeType.REPOSITORY;
+    if (lowerName?.endsWith('controller')) return NodeType.CONTROLLER;
+    if (lowerName?.endsWith('component')) return NodeType.COMPONENT;
+    if (lowerName?.endsWith('model')) return NodeType.MODEL;
+    if (lowerName?.includes('config')) return NodeType.CONFIGURATION;
     
     // Check for class-like patterns
-    if (name.charAt(0).toUpperCase() === name.charAt(0)) {
+    if (name?.charAt(0).toUpperCase() === name?.charAt(0)) {
       return NodeType.CLASS;
     }
     
@@ -730,15 +730,15 @@ export class SemanticAnalyzer {
 
   private calculateSimilarity(node1: KnowledgeNode, node2: KnowledgeNode): number {
     // Simple similarity based on name similarity and metadata
-    const nameSimilarity = this.stringSimilarity(node1.name, node2.name);
-    const namespaceSimilarity = node1.namespace === node2.namespace ? 1.0 : 0.0;
+    const nameSimilarity = this?.stringSimilarity(node1.name, node2.name);
+    const namespaceSimilarity = node1?.namespace === node2.namespace ? 1.0 : 0.0;
     
     let metadataSimilarity = 0;
     const metadata1Tags = node1.metadata.tags || [];
     const metadata2Tags = node2.metadata.tags || [];
-    const commonTags = metadata1Tags.filter(tag => metadata2Tags.includes(tag));
-    if (metadata1Tags.length > 0 || metadata2Tags.length > 0) {
-      metadataSimilarity = commonTags.length / Math.max(metadata1Tags.length, metadata2Tags.length);
+    const commonTags = metadata1Tags?.filter(tag => metadata2Tags?.includes(tag));
+    if (metadata1Tags?.length > 0 || metadata2Tags?.length > 0) {
+      metadataSimilarity = commonTags?.length / Math.max(metadata1Tags?.length, metadata2Tags?.length);
     }
 
     return (nameSimilarity * 0.5 + namespaceSimilarity * 0.3 + metadataSimilarity * 0.2);
@@ -757,29 +757,29 @@ export class SemanticAnalyzer {
   }
 
   private stringSimilarity(str1: string, str2: string): number {
-    const longer = str1.length > str2.length ? str1 : str2;
-    const shorter = str1.length > str2.length ? str2 : str1;
+    const longer = str1?.length > str2?.length ? str1 : str2;
+    const shorter = str1?.length > str2?.length ? str2 : str1;
     
-    if (longer.length === 0) return 1.0;
+    if (longer?.length === 0) return 1.0;
     
-    const distance = this.levenshteinDistance(longer, shorter);
-    return (longer.length - distance) / longer.length;
+    const distance = this?.levenshteinDistance(longer, shorter);
+    return (longer?.length - distance) / longer?.length;
   }
 
   private levenshteinDistance(str1: string, str2: string): number {
     const matrix: number[][] = [];
 
-    for (let i = 0; i <= str2.length; i++) {
+    for (let i = 0; i <= str2?.length; i++) {
       matrix[i] = [i];
     }
 
-    for (let j = 0; j <= str1.length; j++) {
+    for (let j = 0; j <= str1?.length; j++) {
       matrix[0][j] = j;
     }
 
-    for (let i = 1; i <= str2.length; i++) {
-      for (let j = 1; j <= str1.length; j++) {
-        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+    for (let i = 1; i <= str2?.length; i++) {
+      for (let j = 1; j <= str1?.length; j++) {
+        if (str2?.charAt(i - 1) === str1?.charAt(j - 1)) {
           matrix[i][j] = matrix[i - 1][j - 1];
         } else {
           matrix[i][j] = Math.min(
@@ -791,21 +791,21 @@ export class SemanticAnalyzer {
       }
     }
 
-    return matrix[str2.length][str1.length];
+    return matrix[str2?.length][str1?.length];
   }
 
   private async detectRepositoryPattern(nodes: KnowledgeNode[]): Promise<SemanticPattern | null> {
-    const repositories = nodes.filter(n => 
-      n.name.toLowerCase().includes('repository') || 
+    const repositories = nodes?.filter(n => 
+      n.name?.toLowerCase().includes('repository') || 
       n.metadata.tags?.includes('repository')
     );
 
-    if (repositories.length >= 2) {
+    if (repositories?.length >= 2) {
       return {
         name: 'Repository Pattern',
         type: 'data_access',
         confidence: 0.8,
-        nodes: repositories.map(r => r.id),
+        nodes: repositories?.map(r => r.id),
         description: 'Repository pattern detected with multiple repository classes'
       };
     }
@@ -814,17 +814,17 @@ export class SemanticAnalyzer {
   }
 
   private async detectServicePattern(nodes: KnowledgeNode[]): Promise<SemanticPattern | null> {
-    const services = nodes.filter(n => 
-      n.name.toLowerCase().includes('service') ||
+    const services = nodes?.filter(n => 
+      n.name?.toLowerCase().includes('service') ||
       n.metadata.tags?.includes('service')
     );
 
-    if (services.length >= 2) {
+    if (services?.length >= 2) {
       return {
         name: 'Service Layer Pattern',
         type: 'business_logic',
         confidence: 0.8,
-        nodes: services.map(s => s.id),
+        nodes: services?.map(s => s.id),
         description: 'Service layer pattern with multiple service classes'
       };
     }
@@ -833,18 +833,18 @@ export class SemanticAnalyzer {
   }
 
   private async detectFactoryPattern(nodes: KnowledgeNode[]): Promise<SemanticPattern | null> {
-    const factories = nodes.filter(n => 
-      n.name.toLowerCase().includes('factory') ||
-      n.name.toLowerCase().includes('builder') ||
+    const factories = nodes?.filter(n => 
+      n.name?.toLowerCase().includes('factory') ||
+      n.name?.toLowerCase().includes('builder') ||
       n.metadata.tags?.includes('factory')
     );
 
-    if (factories.length >= 1) {
+    if (factories?.length >= 1) {
       return {
         name: 'Factory Pattern',
         type: 'creational',
         confidence: 0.7,
-        nodes: factories.map(f => f.id),
+        nodes: factories?.map(f => f.id),
         description: 'Factory pattern detected for object creation'
       };
     }
@@ -853,24 +853,24 @@ export class SemanticAnalyzer {
   }
 
   private async detectObserverPattern(nodes: KnowledgeNode[]): Promise<SemanticPattern | null> {
-    const observers = nodes.filter(n => 
-      n.name.toLowerCase().includes('observer') ||
-      n.name.toLowerCase().includes('listener') ||
-      n.name.toLowerCase().includes('subscriber')
+    const observers = nodes?.filter(n => 
+      n.name?.toLowerCase().includes('observer') ||
+      n.name?.toLowerCase().includes('listener') ||
+      n.name?.toLowerCase().includes('subscriber')
     );
 
-    const subjects = nodes.filter(n =>
-      n.name.toLowerCase().includes('subject') ||
-      n.name.toLowerCase().includes('publisher') ||
-      n.name.toLowerCase().includes('observable')
+    const subjects = nodes?.filter(n =>
+      n.name?.toLowerCase().includes('subject') ||
+      n.name?.toLowerCase().includes('publisher') ||
+      n.name?.toLowerCase().includes('observable')
     );
 
-    if (observers.length >= 1 && subjects.length >= 1) {
+    if (observers?.length >= 1 && subjects?.length >= 1) {
       return {
         name: 'Observer Pattern',
         type: 'behavioral',
         confidence: 0.8,
-        nodes: [...observers.map(o => o.id), ...subjects.map(s => s.id)],
+        nodes: [...observers?.map(o => o.id), ...subjects?.map(s => s.id)],
         description: 'Observer pattern with publishers and subscribers'
       };
     }
@@ -883,13 +883,13 @@ export class SemanticAnalyzer {
 
     for (const node of nodes) {
       // Extract feature names from node names and namespaces
-      const featureName = this.extractFeatureName(node.name, node.namespace);
+      const featureName = this?.extractFeatureName(node.name, node.namespace);
       
       if (featureName) {
-        if (!features.has(featureName)) {
-          features.set(featureName, []);
+        if (!features?.has(featureName)) {
+          features?.set(featureName, []);
         }
-        features.get(featureName)!.push(node.id);
+        features?.get(featureName)!.push(node.id);
       }
     }
 
@@ -911,25 +911,25 @@ export class SemanticAnalyzer {
       /^(admin)/i
     ];
 
-    const lowerName = nodeName.toLowerCase();
+    const lowerName = nodeName?.toLowerCase();
     const lowerNamespace = namespace?.toLowerCase() || '';
 
     for (const pattern of featurePatterns) {
-      if (pattern.test(lowerName) || pattern.test(lowerNamespace)) {
-        const match = lowerName.match(pattern) || lowerNamespace.match(pattern);
+      if (pattern?.test(lowerName) || pattern?.test(lowerNamespace)) {
+        const match = lowerName?.match(pattern) || lowerNamespace?.match(pattern);
         if (match) {
-          return match[1].charAt(0).toUpperCase() + match[1].slice(1);
+          return match?.[1].charAt(0).toUpperCase() + match?.[1].slice(1);
         }
       }
     }
 
     // Extract from namespace if available
     if (namespace) {
-      const parts = namespace.split('.');
-      if (parts.length > 0) {
-        const lastPart = parts[parts.length - 1];
-        if (lastPart.length > 3) { // Avoid very short namespace parts
-          return lastPart.charAt(0).toUpperCase() + lastPart.slice(1);
+      const parts = namespace?.split('.');
+      if (parts?.length > 0) {
+        const lastPart = parts[parts?.length - 1];
+        if (lastPart?.length > 3) { // Avoid very short namespace parts
+          return lastPart?.charAt(0).toUpperCase() + lastPart?.slice(1);
         }
       }
     }

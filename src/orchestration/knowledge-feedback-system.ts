@@ -159,7 +159,7 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   private feedbackLoops: Map<string, FeedbackLoop> = new Map();
   private learningState: Map<string, any> = new Map();
   private feedbackQueue: FeedbackItem[] = [];
-  private isProcessing: boolean = false;
+  private isProcessing: boolean = false ?? false;
   private continuousLearning: ContinuousLearningConfig;
   private systemMemory: SystemMemory = new SystemMemory();
 
@@ -195,13 +195,13 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
       }
     };
 
-    this.initializeFeedbackLoops();
-    this.startFeedbackProcessing();
+    this?.initializeFeedbackLoops();
+    this?.startFeedbackProcessing();
   }
 
   private initializeFeedbackLoops(): void {
     // Performance feedback loop
-    this.createFeedbackLoop({
+    this?.createFeedbackLoop({
       id: 'performance-optimization',
       type: FeedbackLoopType.PERFORMANCE,
       source: {
@@ -273,11 +273,11 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
         }
       ],
       isActive: true,
-      metrics: this.initializeFeedbackMetrics()
+      metrics: this?.initializeFeedbackMetrics()
     });
 
     // Quality improvement feedback loop
-    this.createFeedbackLoop({
+    this?.createFeedbackLoop({
       id: 'quality-improvement',
       type: FeedbackLoopType.QUALITY,
       source: {
@@ -345,11 +345,11 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
         }
       ],
       isActive: true,
-      metrics: this.initializeFeedbackMetrics()
+      metrics: this?.initializeFeedbackMetrics()
     });
 
     // Learning effectiveness feedback loop
-    this.createFeedbackLoop({
+    this?.createFeedbackLoop({
       id: 'learning-effectiveness',
       type: FeedbackLoopType.LEARNING,
       source: {
@@ -417,11 +417,11 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
         }
       ],
       isActive: true,
-      metrics: this.initializeFeedbackMetrics()
+      metrics: this?.initializeFeedbackMetrics()
     });
 
     // Adaptation feedback loop
-    this.createFeedbackLoop({
+    this?.createFeedbackLoop({
       id: 'system-adaptation',
       type: FeedbackLoopType.ADAPTATION,
       source: {
@@ -488,14 +488,14 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
         }
       ],
       isActive: true,
-      metrics: this.initializeFeedbackMetrics()
+      metrics: this?.initializeFeedbackMetrics()
     });
 
     this.logger.info(`Initialized ${this.feedbackLoops.size} feedback loops`);
   }
 
   private createFeedbackLoop(config: Omit<FeedbackLoop, 'metrics'> & { metrics: FeedbackMetrics }): void {
-    this.feedbackLoops.set(config.id, config as FeedbackLoop);
+    this.feedbackLoops?.set(config.id, config as FeedbackLoop);
   }
 
   private initializeFeedbackMetrics(): FeedbackMetrics {
@@ -519,14 +519,14 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     const feedbackItems: FeedbackItem[] = [];
 
     for (const [loopId, loop] of this.feedbackLoops) {
-      if (this.shouldProcessFeedback(loop, roleOutcome)) {
+      if (this?.shouldProcessFeedback(loop, roleOutcome)) {
         const item: FeedbackItem = {
-          id: `${loopId}-${Date.now()}`,
+          id: `${loopId}-${Date?.now()}`,
           loopId,
           source: roleOutcome,
           timestamp: new Date(),
           processed: false,
-          quality: this.assessFeedbackQuality(roleOutcome, loop),
+          quality: this?.assessFeedbackQuality(roleOutcome, loop),
           metadata: {
             executionId: roleOutcome.executionId,
             roleType: roleOutcome.roleType,
@@ -534,21 +534,21 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
           }
         };
 
-        feedbackItems.push(item);
+        feedbackItems?.push(item);
       }
     }
 
     // Add to processing queue
-    this.feedbackQueue.push(...feedbackItems);
+    this.feedbackQueue?.push(...feedbackItems);
     
-    this.emit('feedback-queued', {
-      count: feedbackItems.length,
-      queueSize: this.feedbackQueue.length
+    this?.emit('feedback-queued', {
+      count: feedbackItems?.length,
+      queueSize: this.feedbackQueue?.length
     });
 
     // Trigger processing if not already running
     if (!this.isProcessing) {
-      await this.processFeedbackQueue();
+      await this?.processFeedbackQueue();
     }
   }
 
@@ -556,7 +556,7 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     if (!loop.isActive) return false;
 
     // Check if role type matches
-    if (loop.source.roleTypes && !loop.source.roleTypes.includes(outcome.roleType)) {
+    if (loop.source.roleTypes && !loop.source.roleTypes?.includes(outcome.roleType)) {
       return false;
     }
 
@@ -567,9 +567,9 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
       case 'random':
         return Math.random() < loop.source.samplingRate;
       case 'stratified':
-        return this.shouldIncludeInStratifiedSample(outcome, loop);
+        return this?.shouldIncludeInStratifiedSample(outcome, loop);
       case 'adaptive':
-        return this.shouldIncludeInAdaptiveSample(outcome, loop);
+        return this?.shouldIncludeInAdaptiveSample(outcome, loop);
       default:
         return false;
     }
@@ -577,15 +577,15 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
 
   private shouldIncludeInStratifiedSample(outcome: RoleOutcome, loop: FeedbackLoop): boolean {
     // Implement stratified sampling logic
-    const stratum = this.getStratum(outcome);
-    const stratumSampleRate = this.getStratumSampleRate(stratum, loop);
+    const stratum = this?.getStratum(outcome);
+    const stratumSampleRate = this?.getStratumSampleRate(stratum, loop);
     return Math.random() < stratumSampleRate;
   }
 
   private shouldIncludeInAdaptiveSample(outcome: RoleOutcome, loop: FeedbackLoop): boolean {
     // Implement adaptive sampling based on recent system performance
-    const recentPerformance = this.getRecentPerformanceMetrics(loop);
-    const adaptiveSampleRate = this.calculateAdaptiveSampleRate(recentPerformance, loop);
+    const recentPerformance = this?.getRecentPerformanceMetrics(loop);
+    const adaptiveSampleRate = this?.calculateAdaptiveSampleRate(recentPerformance, loop);
     return Math.random() < adaptiveSampleRate;
   }
 
@@ -593,66 +593,66 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     if (this.isProcessing) return;
     
     this.isProcessing = true;
-    this.logger.info(`Processing feedback queue: ${this.feedbackQueue.length} items`);
+    this.logger.info(`Processing feedback queue: ${this.feedbackQueue?.length} items`);
 
     try {
-      while (this.feedbackQueue.length > 0) {
-        const item = this.feedbackQueue.shift()!;
-        await this.processFeedbackItem(item);
+      while (this.feedbackQueue?.length > 0) {
+        const item = this.feedbackQueue?.shift()!;
+        await this?.processFeedbackItem(item);
       }
     } catch (error) {
-      this.logger.error('Error processing feedback queue', error);
+      this.logger.error('Error processing feedback queue', error as Error);
     } finally {
       this.isProcessing = false;
     }
   }
 
   private async processFeedbackItem(item: FeedbackItem): Promise<void> {
-    const startTime = Date.now();
-    const loop = this.feedbackLoops.get(item.loopId)!;
+    const startTime = Date?.now();
+    const loop = this.feedbackLoops?.get(item.loopId)!;
 
     try {
       // Validate feedback quality
-      if (!this.passesQualityFilters(item, loop)) {
+      if (!this?.passesQualityFilters(item, loop)) {
         this.logger.debug(`Feedback item ${item.id} failed quality filters`);
         return;
       }
 
       // Transform data
-      const transformedData = await this.transformFeedbackData(item, loop);
+      const transformedData = await this?.transformFeedbackData(item, loop);
 
       // Apply aggregation rules
-      const aggregatedData = await this.aggregateFeedbackData(transformedData, loop);
+      const aggregatedData = await this?.aggregateFeedbackData(transformedData, loop);
 
       // Apply learning mechanisms
-      const insights = await this.applyLearningMechanisms(aggregatedData, loop);
+      const insights = await this?.applyLearningMechanisms(aggregatedData, loop);
 
       // Update target systems
-      await this.updateTargetSystems(insights, loop);
+      await this?.updateTargetSystems(insights, loop);
 
       // Update continuous learning state
       if (this.continuousLearning.enabled) {
-        await this.updateLearningState(insights, loop);
+        await this?.updateLearningState(insights, loop);
       }
 
       // Update metrics
-      this.updateFeedbackMetrics(loop, startTime, true);
+      this?.updateFeedbackMetrics(loop, startTime, true);
 
       item.processed = true;
-      this.emit('feedback-processed', { item, insights });
+      this?.emit('feedback-processed', { item, insights });
 
     } catch (error) {
-      this.logger.error(`Error processing feedback item ${item.id}`, error);
-      this.updateFeedbackMetrics(loop, startTime, false);
+      this.logger.error(`Error processing feedback item ${item.id}`, error as Error);
+      this?.updateFeedbackMetrics(loop, startTime, false);
       item.processed = false;
       item.error = error;
     }
   }
 
   private passesQualityFilters(item: FeedbackItem, loop: FeedbackLoop): boolean {
-    return loop.qualityFilters.every(filter => {
-      const value = this.extractFieldValue(item, filter.field);
-      return this.evaluateFilter(value, filter);
+    return loop.qualityFilters?.every(filter => {
+      const value = this?.extractFieldValue(item, filter.field);
+      return this?.evaluateFilter(value, filter);
     });
   }
 
@@ -660,7 +660,7 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     let data = item.source;
 
     for (const transformation of loop.dataFlow.transformations) {
-      data = await this.applyTransformation(data, transformation);
+      data = await this?.applyTransformation(data, transformation);
     }
 
     return data;
@@ -670,8 +670,8 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     const aggregated: any = {};
 
     for (const rule of loop.aggregationRules) {
-      const values = this.extractValuesForAggregation(data, rule);
-      aggregated[rule.field] = this.applyAggregation(values, rule);
+      const values = this?.extractValuesForAggregation(data, rule);
+      aggregated[rule.field] = this?.applyAggregation(values, rule);
     }
 
     return aggregated;
@@ -682,12 +682,12 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
 
     for (const mechanism of loop.learningMechanisms) {
       try {
-        const insight = await this.applyLearningMechanism(data, mechanism);
+        const insight = await this?.applyLearningMechanism(data, mechanism);
         if (insight.confidence >= mechanism.confidenceThreshold) {
-          insights.push(insight);
+          insights?.push(insight);
         }
       } catch (error) {
-        this.logger.error(`Learning mechanism ${mechanism.type} failed`, error);
+        this.logger.error(`Learning mechanism ${mechanism.type} failed`, error as Error);
       }
     }
 
@@ -698,19 +698,19 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     for (const insight of insights) {
       switch (loop.target.type) {
         case 'knowledge_graph':
-          await this.updateKnowledgeGraph(insight);
+          await this?.updateKnowledgeGraph(insight);
           break;
         case 'rag_context':
-          await this.updateRAGContext(insight);
+          await this?.updateRAGContext(insight);
           break;
         case 'role_learning':
-          await this.updateRoleLearning(insight);
+          await this?.updateRoleLearning(insight);
           break;
         case 'project_kb':
-          await this.updateProjectKB(insight);
+          await this?.updateProjectKB(insight);
           break;
         case 'system_optimization':
-          await this.updateSystemOptimization(insight);
+          await this?.updateSystemOptimization(insight);
           break;
       }
     }
@@ -720,42 +720,42 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     if (!this.continuousLearning.enabled) return;
 
     // Update system memory
-    this.systemMemory.addInsights(insights);
+    this.systemMemory?.addInsights(insights);
 
     // Apply forgetting curve if enabled
     if (this.continuousLearning.forgettingCurve.enabled) {
-      this.systemMemory.applyForgetting(this.continuousLearning.forgettingCurve);
+      this.systemMemory?.applyForgetting(this.continuousLearning.forgettingCurve);
     }
 
     // Reinforcement learning updates
     if (this.continuousLearning.reinforcementLearning.enabled) {
-      await this.updateReinforcementLearning(insights, loop);
+      await this?.updateReinforcementLearning(insights, loop);
     }
 
     // Adaptation based on learning
-    if (this.shouldAdapt(insights)) {
-      await this.adaptSystem(insights);
+    if (this?.shouldAdapt(insights)) {
+      await this?.adaptSystem(insights);
     }
   }
 
   private shouldAdapt(insights: LearningInsight[]): boolean {
-    const avgConfidence = insights.reduce((sum, i) => sum + i.confidence, 0) / insights.length;
+    const avgConfidence = insights?.reduce((sum, i) => sum + i.confidence, 0) / insights?.length;
     return avgConfidence >= this.continuousLearning.adaptationThreshold;
   }
 
   private async adaptSystem(insights: LearningInsight[]): Promise<void> {
     // Implement system adaptation based on insights
     for (const insight of insights) {
-      if (insight.type === 'performance_optimization') {
-        await this.optimizeSystemPerformance(insight);
-      } else if (insight.type === 'quality_improvement') {
-        await this.improveSystemQuality(insight);
-      } else if (insight.type === 'learning_enhancement') {
-        await this.enhanceSystemLearning(insight);
+      if (insight?.type === 'performance_optimization') {
+        await this?.optimizeSystemPerformance(insight);
+      } else if (insight?.type === 'quality_improvement') {
+        await this?.improveSystemQuality(insight);
+      } else if (insight?.type === 'learning_enhancement') {
+        await this?.enhanceSystemLearning(insight);
       }
     }
 
-    this.emit('system-adapted', { insights: insights.length });
+    this?.emit('system-adapted', { insights: insights?.length });
   }
 
   // Helper method implementations
@@ -764,8 +764,8 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     let quality = 0;
     
     if (outcome.success) quality += 0.3;
-    quality += outcome.qualityScore * 0.4;
-    quality += (outcome.insights.length / 5) * 0.3;
+    quality += outcome?.qualityScore * 0.4;
+    quality += (outcome.insights?.length / 5) * 0.3;
     
     return Math.min(1, quality);
   }
@@ -786,13 +786,13 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   private calculateAdaptiveSampleRate(performance: any, loop: FeedbackLoop): number {
     // Higher sample rate when performance is poor
     const baseRate = loop.source.samplingRate;
-    const performanceMultiplier = 1 + performance.errorRate * 2;
+    const performanceMultiplier = 1 + performance?.errorRate * 2;
     return Math.min(1, baseRate * performanceMultiplier);
   }
 
   private extractFieldValue(item: FeedbackItem, field: string): any {
     // Extract field value from feedback item
-    const fields = field.split('.');
+    const fields = field?.split('.');
     let value = item;
     
     for (const f of fields) {
@@ -810,8 +810,8 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
       case 'lte': return value <= filter.value;
       case 'eq': return value === filter.value;
       case 'neq': return value !== filter.value;
-      case 'in': return Array.isArray(filter.value) && filter.value.includes(value);
-      case 'not_in': return Array.isArray(filter.value) && !filter.value.includes(value);
+      case 'in': return Array.isArray(filter.value) && filter.value?.includes(value);
+      case 'not_in': return Array.isArray(filter.value) && !filter.value?.includes(value);
       default: return true;
     }
   }
@@ -820,9 +820,9 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     // Apply data transformation (simplified implementation)
     switch (transformation.operation) {
       case 'rolling_average':
-        return this.calculateRollingAverage(data, transformation.parameters.window);
+        return this?.calculateRollingAverage(data, transformation.parameters.window);
       case 'pattern_mining':
-        return this.extractPatterns(data, transformation.parameters.min_support);
+        return this?.extractPatterns(data, transformation.parameters.min_support);
       default:
         return data;
     }
@@ -831,22 +831,22 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   private extractValuesForAggregation(data: any, rule: AggregationRule): any[] {
     // Extract values for aggregation based on rule
     if (Array.isArray(data)) {
-      return data.map(item => item[rule.field]).filter(val => val !== undefined);
+      return data?.map(item => item[rule.field]).filter(val => val !== undefined);
     }
     return [data[rule.field]].filter(val => val !== undefined);
   }
 
   private applyAggregation(values: any[], rule: AggregationRule): any {
-    if (values.length === 0) return null;
+    if (values?.length === 0) return null;
     
     switch (rule.operation) {
-      case 'sum': return values.reduce((sum, val) => sum + val, 0);
-      case 'average': return values.reduce((sum, val) => sum + val, 0) / values.length;
-      case 'median': return this.calculateMedian(values);
+      case 'sum': return values?.reduce((sum, val) => sum + val, 0);
+      case 'average': return values?.reduce((sum, val) => sum + val, 0) / values?.length;
+      case 'median': return this?.calculateMedian(values);
       case 'max': return Math.max(...values);
       case 'min': return Math.min(...values);
-      case 'count': return values.length;
-      case 'std_dev': return this.calculateStdDev(values);
+      case 'count': return values?.length;
+      case 'std_dev': return this?.calculateStdDev(values);
       default: return values[0];
     }
   }
@@ -855,11 +855,11 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
     // Apply learning mechanism (simplified implementation)
     switch (mechanism.type) {
       case 'pattern_recognition':
-        return this.recognizePatterns(data, mechanism);
+        return this?.recognizePatterns(data, mechanism);
       case 'trend_analysis':
-        return this.analyzeTrends(data, mechanism);
+        return this?.analyzeTrends(data, mechanism);
       case 'anomaly_detection':
-        return this.detectAnomalies(data, mechanism);
+        return this?.detectAnomalies(data, mechanism);
       default:
         return {
           type: 'general',
@@ -872,19 +872,19 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   }
 
   private updateFeedbackMetrics(loop: FeedbackLoop, startTime: number, success: boolean): void {
-    const processingTime = Date.now() - startTime;
+    const processingTime = Date?.now() - startTime;
     
-    loop.metrics.totalFeedbackItems++;
+    loop.metrics?.totalFeedbackItems++;
     if (success) {
-      loop.metrics.processedItems++;
+      loop.metrics?.processedItems++;
     }
     
     // Update average processing time
-    const totalTime = loop.metrics.averageProcessingTime * (loop.metrics.totalFeedbackItems - 1);
+    const totalTime = loop.metrics?.averageProcessingTime * (loop.metrics?.totalFeedbackItems - 1);
     loop.metrics.averageProcessingTime = (totalTime + processingTime) / loop.metrics.totalFeedbackItems;
     
     // Update error rate
-    const errors = loop.metrics.totalFeedbackItems - loop.metrics.processedItems;
+    const errors = loop.metrics?.totalFeedbackItems - loop.metrics.processedItems;
     loop.metrics.errorRate = errors / loop.metrics.totalFeedbackItems;
     
     loop.metrics.lastUpdate = new Date();
@@ -902,17 +902,17 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   }
 
   private calculateMedian(values: number[]): number {
-    const sorted = values.sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0 
+    const sorted = values?.sort((a, b) => a - b);
+    const mid = Math.floor(sorted?.length / 2);
+    return sorted?.length % 2 === 0 
       ? (sorted[mid - 1] + sorted[mid]) / 2 
       : sorted[mid];
   }
 
   private calculateStdDev(values: number[]): number {
-    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-    const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
-    const avgSquaredDiff = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+    const mean = values?.reduce((sum, val) => sum + val, 0) / values?.length;
+    const squaredDiffs = values?.map(val => Math.pow(val - mean, 2));
+    const avgSquaredDiff = squaredDiffs?.reduce((sum, val) => sum + val, 0) / values?.length;
     return Math.sqrt(avgSquaredDiff);
   }
 
@@ -949,54 +949,54 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   // Target system update methods
   private async updateKnowledgeGraph(insight: LearningInsight): Promise<void> {
     // Update knowledge graph with new insights
-    this.emit('knowledge-graph-updated', insight);
+    this?.emit('knowledge-graph-updated', insight);
   }
 
   private async updateRAGContext(insight: LearningInsight): Promise<void> {
     // Update RAG context with new insights
-    this.emit('rag-context-updated', insight);
+    this?.emit('rag-context-updated', insight);
   }
 
   private async updateRoleLearning(insight: LearningInsight): Promise<void> {
     // Update role learning databases
-    this.emit('role-learning-updated', insight);
+    this?.emit('role-learning-updated', insight);
   }
 
   private async updateProjectKB(insight: LearningInsight): Promise<void> {
     // Update project knowledge base
-    this.emit('project-kb-updated', insight);
+    this?.emit('project-kb-updated', insight);
   }
 
   private async updateSystemOptimization(insight: LearningInsight): Promise<void> {
     // Update system optimization parameters
-    this.emit('system-optimization-updated', insight);
+    this?.emit('system-optimization-updated', insight);
   }
 
   private async updateReinforcementLearning(insights: LearningInsight[], loop: FeedbackLoop): Promise<void> {
     // Update reinforcement learning state
-    this.emit('reinforcement-learning-updated', { insights, loop: loop.id });
+    this?.emit('reinforcement-learning-updated', { insights, loop: loop.id });
   }
 
   private async optimizeSystemPerformance(insight: LearningInsight): Promise<void> {
     // Optimize system performance based on insight
-    this.emit('performance-optimized', insight);
+    this?.emit('performance-optimized', insight);
   }
 
   private async improveSystemQuality(insight: LearningInsight): Promise<void> {
     // Improve system quality based on insight
-    this.emit('quality-improved', insight);
+    this?.emit('quality-improved', insight);
   }
 
   private async enhanceSystemLearning(insight: LearningInsight): Promise<void> {
     // Enhance system learning capabilities
-    this.emit('learning-enhanced', insight);
+    this?.emit('learning-enhanced', insight);
   }
 
   private startFeedbackProcessing(): void {
     // Start periodic processing
     setInterval(() => {
-      if (this.feedbackQueue.length > 0 && !this.isProcessing) {
-        this.processFeedbackQueue();
+      if (this.feedbackQueue?.length > 0 && !this.isProcessing) {
+        this?.processFeedbackQueue();
       }
     }, 5000); // Process every 5 seconds
   }
@@ -1004,11 +1004,11 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   // Public API
   async getFeedbackLoopStatus(loopId?: string): Promise<any> {
     if (loopId) {
-      const loop = this.feedbackLoops.get(loopId);
+      const loop = this.feedbackLoops?.get(loopId);
       return loop ? { loop, metrics: loop.metrics } : null;
     }
     
-    return Array.from(this.feedbackLoops.entries()).map(([id, loop]) => ({
+    return Array.from(this.feedbackLoops?.entries()).map(([id, loop]) => ({
       id,
       type: loop.type,
       isActive: loop.isActive,
@@ -1019,25 +1019,25 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   async getSystemLearningState(): Promise<any> {
     return {
       continuousLearning: this.continuousLearning,
-      memorySize: this.systemMemory.getSize(),
-      queueSize: this.feedbackQueue.length,
+      memorySize: this.systemMemory?.getSize(),
+      queueSize: this.feedbackQueue?.length,
       isProcessing: this.isProcessing
     };
   }
 
   async activateFeedbackLoop(loopId: string): Promise<void> {
-    const loop = this.feedbackLoops.get(loopId);
+    const loop = this.feedbackLoops?.get(loopId);
     if (loop) {
       loop.isActive = true;
-      this.emit('feedback-loop-activated', loopId);
+      this?.emit('feedback-loop-activated', loopId);
     }
   }
 
   async deactivateFeedbackLoop(loopId: string): Promise<void> {
-    const loop = this.feedbackLoops.get(loopId);
+    const loop = this.feedbackLoops?.get(loopId);
     if (loop) {
       loop.isActive = false;
-      this.emit('feedback-loop-deactivated', loopId);
+      this?.emit('feedback-loop-deactivated', loopId);
     }
   }
 }
@@ -1067,34 +1067,34 @@ class SystemMemory {
   private maxSize: number = 10000;
 
   addInsights(insights: LearningInsight[]): void {
-    insights.forEach(insight => {
-      if (!this.insights.has(insight.type)) {
-        this.insights.set(insight.type, []);
+    insights?.forEach(insight => {
+      if (!this.insights?.has(insight.type)) {
+        this.insights?.set(insight.type, []);
       }
       
-      const typeInsights = this.insights.get(insight.type)!;
-      typeInsights.push(insight);
+      const typeInsights = this.insights?.get(insight.type)!;
+      typeInsights?.push(insight);
       
       // Maintain size limit
-      if (typeInsights.length > this.maxSize / this.insights.size) {
-        typeInsights.shift(); // Remove oldest
+      if (typeInsights?.length > this?.maxSize / this.insights.size) {
+        typeInsights?.shift(); // Remove oldest
       }
     });
   }
 
   applyForgetting(config: ForgettingCurveConfig): void {
     for (const [type, insights] of this.insights) {
-      insights.forEach(insight => {
-        insight.confidence *= config.decayRate;
+      insights?.forEach(insight => {
+        insight?.confidence *= config.decayRate;
       });
       
       // Remove insights below minimum retention
-      const filtered = insights.filter(i => i.confidence >= config.minimumRetention);
-      this.insights.set(type, filtered);
+      const filtered = insights?.filter(i => i.confidence >= config.minimumRetention);
+      this.insights?.set(type, filtered);
     }
   }
 
   getSize(): number {
-    return Array.from(this.insights.values()).reduce((sum, insights) => sum + insights.length, 0);
+    return Array.from(this.insights?.values()).reduce((sum, insights) => sum + insights?.length, 0);
   }
 }

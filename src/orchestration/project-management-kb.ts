@@ -225,7 +225,7 @@ export class ProjectManagementKB extends EventEmitter {
     super();
     this.logger = logger;
     this.kbPath = kbPath;
-    this.loadKnowledgeBase();
+    this?.loadKnowledgeBase();
   }
 
   async initializeProject(
@@ -234,7 +234,7 @@ export class ProjectManagementKB extends EventEmitter {
     mission: string
   ): Promise<ProjectPlan> {
     this.projectPlan = {
-      id: `proj-${Date.now()}`,
+      id: `proj-${Date?.now()}`,
       name,
       vision,
       mission,
@@ -254,7 +254,7 @@ export class ProjectManagementKB extends EventEmitter {
       },
       timeline: {
         projectStart: new Date(),
-        projectEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+        projectEnd: new Date(Date?.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
         currentPhase: '',
         criticalPath: [],
         bufferDays: 30,
@@ -267,7 +267,7 @@ export class ProjectManagementKB extends EventEmitter {
       }
     };
 
-    await this.saveKnowledgeBase();
+    await this?.saveKnowledgeBase();
     this.logger.info(`Project initialized: ${name}`);
     
     return this.projectPlan;
@@ -280,15 +280,15 @@ export class ProjectManagementKB extends EventEmitter {
 
     const newPhase: Phase = {
       ...phase,
-      id: `phase-${Date.now()}`,
+      id: `phase-${Date?.now()}`,
       progress: 0
     };
 
-    this.projectPlan.phases.push(newPhase);
-    this.projectPlan.phases.sort((a, b) => a.number - b.number);
+    this.projectPlan.phases?.push(newPhase);
+    this.projectPlan.phases?.sort((a, b) => a?.number - b.number);
 
-    await this.saveKnowledgeBase();
-    this.emit('phase-added', newPhase);
+    await this?.saveKnowledgeBase();
+    this?.emit('phase-added', newPhase);
     
     return newPhase;
   }
@@ -300,13 +300,13 @@ export class ProjectManagementKB extends EventEmitter {
 
     const newMVP: MVP = {
       ...mvp,
-      id: `mvp-${Date.now()}`
+      id: `mvp-${Date?.now()}`
     };
 
-    this.projectPlan.mvps.push(newMVP);
+    this.projectPlan.mvps?.push(newMVP);
     
-    await this.saveKnowledgeBase();
-    this.emit('mvp-added', newMVP);
+    await this?.saveKnowledgeBase();
+    this?.emit('mvp-added', newMVP);
     
     return newMVP;
   }
@@ -318,16 +318,16 @@ export class ProjectManagementKB extends EventEmitter {
 
     const newMilestone: Milestone = {
       ...milestone,
-      id: `milestone-${Date.now()}`
+      id: `milestone-${Date?.now()}`
     };
 
-    this.projectPlan.milestones.push(newMilestone);
-    this.projectPlan.milestones.sort((a, b) => 
-      a.targetDate.getTime() - b.targetDate.getTime()
+    this.projectPlan.milestones?.push(newMilestone);
+    this.projectPlan.milestones?.sort((a, b) => 
+      a.targetDate?.getTime() - b.targetDate?.getTime()
     );
 
-    await this.saveKnowledgeBase();
-    this.emit('milestone-added', newMilestone);
+    await this?.saveKnowledgeBase();
+    this?.emit('milestone-added', newMilestone);
     
     return newMilestone;
   }
@@ -335,77 +335,77 @@ export class ProjectManagementKB extends EventEmitter {
   async recordAccomplishment(accomplishment: Omit<WorkAccomplishment, 'id'>): Promise<void> {
     const newAccomplishment: WorkAccomplishment = {
       ...accomplishment,
-      id: `acc-${Date.now()}`
+      id: `acc-${Date?.now()}`
     };
 
-    this.accomplishments.set(newAccomplishment.id, newAccomplishment);
+    this.accomplishments?.set(newAccomplishment.id, newAccomplishment);
     
     // Update related phase progress
     if (this.projectPlan) {
-      const phase = this.projectPlan.phases.find(p => p.id === accomplishment.phaseId);
+      const phase = this.projectPlan.phases?.find(p => p?.id === accomplishment.phaseId);
       if (phase) {
-        await this.updatePhaseProgress(phase.id);
+        await this?.updatePhaseProgress(phase.id);
       }
       
       // Update milestone if applicable
       if (accomplishment.milestoneId) {
-        await this.checkMilestoneCompletion(accomplishment.milestoneId);
+        await this?.checkMilestoneCompletion(accomplishment.milestoneId);
       }
     }
 
-    await this.saveKnowledgeBase();
-    this.emit('accomplishment-recorded', newAccomplishment);
+    await this?.saveKnowledgeBase();
+    this?.emit('accomplishment-recorded', newAccomplishment);
   }
 
   async updatePhaseProgress(phaseId: string): Promise<void> {
     if (!this.projectPlan) return;
 
-    const phase = this.projectPlan.phases.find(p => p.id === phaseId);
+    const phase = this.projectPlan.phases?.find(p => p?.id === phaseId);
     if (!phase) return;
 
     // Calculate progress based on deliverables
-    const completedDeliverables = phase.deliverables.filter(d => d.status === 'completed').length;
-    const totalDeliverables = phase.deliverables.length;
+    const completedDeliverables = phase.deliverables?.filter(d => d?.status === 'completed').length;
+    const totalDeliverables = phase.deliverables?.length;
     
     if (totalDeliverables > 0) {
       phase.progress = Math.round((completedDeliverables / totalDeliverables) * 100);
     }
 
     // Update status
-    if (phase.progress === 100) {
+    if (phase?.progress === 100) {
       phase.status = 'completed';
     } else if (phase.progress > 0) {
       phase.status = 'in_progress';
     }
 
-    await this.saveKnowledgeBase();
-    this.emit('phase-progress-updated', { phaseId, progress: phase.progress });
+    await this?.saveKnowledgeBase();
+    this?.emit('phase-progress-updated', { phaseId, progress: phase.progress });
   }
 
   async checkMilestoneCompletion(milestoneId: string): Promise<void> {
     if (!this.projectPlan) return;
 
-    const milestone = this.projectPlan.milestones.find(m => m.id === milestoneId);
+    const milestone = this.projectPlan.milestones?.find(m => m?.id === milestoneId);
     if (!milestone) return;
 
     // Check if all deliverables are completed
-    const allCompleted = milestone.deliverables.every(d => {
+    const allCompleted = milestone.deliverables?.every(d => {
       // Check if deliverable exists in accomplishments
-      return Array.from(this.accomplishments.values()).some(
-        acc => acc.title === d && acc.completionDate != null
+      return Array.from(this.accomplishments?.values()).some(
+        acc => acc?.title === d && acc?.completionDate != null
       );
     });
 
-    if (allCompleted && milestone.status !== 'completed') {
+    if (allCompleted && milestone?.status !== 'completed') {
       milestone.status = 'completed';
       milestone.actualDate = new Date();
       
-      await this.saveKnowledgeBase();
-      this.emit('milestone-completed', milestone);
+      await this?.saveKnowledgeBase();
+      this?.emit('milestone-completed', milestone);
       
       // Trigger celebration if defined
       if (milestone.celebration) {
-        this.emit('celebration', { milestone, message: milestone.celebration });
+        this?.emit('celebration', { milestone, message: milestone.celebration });
       }
     }
   }
@@ -415,21 +415,21 @@ export class ProjectManagementKB extends EventEmitter {
       return { error: 'No project plan available' };
     }
 
-    const currentPhase = this.projectPlan.phases.find(
-      p => p.status === 'in_progress'
+    const currentPhase = this.projectPlan.phases?.find(
+      p => p?.status === 'in_progress'
     );
     
     const upcomingMilestones = this.projectPlan.milestones
-      .filter(m => m.status === 'pending' || m.status === 'at_risk')
+      .filter(m => m?.status === 'pending' || m?.status === 'at_risk')
       .slice(0, 3);
     
     const activeObjectives = this.projectPlan.objectives
-      .filter(o => o.status === 'active')
+      .filter(o => o?.status === 'active')
       .slice(0, 5);
     
     const highRisks = this.projectPlan.risks
-      .filter(r => r.impact === 'high' || r.impact === 'critical')
-      .filter(r => r.status !== 'resolved');
+      .filter(r => r?.impact === 'high' || r?.impact === 'critical')
+      .filter(r => r?.status !== 'resolved');
 
     return {
       project: {
@@ -441,61 +441,61 @@ export class ProjectManagementKB extends EventEmitter {
         name: currentPhase.name,
         progress: currentPhase.progress,
         endDate: currentPhase.endDate,
-        blockers: currentPhase.status === 'blocked' ? 'Yes' : 'No'
+        blockers: currentPhase?.status === 'blocked' ? 'Yes' : 'No'
       } : null,
       upcomingMilestones,
       activeObjectives,
       highRisks,
-      metrics: this.calculateProjectMetrics(),
-      recommendations: this.generateRecommendations()
+      metrics: this?.calculateProjectMetrics(),
+      recommendations: this?.generateRecommendations()
     };
   }
 
   private calculateProjectMetrics(): any {
     if (!this.projectPlan) return {};
 
-    const totalPhases = this.projectPlan.phases.length;
-    const completedPhases = this.projectPlan.phases.filter(p => p.status === 'completed').length;
+    const totalPhases = this.projectPlan.phases?.length;
+    const completedPhases = this.projectPlan.phases?.filter(p => p?.status === 'completed').length;
     const overallProgress = totalPhases > 0 ? (completedPhases / totalPhases) * 100 : 0;
 
-    const totalMilestones = this.projectPlan.milestones.length;
-    const completedMilestones = this.projectPlan.milestones.filter(m => m.status === 'completed').length;
-    const milestonesOnTrack = this.projectPlan.milestones.filter(m => m.status === 'on_track').length;
+    const totalMilestones = this.projectPlan.milestones?.length;
+    const completedMilestones = this.projectPlan.milestones?.filter(m => m?.status === 'completed').length;
+    const milestonesOnTrack = this.projectPlan.milestones?.filter(m => m?.status === 'on_track').length;
 
     const budgetUtilization = this.projectPlan.budget.total > 0
-      ? (this.projectPlan.budget.spent / this.projectPlan.budget.total) * 100
+      ? (this.projectPlan.budget?.spent / this.projectPlan.budget.total) * 100
       : 0;
 
     // Calculate velocity from accomplishments
-    const recentAccomplishments = Array.from(this.accomplishments.values())
-      .filter(a => a.completionDate > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)); // Last 30 days
+    const recentAccomplishments = Array.from(this.accomplishments?.values())
+      .filter(a => a.completionDate > new Date(Date?.now() - 30 * 24 * 60 * 60 * 1000)); // Last 30 days
     
-    const velocity = recentAccomplishments.reduce((sum, a) => sum + a.effort, 0) / 30;
+    const velocity = recentAccomplishments?.reduce((sum, a) => sum + a.effort, 0) / 30;
 
     return {
       overallProgress,
       phasesCompleted: `${completedPhases}/${totalPhases}`,
       milestonesCompleted: `${completedMilestones}/${totalMilestones}`,
       milestonesOnTrack,
-      budgetUtilization: `${budgetUtilization.toFixed(1)}%`,
-      velocity: velocity.toFixed(1),
-      qualityTrend: this.calculateQualityTrend(),
-      riskLevel: this.calculateOverallRiskLevel()
+      budgetUtilization: `${budgetUtilization?.toFixed(1)}%`,
+      velocity: velocity?.toFixed(1),
+      qualityTrend: this?.calculateQualityTrend(),
+      riskLevel: this?.calculateOverallRiskLevel()
     };
   }
 
   private calculateQualityTrend(): string {
-    const recentAccomplishments = Array.from(this.accomplishments.values())
-      .filter(a => a.completionDate > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-      .sort((a, b) => b.completionDate.getTime() - a.completionDate.getTime());
+    const recentAccomplishments = Array.from(this.accomplishments?.values())
+      .filter(a => a.completionDate > new Date(Date?.now() - 30 * 24 * 60 * 60 * 1000))
+      .sort((a, b) => b.completionDate?.getTime() - a.completionDate?.getTime());
 
-    if (recentAccomplishments.length < 2) return 'stable';
+    if (recentAccomplishments?.length < 2) return 'stable';
 
-    const recentQuality = recentAccomplishments.slice(0, 5)
-      .reduce((sum, a) => sum + a.quality.codeQuality, 0) / Math.min(5, recentAccomplishments.length);
+    const recentQuality = recentAccomplishments?.slice(0, 5)
+      .reduce((sum, a) => sum + a.quality.codeQuality, 0) / Math.min(5, recentAccomplishments?.length);
     
-    const previousQuality = recentAccomplishments.slice(5, 10)
-      .reduce((sum, a) => sum + a.quality.codeQuality, 0) / Math.min(5, recentAccomplishments.slice(5, 10).length);
+    const previousQuality = recentAccomplishments?.slice(5, 10)
+      .reduce((sum, a) => sum + a.quality.codeQuality, 0) / Math.min(5, recentAccomplishments?.slice(5, 10).length);
 
     if (recentQuality > previousQuality * 1.05) return 'improving';
     if (recentQuality < previousQuality * 0.95) return 'declining';
@@ -505,17 +505,17 @@ export class ProjectManagementKB extends EventEmitter {
   private calculateOverallRiskLevel(): string {
     if (!this.projectPlan) return 'unknown';
 
-    const activeRisks = this.projectPlan.risks.filter(r => 
-      r.status === 'identified' || r.status === 'mitigating'
+    const activeRisks = this.projectPlan.risks?.filter(r => 
+      r?.status === 'identified' || r?.status === 'mitigating'
     );
 
-    const highImpactRisks = activeRisks.filter(r => 
-      r.impact === 'critical' || (r.impact === 'high' && r.probability === 'high')
+    const highImpactRisks = activeRisks?.filter(r => 
+      r?.impact === 'critical' || (r?.impact === 'high' && r?.probability === 'high')
     );
 
-    if (highImpactRisks.length > 2) return 'critical';
-    if (highImpactRisks.length > 0) return 'high';
-    if (activeRisks.length > 5) return 'medium';
+    if (highImpactRisks?.length > 2) return 'critical';
+    if (highImpactRisks?.length > 0) return 'high';
+    if (activeRisks?.length > 5) return 'medium';
     return 'low';
   }
 
@@ -525,40 +525,40 @@ export class ProjectManagementKB extends EventEmitter {
     if (!this.projectPlan) return recommendations;
 
     // Check for at-risk milestones
-    const atRiskMilestones = this.projectPlan.milestones.filter(m => m.status === 'at_risk');
-    if (atRiskMilestones.length > 0) {
-      recommendations.push(`Focus on at-risk milestones: ${atRiskMilestones.map(m => m.name).join(', ')}`);
+    const atRiskMilestones = this.projectPlan.milestones?.filter(m => m?.status === 'at_risk');
+    if (atRiskMilestones?.length > 0) {
+      recommendations?.push(`Focus on at-risk milestones: ${atRiskMilestones?.map(m => m.name).join(', ')}`);
     }
 
     // Check for blocked phases
-    const blockedPhases = this.projectPlan.phases.filter(p => p.status === 'blocked');
-    if (blockedPhases.length > 0) {
-      recommendations.push(`Unblock phases: ${blockedPhases.map(p => p.name).join(', ')}`);
+    const blockedPhases = this.projectPlan.phases?.filter(p => p?.status === 'blocked');
+    if (blockedPhases?.length > 0) {
+      recommendations?.push(`Unblock phases: ${blockedPhases?.map(p => p.name).join(', ')}`);
     }
 
     // Check budget
-    if (this.projectPlan.budget.spent > this.projectPlan.budget.allocated * 0.9) {
-      recommendations.push('Review budget allocation - approaching limit');
+    if (this.projectPlan.budget.spent > this.projectPlan.budget?.allocated * 0.9) {
+      recommendations?.push('Review budget allocation - approaching limit');
     }
 
     // Check velocity
     if (this.projectPlan.timeline.velocity < 20) {
-      recommendations.push('Consider ways to improve development velocity');
+      recommendations?.push('Consider ways to improve development velocity');
     }
 
     // Check risks
-    const criticalRisks = this.projectPlan.risks.filter(r => 
-      r.impact === 'critical' && r.status !== 'resolved'
+    const criticalRisks = this.projectPlan.risks?.filter(r => 
+      r?.impact === 'critical' && r?.status !== 'resolved'
     );
-    if (criticalRisks.length > 0) {
-      recommendations.push(`Address critical risks immediately: ${criticalRisks.length} identified`);
+    if (criticalRisks?.length > 0) {
+      recommendations?.push(`Address critical risks immediately: ${criticalRisks?.length} identified`);
     }
 
     return recommendations;
   }
 
   async generateStatusReport(): Promise<string> {
-    const context = await this.getStrategicContext();
+    const context = await this?.getStrategicContext();
     
     let report = `# Project Status Report\n\n`;
     report += `**Project**: ${context.project.name}\n`;
@@ -572,12 +572,12 @@ export class ProjectManagementKB extends EventEmitter {
       report += `## Current Phase\n`;
       report += `**${context.currentPhase.name}**\n`;
       report += `- Progress: ${context.currentPhase.progress}%\n`;
-      report += `- Target End: ${context.currentPhase.endDate.toLocaleDateString()}\n`;
-      report += `- Status: ${context.currentPhase.blockers === 'Yes' ? '⚠️ Blocked' : '✅ Active'}\n\n`;
+      report += `- Target End: ${context.currentPhase.endDate?.toLocaleDateString()}\n`;
+      report += `- Status: ${context.currentPhase?.blockers === 'Yes' ? '⚠️ Blocked' : '✅ Active'}\n\n`;
     }
     
     report += `## Key Metrics\n`;
-    report += `- Overall Progress: ${context.metrics.overallProgress.toFixed(1)}%\n`;
+    report += `- Overall Progress: ${context.metrics.overallProgress?.toFixed(1)}%\n`;
     report += `- Phases Completed: ${context.metrics.phasesCompleted}\n`;
     report += `- Milestones: ${context.metrics.milestonesCompleted} (${context.metrics.milestonesOnTrack} on track)\n`;
     report += `- Budget Utilization: ${context.metrics.budgetUtilization}\n`;
@@ -585,17 +585,17 @@ export class ProjectManagementKB extends EventEmitter {
     report += `- Quality Trend: ${context.metrics.qualityTrend}\n`;
     report += `- Risk Level: ${context.metrics.riskLevel}\n\n`;
     
-    if (context.upcomingMilestones.length > 0) {
+    if (context.upcomingMilestones?.length > 0) {
       report += `## Upcoming Milestones\n`;
-      context.upcomingMilestones.forEach((m: Milestone) => {
-        report += `- **${m.name}** (${m.targetDate.toLocaleDateString()}): ${m.status}\n`;
+      context.upcomingMilestones?.forEach((m: Milestone) => {
+        report += `- **${m.name}** (${m.targetDate?.toLocaleDateString()}): ${m.status}\n`;
       });
       report += '\n';
     }
     
-    if (context.recommendations.length > 0) {
+    if (context.recommendations?.length > 0) {
       report += `## Recommendations\n`;
-      context.recommendations.forEach((r: string) => {
+      context.recommendations?.forEach((r: string) => {
         report += `- ${r}\n`;
       });
     }
@@ -605,25 +605,25 @@ export class ProjectManagementKB extends EventEmitter {
 
   private async saveKnowledgeBase(): Promise<void> {
     try {
-      await fs.mkdir(this.kbPath, { recursive: true });
+      await fs?.mkdir(this.kbPath, { recursive: true });
       
       // Save project plan
       if (this.projectPlan) {
-        await fs.writeFile(
-          path.join(this.kbPath, 'project-plan.json'),
+        await fs?.writeFile(
+          path?.join(this.kbPath, 'project-plan.json'),
           JSON.stringify(this.projectPlan, null, 2)
         );
       }
       
       // Save accomplishments
-      const accomplishmentsArray = Array.from(this.accomplishments.values());
-      await fs.writeFile(
-        path.join(this.kbPath, 'accomplishments.json'),
+      const accomplishmentsArray = Array.from(this.accomplishments?.values());
+      await fs?.writeFile(
+        path?.join(this.kbPath, 'accomplishments.json'),
         JSON.stringify(accomplishmentsArray, null, 2)
       );
       
       // Record update
-      this.updateHistory.push({
+      this.updateHistory?.push({
         timestamp: new Date(),
         type: 'save',
         details: `Saved ${this.accomplishments.size} accomplishments`
@@ -631,42 +631,42 @@ export class ProjectManagementKB extends EventEmitter {
       
       this.logger.info('Project knowledge base saved');
     } catch (error) {
-      this.logger.error('Failed to save knowledge base', error);
+      this.logger.error('Failed to save knowledge base', error as Error);
     }
   }
 
   private async loadKnowledgeBase(): Promise<void> {
     try {
       // Load project plan
-      const planPath = path.join(this.kbPath, 'project-plan.json');
-      const planExists = await fs.access(planPath).then(() => true).catch(() => false);
+      const planPath = path?.join(this.kbPath, 'project-plan.json');
+      const planExists = await fs?.access(planPath).then(() => true).catch(() => false);
       
       if (planExists) {
-        const planContent = await fs.readFile(planPath, 'utf-8');
+        const planContent = await fs?.readFile(planPath, 'utf-8');
         this.projectPlan = JSON.parse(planContent);
         
         // Convert date strings back to Date objects
         if (this.projectPlan) {
-          this.convertDates(this.projectPlan);
+          this?.convertDates(this.projectPlan);
         }
       }
       
       // Load accomplishments
-      const accPath = path.join(this.kbPath, 'accomplishments.json');
-      const accExists = await fs.access(accPath).then(() => true).catch(() => false);
+      const accPath = path?.join(this.kbPath, 'accomplishments.json');
+      const accExists = await fs?.access(accPath).then(() => true).catch(() => false);
       
       if (accExists) {
-        const accContent = await fs.readFile(accPath, 'utf-8');
+        const accContent = await fs?.readFile(accPath, 'utf-8');
         const accomplishments = JSON.parse(accContent) as WorkAccomplishment[];
         
-        accomplishments.forEach(acc => {
-          this.accomplishments.set(acc.id, acc);
+        accomplishments?.forEach(acc => {
+          this.accomplishments?.set(acc.id, acc);
         });
       }
       
       this.logger.info(`Loaded project KB: ${this.accomplishments.size} accomplishments`);
     } catch (error) {
-      this.logger.error('Failed to load knowledge base', error);
+      this.logger.error('Failed to load knowledge base', error as Error);
     }
   }
 
@@ -674,17 +674,17 @@ export class ProjectManagementKB extends EventEmitter {
     // Recursively convert date strings to Date objects
     for (const key in obj) {
       if (obj[key]) {
-        if (typeof obj[key] === 'string' && this.isDateString(obj[key])) {
+        if (typeof obj[key] === 'string' && this?.isDateString(obj[key])) {
           obj[key] = new Date(obj[key]);
         } else if (typeof obj[key] === 'object') {
-          this.convertDates(obj[key]);
+          this?.convertDates(obj[key]);
         }
       }
     }
   }
 
   private isDateString(str: string): boolean {
-    return !isNaN(Date.parse(str)) && str.includes('-');
+    return !isNaN(Date?.parse(str)) && str?.includes('-');
   }
 
   // Public API
@@ -693,16 +693,16 @@ export class ProjectManagementKB extends EventEmitter {
   }
 
   getAccomplishments(): WorkAccomplishment[] {
-    return Array.from(this.accomplishments.values());
+    return Array.from(this.accomplishments?.values());
   }
 
   async getPhaseById(phaseId: string): Promise<Phase | null> {
     if (!this.projectPlan) return null;
-    return this.projectPlan.phases.find(p => p.id === phaseId) || null;
+    return this.projectPlan.phases?.find(p => p?.id === phaseId) || null;
   }
 
   async getMilestoneById(milestoneId: string): Promise<Milestone | null> {
     if (!this.projectPlan) return null;
-    return this.projectPlan.milestones.find(m => m.id === milestoneId) || null;
+    return this.projectPlan.milestones?.find(m => m?.id === milestoneId) || null;
   }
 }

@@ -204,7 +204,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     this.knowledgeRepo = knowledgeRepo;
     this.projectKB = projectKB;
     this.classTraversalEngine = new ClassTraversalEngine(logger);
-    this.initializeLearningDatabase();
+    this?.initializeLearningDatabase();
   }
 
   async prepareRoleKnowledge(
@@ -217,13 +217,13 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     this.logger.info(`Preparing knowledge context for ${roleType} in step: ${step}`);
 
     // Build comprehensive knowledge packet
-    const knowledgePacket = await this.buildKnowledgePacket(roleType, inputs, executionId);
+    const knowledgePacket = await this?.buildKnowledgePacket(roleType, inputs, executionId);
     
     // Create role-specific context window
-    const contextWindow = await this.createContextWindow(roleType, knowledgePacket);
+    const contextWindow = await this?.createContextWindow(roleType, knowledgePacket);
     
     // Initialize feedback loop
-    const feedbackLoop = this.initializeFeedbackLoop(roleType, inputs);
+    const feedbackLoop = this?.initializeFeedbackLoop(roleType, inputs);
 
     const context: RoleKnowledgeContext = {
       roleType,
@@ -236,9 +236,9 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
       feedbackLoop
     };
 
-    this.roleContexts.set(nodeId, context);
+    this.roleContexts?.set(nodeId, context);
     
-    this.emit('knowledge-context-prepared', { roleType, nodeId, contextSize: contextWindow.maxTokens });
+    this?.emit('knowledge-context-prepared', { roleType, nodeId, contextSize: contextWindow.maxTokens });
     
     return context;
   }
@@ -248,14 +248,14 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     inputs: any,
     executionId: string
   ): Promise<KnowledgePacket> {
-    const [triads, ragContext, historical, project, peers, domain, classTraversal] = await Promise.all([
-      this.extractRelevantTriads(roleType, inputs),
-      this.generateRoleRAGContext(roleType, inputs),
-      this.getHistoricalContext(roleType, executionId),
-      this.getProjectContext(executionId),
-      this.getPeerContext(roleType, executionId),
-      this.getDomainKnowledge(roleType, inputs),
-      this.buildClassTraversalContext(roleType, inputs)
+    const [triads, ragContext, historical, project, peers, domain, classTraversal] = await Promise?.all([
+      this?.extractRelevantTriads(roleType, inputs),
+      this?.generateRoleRAGContext(roleType, inputs),
+      this?.getHistoricalContext(roleType, executionId),
+      this?.getProjectContext(executionId),
+      this?.getPeerContext(roleType, executionId),
+      this?.getDomainKnowledge(roleType, inputs),
+      this?.buildClassTraversalContext(roleType, inputs)
     ]);
 
     return {
@@ -273,50 +273,50 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     switch (roleType) {
       case RoleType.REQUIREMENT_ANALYST:
         return {
-          relevant: await this.knowledgeGraph.findRelationships('REQUIREMENT', 'HAS_DEPENDENCY'),
-          patterns: await this.knowledgeGraph.findPatterns(['Repository', 'Service Layer']),
-          dependencies: await this.knowledgeGraph.getNodeDependencies(inputs.featureId),
-          similarities: await this.knowledgeGraph.findSimilarNodes(inputs.description, 0.8)
+          relevant: await this.knowledgeGraph?.findRelationships('REQUIREMENT', 'HAS_DEPENDENCY'),
+          patterns: await this.knowledgeGraph?.findPatterns(['Repository', 'Service Layer']),
+          dependencies: await this.knowledgeGraph?.getNodeDependencies(inputs.featureId),
+          similarities: await this.knowledgeGraph?.findSimilarNodes(inputs.description, 0.8)
         };
 
       case RoleType.TEST_DESIGNER:
         return {
-          relevant: await this.knowledgeGraph.findRelationships('METHOD', 'TESTED_BY'),
-          patterns: await this.knowledgeGraph.findPatterns(['Factory', 'Builder', 'Mock']),
-          dependencies: await this.knowledgeGraph.getTestDependencies(inputs.targetCode),
-          similarities: await this.knowledgeGraph.findSimilarTestPatterns(inputs.requirements)
+          relevant: await this.knowledgeGraph?.findRelationships('METHOD', 'TESTED_BY'),
+          patterns: await this.knowledgeGraph?.findPatterns(['Factory', 'Builder', 'Mock']),
+          dependencies: await this.knowledgeGraph?.getTestDependencies(inputs.targetCode),
+          similarities: await this.knowledgeGraph?.findSimilarTestPatterns(inputs.requirements)
         };
 
       case RoleType.IMPLEMENTATION_DEVELOPER:
         return {
-          relevant: await this.knowledgeGraph.findRelationships('CLASS', ['EXTENDS', 'IMPLEMENTS', 'USES']),
-          patterns: await this.knowledgeGraph.detectArchitecturalPatterns(inputs.codebase),
-          dependencies: await this.knowledgeGraph.analyzeDependencyGraph(inputs.modules),
-          similarities: await this.knowledgeGraph.findSimilarImplementations(inputs.specification)
+          relevant: await this.knowledgeGraph?.findRelationships('CLASS', ['EXTENDS', 'IMPLEMENTS', 'USES']),
+          patterns: await this.knowledgeGraph?.detectArchitecturalPatterns(inputs.codebase),
+          dependencies: await this.knowledgeGraph?.analyzeDependencyGraph(inputs.modules),
+          similarities: await this.knowledgeGraph?.findSimilarImplementations(inputs.specification)
         };
 
       case RoleType.SECURITY_AUDITOR:
         return {
-          relevant: await this.knowledgeGraph.findSecurityRelationships(inputs.codeFiles),
-          patterns: await this.knowledgeGraph.findPatterns(['Authentication', 'Authorization', 'Encryption']),
-          dependencies: await this.knowledgeGraph.getSecurityDependencies(inputs.dependencies),
-          similarities: await this.knowledgeGraph.findSimilarSecurityIssues(inputs.vulnerabilityReports)
+          relevant: await this.knowledgeGraph?.findSecurityRelationships(inputs.codeFiles),
+          patterns: await this.knowledgeGraph?.findPatterns(['Authentication', 'Authorization', 'Encryption']),
+          dependencies: await this.knowledgeGraph?.getSecurityDependencies(inputs.dependencies),
+          similarities: await this.knowledgeGraph?.findSimilarSecurityIssues(inputs.vulnerabilityReports)
         };
 
       case RoleType.PERFORMANCE_AUDITOR:
         return {
-          relevant: await this.knowledgeGraph.findPerformanceRelationships(inputs.codeFiles),
-          patterns: await this.knowledgeGraph.findPatterns(['Caching', 'Lazy Loading', 'Connection Pool']),
-          dependencies: await this.knowledgeGraph.getPerformanceDependencies(inputs.architecture),
-          similarities: await this.knowledgeGraph.findSimilarPerformanceIssues(inputs.metrics)
+          relevant: await this.knowledgeGraph?.findPerformanceRelationships(inputs.codeFiles),
+          patterns: await this.knowledgeGraph?.findPatterns(['Caching', 'Lazy Loading', 'Connection Pool']),
+          dependencies: await this.knowledgeGraph?.getPerformanceDependencies(inputs.architecture),
+          similarities: await this.knowledgeGraph?.findSimilarPerformanceIssues(inputs.metrics)
         };
 
       case RoleType.QUALITY_AUDITOR:
         return {
-          relevant: await this.knowledgeGraph.findQualityRelationships(inputs.codeFiles),
-          patterns: await this.knowledgeGraph.findPatterns(['SOLID', 'DRY', 'KISS']),
-          dependencies: await this.knowledgeGraph.getQualityDependencies(inputs.modules),
-          similarities: await this.knowledgeGraph.findSimilarQualityIssues(inputs.metrics)
+          relevant: await this.knowledgeGraph?.findQualityRelationships(inputs.codeFiles),
+          patterns: await this.knowledgeGraph?.findPatterns(['SOLID', 'DRY', 'KISS']),
+          dependencies: await this.knowledgeGraph?.getQualityDependencies(inputs.modules),
+          similarities: await this.knowledgeGraph?.findSimilarQualityIssues(inputs.metrics)
         };
 
       default:
@@ -352,35 +352,35 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
         query = `code quality metrics and improvement strategies for ${inputs.language || 'TypeScript'}`;
         break;
       default:
-        query = `${roleType.toLowerCase()} best practices and guidelines`;
+        query = `${roleType?.toLowerCase()} best practices and guidelines`;
     }
 
-    return await this.knowledgeRepo.generateRAGContext(query, roleType);
+    return await this.knowledgeRepo?.generateRAGContext(query, roleType);
   }
 
   private async getHistoricalContext(roleType: RoleType, executionId: string): Promise<any> {
-    const previousOutcomes = this.roleOutcomes.get(executionId)?.filter(o => o.roleType === roleType) || [];
-    const learnings = this.learningDatabase.get(roleType) || [];
+    const previousOutcomes = this.roleOutcomes?.get(executionId)?.filter(o => o?.roleType === roleType) || [];
+    const learnings = this.learningDatabase?.get(roleType) || [];
     
     // Extract best practices and anti-patterns from history
     const bestPractices = learnings
-      .filter(l => l.validation === 'proven' && l.confidence > 0.8)
+      .filter(l => l?.validation === 'proven' && l.confidence > 0.8)
       .map(l => l.lesson);
     
     const antiPatterns = previousOutcomes
       .filter(o => o.qualityScore < 0.7)
-      .flatMap(o => o.insights.filter(i => i.type === 'risk').map(i => i.description));
+      .flatMap(o => o.insights?.filter(i => i?.type === 'risk').map(i => i.description));
 
     return {
-      previousOutcomes: previousOutcomes.slice(-5), // Last 5 outcomes
-      learnings: learnings.slice(-10), // Last 10 learnings
+      previousOutcomes: previousOutcomes?.slice(-5), // Last 5 outcomes
+      learnings: learnings?.slice(-10), // Last 10 learnings
       bestPractices,
       antiPatterns
     };
   }
 
   private async getProjectContext(executionId: string): Promise<any> {
-    const strategicContext = await this.projectKB.getStrategicContext();
+    const strategicContext = await this.projectKB?.getStrategicContext();
     
     return {
       currentPhase: strategicContext.currentPhase,
@@ -392,19 +392,19 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
   }
 
   private async getPeerContext(roleType: RoleType, executionId: string): Promise<any> {
-    const allOutcomes = this.roleOutcomes.get(executionId) || [];
+    const allOutcomes = this.roleOutcomes?.get(executionId) || [];
     
     return {
-      completedRoles: allOutcomes.filter(o => o.success),
-      dependentRoles: this.getDependentRoles(roleType),
-      parallelRoles: this.getParallelRoles(roleType),
-      nextRoles: this.getNextRoles(roleType)
+      completedRoles: allOutcomes?.filter(o => o.success),
+      dependentRoles: this?.getDependentRoles(roleType),
+      parallelRoles: this?.getParallelRoles(roleType),
+      nextRoles: this?.getNextRoles(roleType)
     };
   }
 
   private async getDomainKnowledge(roleType: RoleType, inputs: any): Promise<any> {
     // Search for role-specific domain knowledge
-    const searchResults = await this.knowledgeRepo.searchKnowledge(
+    const searchResults = await this.knowledgeRepo?.searchKnowledge(
       `${roleType} ${inputs.domain || ''}`,
       { 
         types: ['PROFESSIONAL_ADVICE', 'RESEARCH_PAPER', 'BEST_PRACTICE'],
@@ -413,15 +413,15 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     );
 
     const expertAdvice = searchResults
-      .filter(r => r.document.type === 'PROFESSIONAL_ADVICE')
+      .filter(r => r.document?.type === 'PROFESSIONAL_ADVICE')
       .map(r => r.document.title);
 
     const researchFindings = searchResults
-      .filter(r => r.document.type === 'RESEARCH_PAPER')
+      .filter(r => r.document?.type === 'RESEARCH_PAPER')
       .map(r => r.document.title);
 
     const industryStandards = searchResults
-      .filter(r => r.document.type === 'BEST_PRACTICE')
+      .filter(r => r.document?.type === 'BEST_PRACTICE')
       .map(r => r.document.title);
 
     return {
@@ -437,31 +437,31 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
 
     try {
       // Determine focus area based on role type
-      const focusArea = this.mapRoleToClassFocusArea(roleType);
+      const focusArea = this?.mapRoleToClassFocusArea(roleType);
       
       // Determine project path from inputs or use default
-      const projectPath = inputs.projectPath || process.cwd();
+      const projectPath = inputs.projectPath || process?.cwd();
       
       // Perform quick finds if search terms are provided
       let quickFinds: QuickMatch[] = [];
       if (inputs.searchTerm || inputs.className) {
         const searchTerm = inputs.searchTerm || inputs.className;
-        quickFinds = await this.classTraversalEngine.quickFindClasses(projectPath, searchTerm);
+        quickFinds = await this.classTraversalEngine?.quickFindClasses(projectPath, searchTerm);
       }
 
       // Get class insights for the focus area
-      const classInsights = await this.classTraversalEngine.getClassInsights(projectPath, focusArea);
+      const classInsights = await this.classTraversalEngine?.getClassInsights(projectPath, focusArea);
       
       // Get concept mappings
-      const conceptMappings = await this.classTraversalEngine.getConceptMap(
+      const conceptMappings = await this.classTraversalEngine?.getConceptMap(
         projectPath, 
-        inputs.concept || this.getRoleSpecificConcept(roleType)
+        inputs.concept || this?.getRoleSpecificConcept(roleType)
       );
 
       // Get hierarchy paths if relevant for the role
       let hierarchyPaths: any[] = [];
-      if (this.shouldIncludeHierarchy(roleType) && inputs.className) {
-        hierarchyPaths = await this.classTraversalEngine.getClassHierarchy(
+      if (this?.shouldIncludeHierarchy(roleType) && inputs.className) {
+        hierarchyPaths = await this.classTraversalEngine?.getClassHierarchy(
           projectPath, 
           inputs.className, 
           5
@@ -469,31 +469,31 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
       }
 
       // Extract relevant classes based on role needs
-      const relevantClasses = this.extractRelevantClasses(roleType, quickFinds, classInsights);
+      const relevantClasses = this?.extractRelevantClasses(roleType, quickFinds, classInsights);
       
       // Identify architectural patterns
-      const architecturalPatterns = this.identifyArchitecturalPatterns(conceptMappings, classInsights);
+      const architecturalPatterns = this?.identifyArchitecturalPatterns(conceptMappings, classInsights);
       
       // Build code understanding
       const codeUnderstanding = {
-        mainConcepts: conceptMappings.slice(0, 5).map(cm => cm.concept),
-        keyRelationships: this.extractKeyRelationships(hierarchyPaths, conceptMappings),
-        businessRelevantClasses: relevantClasses.filter(className => 
-          quickFinds.some(qf => qf.classNode.name === className && qf.classNode.businessRelevance > 0.7)
+        mainConcepts: conceptMappings?.slice(0, 5).map(cm => cm.concept),
+        keyRelationships: this?.extractKeyRelationships(hierarchyPaths, conceptMappings),
+        businessRelevantClasses: relevantClasses?.filter(className => 
+          quickFinds?.some(qf => qf.classNode?.name === className && qf.classNode.businessRelevance > 0.7)
         ),
         technicalHotspots: classInsights
-          .filter(insight => insight.severity === 'high' || insight.severity === 'critical')
+          .filter(insight => insight?.severity === 'high' || insight?.severity === 'critical')
           .map(insight => insight.affectedClasses)
           .flat()
       };
 
       return {
-        quickFinds: quickFinds.slice(0, 10), // Limit to top 10
-        classInsights: classInsights.slice(0, 8), // Limit to top 8
-        conceptMappings: conceptMappings.slice(0, 6), // Limit to top 6
+        quickFinds: quickFinds?.slice(0, 10), // Limit to top 10
+        classInsights: classInsights?.slice(0, 8), // Limit to top 8
+        conceptMappings: conceptMappings?.slice(0, 6), // Limit to top 6
         hierarchyPaths,
         focusArea,
-        relevantClasses: relevantClasses.slice(0, 15), // Limit to top 15
+        relevantClasses: relevantClasses?.slice(0, 15), // Limit to top 15
         architecturalPatterns,
         codeUnderstanding
       };
@@ -571,7 +571,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
       RoleType.ORCHESTRATOR
     ];
 
-    return hierarchyRelevantRoles.includes(roleType);
+    return hierarchyRelevantRoles?.includes(roleType);
   }
 
   private extractRelevantClasses(roleType: RoleType, quickFinds: QuickMatch[], classInsights: ClassInsight[]): string[] {
@@ -580,17 +580,17 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     // Add classes from quick finds (high relevance matches)
     quickFinds
       .filter(qf => qf.matchScore > 0.7)
-      .forEach(qf => relevantClasses.add(qf.classNode.name));
+      ?.forEach(qf => relevantClasses?.add(qf.classNode.name));
 
     // Add classes from insights (affected classes)
     classInsights
       .filter(insight => 
-        insight.severity === 'high' || 
-        insight.severity === 'critical' || 
-        insight.category === this.mapRoleToClassFocusArea(roleType)
+        insight?.severity === 'high' || 
+        insight?.severity === 'critical' || 
+        insight?.category === this?.mapRoleToClassFocusArea(roleType)
       )
-      .forEach(insight => 
-        insight.affectedClasses.forEach(className => relevantClasses.add(className))
+      ?.forEach(insight => 
+        insight.affectedClasses?.forEach(className => relevantClasses?.add(className))
       );
 
     return Array.from(relevantClasses);
@@ -601,15 +601,15 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
 
     // Extract patterns from concept mappings
     conceptMappings
-      .filter(cm => cm.category === 'ARCHITECTURAL_PATTERN' || cm.category === 'BEHAVIORAL_PATTERN')
-      .forEach(cm => patterns.add(cm.concept));
+      .filter(cm => cm?.category === 'ARCHITECTURAL_PATTERN' || cm?.category === 'BEHAVIORAL_PATTERN')
+      ?.forEach(cm => patterns?.add(cm.concept));
 
     // Extract patterns from insights
     classInsights
-      .filter(insight => insight.type === 'DESIGN_PATTERN_DETECTED')
-      .forEach(insight => {
-        const patternName = insight.title.match(/(\w+\s+Pattern)/)?.[1];
-        if (patternName) patterns.add(patternName);
+      .filter(insight => insight?.type === 'DESIGN_PATTERN_DETECTED')
+      ?.forEach(insight => {
+        const patternName = insight.title?.match(/(\w+\s+Pattern)/)?.[1];
+        if (patternName) patterns?.add(patternName);
       });
 
     return Array.from(patterns);
@@ -619,16 +619,16 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     const relationships = new Set<string>();
 
     // Extract from hierarchy paths
-    hierarchyPaths.forEach(path => {
+    hierarchyPaths?.forEach(path => {
       if (path.relationships) {
-        path.relationships.forEach((rel: string) => relationships.add(rel));
+        path.relationships?.forEach((rel: string) => relationships?.add(rel));
       }
     });
 
     // Extract from concept mappings
-    conceptMappings.forEach(cm => {
-      if (cm.relatedClasses.length > 1) {
-        relationships.add(`${cm.concept}-relationship`);
+    conceptMappings?.forEach(cm => {
+      if (cm.relatedClasses?.length > 1) {
+        relationships?.add(`${cm.concept}-relationship`);
       }
     });
 
@@ -653,16 +653,16 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     const config = roleConfigs[roleType] || { maxTokens: 3000, compressionLevel: 2 };
     
     // Prioritize information based on role needs
-    const essentialInfo = this.extractEssentialInfo(roleType, knowledgePacket);
+    const essentialInfo = this?.extractEssentialInfo(roleType, knowledgePacket);
     
     // Calculate confidence based on knowledge completeness
-    const confidence = this.calculateKnowledgeConfidence(knowledgePacket);
+    const confidence = this?.calculateKnowledgeConfidence(knowledgePacket);
 
     return {
       maxTokens: config.maxTokens,
       compressionLevel: config.compressionLevel,
       essentialInfo,
-      referenceLinks: this.extractReferenceLinks(knowledgePacket),
+      referenceLinks: this?.extractReferenceLinks(knowledgePacket),
       confidence
     };
   }
@@ -673,9 +673,9 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
         return {
           projectObjectives: packet.project.objectives,
           stakeholderConstraints: packet.project.constraints,
-          similarRequirements: packet.triads.similarities.slice(0, 3),
-          bestPractices: packet.historical.bestPractices.slice(0, 5),
-          domainExpertise: packet.domain.expertAdvice.slice(0, 3)
+          similarRequirements: packet.triads.similarities?.slice(0, 3),
+          bestPractices: packet.historical.bestPractices?.slice(0, 5),
+          domainExpertise: packet.domain.expertAdvice?.slice(0, 3)
         };
 
       case RoleType.TEST_DESIGNER:
@@ -683,8 +683,8 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
           testingPatterns: packet.triads.patterns,
           qualityGates: packet.project.qualityGates,
           testingBestPractices: packet.historical.bestPractices,
-          relatedTests: packet.triads.relevant.slice(0, 5),
-          expertAdvice: packet.domain.expertAdvice.slice(0, 3)
+          relatedTests: packet.triads.relevant?.slice(0, 5),
+          expertAdvice: packet.domain.expertAdvice?.slice(0, 3)
         };
 
       case RoleType.IMPLEMENTATION_DEVELOPER:
@@ -694,7 +694,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
           implementationGuidance: packet.ragContext.synthesizedKnowledge,
           bestPractices: packet.historical.bestPractices,
           antiPatterns: packet.historical.antiPatterns,
-          peerOutcomes: packet.peers.completedRoles.slice(0, 3)
+          peerOutcomes: packet.peers.completedRoles?.slice(0, 3)
         };
 
       case RoleType.SECURITY_AUDITOR:
@@ -709,7 +709,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
       default:
         return {
           relevantContext: packet.ragContext.synthesizedKnowledge,
-          bestPractices: packet.historical.bestPractices.slice(0, 3),
+          bestPractices: packet.historical.bestPractices?.slice(0, 3),
           projectContext: packet.project.currentPhase
         };
     }
@@ -724,20 +724,20 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     duration: number,
     success: boolean
   ): Promise<void> {
-    const context = this.roleContexts.get(nodeId);
+    const context = this.roleContexts?.get(nodeId);
     if (!context) return;
 
     // Calculate comprehensive metrics
-    const metrics = await this.calculateRoleMetrics(roleType, inputs, outputs, duration, context);
+    const metrics = await this?.calculateRoleMetrics(roleType, inputs, outputs, duration, context);
     
     // Generate insights from the execution
-    const insights = await this.generateRoleInsights(roleType, inputs, outputs, context);
+    const insights = await this?.generateRoleInsights(roleType, inputs, outputs, context);
     
     // Extract decisions made during execution
-    const decisions = this.extractRoleDecisions(outputs);
+    const decisions = this?.extractRoleDecisions(outputs);
     
     // Generate learnings from this execution
-    const learnings = await this.generateRoleLearnings(roleType, context, insights, success);
+    const learnings = await this?.generateRoleLearnings(roleType, context, insights, success);
 
     const outcome: RoleOutcome = {
       roleType,
@@ -752,26 +752,26 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
       learnings,
       duration,
       success,
-      qualityScore: this.calculateQualityScore(metrics, insights)
+      qualityScore: this?.calculateQualityScore(metrics, insights)
     };
 
     // Store outcome
-    if (!this.roleOutcomes.has(executionId)) {
-      this.roleOutcomes.set(executionId, []);
+    if (!this.roleOutcomes?.has(executionId)) {
+      this.roleOutcomes?.set(executionId, []);
     }
-    this.roleOutcomes.get(executionId)!.push(outcome);
+    this.roleOutcomes?.get(executionId)!.push(outcome);
 
     // Update learning database
-    this.updateLearningDatabase(roleType, learnings);
+    this?.updateLearningDatabase(roleType, learnings);
 
     // Update knowledge graph with new insights
-    await this.updateKnowledgeGraph(outcome);
+    await this?.updateKnowledgeGraph(outcome);
 
     // Update project knowledge base
-    await this.updateProjectKnowledgeBase(outcome);
+    await this?.updateProjectKnowledgeBase(outcome);
 
-    this.logger.info(`Recorded outcome for ${roleType}: Quality Score ${outcome.qualityScore.toFixed(2)}`);
-    this.emit('role-outcome-recorded', outcome);
+    this.logger.info(`Recorded outcome for ${roleType}: Quality Score ${outcome.qualityScore?.toFixed(2)}`);
+    this?.emit('role-outcome-recorded', outcome);
   }
 
   private async calculateRoleMetrics(
@@ -785,17 +785,17 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     const baseMetrics = {
       executionTime: duration,
       memoryUsage: 0, // Would be measured in production
-      apiCalls: context.knowledgePacket.ragContext.relevantDocuments.length
+      apiCalls: context.knowledgePacket.ragContext.relevantDocuments?.length
     };
 
     // Role-specific quality metrics
-    const qualityMetrics = await this.calculateRoleQualityMetrics(roleType, outputs, context);
+    const qualityMetrics = await this?.calculateRoleQualityMetrics(roleType, outputs, context);
     
     // Business impact metrics
-    const businessMetrics = this.calculateBusinessMetrics(roleType, outputs);
+    const businessMetrics = this?.calculateBusinessMetrics(roleType, outputs);
     
     // Learning metrics
-    const learningMetrics = this.calculateLearningMetrics(context);
+    const learningMetrics = this?.calculateLearningMetrics(context);
 
     return {
       ...baseMetrics,
@@ -813,26 +813,26 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     switch (roleType) {
       case RoleType.REQUIREMENT_ANALYST:
         return {
-          accuracy: this.assessRequirementAccuracy(outputs),
-          completeness: this.assessRequirementCompleteness(outputs),
-          consistency: this.assessRequirementConsistency(outputs),
-          innovation: this.assessRequirementInnovation(outputs)
+          accuracy: this?.assessRequirementAccuracy(outputs),
+          completeness: this?.assessRequirementCompleteness(outputs),
+          consistency: this?.assessRequirementConsistency(outputs),
+          innovation: this?.assessRequirementInnovation(outputs)
         };
 
       case RoleType.TEST_DESIGNER:
         return {
           accuracy: outputs.testCoverage || 0.8,
-          completeness: outputs.testCount / (outputs.requirementCount * 2) || 0.7,
-          consistency: this.assessTestConsistency(outputs),
-          innovation: this.assessTestInnovation(outputs)
+          completeness: outputs?.testCount / (outputs?.requirementCount * 2) || 0.7,
+          consistency: this?.assessTestConsistency(outputs),
+          innovation: this?.assessTestInnovation(outputs)
         };
 
       case RoleType.IMPLEMENTATION_DEVELOPER:
         return {
           accuracy: 1 - (outputs.errors?.length || 0) / 10,
-          completeness: outputs.implementedFeatures / outputs.requiredFeatures || 0.9,
-          consistency: this.assessCodeConsistency(outputs),
-          innovation: this.assessCodeInnovation(outputs)
+          completeness: outputs?.implementedFeatures / outputs.requiredFeatures || 0.9,
+          consistency: this?.assessCodeConsistency(outputs),
+          innovation: this?.assessCodeInnovation(outputs)
         };
 
       default:
@@ -860,7 +860,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
   private calculateLearningMetrics(context: RoleKnowledgeContext): Partial<RoleMetrics> {
     return {
       knowledgeUtilization: context.knowledgePacket.ragContext.confidence,
-      patternRecognition: context.knowledgePacket.triads.patterns.length * 0.1,
+      patternRecognition: context.knowledgePacket.triads.patterns?.length * 0.1,
       decisionConfidence: context.feedbackLoop.outputMetrics?.confidence || 0.8,
       improvementRate: 0.1 // Would be calculated from historical data
     };
@@ -875,11 +875,11 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     const insights: RoleInsight[] = [];
 
     // Pattern recognition insights
-    if (context.knowledgePacket.triads.patterns.length > 0) {
-      insights.push({
+    if (context.knowledgePacket.triads.patterns?.length > 0) {
+      insights?.push({
         type: 'pattern',
-        description: `Detected ${context.knowledgePacket.triads.patterns.length} architectural patterns in the codebase`,
-        evidence: context.knowledgePacket.triads.patterns.map(p => p.name),
+        description: `Detected ${context.knowledgePacket.triads.patterns?.length} architectural patterns in the codebase`,
+        evidence: context.knowledgePacket.triads.patterns?.map(p => p.name),
         confidence: 0.85,
         impact: 'medium',
         actionable: true,
@@ -889,7 +889,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
 
     // Quality insights based on role-specific analysis
     if (roleType === RoleType.QUALITY_AUDITOR && outputs.qualityScore < 0.8) {
-      insights.push({
+      insights?.push({
         type: 'opportunity',
         description: 'Quality improvement opportunities identified',
         evidence: outputs.qualityIssues || [],
@@ -901,11 +901,11 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     }
 
     // Risk insights
-    if (outputs.errors && outputs.errors.length > 0) {
-      insights.push({
+    if (outputs.errors && outputs.errors?.length > 0) {
+      insights?.push({
         type: 'risk',
-        description: `${outputs.errors.length} issues identified that may impact delivery`,
-        evidence: outputs.errors.map((e: any) => e.message || e),
+        description: `${outputs.errors?.length} issues identified that may impact delivery`,
+        evidence: outputs.errors?.map((e: any) => e.message || e),
         confidence: 0.95,
         impact: 'high',
         actionable: true,
@@ -919,14 +919,14 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
   private extractRoleDecisions(outputs: any): RoleDecision[] {
     if (!outputs.decisions) return [];
     
-    return outputs.decisions.map((decision: any) => ({
+    return outputs.decisions?.map((decision: any) => ({
       description: decision.description || 'Decision made',
       options: decision.options || [],
       chosen: decision.chosen || decision.selected,
       rationale: decision.rationale || decision.reasoning,
       confidence: decision.confidence || 0.8,
       riskLevel: decision.riskLevel || 'medium',
-      reversible: decision.reversible !== false
+      reversible: decision?.reversible !== false
     }));
   }
 
@@ -939,10 +939,10 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     const learnings: RoleLearning[] = [];
 
     // Learn from successful patterns
-    if (success && context.knowledgePacket.triads.patterns.length > 0) {
-      learnings.push({
+    if (success && context.knowledgePacket.triads.patterns?.length > 0) {
+      learnings?.push({
         category: 'technical',
-        lesson: `Successful application of ${context.knowledgePacket.triads.patterns.length} architectural patterns`,
+        lesson: `Successful application of ${context.knowledgePacket.triads.patterns?.length} architectural patterns`,
         context: `${roleType} execution with high-quality patterns`,
         applicability: [roleType],
         confidence: 0.8,
@@ -951,9 +951,9 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     }
 
     // Learn from insights
-    insights.forEach(insight => {
-      if (insight.type === 'pattern' && insight.confidence > 0.8) {
-        learnings.push({
+    insights?.forEach(insight => {
+      if (insight?.type === 'pattern' && insight.confidence > 0.8) {
+        learnings?.push({
           category: 'technical',
           lesson: insight.description,
           context: `Pattern recognition during ${roleType} execution`,
@@ -966,7 +966,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
 
     // Learn from knowledge utilization
     if (context.knowledgePacket.ragContext.confidence > 0.9) {
-      learnings.push({
+      learnings?.push({
         category: 'process',
         lesson: 'High-confidence knowledge retrieval correlates with successful outcomes',
         context: `RAG context utilization in ${roleType}`,
@@ -981,55 +981,55 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
 
   private calculateQualityScore(metrics: RoleMetrics, insights: RoleInsight[]): number {
     const metricsScore = (
-      metrics.accuracy * 0.3 +
-      metrics.completeness * 0.25 +
-      metrics.consistency * 0.2 +
-      metrics.businessValue * 0.15 +
-      metrics.knowledgeUtilization * 0.1
+      metrics?.accuracy * 0.3 +
+      metrics?.completeness * 0.25 +
+      metrics?.consistency * 0.2 +
+      metrics?.businessValue * 0.15 +
+      metrics?.knowledgeUtilization * 0.1
     );
 
-    const insightsPenalty = insights.filter(i => i.type === 'risk' && i.impact === 'high').length * 0.1;
-    const insightsBonus = insights.filter(i => i.type === 'opportunity' && i.impact === 'high').length * 0.05;
+    const insightsPenalty = insights?.filter(i => i?.type === 'risk' && i?.impact === 'high').length * 0.1;
+    const insightsBonus = insights?.filter(i => i?.type === 'opportunity' && i?.impact === 'high').length * 0.05;
 
     return Math.max(0, Math.min(1, metricsScore - insightsPenalty + insightsBonus));
   }
 
   private updateLearningDatabase(roleType: RoleType, learnings: RoleLearning[]): void {
-    if (!this.learningDatabase.has(roleType)) {
-      this.learningDatabase.set(roleType, []);
+    if (!this.learningDatabase?.has(roleType)) {
+      this.learningDatabase?.set(roleType, []);
     }
     
-    const roleLearnings = this.learningDatabase.get(roleType)!;
-    learnings.forEach(learning => roleLearnings.push(learning));
+    const roleLearnings = this.learningDatabase?.get(roleType)!;
+    learnings?.forEach(learning => roleLearnings?.push(learning));
     
     // Keep only the most recent and highest confidence learnings
-    roleLearnings.sort((a, b) => b.confidence - a.confidence);
-    if (roleLearnings.length > 100) {
-      roleLearnings.splice(100);
+    roleLearnings?.sort((a, b) => b?.confidence - a.confidence);
+    if (roleLearnings?.length > 100) {
+      roleLearnings?.splice(100);
     }
   }
 
   private async updateKnowledgeGraph(outcome: RoleOutcome): Promise<void> {
     // Add new patterns and relationships discovered during execution
     for (const insight of outcome.insights) {
-      if (insight.type === 'pattern' && insight.confidence > 0.8) {
+      if (insight?.type === 'pattern' && insight.confidence > 0.8) {
         // Would add new patterns to knowledge graph
-        this.emit('knowledge-graph-update', { type: 'pattern', data: insight });
+        this?.emit('knowledge-graph-update', { type: 'pattern', data: insight });
       }
     }
   }
 
   private async updateProjectKnowledgeBase(outcome: RoleOutcome): Promise<void> {
     // Record accomplishment in project KB
-    await this.projectKB.recordAccomplishment({
+    await this.projectKB?.recordAccomplishment({
       workItemId: outcome.executionId,
       type: 'task',
       title: `${outcome.roleType} execution`,
-      description: `Completed ${outcome.roleType} with quality score ${outcome.qualityScore.toFixed(2)}`,
+      description: `Completed ${outcome.roleType} with quality score ${outcome.qualityScore?.toFixed(2)}`,
       phaseId: 'current-phase',
-      startDate: new Date(Date.now() - outcome.duration),
+      startDate: new Date(Date?.now() - outcome.duration),
       completionDate: outcome.timestamp,
-      effort: Math.ceil(outcome.duration / 3600), // Convert to hours
+      effort: Math.ceil(outcome?.duration / 3600), // Convert to hours
       quality: {
         codeQuality: outcome.metrics.accuracy,
         testCoverage: outcome.metrics.completeness,
@@ -1043,7 +1043,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
         technicalDebt: outcome.metrics.technicalDebt,
         teamLearning: outcome.metrics.knowledgeUtilization
       },
-      lessons: outcome.learnings.map(l => l.lesson)
+      lessons: outcome.learnings?.map(l => l.lesson)
     });
   }
 
@@ -1082,14 +1082,14 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
 
   private calculateKnowledgeConfidence(packet: KnowledgePacket): number {
     const ragConfidence = packet.ragContext.confidence;
-    const triadsRelevance = Math.min(1, packet.triads.relevant.length / 10);
-    const historicalRelevance = Math.min(1, packet.historical.previousOutcomes.length / 5);
+    const triadsRelevance = Math.min(1, packet.triads.relevant?.length / 10);
+    const historicalRelevance = Math.min(1, packet.historical.previousOutcomes?.length / 5);
     
     return (ragConfidence * 0.5 + triadsRelevance * 0.3 + historicalRelevance * 0.2);
   }
 
   private extractReferenceLinks(packet: KnowledgePacket): string[] {
-    return packet.ragContext.sources.slice(0, 5);
+    return packet.ragContext.sources?.slice(0, 5);
   }
 
   private initializeFeedbackLoop(roleType: RoleType, inputs: any): RoleFeedbackLoop {
@@ -1104,8 +1104,8 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
   }
 
   private initializeLearningDatabase(): void {
-    Object.values(RoleType).forEach(roleType => {
-      this.learningDatabase.set(roleType, []);
+    Object.values(RoleType)?.forEach(roleType => {
+      this.learningDatabase?.set(roleType, []);
     });
   }
 
@@ -1146,29 +1146,29 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
 
   // Public API
   async getRoleContext(nodeId: string): Promise<RoleKnowledgeContext | null> {
-    return this.roleContexts.get(nodeId) || null;
+    return this.roleContexts?.get(nodeId) || null;
   }
 
   async getRoleOutcomes(executionId: string, roleType?: RoleType): Promise<RoleOutcome[]> {
-    const outcomes = this.roleOutcomes.get(executionId) || [];
-    return roleType ? outcomes.filter(o => o.roleType === roleType) : outcomes;
+    const outcomes = this.roleOutcomes?.get(executionId) || [];
+    return roleType ? outcomes?.filter(o => o?.roleType === roleType) : outcomes;
   }
 
   async getRoleLearnings(roleType: RoleType): Promise<RoleLearning[]> {
-    return this.learningDatabase.get(roleType) || [];
+    return this.learningDatabase?.get(roleType) || [];
   }
 
   async generateExecutionSummary(executionId: string): Promise<any> {
-    const outcomes = this.roleOutcomes.get(executionId) || [];
+    const outcomes = this.roleOutcomes?.get(executionId) || [];
     
     return {
-      totalRoles: outcomes.length,
-      successRate: outcomes.filter(o => o.success).length / outcomes.length,
-      averageQuality: outcomes.reduce((sum, o) => sum + o.qualityScore, 0) / outcomes.length,
-      totalInsights: outcomes.reduce((sum, o) => sum + o.insights.length, 0),
-      totalLearnings: outcomes.reduce((sum, o) => sum + o.learnings.length, 0),
-      businessValue: outcomes.reduce((sum, o) => sum + o.metrics.businessValue, 0) / outcomes.length,
-      riskReduction: outcomes.reduce((sum, o) => sum + o.metrics.riskReduction, 0) / outcomes.length
+      totalRoles: outcomes?.length,
+      successRate: outcomes?.filter(o => o.success).length / outcomes?.length,
+      averageQuality: outcomes?.reduce((sum, o) => sum + o.qualityScore, 0) / outcomes?.length,
+      totalInsights: outcomes?.reduce((sum, o) => sum + o.insights?.length, 0),
+      totalLearnings: outcomes?.reduce((sum, o) => sum + o.learnings?.length, 0),
+      businessValue: outcomes?.reduce((sum, o) => sum + o.metrics.businessValue, 0) / outcomes?.length,
+      riskReduction: outcomes?.reduce((sum, o) => sum + o.metrics.riskReduction, 0) / outcomes?.length
     };
   }
 }

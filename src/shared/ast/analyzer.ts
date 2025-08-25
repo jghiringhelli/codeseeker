@@ -86,30 +86,30 @@ export interface Parameter {
 }
 
 export class ASTAnalyzer {
-  private logger = Logger.getInstance();
+  private logger = Logger?.getInstance();
 
   async analyzeFile(filePath: string): Promise<ASTAnalysisResult> {
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      const language = this.detectLanguage(filePath);
+      const content = await fs?.readFile(filePath, 'utf-8');
+      const language = this?.detectLanguage(filePath);
       
       switch (language) {
         case 'typescript':
         case 'javascript':
-          return this.analyzeTypeScript(content, filePath, language);
+          return this?.analyzeTypeScript(content, filePath, language);
         case 'python':
-          return this.analyzePython(content, filePath);
+          return this?.analyzePython(content, filePath);
         default:
           throw new Error(`Unsupported language: ${language}`);
       }
     } catch (error) {
-      this.logger.error(`Failed to analyze file ${filePath}`, error);
-      throw error;
+      this.logger.error(`Failed to analyze file ${filePath}`, error as Error);
+      throw error as Error;
     }
   }
 
   private detectLanguage(filePath: string): string {
-    const ext = path.extname(filePath);
+    const ext = path?.extname(filePath);
     const mapping: Record<string, string> = {
       '.ts': 'typescript',
       '.tsx': 'typescript',
@@ -126,14 +126,14 @@ export class ASTAnalyzer {
       language,
       symbols: [],
       dependencies: [],
-      complexity: this.initializeComplexityMetrics(),
+      complexity: this?.initializeComplexityMetrics(),
       patterns: [],
       errors: []
     };
 
     try {
       // Use TypeScript compiler API for better analysis
-      const sourceFile = ts.createSourceFile(
+      const sourceFile = ts?.createSourceFile(
         filePath,
         content,
         ts.ScriptTarget.Latest,
@@ -141,16 +141,16 @@ export class ASTAnalyzer {
       );
 
       // Extract symbols
-      result.symbols = this.extractTypeScriptSymbols(sourceFile);
+      result.symbols = this?.extractTypeScriptSymbols(sourceFile);
       
       // Extract dependencies
-      result.dependencies = this.extractTypeScriptDependencies(sourceFile);
+      result.dependencies = this?.extractTypeScriptDependencies(sourceFile);
       
       // Calculate complexity
-      result.complexity = this.calculateTypeScriptComplexity(sourceFile);
+      result.complexity = this?.calculateTypeScriptComplexity(sourceFile);
       
       // Detect patterns
-      result.patterns = this.detectTypeScriptPatterns(sourceFile, result.symbols);
+      result.patterns = this?.detectTypeScriptPatterns(sourceFile, result.symbols);
       
     } catch (error) {
       // Fallback to Babel parser
@@ -179,12 +179,12 @@ export class ASTAnalyzer {
           ]
         });
 
-        result.symbols = this.extractBabelSymbols(ast, filePath);
-        result.dependencies = this.extractBabelDependencies(ast, filePath);
-        result.complexity = this.calculateBabelComplexity(ast);
+        result.symbols = this?.extractBabelSymbols(ast, filePath);
+        result.dependencies = this?.extractBabelDependencies(ast, filePath);
+        result.complexity = this?.calculateBabelComplexity(ast);
         
       } catch (babelError) {
-        result.errors.push({
+        result.errors?.push({
           message: `Failed to parse with both TypeScript and Babel: ${error.message}`,
           severity: 'error'
         });
@@ -201,7 +201,7 @@ export class ASTAnalyzer {
       language: 'python',
       symbols: [],
       dependencies: [],
-      complexity: this.initializeComplexityMetrics(),
+      complexity: this?.initializeComplexityMetrics(),
       patterns: [],
       errors: [{
         message: 'Python AST analysis not fully implemented',
@@ -215,71 +215,71 @@ export class ASTAnalyzer {
 
     const visit = (node: ts.Node) => {
       // Function declarations
-      if (ts.isFunctionDeclaration(node) && node.name) {
-        symbols.push({
+      if (ts?.isFunctionDeclaration(node) && node.name) {
+        symbols?.push({
           name: node.name.text,
           type: 'function',
-          location: this.getSourceLocation(node, sourceFile.fileName),
-          signature: this.getFunctionSignature(node),
-          isExported: this.hasExportModifier(node),
-          isAsync: this.hasAsyncModifier(node),
-          parameters: this.getFunctionParameters(node)
+          location: this?.getSourceLocation(node, sourceFile.fileName),
+          signature: this?.getFunctionSignature(node),
+          isExported: this?.hasExportModifier(node),
+          isAsync: this?.hasAsyncModifier(node),
+          parameters: this?.getFunctionParameters(node)
         });
       }
 
       // Class declarations
-      if (ts.isClassDeclaration(node) && node.name) {
-        symbols.push({
+      if (ts?.isClassDeclaration(node) && node.name) {
+        symbols?.push({
           name: node.name.text,
           type: 'class',
-          location: this.getSourceLocation(node, sourceFile.fileName),
-          isExported: this.hasExportModifier(node)
+          location: this?.getSourceLocation(node, sourceFile.fileName),
+          isExported: this?.hasExportModifier(node)
         });
 
         // Class methods
         node.members?.forEach(member => {
-          if (ts.isMethodDeclaration(member) && member.name && ts.isIdentifier(member.name)) {
-            symbols.push({
+          if (ts?.isMethodDeclaration(member) && member.name && ts?.isIdentifier(member.name)) {
+            symbols?.push({
               name: `${node.name!.text}.${member.name.text}`,
               type: 'method',
-              location: this.getSourceLocation(member, sourceFile.fileName),
-              visibility: this.getVisibility(member),
-              isAsync: this.hasAsyncModifier(member)
+              location: this?.getSourceLocation(member, sourceFile.fileName),
+              visibility: this?.getVisibility(member),
+              isAsync: this?.hasAsyncModifier(member)
             });
           }
         });
       }
 
       // Interface declarations
-      if (ts.isInterfaceDeclaration(node)) {
-        symbols.push({
+      if (ts?.isInterfaceDeclaration(node)) {
+        symbols?.push({
           name: node.name.text,
           type: 'interface',
-          location: this.getSourceLocation(node, sourceFile.fileName),
-          isExported: this.hasExportModifier(node)
+          location: this?.getSourceLocation(node, sourceFile.fileName),
+          isExported: this?.hasExportModifier(node)
         });
       }
 
       // Type aliases
-      if (ts.isTypeAliasDeclaration(node)) {
-        symbols.push({
+      if (ts?.isTypeAliasDeclaration(node)) {
+        symbols?.push({
           name: node.name.text,
           type: 'type',
-          location: this.getSourceLocation(node, sourceFile.fileName),
-          isExported: this.hasExportModifier(node)
+          location: this?.getSourceLocation(node, sourceFile.fileName),
+          isExported: this?.hasExportModifier(node)
         });
       }
 
       // Variable declarations
-      if (ts.isVariableDeclaration(node) && node.name && ts.isIdentifier(node.name)) {
-        symbols.push({
+      if (ts?.isVariableDeclaration(node) && node.name && ts?.isIdentifier(node.name)) {
+        symbols?.push({
           name: node.name.text,
           type: 'variable',
-          location: this.getSourceLocation(node, sourceFile.fileName)
+          location: this?.getSourceLocation(node, sourceFile.fileName)
         });
       }
 
-      ts.forEachChild(node, visit);
+      ts?.forEachChild(node, visit);
     };
 
     visit(sourceFile);
@@ -292,10 +292,10 @@ export class ASTAnalyzer {
     traverse(ast, {
       FunctionDeclaration(path) {
         if (path.node.id) {
-          symbols.push({
+          symbols?.push({
             name: path.node.id.name,
             type: 'function',
-            location: this.getBabelLocation(path.node, filePath),
+            location: this?.getBabelLocation(path.node, filePath),
             isAsync: path.node.async
           });
         }
@@ -303,20 +303,20 @@ export class ASTAnalyzer {
 
       ClassDeclaration(path) {
         if (path.node.id) {
-          symbols.push({
+          symbols?.push({
             name: path.node.id.name,
             type: 'class',
-            location: this.getBabelLocation(path.node, filePath)
+            location: this?.getBabelLocation(path.node, filePath)
           });
         }
       },
 
       VariableDeclarator(path) {
-        if (t.isIdentifier(path.node.id)) {
-          symbols.push({
+        if (t?.isIdentifier(path.node.id)) {
+          symbols?.push({
             name: path.node.id.name,
             type: 'variable',
-            location: this.getBabelLocation(path.node, filePath)
+            location: this?.getBabelLocation(path.node, filePath)
           });
         }
       }
@@ -330,30 +330,30 @@ export class ASTAnalyzer {
 
     const visit = (node: ts.Node) => {
       // Import declarations
-      if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-        const location = sourceFile.getLineAndCharacterOfPosition(node.getStart());
-        dependencies.push({
+      if (ts?.isImportDeclaration(node) && node.moduleSpecifier && ts?.isStringLiteral(node.moduleSpecifier)) {
+        const location = sourceFile?.getLineAndCharacterOfPosition(node?.getStart());
+        dependencies?.push({
           type: 'import',
           source: sourceFile.fileName,
           target: node.moduleSpecifier.text,
-          line: location.line + 1,
-          isExternal: !node.moduleSpecifier.text.startsWith('.')
+          line: location?.line + 1,
+          isExternal: !node.moduleSpecifier.text?.startsWith('.')
         });
       }
 
       // Export declarations
-      if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-        const location = sourceFile.getLineAndCharacterOfPosition(node.getStart());
-        dependencies.push({
+      if (ts?.isExportDeclaration(node) && node.moduleSpecifier && ts?.isStringLiteral(node.moduleSpecifier)) {
+        const location = sourceFile?.getLineAndCharacterOfPosition(node?.getStart());
+        dependencies?.push({
           type: 'export',
           source: sourceFile.fileName,
           target: node.moduleSpecifier.text,
-          line: location.line + 1,
-          isExternal: !node.moduleSpecifier.text.startsWith('.')
+          line: location?.line + 1,
+          isExternal: !node.moduleSpecifier.text?.startsWith('.')
         });
       }
 
-      ts.forEachChild(node, visit);
+      ts?.forEachChild(node, visit);
     };
 
     visit(sourceFile);
@@ -365,23 +365,23 @@ export class ASTAnalyzer {
 
     traverse(ast, {
       ImportDeclaration(path) {
-        dependencies.push({
+        dependencies?.push({
           type: 'import',
           source: filePath,
           target: path.node.source.value,
           line: path.node.loc?.start.line || 0,
-          isExternal: !path.node.source.value.startsWith('.')
+          isExternal: !path.node.source.value?.startsWith('.')
         });
       },
 
       ExportNamedDeclaration(path) {
         if (path.node.source) {
-          dependencies.push({
+          dependencies?.push({
             type: 'export',
             source: filePath,
             target: path.node.source.value,
             line: path.node.loc?.start.line || 0,
-            isExternal: !path.node.source.value.startsWith('.')
+            isExternal: !path.node.source.value?.startsWith('.')
           });
         }
       }
@@ -394,27 +394,27 @@ export class ASTAnalyzer {
     let cyclomaticComplexity = 1; // Base complexity
     let nestingDepth = 0;
     let maxNesting = 0;
-    let linesOfCode = sourceFile.getLineStarts().length;
+    let linesOfCode = sourceFile?.getLineStarts().length;
 
     const visit = (node: ts.Node, depth: number = 0) => {
       maxNesting = Math.max(maxNesting, depth);
 
       // Increment complexity for branching statements
-      if (ts.isIfStatement(node) || 
-          ts.isWhileStatement(node) || 
-          ts.isForStatement(node) || 
-          ts.isDoStatement(node) || 
-          ts.isSwitchStatement(node) ||
-          ts.isConditionalExpression(node)) {
+      if (ts?.isIfStatement(node) || 
+          ts?.isWhileStatement(node) || 
+          ts?.isForStatement(node) || 
+          ts?.isDoStatement(node) || 
+          ts?.isSwitchStatement(node) ||
+          ts?.isConditionalExpression(node)) {
         cyclomaticComplexity++;
       }
 
       // Case labels add complexity
-      if (ts.isCaseClause(node)) {
+      if (ts?.isCaseClause(node)) {
         cyclomaticComplexity++;
       }
 
-      ts.forEachChild(node, child => visit(child, depth + 1));
+      ts?.forEachChild(node, child => visit(child, depth + 1));
     };
 
     visit(sourceFile);
@@ -435,16 +435,16 @@ export class ASTAnalyzer {
 
     traverse(ast, {
       enter(path) {
-        if (path.isIfStatement() || 
-            path.isWhileStatement() || 
-            path.isForStatement() || 
-            path.isDoWhileStatement() || 
-            path.isSwitchStatement() ||
-            path.isConditionalExpression()) {
+        if (path?.isIfStatement() || 
+            path?.isWhileStatement() || 
+            path?.isForStatement() || 
+            path?.isDoWhileStatement() || 
+            path?.isSwitchStatement() ||
+            path?.isConditionalExpression()) {
           cyclomaticComplexity++;
         }
 
-        if (path.isSwitchCase()) {
+        if (path?.isSwitchCase()) {
           cyclomaticComplexity++;
         }
       }
@@ -463,16 +463,16 @@ export class ASTAnalyzer {
     const patterns: Pattern[] = [];
 
     // Singleton pattern detection
-    const classes = symbols.filter(s => s.type === 'class');
-    const singletonPattern = this.detectSingletonPattern(sourceFile, classes);
+    const classes = symbols?.filter(s => s?.type === 'class');
+    const singletonPattern = this?.detectSingletonPattern(sourceFile, classes);
     if (singletonPattern) {
-      patterns.push(singletonPattern);
+      patterns?.push(singletonPattern);
     }
 
     // Factory pattern detection
-    const factoryPattern = this.detectFactoryPattern(sourceFile, symbols);
+    const factoryPattern = this?.detectFactoryPattern(sourceFile, symbols);
     if (factoryPattern) {
-      patterns.push(factoryPattern);
+      patterns?.push(factoryPattern);
     }
 
     return patterns;
@@ -501,16 +501,16 @@ export class ASTAnalyzer {
   }
 
   private getSourceLocation(node: ts.Node, fileName: string): SourceLocation {
-    const sourceFile = node.getSourceFile();
-    const start = sourceFile.getLineAndCharacterOfPosition(node.getStart());
-    const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
+    const sourceFile = node?.getSourceFile();
+    const start = sourceFile?.getLineAndCharacterOfPosition(node?.getStart());
+    const end = sourceFile?.getLineAndCharacterOfPosition(node?.getEnd());
 
     return {
       file: fileName,
-      line: start.line + 1,
-      column: start.character + 1,
-      endLine: end.line + 1,
-      endColumn: end.character + 1
+      line: start?.line + 1,
+      column: start?.character + 1,
+      endLine: end?.line + 1,
+      endColumn: end?.character + 1
     };
   }
 
@@ -530,26 +530,26 @@ export class ASTAnalyzer {
   }
 
   private hasExportModifier(node: ts.Node): boolean {
-    return node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.ExportKeyword) || false;
+    return node.modifiers?.some(mod => mod?.kind === ts.SyntaxKind.ExportKeyword) || false;
   }
 
   private hasAsyncModifier(node: ts.Node): boolean {
-    return node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.AsyncKeyword) || false;
+    return node.modifiers?.some(mod => mod?.kind === ts.SyntaxKind.AsyncKeyword) || false;
   }
 
   private getFunctionParameters(node: ts.FunctionDeclaration): Parameter[] {
-    return node.parameters.map(param => ({
-      name: param.name.getText(),
+    return node.parameters?.map(param => ({
+      name: param.name?.getText(),
       optional: !!param.questionToken,
       type: param.type?.getText()
     }));
   }
 
   private getVisibility(node: ts.ClassElement): 'public' | 'private' | 'protected' {
-    if (node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.PrivateKeyword)) {
+    if (node.modifiers?.some(mod => mod?.kind === ts.SyntaxKind.PrivateKeyword)) {
       return 'private';
     }
-    if (node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.ProtectedKeyword)) {
+    if (node.modifiers?.some(mod => mod?.kind === ts.SyntaxKind.ProtectedKeyword)) {
       return 'protected';
     }
     return 'public';

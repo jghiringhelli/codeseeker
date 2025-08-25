@@ -24,7 +24,7 @@ export interface ClaudeConfig {
 
 export class ClaudeIntegration {
   private client: Anthropic | null = null;
-  private logger = Logger.getInstance();
+  private logger = Logger?.getInstance();
   private config: ClaudeConfig;
 
   constructor(config: ClaudeConfig = {}) {
@@ -35,7 +35,7 @@ export class ClaudeIntegration {
       ...config
     };
 
-    this.initialize();
+    this?.initialize();
   }
 
   private initialize(): void {
@@ -50,21 +50,21 @@ export class ClaudeIntegration {
       this.client = new Anthropic({ apiKey });
       this.logger.info('Claude client initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize Claude client', error);
+      this.logger.error('Failed to initialize Claude client', error as Error);
     }
   }
 
   async askQuestion(question: string, contextOptimization: ContextOptimization): Promise<ClaudeResponse> {
     if (!this.client) {
-      return this.simulateResponse(question, contextOptimization);
+      return this?.simulateResponse(question, contextOptimization);
     }
 
     try {
-      const prompt = this.buildPrompt(question, contextOptimization);
+      const prompt = this?.buildPrompt(question, contextOptimization);
       
-      this.logger.debug(`Sending request to Claude with ${prompt.length} characters`);
+      this.logger.debug(`Sending request to Claude with ${prompt?.length} characters`);
 
-      const response = await this.client.messages.create({
+      const response = await this.client.messages?.create({
         model: this.config.model!,
         max_tokens: this.config.maxTokens!,
         temperature: this.config.temperature!,
@@ -76,14 +76,14 @@ export class ClaudeIntegration {
         ]
       });
 
-      const content = response.content[0];
-      const text = content.type === 'text' ? content.text : 'Unable to parse response';
+      const content = response.content?.[0];
+      const text = content && content?.type === 'text' ? content.text : 'Unable to parse response';
 
       return {
         content: text,
         contextUsed: {
-          tokensUsed: this.estimateTokens(prompt),
-          filesIncluded: contextOptimization.priorityFiles.map(f => f.path),
+          tokensUsed: this?.estimateTokens(prompt),
+          filesIncluded: contextOptimization.priorityFiles?.map(f => f.path),
           optimizationStrategy: contextOptimization.strategy
         },
         usage: {
@@ -93,8 +93,8 @@ export class ClaudeIntegration {
       };
 
     } catch (error) {
-      this.logger.error('Failed to get response from Claude', error);
-      throw error;
+      this.logger.error('Failed to get response from Claude', error as Error);
+      throw error as Error;
     }
   }
 
@@ -110,7 +110,7 @@ export class ClaudeIntegration {
     }
 
     // Add relevant code files
-    if (context.priorityFiles && context.priorityFiles.length > 0) {
+    if (context.priorityFiles && context.priorityFiles?.length > 0) {
       prompt += `# Relevant Code Files\n\n`;
       
       for (const file of context.priorityFiles) {
@@ -118,9 +118,9 @@ export class ClaudeIntegration {
         if (file.summary) {
           prompt += `Summary: ${file.summary}\n`;
         }
-        if (file.relevantSections && file.relevantSections.length > 0) {
+        if (file.relevantSections && file.relevantSections?.length > 0) {
           prompt += `\`\`\`${file.language || ''}\n`;
-          file.relevantSections.forEach(section => {
+          file.relevantSections?.forEach(section => {
             prompt += `// Lines ${section.startLine}-${section.endLine}\n`;
             prompt += `${section.content}\n\n`;
           });
@@ -130,9 +130,9 @@ export class ClaudeIntegration {
     }
 
     // Add architectural patterns if detected
-    if (context.detectedPatterns && context.detectedPatterns.length > 0) {
+    if (context.detectedPatterns && context.detectedPatterns?.length > 0) {
       prompt += `# Detected Patterns\n`;
-      context.detectedPatterns.forEach(pattern => {
+      context.detectedPatterns?.forEach(pattern => {
         prompt += `- ${pattern.name}: ${pattern.description}\n`;
       });
       prompt += `\n`;
@@ -168,7 +168,7 @@ To get real Claude responses:
 
 **Suggested approach based on context optimization:**
 The system has identified ${context.priorityFiles?.length || 0} relevant files for your query.
-${context.strategy === 'smart' ? 'Smart context optimization was used to focus on the most relevant code sections.' : ''}
+${context?.strategy === 'smart' ? 'Smart context optimization was used to focus on the most relevant code sections.' : ''}
 
 **Next steps:**
 1. Configure your Anthropic API key for real Claude integration
@@ -187,7 +187,7 @@ ${context.strategy === 'smart' ? 'Smart context optimization was used to focus o
 
   private estimateTokens(text: string): number {
     // Rough estimation: ~4 characters per token for English text
-    return Math.ceil(text.length / 4);
+    return Math.ceil(text?.length / 4);
   }
 
   async testConnection(): Promise<boolean> {
@@ -196,7 +196,7 @@ ${context.strategy === 'smart' ? 'Smart context optimization was used to focus o
     }
 
     try {
-      const response = await this.client.messages.create({
+      const response = await this.client.messages?.create({
         model: this.config.model!,
         max_tokens: 10,
         messages: [
@@ -207,9 +207,10 @@ ${context.strategy === 'smart' ? 'Smart context optimization was used to focus o
         ]
       });
 
-      return response.content[0].type === 'text' && response.content[0].text.includes('OK');
+      const content = response.content?.[0];
+      return content && content?.type === 'text' && content.text?.includes('OK');
     } catch (error) {
-      this.logger.error('Claude connection test failed', error);
+      this.logger.error('Claude connection test failed', error as Error);
       return false;
     }
   }

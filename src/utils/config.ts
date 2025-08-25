@@ -62,11 +62,11 @@ export class SystemConfigManager implements ConfigManager {
 
   constructor(logger?: Logger) {
     this.logger = logger || new Logger();
-    this.loadDefaults();
+    this?.loadDefaults();
   }
 
   get<T>(key: string, defaultValue?: T): T {
-    const keys = key.split('.');
+    const keys = key?.split('.');
     let current: any = this.config;
 
     for (const k of keys) {
@@ -81,10 +81,10 @@ export class SystemConfigManager implements ConfigManager {
   }
 
   set(key: string, value: any): void {
-    const keys = key.split('.');
+    const keys = key?.split('.');
     let current: any = this.config;
 
-    for (let i = 0; i < keys.length - 1; i++) {
+    for (let i = 0; i < keys?.length - 1; i++) {
       const k = keys[i];
       if (!k) continue;
       
@@ -94,7 +94,7 @@ export class SystemConfigManager implements ConfigManager {
       current = current[k];
     }
 
-    const lastKey = keys[keys.length - 1];
+    const lastKey = keys[keys?.length - 1];
     if (lastKey) {
       current[lastKey] = value;
       this.logger.debug(`Config updated: ${key} = ${JSON.stringify(value)}`);
@@ -112,20 +112,20 @@ export class SystemConfigManager implements ConfigManager {
     }
 
     try {
-      const configContent = await fs.readFile(this.configPath, 'utf8');
+      const configContent = await fs?.readFile(this.configPath, 'utf8');
       const loadedConfig = JSON.parse(configContent);
       
       // Merge with existing config (loaded config takes precedence)
-      this.config = this.mergeConfig(this.config, loadedConfig);
+      this.config = this?.mergeConfig(this.config, loadedConfig);
       
       this.logger.info(`Configuration loaded from: ${this.configPath}`);
     } catch (error) {
       if ((error as any).code === 'ENOENT') {
         this.logger.info(`Config file not found at ${this.configPath}, creating with defaults`);
-        await this.save();
+        await this?.save();
       } else {
         this.logger.error(`Failed to load config from ${this.configPath}`, error as Error);
-        throw error;
+        throw error as Error;
       }
     }
   }
@@ -139,12 +139,12 @@ export class SystemConfigManager implements ConfigManager {
 
     try {
       const configJson = JSON.stringify(this.config, null, 2);
-      await fs.writeFile(targetPath, configJson, 'utf8');
+      await fs?.writeFile(targetPath, configJson, 'utf8');
       this.configPath = targetPath;
       this.logger.info(`Configuration saved to: ${targetPath}`);
     } catch (error) {
       this.logger.error(`Failed to save config to ${targetPath}`, error as Error);
-      throw error;
+      throw error as Error;
     }
   }
 
@@ -173,15 +173,15 @@ export class SystemConfigManager implements ConfigManager {
         // Parse value based on type
         let parsedValue: any = envValue;
         
-        if (envValue.toLowerCase() === 'true') {
+        if (envValue?.toLowerCase() === 'true') {
           parsedValue = true;
-        } else if (envValue.toLowerCase() === 'false') {
+        } else if (envValue?.toLowerCase() === 'false') {
           parsedValue = false;
         } else if (!isNaN(Number(envValue))) {
           parsedValue = Number(envValue);
         }
 
-        this.set(configKey, parsedValue);
+        this?.set(configKey, parsedValue);
         this.logger.debug(`Config updated from env: ${configKey} = ${parsedValue}`);
       }
     }
@@ -200,30 +200,30 @@ export class SystemConfigManager implements ConfigManager {
     ];
 
     for (const path of requiredPaths) {
-      const value = this.get(path);
+      const value = this?.get(path);
       if (value === undefined || value === null) {
-        errors.push(`Missing required configuration: ${path}`);
+        errors?.push(`Missing required configuration: ${path}`);
       }
     }
 
     // Validate specific values
     const logLevel = this.get<string>('logging.level');
     if (logLevel && !['debug', 'info', 'warn', 'error'].includes(logLevel)) {
-      errors.push(`Invalid logging level: ${logLevel}`);
+      errors?.push(`Invalid logging level: ${logLevel}`);
     }
 
     const maxBatchSize = this.get<number>('analysis.maxBatchSize');
     if (maxBatchSize && (maxBatchSize <= 0 || maxBatchSize > 1000)) {
-      errors.push(`Invalid maxBatchSize: ${maxBatchSize}. Must be between 1 and 1000`);
+      errors?.push(`Invalid maxBatchSize: ${maxBatchSize}. Must be between 1 and 1000`);
     }
 
     const mcpPort = this.get<number>('mcp.port');
     if (mcpPort && (mcpPort < 1 || mcpPort > 65535)) {
-      errors.push(`Invalid MCP port: ${mcpPort}. Must be between 1 and 65535`);
+      errors?.push(`Invalid MCP port: ${mcpPort}. Must be between 1 and 65535`);
     }
 
     return {
-      valid: errors.length === 0,
+      valid: errors?.length === 0,
       errors
     };
   }
@@ -256,7 +256,7 @@ export class SystemConfigManager implements ConfigManager {
         batchSize: 50
       },
       logging: {
-        level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+        level: process.env?.NODE_ENV === 'development' ? 'debug' : 'info',
         enableFileLogging: false,
         logDirectory: './logs'
       },
@@ -280,7 +280,7 @@ export class SystemConfigManager implements ConfigManager {
     const result = { ...target };
 
     for (const key in source) {
-      if (source.hasOwnProperty(key)) {
+      if (source?.hasOwnProperty(key)) {
         if (
           source[key] && 
           typeof source[key] === 'object' && 
@@ -289,7 +289,7 @@ export class SystemConfigManager implements ConfigManager {
           typeof target[key] === 'object' && 
           !Array.isArray(target[key])
         ) {
-          result[key] = this.mergeConfig(target[key], source[key]);
+          result[key] = this?.mergeConfig(target[key], source[key]);
         } else {
           result[key] = source[key];
         }

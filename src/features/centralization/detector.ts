@@ -8,8 +8,8 @@ import { createHash } from 'crypto';
 export interface CentralizationScanRequest {
   projectPath: string;
   configTypes?: ConfigurationType[];
-  includeMigrationPlan: boolean;
-  includeRiskAssessment: boolean;
+  includeMigrationPlan?: boolean;
+  includeRiskAssessment?: boolean;
   minOccurrences?: number;
   excludePatterns?: string[];
 }

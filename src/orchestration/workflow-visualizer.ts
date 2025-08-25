@@ -15,19 +15,19 @@ export class WorkflowVisualizer {
     
     // Add nodes
     for (const [nodeId, node] of workflow.nodes) {
-      const displayName = this.formatNodeName(node.name, node.roleType);
+      const displayName = this?.formatNodeName(node.name, node.roleType);
       mermaid += `    ${nodeId}[${displayName}]\n`;
       
       // Add styling based on node type
-      if (workflow.entryPoints.includes(nodeId)) {
+      if (workflow.entryPoints?.includes(nodeId)) {
         mermaid += `    ${nodeId}:::entryPoint\n`;
-      } else if (workflow.exitPoints.includes(nodeId)) {
+      } else if (workflow.exitPoints?.includes(nodeId)) {
         mermaid += `    ${nodeId}:::exitPoint\n`;
-      } else if (workflow.mergePoints.includes(nodeId)) {
+      } else if (workflow.mergePoints?.includes(nodeId)) {
         mermaid += `    ${nodeId}:::mergePoint\n`;
-      } else if (node.qualityGates && node.qualityGates.length > 0) {
+      } else if (node.qualityGates && node.qualityGates?.length > 0) {
         mermaid += `    ${nodeId}:::qualityGate\n`;
-      } else if (node.parallelWith && node.parallelWith.length > 0) {
+      } else if (node.parallelWith && node.parallelWith?.length > 0) {
         mermaid += `    ${nodeId}:::parallel\n`;
       }
     }
@@ -53,29 +53,29 @@ export class WorkflowVisualizer {
     dot += `    node [fillcolor=lightpink, style="rounded,filled"] parallelNodes;\n`;
     
     // Add subgraphs for parallel execution groups
-    const parallelGroups = this.identifyParallelGroups(workflow);
-    parallelGroups.forEach((nodeIds, groupIndex) => {
+    const parallelGroups = this?.identifyParallelGroups(workflow);
+    parallelGroups?.forEach((nodeIds, groupIndex) => {
       dot += `    subgraph cluster_${groupIndex} {\n`;
       dot += `        label="Parallel Group ${groupIndex + 1}";\n`;
       dot += `        style=dashed;\n`;
-      nodeIds.forEach(nodeId => {
-        const node = workflow.nodes.get(nodeId)!;
-        dot += `        "${nodeId}" [label="${this.formatNodeName(node.name, node.roleType)}"];\n`;
+      nodeIds?.forEach(nodeId => {
+        const node = workflow.nodes?.get(nodeId)!;
+        dot += `        "${nodeId}" [label="${this?.formatNodeName(node.name, node.roleType)}"];\n`;
       });
       dot += `    }\n`;
     });
     
     // Add regular nodes
     for (const [nodeId, node] of workflow.nodes) {
-      if (!parallelGroups.some(group => group.includes(nodeId))) {
-        dot += `    "${nodeId}" [label="${this.formatNodeName(node.name, node.roleType)}"];\n`;
+      if (!parallelGroups?.some(group => group?.includes(nodeId))) {
+        dot += `    "${nodeId}" [label="${this?.formatNodeName(node.name, node.roleType)}"];\n`;
         
         // Add node styling
-        if (workflow.entryPoints.includes(nodeId)) {
+        if (workflow.entryPoints?.includes(nodeId)) {
           dot += `    "${nodeId}" [fillcolor=lightblue];\n`;
-        } else if (workflow.exitPoints.includes(nodeId)) {
+        } else if (workflow.exitPoints?.includes(nodeId)) {
           dot += `    "${nodeId}" [fillcolor=lightgreen];\n`;
-        } else if (node.qualityGates && node.qualityGates.length > 0) {
+        } else if (node.qualityGates && node.qualityGates?.length > 0) {
           dot += `    "${nodeId}" [fillcolor=lightyellow];\n`;
         }
       }
@@ -97,8 +97,8 @@ export class WorkflowVisualizer {
     
     // Entry points
     output += `\n🚀 Entry Points:\n`;
-    workflow.entryPoints.forEach(nodeId => {
-      const node = workflow.nodes.get(nodeId)!;
+    workflow.entryPoints?.forEach(nodeId => {
+      const node = workflow.nodes?.get(nodeId)!;
       output += `   • ${node.name} (${node.roleType})\n`;
     });
     
@@ -108,51 +108,51 @@ export class WorkflowVisualizer {
     const queue = [...workflow.entryPoints];
     let level = 1;
     
-    while (queue.length > 0) {
-      const currentLevelNodes = this.getNodesAtLevel(workflow, queue, executed);
+    while (queue?.length > 0) {
+      const currentLevelNodes = this?.getNodesAtLevel(workflow, queue, executed);
       
-      if (currentLevelNodes.length === 0) break;
+      if (currentLevelNodes?.length === 0) break;
       
       output += `\nLevel ${level}:\n`;
       
       // Group parallel nodes
-      const parallelGroups = this.groupParallelNodes(workflow, currentLevelNodes);
+      const parallelGroups = this?.groupParallelNodes(workflow, currentLevelNodes);
       
-      parallelGroups.forEach((group, index) => {
-        if (group.length > 1) {
+      parallelGroups?.forEach((group, index) => {
+        if (group?.length > 1) {
           output += `   🔀 Parallel Group ${index + 1}:\n`;
-          group.forEach(nodeId => {
-            const node = workflow.nodes.get(nodeId)!;
+          group?.forEach(nodeId => {
+            const node = workflow.nodes?.get(nodeId)!;
             output += `      ├─ ${node.name} (${node.roleType})\n`;
-            output += `      │  ⏱️  Timeout: ${(node.executionTimeoutMs / 60000).toFixed(1)}min\n`;
-            if (node.qualityGates && node.qualityGates.length > 0) {
-              output += `      │  🚧 Quality Gates: ${node.qualityGates.length}\n`;
+            output += `      │  ⏱️  Timeout: ${(node?.executionTimeoutMs / 60000).toFixed(1)}min\n`;
+            if (node.qualityGates && node.qualityGates?.length > 0) {
+              output += `      │  🚧 Quality Gates: ${node.qualityGates?.length}\n`;
             }
           });
         } else {
           const nodeId = group[0];
-          const node = workflow.nodes.get(nodeId)!;
+          const node = workflow.nodes?.get(nodeId)!;
           output += `   📦 ${node.name} (${node.roleType})\n`;
-          output += `      ⏱️  Timeout: ${(node.executionTimeoutMs / 60000).toFixed(1)}min\n`;
-          if (node.qualityGates && node.qualityGates.length > 0) {
-            output += `      🚧 Quality Gates: ${node.qualityGates.length}\n`;
+          output += `      ⏱️  Timeout: ${(node?.executionTimeoutMs / 60000).toFixed(1)}min\n`;
+          if (node.qualityGates && node.qualityGates?.length > 0) {
+            output += `      🚧 Quality Gates: ${node.qualityGates?.length}\n`;
           }
         }
       });
       
       // Mark as executed and add next nodes
-      currentLevelNodes.forEach(nodeId => executed.add(nodeId));
-      const nextNodes = this.getNextNodes(workflow, currentLevelNodes);
-      nextNodes.forEach(nodeId => {
-        if (!queue.includes(nodeId) && !executed.has(nodeId)) {
-          queue.push(nodeId);
+      currentLevelNodes?.forEach(nodeId => executed?.add(nodeId));
+      const nextNodes = this?.getNextNodes(workflow, currentLevelNodes);
+      nextNodes?.forEach(nodeId => {
+        if (!queue?.includes(nodeId) && !executed?.has(nodeId)) {
+          queue?.push(nodeId);
         }
       });
       
       // Remove current level nodes from queue
-      currentLevelNodes.forEach(nodeId => {
-        const index = queue.indexOf(nodeId);
-        if (index > -1) queue.splice(index, 1);
+      currentLevelNodes?.forEach(nodeId => {
+        const index = queue?.indexOf(nodeId);
+        if (index > -1) queue?.splice(index, 1);
       });
       
       level++;
@@ -160,35 +160,35 @@ export class WorkflowVisualizer {
     
     // Merge points
     output += `\n🔀 Quality Gate Merge Points:\n`;
-    workflow.mergePoints.forEach(nodeId => {
-      const node = workflow.nodes.get(nodeId)!;
+    workflow.mergePoints?.forEach(nodeId => {
+      const node = workflow.nodes?.get(nodeId)!;
       output += `   • ${node.name} (${node.roleType})\n`;
     });
     
     // Exit points
     output += `\n🏁 Exit Points:\n`;
-    workflow.exitPoints.forEach(nodeId => {
-      const node = workflow.nodes.get(nodeId)!;
+    workflow.exitPoints?.forEach(nodeId => {
+      const node = workflow.nodes?.get(nodeId)!;
       output += `   • ${node.name} (${node.roleType})\n`;
     });
     
     // Backtrack rules
-    if (workflow.backtrackRules.length > 0) {
+    if (workflow.backtrackRules?.length > 0) {
       output += `\n🔄 Backtrack Rules:\n`;
-      workflow.backtrackRules.forEach(rule => {
+      workflow.backtrackRules?.forEach(rule => {
         output += `   • ${rule.trigger} → ${rule.targetNode} (Max attempts: ${rule.maxBacktrackCount})\n`;
       });
     }
     
     // Statistics
-    const stats = this.calculateWorkflowStatistics(workflow);
+    const stats = this?.calculateWorkflowStatistics(workflow);
     output += `\n📊 Workflow Statistics:\n`;
     output += `   • Total Nodes: ${stats.totalNodes}\n`;
     output += `   • Parallel Groups: ${stats.parallelGroups}\n`;
     output += `   • Quality Gates: ${stats.qualityGates}\n`;
     output += `   • Max Parallel Execution: ${stats.maxParallelNodes}\n`;
-    output += `   • Estimated Total Time: ${stats.estimatedTotalTimeHours.toFixed(1)} hours\n`;
-    output += `   • Estimated Parallel Time: ${stats.estimatedParallelTimeHours.toFixed(1)} hours\n`;
+    output += `   • Estimated Total Time: ${stats.estimatedTotalTimeHours?.toFixed(1)} hours\n`;
+    output += `   • Estimated Parallel Time: ${stats.estimatedParallelTimeHours?.toFixed(1)} hours\n`;
     
     return output;
   }
@@ -203,24 +203,24 @@ export class WorkflowVisualizer {
     report += `📋 Basic Information:\n`;
     report += `   • Workflow: ${workflow.name}\n`;
     report += `   • Work Item: ${execution.workItemId}\n`;
-    report += `   • Status: ${this.getStatusEmoji(execution.status)} ${execution.status}\n`;
-    report += `   • Started: ${execution.startTime.toLocaleString()}\n`;
+    report += `   • Status: ${this?.getStatusEmoji(execution.status)} ${execution.status}\n`;
+    report += `   • Started: ${execution.startTime?.toLocaleString()}\n`;
     if (execution.endTime) {
-      const duration = (execution.endTime.getTime() - execution.startTime.getTime()) / 1000 / 60;
-      report += `   • Completed: ${execution.endTime.toLocaleString()}\n`;
-      report += `   • Duration: ${duration.toFixed(1)} minutes\n`;
+      const duration = (execution.endTime?.getTime() - execution.startTime?.getTime()) / 1000 / 60;
+      report += `   • Completed: ${execution.endTime?.toLocaleString()}\n`;
+      report += `   • Duration: ${duration?.toFixed(1)} minutes\n`;
     }
     
     // Current progress
     const totalNodes = workflow.nodes.size;
-    const completedNodes = execution.completedNodes.length;
+    const completedNodes = execution.completedNodes?.length;
     const progressPercentage = (completedNodes / totalNodes * 100).toFixed(1);
     
     report += `\n📊 Progress:\n`;
     report += `   • Completed: ${completedNodes}/${totalNodes} nodes (${progressPercentage}%)\n`;
     report += `   • Current Node: ${execution.currentNode || 'None'}\n`;
-    if (execution.failedNodes.length > 0) {
-      report += `   • Failed Nodes: ${execution.failedNodes.join(', ')}\n`;
+    if (execution.failedNodes?.length > 0) {
+      report += `   • Failed Nodes: ${execution.failedNodes?.join(', ')}\n`;
     }
     
     // Quality scores
@@ -237,17 +237,17 @@ export class WorkflowVisualizer {
     if (execution.branchRefs.size > 0) {
       report += `\n🌿 Git Branches:\n`;
       for (const [nodeId, branchName] of execution.branchRefs) {
-        const node = workflow.nodes.get(nodeId);
+        const node = workflow.nodes?.get(nodeId);
         report += `   • ${node?.name || nodeId}: ${branchName}\n`;
       }
     }
     
     // Backtrack history
-    if (execution.backtrackHistory.length > 0) {
+    if (execution.backtrackHistory?.length > 0) {
       report += `\n🔄 Backtrack Events:\n`;
-      execution.backtrackHistory.forEach((event, index) => {
+      execution.backtrackHistory?.forEach((event, index) => {
         report += `   ${index + 1}. ${event.reason}: ${event.fromNode} → ${event.toNode}\n`;
-        report += `      Time: ${event.timestamp.toLocaleString()}\n`;
+        report += `      Time: ${event.timestamp?.toLocaleString()}\n`;
         report += `      Attempts: ${event.attempts}\n`;
       });
     }
@@ -268,8 +268,8 @@ export class WorkflowVisualizer {
     }>();
     
     // Initialize stats for all roles
-    Object.values(RoleType).forEach(roleType => {
-      roleStats.set(roleType, {
+    Object.values(RoleType)?.forEach(roleType => {
+      roleStats?.set(roleType, {
         totalExecutions: 0,
         successfulExecutions: 0,
         failedExecutions: 0,
@@ -279,14 +279,14 @@ export class WorkflowVisualizer {
     });
     
     // Calculate statistics (simplified - would need actual node execution data)
-    executions.forEach(execution => {
+    executions?.forEach(execution => {
       // This would be expanded with actual role execution data
     });
     
     for (const [roleType, stats] of roleStats) {
       if (stats.totalExecutions > 0) {
-        const successRate = (stats.successfulExecutions / stats.totalExecutions * 100).toFixed(1);
-        const avgDurationMin = (stats.avgDurationMs / 60000).toFixed(1);
+        const successRate = (stats?.successfulExecutions / stats?.totalExecutions * 100).toFixed(1);
+        const avgDurationMin = (stats?.avgDurationMs / 60000).toFixed(1);
         
         report += `\n${roleType}:\n`;
         report += `   • Total Executions: ${stats.totalExecutions}\n`;
@@ -300,7 +300,7 @@ export class WorkflowVisualizer {
 
   // Helper methods
   private static formatNodeName(name: string, roleType: RoleType): string {
-    const emoji = this.getRoleEmoji(roleType);
+    const emoji = this?.getRoleEmoji(roleType);
     return `${emoji} ${name}`;
   }
 
@@ -346,10 +346,10 @@ export class WorkflowVisualizer {
     const processed = new Set<string>();
     
     for (const [nodeId, node] of workflow.nodes) {
-      if (!processed.has(nodeId) && node.parallelWith && node.parallelWith.length > 0) {
+      if (!processed?.has(nodeId) && node.parallelWith && node.parallelWith?.length > 0) {
         const group = [nodeId, ...node.parallelWith];
-        groups.push(group);
-        group.forEach(id => processed.add(id));
+        groups?.push(group);
+        group?.forEach(id => processed?.add(id));
       }
     }
     
@@ -364,12 +364,12 @@ export class WorkflowVisualizer {
     const readyNodes: string[] = [];
     
     for (const nodeId of queue) {
-      const node = workflow.nodes.get(nodeId);
-      if (!node || executed.has(nodeId)) continue;
+      const node = workflow.nodes?.get(nodeId);
+      if (!node || executed?.has(nodeId)) continue;
       
-      const dependenciesSatisfied = node.dependencies.every(depId => executed.has(depId));
+      const dependenciesSatisfied = node.dependencies?.every(depId => executed?.has(depId));
       if (dependenciesSatisfied) {
-        readyNodes.push(nodeId);
+        readyNodes?.push(nodeId);
       }
     }
     
@@ -381,17 +381,17 @@ export class WorkflowVisualizer {
     const processed = new Set<string>();
     
     for (const nodeId of nodeIds) {
-      if (processed.has(nodeId)) continue;
+      if (processed?.has(nodeId)) continue;
       
-      const node = workflow.nodes.get(nodeId);
-      if (node && node.parallelWith && node.parallelWith.length > 0) {
-        const parallelNodes = node.parallelWith.filter(id => nodeIds.includes(id));
+      const node = workflow.nodes?.get(nodeId);
+      if (node && node.parallelWith && node.parallelWith?.length > 0) {
+        const parallelNodes = node.parallelWith?.filter(id => nodeIds?.includes(id));
         const group = [nodeId, ...parallelNodes];
-        groups.push(group);
-        group.forEach(id => processed.add(id));
+        groups?.push(group);
+        group?.forEach(id => processed?.add(id));
       } else {
-        groups.push([nodeId]);
-        processed.add(nodeId);
+        groups?.push([nodeId]);
+        processed?.add(nodeId);
       }
     }
     
@@ -402,8 +402,8 @@ export class WorkflowVisualizer {
     const nextNodes: string[] = [];
     
     for (const edge of workflow.edges) {
-      if (completedNodes.includes(edge.from)) {
-        nextNodes.push(edge.to);
+      if (completedNodes?.includes(edge.from)) {
+        nextNodes?.push(edge.to);
       }
     }
     
@@ -412,20 +412,20 @@ export class WorkflowVisualizer {
 
   private static calculateWorkflowStatistics(workflow: WorkflowDAG) {
     const totalNodes = workflow.nodes.size;
-    const parallelGroups = this.identifyParallelGroups(workflow).length;
-    const qualityGates = Array.from(workflow.nodes.values()).filter(
-      node => node.qualityGates && node.qualityGates.length > 0
+    const parallelGroups = this?.identifyParallelGroups(workflow).length;
+    const qualityGates = Array.from(workflow.nodes?.values()).filter(
+      node => node.qualityGates && node.qualityGates?.length > 0
     ).length;
     
     // Calculate max parallel nodes
     let maxParallelNodes = 1;
-    const parallelGroupSizes = this.identifyParallelGroups(workflow).map(group => group.length);
-    if (parallelGroupSizes.length > 0) {
+    const parallelGroupSizes = this?.identifyParallelGroups(workflow).map(group => group?.length);
+    if (parallelGroupSizes?.length > 0) {
       maxParallelNodes = Math.max(...parallelGroupSizes);
     }
     
     // Estimate execution times
-    const totalTimeMs = Array.from(workflow.nodes.values()).reduce(
+    const totalTimeMs = Array.from(workflow.nodes?.values()).reduce(
       (sum, node) => sum + node.executionTimeoutMs, 0
     );
     
