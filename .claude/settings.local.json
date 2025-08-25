@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(npm test)",
+      "Bash(npx ts-node:*)",
+      "Bash(npm run demo:phase1:*)",
+      "Bash(node:*)",
+      "Bash(chmod:*)",
+      "Bash(docker-compose:*)",
+      "Bash(set API_PORT=3001)",
+      "Bash(API_PORT=3001 docker-compose -f docker-compose.local.yml up -d)",
+      "Bash(timeout:*)",
+      "Bash(npm run start:dev:*)",
+      "Bash(curl:*)",
+      "Bash(API_PORT=3002 docker-compose -f docker-compose.local.yml up -d)",
+      "Bash(npm run:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker cp:*)",
+      "Bash(./scripts/interactive-setup.sh:*)",
+      "Bash(powershell:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\workspace\\claude\\TestNewProject"
+    ]
+  }
+}

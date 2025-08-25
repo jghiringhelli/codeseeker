@@ -1,0 +1,451 @@
+{
+  "templates": [
+    {
+      "id": "feature-development-template",
+      "templateName": "Feature Development Template",
+      "description": "Comprehensive template for implementing new product features",
+      "planType": "feature_development",
+      "category": "development",
+      "phases": [
+        {
+          "name": "Requirements & Planning",
+          "description": "Define feature requirements and create implementation plan",
+          "order": 1,
+          "estimatedDays": 3,
+          "tasks": [
+            "Gather and document feature requirements",
+            "Create user stories and acceptance criteria",
+            "Design system architecture for feature",
+            "Plan database schema changes",
+            "Create technical specification"
+          ]
+        },
+        {
+          "name": "Core Implementation", 
+          "description": "Build the main feature functionality",
+          "order": 2,
+          "estimatedDays": 10,
+          "tasks": [
+            "Implement backend API endpoints",
+            "Create database migrations",
+            "Build core business logic",
+            "Implement data validation",
+            "Add error handling"
+          ]
+        },
+        {
+          "name": "Frontend Integration",
+          "description": "Create user interface and integrate with backend",
+          "order": 3,
+          "estimatedDays": 7,
+          "tasks": [
+            "Design user interface components",
+            "Implement frontend forms/views",
+            "Integrate with backend APIs",
+            "Add client-side validation",
+            "Implement responsive design"
+          ]
+        },
+        {
+          "name": "Testing & Quality Assurance",
+          "description": "Comprehensive testing of new feature",
+          "order": 4,
+          "estimatedDays": 5,
+          "tasks": [
+            "Write unit tests for backend logic",
+            "Create integration tests",
+            "Implement frontend component tests",
+            "Perform manual testing",
+            "Fix bugs and issues"
+          ]
+        },
+        {
+          "name": "Documentation & Deployment",
+          "description": "Document feature and prepare for release",
+          "order": 5,
+          "estimatedDays": 2,
+          "tasks": [
+            "Update API documentation",
+            "Create user documentation",
+            "Update deployment scripts",
+            "Perform security review",
+            "Deploy to staging environment"
+          ]
+        }
+      ],
+      "goalCategories": {
+        "projectIntent": {
+          "label": "What are you building?",
+          "description": "Describe the main purpose and functionality of this feature",
+          "examples": [
+            "User authentication system with JWT tokens",
+            "E-commerce shopping cart with payment processing", 
+            "Real-time chat system for customer support",
+            "Data analytics dashboard for sales metrics",
+            "File upload system with cloud storage"
+          ]
+        },
+        "businessValue": {
+          "label": "Why is this important?",
+          "description": "Explain the business value and user benefit",
+          "examples": [
+            "Enable secure user registration and login",
+            "Allow customers to purchase products online",
+            "Improve customer service response times", 
+            "Provide insights for data-driven decisions",
+            "Allow users to share documents easily"
+          ]
+        },
+        "successCriteria": {
+          "label": "How will you know it's successful?", 
+          "description": "Define measurable success criteria",
+          "examples": [
+            "Users can register and login successfully",
+            "Payment processing works with 99.9% reliability",
+            "Average response time under 2 seconds",
+            "Dashboard loads data in under 5 seconds",
+            "Files upload successfully 95% of the time"
+          ]
+        },
+        "qualityRequirements": {
+          "label": "What quality standards must it meet?",
+          "description": "Non-functional requirements and quality attributes",
+          "options": [
+            "High performance (fast response times)",
+            "High security (data protection, authentication)",
+            "High availability (minimal downtime)",
+            "Scalability (handle increasing load)",
+            "Maintainability (easy to modify and extend)",
+            "Usability (intuitive user experience)",
+            "Reliability (consistent, error-free operation)",
+            "Accessibility (support for disabled users)"
+          ]
+        }
+      },
+      "estimatedEffortHours": 200,
+      "estimatedDurationDays": 25
+    },
+    {
+      "id": "bug-fix-campaign-template",
+      "templateName": "Bug Fix Campaign Template", 
+      "description": "Systematic approach to resolving multiple bugs",
+      "planType": "bug_fix_campaign",
+      "category": "maintenance",
+      "phases": [
+        {
+          "name": "Bug Triage & Analysis",
+          "description": "Categorize and prioritize bugs for resolution",
+          "order": 1,
+          "estimatedDays": 2,
+          "tasks": [
+            "Review and categorize all reported bugs",
+            "Prioritize bugs by severity and impact", 
+            "Identify root causes and patterns",
+            "Estimate effort for each bug fix",
+            "Create resolution timeline"
+          ]
+        },
+        {
+          "name": "Critical Bug Fixes",
+          "description": "Resolve high-priority and blocking bugs",
+          "order": 2,
+          "estimatedDays": 5,
+          "tasks": [
+            "Fix critical security vulnerabilities",
+            "Resolve data corruption issues",
+            "Fix application crashes",
+            "Address performance bottlenecks",
+            "Test critical fixes thoroughly"
+          ]
+        },
+        {
+          "name": "Standard Bug Resolution",
+          "description": "Address medium and low priority bugs",
+          "order": 3,
+          "estimatedDays": 8,
+          "tasks": [
+            "Fix UI/UX issues", 
+            "Resolve functional bugs",
+            "Address edge case scenarios",
+            "Fix integration issues",
+            "Update error messages"
+          ]
+        },
+        {
+          "name": "Testing & Validation",
+          "description": "Verify all fixes work correctly",
+          "order": 4,
+          "estimatedDays": 3,
+          "tasks": [
+            "Run regression tests on all fixes",
+            "Perform manual testing",
+            "Validate fixes in staging environment",
+            "Update automated tests",
+            "Document fix verification"
+          ]
+        }
+      ],
+      "goalCategories": {
+        "projectIntent": {
+          "label": "What bugs are you fixing?", 
+          "description": "Describe the scope and type of bugs being addressed",
+          "examples": [
+            "Fix critical security vulnerabilities in user authentication",
+            "Resolve performance issues causing slow page loads",
+            "Address data synchronization bugs in real-time features",
+            "Fix UI inconsistencies across different browsers",
+            "Resolve integration issues with third-party services"
+          ]
+        },
+        "businessValue": {
+          "label": "Why fix these bugs now?",
+          "description": "Explain the impact and urgency", 
+          "examples": [
+            "Prevent security breaches and data loss",
+            "Improve user experience and reduce churn",
+            "Ensure system stability and reliability",
+            "Meet compliance and regulatory requirements",
+            "Reduce customer support burden"
+          ]
+        },
+        "successCriteria": {
+          "label": "How will you measure success?",
+          "description": "Define completion criteria",
+          "examples": [
+            "All critical bugs resolved and verified",
+            "No new regressions introduced",
+            "Customer complaint rate reduced by 50%",
+            "System uptime improved to 99.5%",
+            "Page load times under 3 seconds"
+          ]
+        }
+      },
+      "estimatedEffortHours": 120,
+      "estimatedDurationDays": 18
+    },
+    {
+      "id": "refactoring-project-template",
+      "templateName": "Refactoring Project Template",
+      "description": "Improve code quality and maintainability",
+      "planType": "refactoring_project", 
+      "category": "improvement",
+      "phases": [
+        {
+          "name": "Code Analysis & Planning",
+          "description": "Analyze current code and plan improvements",
+          "order": 1,
+          "estimatedDays": 3,
+          "tasks": [
+            "Analyze code quality metrics",
+            "Identify technical debt areas",
+            "Plan refactoring approach",
+            "Create code improvement roadmap",
+            "Set up code quality tools"
+          ]
+        },
+        {
+          "name": "Core Refactoring",
+          "description": "Implement main code improvements",
+          "order": 2,
+          "estimatedDays": 12,
+          "tasks": [
+            "Refactor complex functions and classes",
+            "Eliminate code duplication",
+            "Improve naming and structure",
+            "Extract reusable components",
+            "Optimize algorithms and data structures"
+          ]
+        },
+        {
+          "name": "Testing & Validation", 
+          "description": "Ensure refactoring doesn't break functionality",
+          "order": 3,
+          "estimatedDays": 4,
+          "tasks": [
+            "Run comprehensive test suite",
+            "Add missing test coverage",
+            "Perform integration testing",
+            "Validate performance improvements",
+            "Review code changes"
+          ]
+        }
+      ],
+      "goalCategories": {
+        "projectIntent": {
+          "label": "What are you refactoring?",
+          "description": "Describe the code areas and improvements planned",
+          "examples": [
+            "Refactor legacy authentication module to use modern patterns",
+            "Clean up database access layer and eliminate duplication", 
+            "Restructure frontend components for better reusability",
+            "Optimize API response handling and error management",
+            "Modernize build system and dependency management"
+          ]
+        },
+        "businessValue": {
+          "label": "Why refactor now?",
+          "description": "Explain the need and expected benefits",
+          "examples": [
+            "Reduce development time for new features",
+            "Improve code maintainability and reduce bugs",
+            "Enable better team collaboration and onboarding",
+            "Prepare codebase for scaling and new requirements",
+            "Reduce technical debt and development friction"
+          ]
+        },
+        "successCriteria": {
+          "label": "How will you measure improvement?",
+          "description": "Define measurable outcomes",
+          "examples": [
+            "Code duplication reduced by 50%",
+            "Cyclomatic complexity under target thresholds",
+            "Test coverage increased to 85%",
+            "Build time reduced by 30%",
+            "Developer onboarding time reduced"
+          ]
+        }
+      },
+      "estimatedEffortHours": 160,
+      "estimatedDurationDays": 20
+    },
+    {
+      "id": "testing-initiative-template",
+      "templateName": "Testing Initiative Template",
+      "description": "Implement comprehensive testing strategy",
+      "planType": "testing_initiative",
+      "category": "quality",
+      "phases": [
+        {
+          "name": "Testing Strategy & Setup",
+          "description": "Plan testing approach and set up infrastructure",
+          "order": 1,
+          "estimatedDays": 3,
+          "tasks": [
+            "Define testing strategy and coverage goals",
+            "Set up testing frameworks and tools",
+            "Configure CI/CD pipeline for testing",
+            "Create testing standards and guidelines",
+            "Plan test data and environment setup"
+          ]
+        },
+        {
+          "name": "Unit Testing Implementation",
+          "description": "Create comprehensive unit test coverage", 
+          "order": 2,
+          "estimatedDays": 8,
+          "tasks": [
+            "Write unit tests for core business logic",
+            "Test edge cases and error conditions",
+            "Mock external dependencies",
+            "Achieve target code coverage",
+            "Set up automated test reporting"
+          ]
+        },
+        {
+          "name": "Integration Testing",
+          "description": "Test system integration points",
+          "order": 3,
+          "estimatedDays": 5,
+          "tasks": [
+            "Create API integration tests",
+            "Test database interactions",
+            "Test third-party service integrations", 
+            "Validate data flow between components",
+            "Test error handling and recovery"
+          ]
+        },
+        {
+          "name": "End-to-End Testing",
+          "description": "Test complete user workflows",
+          "order": 4,
+          "estimatedDays": 4,
+          "tasks": [
+            "Create user journey test scenarios",
+            "Automate critical user flows",
+            "Test cross-browser compatibility",
+            "Validate mobile responsiveness",
+            "Performance and load testing"
+          ]
+        }
+      ],
+      "goalCategories": {
+        "projectIntent": {
+          "label": "What testing are you implementing?",
+          "description": "Describe the testing scope and strategy",
+          "examples": [
+            "Implement comprehensive unit testing for backend APIs",
+            "Create automated integration tests for payment processing",
+            "Build end-to-end tests for user registration flow",
+            "Add performance testing for data processing pipeline",
+            "Create security testing for authentication system"
+          ]
+        },
+        "businessValue": {
+          "label": "Why invest in testing?",
+          "description": "Explain the value and risk mitigation",
+          "examples": [
+            "Prevent bugs from reaching production",
+            "Enable confident deployment and releases",
+            "Reduce manual testing time and costs",
+            "Improve code quality and maintainability", 
+            "Enable faster development with safety net"
+          ]
+        },
+        "successCriteria": {
+          "label": "What testing goals will you achieve?",
+          "description": "Define testing targets and metrics",
+          "examples": [
+            "Achieve 85% unit test code coverage",
+            "All critical user flows have automated tests",
+            "API endpoints have 100% integration test coverage",
+            "Automated test suite runs in under 10 minutes",
+            "Zero critical bugs escape to production"
+          ]
+        }
+      },
+      "estimatedEffortHours": 160,
+      "estimatedDurationDays": 20
+    }
+  ],
+  "goalTypes": {
+    "projectIntent": {
+      "name": "Project Intent",
+      "description": "What you are building - the core functionality and purpose",
+      "required": true,
+      "type": "text",
+      "placeholder": "Describe what you're building and its main functionality..."
+    },
+    "businessValue": {
+      "name": "Business Value",
+      "description": "Why this matters - the business impact and user benefit",
+      "required": true,
+      "type": "text", 
+      "placeholder": "Explain why this is important and what value it provides..."
+    },
+    "successCriteria": {
+      "name": "Success Criteria",
+      "description": "How you'll know it works - measurable outcomes",
+      "required": true,
+      "type": "text",
+      "placeholder": "Define specific, measurable criteria for success..."
+    },
+    "qualityRequirements": {
+      "name": "Quality Requirements", 
+      "description": "Non-functional requirements - performance, security, etc.",
+      "required": false,
+      "type": "multi-select",
+      "options": [
+        "High performance (fast response times)",
+        "High security (data protection, authentication)", 
+        "High availability (minimal downtime)",
+        "Scalability (handle increasing load)",
+        "Maintainability (easy to modify and extend)",
+        "Usability (intuitive user experience)",
+        "Reliability (consistent, error-free operation)",
+        "Accessibility (support for disabled users)",
+        "Compliance (regulatory requirements)",
+        "Portability (cross-platform compatibility)"
+      ]
+    }
+  }
+}
