@@ -38,6 +38,7 @@ exports.createAutoFixCommand = createAutoFixCommand;
 const commander_1 = require("commander");
 const path = __importStar(require("path"));
 const project_fixer_1 = require("../../auto-improvement/project-fixer");
+const interactive_project_fixer_1 = require("../../auto-improvement/interactive-project-fixer");
 const logger_1 = require("../../utils/logger");
 function createAutoFixCommand() {
     const logger = new logger_1.Logger();
@@ -50,6 +51,10 @@ function createAutoFixCommand() {
         .option('--no-report', 'Skip generating improvement reports', false)
         .option('-t, --types <types...>', 'Specific fix types to apply', ['all'])
         .option('-a, --aggressiveness <level>', 'Aggressiveness level: conservative, moderate, aggressive', 'moderate')
+        .option('-i, --interactive', 'Interactive mode with Git workflow and user approval', false)
+        .option('--auto-approve', 'Automatically approve changes without prompts', false)
+        .option('--skip-tests', 'Skip running tests after applying fixes', false)
+        .option('--skip-git', 'Skip Git workflow (no branching, commits)', false)
         .option('-v, --verbose', 'Verbose logging', false)
         .action(async (projectPath, options) => {
         try {
@@ -74,103 +79,145 @@ function createAutoFixCommand() {
             if (!validLevels.includes(options.aggressiveness)) {
                 throw new Error(`Invalid aggressiveness level: ${options.aggressiveness}. Valid levels: ${validLevels.join(', ')}`);
             }
-            // Create project fixer options
-            const fixerOptions = {
-                projectPath: absolutePath,
-                outputPath: options.output ? path.resolve(options.output) : undefined,
-                dryRun: options.dryRun,
-                fixTypes,
-                aggressiveness: options.aggressiveness,
-                backupOriginal: !options.noBackup,
-                generateReport: !options.noReport
-            };
-            // Display configuration
-            console.log('\n🔧 CodeMind Auto-Fix Configuration:');
-            console.log(`   Project Path: ${fixerOptions.projectPath}`);
-            console.log(`   Output Path: ${fixerOptions.outputPath || 'Same as project'}`);
-            console.log(`   Dry Run: ${fixerOptions.dryRun ? 'Yes' : 'No'}`);
-            console.log(`   Create Backup: ${fixerOptions.backupOriginal ? 'Yes' : 'No'}`);
-            console.log(`   Generate Report: ${fixerOptions.generateReport ? 'Yes' : 'No'}`);
-            console.log(`   Fix Types: ${fixTypes.join(', ')}`);
-            console.log(`   Aggressiveness: ${fixerOptions.aggressiveness}`);
-            console.log('');
-            if (fixerOptions.dryRun) {
-                console.log('🔍 DRY RUN MODE - No changes will be made to your project\n');
-            }
-            else {
-                console.log('⚠️  LIVE MODE - Your project will be modified\n');
-                if (!fixerOptions.backupOriginal) {
-                    console.log('❗ WARNING: No backup will be created. Make sure you have version control!\n');
+            // Choose between interactive and non-interactive mode
+            if (options.interactive) {
+                // Interactive mode with Git workflow
+                const interactiveOptions = {
+                    projectPath: absolutePath,
+                    outputPath: options.output ? path.resolve(options.output) : undefined,
+                    dryRun: false, // Interactive mode handles dry-run internally
+                    fixTypes,
+                    aggressiveness: options.aggressiveness,
+                    backupOriginal: !options.noBackup,
+                    generateReport: !options.noReport,
+                    interactive: true,
+                    autoApprove: options.autoApprove,
+                    skipTests: options.skipTests,
+                    skipGitWorkflow: options.skipGit
+                };
+                // Display configuration
+                console.log('\n🔧 CodeMind Interactive Auto-Fix Configuration:');
+                console.log(`   Project Path: ${interactiveOptions.projectPath}`);
+                console.log(`   Output Path: ${interactiveOptions.outputPath || 'Same as project'}`);
+                console.log(`   Auto Approve: ${interactiveOptions.autoApprove ? 'Yes' : 'No'}`);
+                console.log(`   Run Tests: ${interactiveOptions.skipTests ? 'No' : 'Yes'}`);
+                console.log(`   Git Workflow: ${interactiveOptions.skipGitWorkflow ? 'Disabled' : 'Enabled'}`);
+                console.log(`   Fix Types: ${fixTypes.join(', ')}`);
+                console.log(`   Aggressiveness: ${interactiveOptions.aggressiveness}`);
+                console.log('');
+                // Create and run interactive project fixer
+                const interactiveFixer = new interactive_project_fixer_1.InteractiveProjectFixer();
+                const report = await interactiveFixer.analyzeAndFixInteractive(interactiveOptions);
+                // Display final status
+                if (report.userApproved) {
+                    console.log('\n🎉 Interactive auto-fix completed successfully!');
+                    if (report.finalCommitHash) {
+                        console.log(`📋 View changes: git show ${report.finalCommitHash.substring(0, 8)}`);
+                    }
+                }
+                else {
+                    console.log('\n❌ Auto-fix cancelled or reverted by user.');
                 }
             }
-            // Create and run project fixer
-            const fixer = new project_fixer_1.ProjectFixer();
-            console.log('🚀 Starting project analysis and improvement...\n');
-            const report = await fixer.analyzeAndFix(fixerOptions);
-            // Display results
-            console.log('✅ Project improvement completed!\n');
-            console.log('📊 Summary:');
-            console.log(`   Issues Found: ${report.summary.totalIssuesFound}`);
-            console.log(`   Issues Fixed: ${report.summary.totalIssuesFixed}`);
-            console.log(`   Files Analyzed: ${report.summary.filesAnalyzed}`);
-            console.log(`   Files Modified: ${report.summary.filesModified}`);
-            console.log(`   Lines Changed: ${report.summary.linesChanged}`);
-            console.log(`   Overall Benefit Score: ${report.summary.overallBenefitScore}`);
-            console.log('');
-            // Display quality metrics
-            console.log('📈 Quality Improvement:');
-            console.log(`   Quality Score: ${report.metrics.before.qualityScore} → ${report.metrics.after.qualityScore} (+${report.metrics.improvement.qualityScore})`);
-            if (report.metrics.improvement.duplicateLines > 0) {
-                console.log(`   Duplicate Lines Removed: ${report.metrics.improvement.duplicateLines}`);
-            }
-            if (report.metrics.improvement.scatteredConfigs > 0) {
-                console.log(`   Configurations Centralized: ${report.metrics.improvement.scatteredConfigs}`);
-            }
-            if (report.metrics.improvement.circularDependencies > 0) {
-                console.log(`   Circular Dependencies Fixed: ${report.metrics.improvement.circularDependencies}`);
-            }
-            console.log('');
-            // Display successful fixes
-            const successfulFixes = report.fixes.filter(f => f.success);
-            if (successfulFixes.length > 0) {
-                console.log('✅ Successfully Applied Fixes:');
-                successfulFixes.forEach(fix => {
-                    console.log(`   ${fix.fixType.toUpperCase()}: ${fix.description}`);
-                });
+            else {
+                // Non-interactive mode (original behavior)
+                const fixerOptions = {
+                    projectPath: absolutePath,
+                    outputPath: options.output ? path.resolve(options.output) : undefined,
+                    dryRun: options.dryRun,
+                    fixTypes,
+                    aggressiveness: options.aggressiveness,
+                    backupOriginal: !options.noBackup,
+                    generateReport: !options.noReport
+                };
+                // Display configuration
+                console.log('\n🔧 CodeMind Auto-Fix Configuration:');
+                console.log(`   Project Path: ${fixerOptions.projectPath}`);
+                console.log(`   Output Path: ${fixerOptions.outputPath || 'Same as project'}`);
+                console.log(`   Dry Run: ${fixerOptions.dryRun ? 'Yes' : 'No'}`);
+                console.log(`   Create Backup: ${fixerOptions.backupOriginal ? 'Yes' : 'No'}`);
+                console.log(`   Generate Report: ${fixerOptions.generateReport ? 'Yes' : 'No'}`);
+                console.log(`   Fix Types: ${fixTypes.join(', ')}`);
+                console.log(`   Aggressiveness: ${fixerOptions.aggressiveness}`);
                 console.log('');
-            }
-            // Display failed fixes
-            const failedFixes = report.fixes.filter(f => !f.success);
-            if (failedFixes.length > 0) {
-                console.log('❌ Failed Fixes:');
-                failedFixes.forEach(fix => {
-                    console.log(`   ${fix.fixType.toUpperCase()}: ${fix.description}`);
-                    if (fix.errors) {
-                        console.log(`      Errors: ${fix.errors.join(', ')}`);
+                if (fixerOptions.dryRun) {
+                    console.log('🔍 DRY RUN MODE - No changes will be made to your project\n');
+                }
+                else {
+                    console.log('⚠️  LIVE MODE - Your project will be modified\n');
+                    if (!fixerOptions.backupOriginal) {
+                        console.log('❗ WARNING: No backup will be created. Make sure you have version control!\n');
                     }
-                });
+                }
+                // Create and run project fixer
+                const fixer = new project_fixer_1.ProjectFixer();
+                console.log('🚀 Starting project analysis and improvement...\n');
+                const report = await fixer.analyzeAndFix(fixerOptions);
+                // Display results
+                console.log('✅ Project improvement completed!\n');
+                console.log('📊 Summary:');
+                console.log(`   Issues Found: ${report.summary.totalIssuesFound}`);
+                console.log(`   Issues Fixed: ${report.summary.totalIssuesFixed}`);
+                console.log(`   Files Analyzed: ${report.summary.filesAnalyzed}`);
+                console.log(`   Files Modified: ${report.summary.filesModified}`);
+                console.log(`   Lines Changed: ${report.summary.linesChanged}`);
+                console.log(`   Overall Benefit Score: ${report.summary.overallBenefitScore}`);
                 console.log('');
-            }
-            // Display recommendations
-            if (report.recommendations.length > 0) {
-                console.log('💡 Recommendations:');
-                report.recommendations.forEach(rec => {
-                    console.log(`   • ${rec}`);
-                });
+                // Display quality metrics
+                console.log('📈 Quality Improvement:');
+                console.log(`   Quality Score: ${report.metrics.before.qualityScore} → ${report.metrics.after.qualityScore} (+${report.metrics.improvement.qualityScore})`);
+                if (report.metrics.improvement.duplicateLines > 0) {
+                    console.log(`   Duplicate Lines Removed: ${report.metrics.improvement.duplicateLines}`);
+                }
+                if (report.metrics.improvement.scatteredConfigs > 0) {
+                    console.log(`   Configurations Centralized: ${report.metrics.improvement.scatteredConfigs}`);
+                }
+                if (report.metrics.improvement.circularDependencies > 0) {
+                    console.log(`   Circular Dependencies Fixed: ${report.metrics.improvement.circularDependencies}`);
+                }
                 console.log('');
-            }
-            // Display next steps
-            if (report.nextSteps.length > 0) {
-                console.log('🎯 Next Steps:');
-                report.nextSteps.forEach(step => {
-                    console.log(`   • ${step}`);
-                });
-                console.log('');
-            }
-            if (fixerOptions.generateReport) {
-                console.log('📄 Detailed reports have been generated in your project directory');
-                console.log('   • codemind-improvement-report.json');
-                console.log('   • codemind-improvement-report.md');
+                // Display successful fixes
+                const successfulFixes = report.fixes.filter(f => f.success);
+                if (successfulFixes.length > 0) {
+                    console.log('✅ Successfully Applied Fixes:');
+                    successfulFixes.forEach(fix => {
+                        console.log(`   ${fix.fixType.toUpperCase()}: ${fix.description}`);
+                    });
+                    console.log('');
+                }
+                // Display failed fixes
+                const failedFixes = report.fixes.filter(f => !f.success);
+                if (failedFixes.length > 0) {
+                    console.log('❌ Failed Fixes:');
+                    failedFixes.forEach(fix => {
+                        console.log(`   ${fix.fixType.toUpperCase()}: ${fix.description}`);
+                        if (fix.errors) {
+                            console.log(`      Errors: ${fix.errors.join(', ')}`);
+                        }
+                    });
+                    console.log('');
+                }
+                // Display recommendations
+                if (report.recommendations.length > 0) {
+                    console.log('💡 Recommendations:');
+                    report.recommendations.forEach(rec => {
+                        console.log(`   • ${rec}`);
+                    });
+                    console.log('');
+                }
+                // Display next steps
+                if (report.nextSteps.length > 0) {
+                    console.log('🎯 Next Steps:');
+                    report.nextSteps.forEach(step => {
+                        console.log(`   • ${step}`);
+                    });
+                    console.log('');
+                }
+                if (fixerOptions.generateReport) {
+                    console.log('📄 Detailed reports have been generated in your project directory');
+                    console.log('   • codemind-improvement-report.json');
+                    console.log('   • codemind-improvement-report.md');
+                }
             }
             process.exit(0);
         }
@@ -184,6 +231,12 @@ function createAutoFixCommand() {
 // Example usage information
 exports.autoFixExamples = `
 Examples:
+  # Interactive mode with Git workflow and user approval (recommended)
+  npx codemind auto-fix ./my-project --interactive
+
+  # Interactive mode with automatic approval and testing
+  npx codemind auto-fix ./my-project --interactive --auto-approve
+
   # Analyze and fix all issues (with backup)
   npx codemind auto-fix ./my-project
 
@@ -192,6 +245,12 @@ Examples:
 
   # Fix only specific issue types
   npx codemind auto-fix ./my-project --types duplicates centralization
+
+  # Interactive mode without tests
+  npx codemind auto-fix ./my-project --interactive --skip-tests
+
+  # Interactive mode without Git workflow
+  npx codemind auto-fix ./my-project --interactive --skip-git
 
   # Conservative fixes only, no backup
   npx codemind auto-fix ./my-project --aggressiveness conservative --no-backup

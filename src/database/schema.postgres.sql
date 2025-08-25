@@ -332,6 +332,294 @@ WHERE p.status = 'active'
 GROUP BY p.id, p.project_path, p.project_name;
 
 -- ============================================
+-- PROCESS MONITORING AND ORCHESTRATION
+-- ============================================
+
+-- Track active AI orchestration processes and workflows
+CREATE TABLE IF NOT EXISTS orchestration_processes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  process_name TEXT NOT NULL,
+  process_type TEXT NOT NULL CHECK (
+    process_type IN ('feature', 'defect', 'tech_debt', 'hotfix', 'analysis', 'auto_improvement')
+  ),
+  workflow_id TEXT NOT NULL,
+  execution_id TEXT UNIQUE NOT NULL,
+  status TEXT DEFAULT 'running' CHECK (
+    status IN ('pending', 'running', 'paused', 'completed', 'failed', 'cancelled')
+  ),
+  priority INTEGER DEFAULT 5 CHECK (priority >= 1 AND priority <= 10),
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  estimated_duration INTEGER, -- in seconds
+  actual_duration INTEGER,    -- in seconds
+  progress_percent INTEGER DEFAULT 0 CHECK (progress_percent >= 0 AND progress_percent <= 100),
+  current_phase TEXT,
+  total_phases INTEGER DEFAULT 1,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  error_log JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Track individual AI roles and their activities within processes
+CREATE TABLE IF NOT EXISTS ai_role_activities (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  process_id UUID NOT NULL REFERENCES orchestration_processes(id) ON DELETE CASCADE,
+  role_name TEXT NOT NULL CHECK (
+    role_name IN (
+      'orchestrator', 'work_classifier', 'requirement_analyst', 'test_designer',
+      'implementation_developer', 'code_reviewer', 'security_auditor', 
+      'performance_auditor', 'quality_auditor', 'technical_documenter',
+      'release_manager', 'git_manager', 'conflict_resolver', 'deployment_manager',
+      'monitoring_specialist', 'rollback_coordinator', 'stakeholder_communicator',
+      'knowledge_curator', 'workflow_optimizer'
+    )
+  ),
+  activity_type TEXT NOT NULL CHECK (
+    activity_type IN ('analysis', 'implementation', 'review', 'testing', 'documentation', 'coordination')
+  ),
+  status TEXT DEFAULT 'active' CHECK (
+    status IN ('pending', 'active', 'waiting', 'completed', 'failed', 'skipped')
+  ),
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  duration_ms INTEGER,
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
+  api_calls INTEGER DEFAULT 0,
+  files_processed INTEGER DEFAULT 0,
+  lines_changed INTEGER DEFAULT 0,
+  result_summary TEXT,
+  artifacts JSONB DEFAULT '[]'::jsonb, -- files created, modified, etc.
+  quality_score DECIMAL(3,2) CHECK (quality_score >= 0 AND quality_score <= 1),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Store comprehensive process logs for debugging and monitoring
+CREATE TABLE IF NOT EXISTS process_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  process_id UUID REFERENCES orchestration_processes(id) ON DELETE CASCADE,
+  role_activity_id UUID REFERENCES ai_role_activities(id) ON DELETE CASCADE,
+  log_level TEXT NOT NULL CHECK (
+    log_level IN ('debug', 'info', 'warn', 'error', 'fatal')
+  ),
+  message TEXT NOT NULL,
+  context JSONB DEFAULT '{}'::jsonb,
+  stack_trace TEXT,
+  timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Track system metrics and performance indicators
+CREATE TABLE IF NOT EXISTS system_metrics (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  metric_type TEXT NOT NULL CHECK (
+    metric_type IN ('performance', 'usage', 'quality', 'resource', 'business')
+  ),
+  metric_name TEXT NOT NULL,
+  metric_value DECIMAL(15,6) NOT NULL,
+  metric_unit TEXT,
+  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+  process_id UUID REFERENCES orchestration_processes(id) ON DELETE SET NULL,
+  tags JSONB DEFAULT '{}'::jsonb,
+  timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Store accomplishment summaries and achievements
+CREATE TABLE IF NOT EXISTS accomplishments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  process_id UUID REFERENCES orchestration_processes(id) ON DELETE CASCADE,
+  category TEXT NOT NULL CHECK (
+    category IN ('code_improvement', 'quality_gate', 'security_fix', 'performance_gain', 'architecture_enhancement', 'automation', 'documentation')
+  ),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  impact_level TEXT NOT NULL CHECK (
+    impact_level IN ('minor', 'moderate', 'significant', 'major', 'critical')
+  ),
+  quantitative_metrics JSONB DEFAULT '{}'::jsonb, -- lines saved, time reduced, etc.
+  before_state JSONB DEFAULT '{}'::jsonb,
+  after_state JSONB DEFAULT '{}'::jsonb,
+  files_affected JSONB DEFAULT '[]'::jsonb,
+  beneficiaries JSONB DEFAULT '[]'::jsonb, -- teams, users affected
+  status TEXT DEFAULT 'achieved' CHECK (
+    status IN ('in_progress', 'achieved', 'validated', 'reverted')
+  ),
+  achieved_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Track workflow node states for complex orchestration visualization
+CREATE TABLE IF NOT EXISTS workflow_nodes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  process_id UUID NOT NULL REFERENCES orchestration_processes(id) ON DELETE CASCADE,
+  node_id TEXT NOT NULL,
+  node_type TEXT NOT NULL CHECK (
+    node_type IN ('start', 'task', 'decision', 'parallel', 'join', 'end', 'error_handler')
+  ),
+  node_name TEXT NOT NULL,
+  parent_node_id TEXT,
+  dependencies JSONB DEFAULT '[]'::jsonb, -- list of node_ids this depends on
+  status TEXT DEFAULT 'pending' CHECK (
+    status IN ('pending', 'running', 'completed', 'failed', 'skipped', 'waiting')
+  ),
+  assigned_role TEXT,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  duration_ms INTEGER,
+  input_data JSONB DEFAULT '{}'::jsonb,
+  output_data JSONB DEFAULT '{}'::jsonb,
+  error_info JSONB DEFAULT '{}'::jsonb,
+  retry_count INTEGER DEFAULT 0,
+  max_retries INTEGER DEFAULT 3,
+  position_x INTEGER DEFAULT 0, -- for visual layout
+  position_y INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- MONITORING INDEXES
+-- ============================================
+
+-- Orchestration process indexes
+CREATE INDEX IF NOT EXISTS idx_orchestration_project_id ON orchestration_processes(project_id);
+CREATE INDEX IF NOT EXISTS idx_orchestration_status ON orchestration_processes(status);
+CREATE INDEX IF NOT EXISTS idx_orchestration_type ON orchestration_processes(process_type);
+CREATE INDEX IF NOT EXISTS idx_orchestration_execution_id ON orchestration_processes(execution_id);
+CREATE INDEX IF NOT EXISTS idx_orchestration_started ON orchestration_processes(started_at);
+CREATE INDEX IF NOT EXISTS idx_orchestration_priority ON orchestration_processes(priority);
+
+-- AI role activity indexes
+CREATE INDEX IF NOT EXISTS idx_role_activities_process_id ON ai_role_activities(process_id);
+CREATE INDEX IF NOT EXISTS idx_role_activities_role ON ai_role_activities(role_name);
+CREATE INDEX IF NOT EXISTS idx_role_activities_status ON ai_role_activities(status);
+CREATE INDEX IF NOT EXISTS idx_role_activities_started ON ai_role_activities(started_at);
+CREATE INDEX IF NOT EXISTS idx_role_activities_type ON ai_role_activities(activity_type);
+
+-- Process logs indexes
+CREATE INDEX IF NOT EXISTS idx_process_logs_process_id ON process_logs(process_id);
+CREATE INDEX IF NOT EXISTS idx_process_logs_level ON process_logs(log_level);
+CREATE INDEX IF NOT EXISTS idx_process_logs_timestamp ON process_logs(timestamp);
+
+-- System metrics indexes
+CREATE INDEX IF NOT EXISTS idx_metrics_type ON system_metrics(metric_type);
+CREATE INDEX IF NOT EXISTS idx_metrics_name ON system_metrics(metric_name);
+CREATE INDEX IF NOT EXISTS idx_metrics_project_id ON system_metrics(project_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_process_id ON system_metrics(process_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON system_metrics(timestamp);
+
+-- Accomplishments indexes
+CREATE INDEX IF NOT EXISTS idx_accomplishments_project_id ON accomplishments(project_id);
+CREATE INDEX IF NOT EXISTS idx_accomplishments_process_id ON accomplishments(process_id);
+CREATE INDEX IF NOT EXISTS idx_accomplishments_category ON accomplishments(category);
+CREATE INDEX IF NOT EXISTS idx_accomplishments_impact ON accomplishments(impact_level);
+CREATE INDEX IF NOT EXISTS idx_accomplishments_achieved ON accomplishments(achieved_at);
+
+-- Workflow nodes indexes
+CREATE INDEX IF NOT EXISTS idx_workflow_nodes_process_id ON workflow_nodes(process_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_nodes_node_id ON workflow_nodes(node_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_nodes_status ON workflow_nodes(status);
+CREATE INDEX IF NOT EXISTS idx_workflow_nodes_parent ON workflow_nodes(parent_node_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_nodes_role ON workflow_nodes(assigned_role);
+
+-- JSONB indexes for complex queries
+CREATE INDEX IF NOT EXISTS idx_orchestration_metadata ON orchestration_processes USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_role_activities_artifacts ON ai_role_activities USING GIN (artifacts);
+CREATE INDEX IF NOT EXISTS idx_metrics_tags ON system_metrics USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_accomplishments_metrics ON accomplishments USING GIN (quantitative_metrics);
+CREATE INDEX IF NOT EXISTS idx_workflow_dependencies ON workflow_nodes USING GIN (dependencies);
+
+-- ============================================
+-- MONITORING TRIGGERS
+-- ============================================
+
+CREATE TRIGGER update_orchestration_updated_at BEFORE UPDATE ON orchestration_processes
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_role_activities_updated_at BEFORE UPDATE ON ai_role_activities
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workflow_nodes_updated_at BEFORE UPDATE ON workflow_nodes
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- MONITORING VIEWS
+-- ============================================
+
+-- Active processes dashboard view
+CREATE OR REPLACE VIEW dashboard_active_processes AS
+SELECT 
+    op.id,
+    op.execution_id,
+    op.process_name,
+    op.process_type,
+    op.status,
+    op.priority,
+    op.progress_percent,
+    op.current_phase,
+    op.total_phases,
+    p.project_name,
+    p.project_path,
+    op.started_at,
+    op.estimated_duration,
+    EXTRACT(EPOCH FROM (NOW() - op.started_at))::INTEGER as running_duration_seconds,
+    COUNT(ara.id) as active_roles,
+    COUNT(CASE WHEN ara.status = 'completed' THEN 1 END) as completed_activities,
+    COUNT(CASE WHEN ara.status = 'failed' THEN 1 END) as failed_activities,
+    SUM(ara.input_tokens) as total_input_tokens,
+    SUM(ara.output_tokens) as total_output_tokens,
+    AVG(ara.quality_score) as avg_quality_score
+FROM orchestration_processes op
+LEFT JOIN projects p ON op.project_id = p.id
+LEFT JOIN ai_role_activities ara ON op.id = ara.process_id
+WHERE op.status IN ('running', 'paused')
+GROUP BY op.id, p.project_name, p.project_path
+ORDER BY op.priority DESC, op.started_at DESC;
+
+-- System health metrics view
+CREATE OR REPLACE VIEW dashboard_system_health AS
+SELECT 
+    COUNT(CASE WHEN op.status = 'running' THEN 1 END) as active_processes,
+    COUNT(CASE WHEN op.status = 'failed' THEN 1 END) as failed_processes_today,
+    COUNT(CASE WHEN op.status = 'completed' AND op.completed_at >= NOW() - INTERVAL '24 hours' THEN 1 END) as completed_today,
+    AVG(CASE WHEN op.status = 'completed' THEN op.actual_duration END) as avg_process_duration,
+    SUM(ara.input_tokens) as total_input_tokens_today,
+    SUM(ara.output_tokens) as total_output_tokens_today,
+    COUNT(DISTINCT ara.role_name) as active_roles_today,
+    AVG(ara.quality_score) as avg_quality_score_today,
+    COUNT(acc.id) as accomplishments_today,
+    COUNT(CASE WHEN pl.log_level = 'error' THEN 1 END) as error_count_today
+FROM orchestration_processes op
+LEFT JOIN ai_role_activities ara ON op.id = ara.process_id AND ara.started_at >= NOW() - INTERVAL '24 hours'
+LEFT JOIN accomplishments acc ON op.id = acc.process_id AND acc.achieved_at >= NOW() - INTERVAL '24 hours'
+LEFT JOIN process_logs pl ON op.id = pl.process_id AND pl.timestamp >= NOW() - INTERVAL '24 hours'
+WHERE op.started_at >= NOW() - INTERVAL '24 hours' OR op.status IN ('running', 'paused');
+
+-- Recent accomplishments view
+CREATE OR REPLACE VIEW dashboard_recent_accomplishments AS
+SELECT 
+    acc.id,
+    acc.title,
+    acc.description,
+    acc.category,
+    acc.impact_level,
+    acc.quantitative_metrics,
+    p.project_name,
+    p.project_path,
+    op.process_name,
+    acc.achieved_at,
+    acc.files_affected
+FROM accomplishments acc
+LEFT JOIN projects p ON acc.project_id = p.id
+LEFT JOIN orchestration_processes op ON acc.process_id = op.id
+WHERE acc.achieved_at >= NOW() - INTERVAL '7 days'
+ORDER BY acc.achieved_at DESC
+LIMIT 50;
+
+-- ============================================
 -- INITIAL SYSTEM CONFIGURATION
 -- ============================================
 
@@ -344,5 +632,10 @@ INSERT INTO system_config (config_key, config_value, config_type, description, i
     ('supported_extensions', '["ts","js","py","java","cpp","cs","go","rs","php","rb"]', 'array', 'Supported file extensions for analysis', true),
     ('excluded_directories', '["node_modules","dist","build",".git","coverage"]', 'array', 'Directories to exclude from analysis', true),
     ('system_version', '"0.1.0"', 'string', 'Current system version', true),
-    ('postgres_version', '"1.0.0"', 'string', 'PostgreSQL schema version', true)
+    ('postgres_version', '"1.0.0"', 'string', 'PostgreSQL schema version', true),
+    ('dashboard_enabled', 'true', 'boolean', 'Enable monitoring dashboard', true),
+    ('dashboard_port', '3005', 'number', 'Dashboard web interface port', true),
+    ('max_concurrent_processes', '5', 'number', 'Maximum concurrent orchestration processes', true),
+    ('log_retention_days', '30', 'number', 'Number of days to retain process logs', true),
+    ('metrics_retention_days', '90', 'number', 'Number of days to retain system metrics', true)
 ON CONFLICT (config_key) DO NOTHING;

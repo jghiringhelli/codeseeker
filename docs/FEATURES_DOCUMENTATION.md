@@ -221,7 +221,59 @@ const report = await engine.runSelfImprovement();
 - Automated technical debt reduction
 - Performance optimization
 
-### 9. Git Integration System
+### 9. Auto-Improvement Mode
+
+**Location**: `src/auto-improvement/`
+
+#### Features:
+- **Interactive Git Workflow**: 7-phase improvement process with branching and user approval
+- **Static Code Analysis**: Comprehensive detection of duplications, configurations, and dependencies
+- **Test Integration**: Automatic test detection, execution, and failure handling
+- **Safety First**: Dry-run analysis, automatic backups, rollback capabilities
+- **Quality Scoring**: Before/after metrics with comprehensive improvement tracking
+- **Configurable Aggressiveness**: Conservative, moderate, and aggressive improvement levels
+
+#### Interactive Workflow Phases:
+1. **Git Repository Setup**: Initialize Git repository if needed
+2. **Project Analysis**: Dry-run analysis with detailed preview
+3. **Git Workflow Setup**: Create improvement branch and checkpoint commit
+4. **Applying Improvements**: Apply fixes based on analysis
+5. **Testing Changes**: Run tests and handle failures appropriately
+6. **Final Review**: Display comprehensive summary for user approval
+7. **Finalizing Changes**: Commit with detailed message and merge instructions
+
+#### Usage:
+```bash
+# Interactive mode with full Git workflow (recommended)
+npx codemind auto-fix ./my-project --interactive
+
+# Auto-approve for CI/CD pipelines
+npx codemind auto-fix ./my-project --interactive --auto-approve
+
+# Skip tests if not available
+npx codemind auto-fix ./my-project --interactive --skip-tests
+
+# Non-interactive basic mode
+npx codemind auto-fix ./my-project --dry-run
+npx codemind auto-fix ./my-project --types duplicates centralization
+```
+
+#### Safety Features:
+- **Dry-run Preview**: See all changes before applying
+- **Automatic Backups**: Create backups unless explicitly disabled
+- **Git Branching**: Isolated changes in dedicated branches
+- **Test Validation**: Run tests and prompt on failures
+- **Rollback Support**: Easy revert if changes are rejected
+- **User Approval**: Multiple confirmation points in interactive mode
+
+#### Benefits:
+- Safe, controlled code improvement process
+- Comprehensive Git workflow integration
+- Automated testing and validation
+- Detailed improvement tracking and reporting
+- Configurable safety and aggressiveness levels
+
+### 10. Git Integration System
 
 **Location**: `src/git/`
 
@@ -237,7 +289,7 @@ const report = await engine.runSelfImprovement();
 - Intelligent merge conflict resolution
 - Change impact analysis
 
-### 10. Knowledge Integration Framework
+### 11. Knowledge Integration Framework
 
 **Location**: `src/knowledge/integration/`
 
@@ -322,6 +374,23 @@ npx codemind context optimize --project ./src --focus "authentication"
 
 # Generate project summary
 npx codemind context summarize --project ./src --token-budget 8000
+```
+
+### Auto-Improvement Commands
+```bash
+# Interactive mode with Git workflow (recommended)
+npx codemind auto-fix ./my-project --interactive
+
+# Auto-approve for automated environments
+npx codemind auto-fix ./my-project --interactive --auto-approve
+
+# Skip tests or Git workflow if not available
+npx codemind auto-fix ./my-project --interactive --skip-tests --skip-git
+
+# Non-interactive modes
+npx codemind auto-fix ./my-project --dry-run
+npx codemind auto-fix ./my-project --types duplicates centralization
+npx codemind auto-fix ./my-project --aggressiveness conservative
 ```
 
 ## Integration Points

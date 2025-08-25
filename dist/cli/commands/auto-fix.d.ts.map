@@ -1,1 +1,1 @@
-{"version":3,"file":"auto-fix.d.ts","sourceRoot":"","sources":["../../../src/cli/commands/auto-fix.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AAKpC,wBAAgB,oBAAoB,IAAI,OAAO,CAiK9C;AAGD,eAAO,MAAM,eAAe,63CAkC3B,CAAC"}
+{"version":3,"file":"auto-fix.d.ts","sourceRoot":"","sources":["../../../src/cli/commands/auto-fix.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AAMpC,wBAAgB,oBAAoB,IAAI,OAAO,CAiN9C;AAGD,eAAO,MAAM,eAAe,60DA8C3B,CAAC"}
