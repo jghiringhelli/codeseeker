@@ -7,6 +7,7 @@
 CodeMind is a local auxiliary system that works alongside Claude Code to provide:
 - 🧠 **Smart Context Generation** - Token-efficient project context optimized for Claude
 - 🔍 **Codebase Analysis** - Automatic pattern detection and architectural insights  
+- 🌳 **Advanced Tree Traversal** - Intelligent class traversal for quick finding and concept understanding
 - 💡 **Intelligent Questions** - AI-generated questions based on your project state
 - 📋 **Development Planning** - Track and manage development plans with progress monitoring
 - 🚀 **Enhanced Setup** - Claude CLI integration for intelligent project configuration
