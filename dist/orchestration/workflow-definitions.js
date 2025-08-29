@@ -1,5 +1,8 @@
 "use strict";
-// Predefined Workflow DAG Definitions
+// ⚠️ DEPRECATED: Legacy Predefined Workflow DAG Definitions
+// This file is part of the legacy parallel orchestration system.
+// New implementations should use the workflow building methods in sequential-workflow-orchestrator.ts instead.
+// This file will be removed in a future version.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkflowDefinitions = void 0;
 const types_1 = require("./types");
@@ -572,10 +575,393 @@ class WorkflowDefinitions {
             backtrackRules: []
         };
     }
+    static createSimpleDevelopmentWorkflow() {
+        const nodes = new Map();
+        // Simplified workflow for quick changes
+        nodes?.set('classify-work', {
+            id: 'classify-work',
+            roleType: types_1.RoleType.WORK_CLASSIFIER,
+            name: 'Classify Work Item',
+            description: 'Quick classification of the work item',
+            dependencies: [],
+            inputs: [types_1.InputType.REQUIREMENTS],
+            outputs: [types_1.OutputType.SPECIFICATIONS],
+            executionTimeoutMs: 180000, // 3 minutes
+            retryAttempts: 2,
+            branchStrategy: {
+                pattern: 'simple/{workItemId}',
+                baseRef: 'main',
+                mergeTarget: 'main',
+                autoDelete: true
+            }
+        });
+        nodes?.set('implement-change', {
+            id: 'implement-change',
+            roleType: types_1.RoleType.IMPLEMENTATION_DEVELOPER,
+            name: 'Implement Change',
+            description: 'Quick implementation without extensive testing',
+            dependencies: ['classify-work'],
+            inputs: [types_1.InputType.SPECIFICATIONS],
+            outputs: [types_1.OutputType.IMPLEMENTED_CODE],
+            executionTimeoutMs: 1800000, // 30 minutes
+            retryAttempts: 3,
+            branchStrategy: {
+                pattern: 'simple/{workItemId}',
+                baseRef: 'simple/{workItemId}',
+                mergeTarget: 'simple/{workItemId}',
+                autoDelete: false
+            }
+        });
+        nodes?.set('basic-test', {
+            id: 'basic-test',
+            roleType: types_1.RoleType.UNIT_TEST_EXECUTOR,
+            name: 'Basic Testing',
+            description: 'Run basic tests to ensure functionality',
+            dependencies: ['implement-change'],
+            inputs: [types_1.InputType.IMPLEMENTED_CODE],
+            outputs: [types_1.OutputType.TEST_REPORT],
+            executionTimeoutMs: 900000, // 15 minutes
+            retryAttempts: 2,
+            branchStrategy: {
+                pattern: 'simple/{workItemId}',
+                baseRef: 'simple/{workItemId}',
+                mergeTarget: 'simple/{workItemId}',
+                autoDelete: false
+            }
+        });
+        nodes?.set('build-check', {
+            id: 'build-check',
+            roleType: types_1.RoleType.COMPILER_BUILDER,
+            name: 'Build Check',
+            description: 'Ensure the code builds successfully',
+            dependencies: ['basic-test'],
+            inputs: [types_1.InputType.IMPLEMENTED_CODE],
+            outputs: [types_1.OutputType.BUILD_ARTIFACTS],
+            executionTimeoutMs: 600000, // 10 minutes
+            retryAttempts: 2,
+            branchStrategy: {
+                pattern: 'simple/{workItemId}',
+                baseRef: 'simple/{workItemId}',
+                mergeTarget: 'main',
+                autoDelete: false
+            }
+        });
+        nodes?.set('commit-simple', {
+            id: 'commit-simple',
+            roleType: types_1.RoleType.COMMITTER,
+            name: 'Commit Changes',
+            description: 'Commit the simple changes',
+            dependencies: ['build-check'],
+            inputs: [types_1.InputType.IMPLEMENTED_CODE],
+            outputs: [types_1.OutputType.COMMIT_MESSAGE],
+            executionTimeoutMs: 180000, // 3 minutes
+            retryAttempts: 2,
+            branchStrategy: {
+                pattern: 'main',
+                baseRef: 'simple/{workItemId}',
+                mergeTarget: 'main',
+                autoDelete: true
+            }
+        });
+        const edges = [
+            { from: 'classify-work', to: 'implement-change', priority: 1 },
+            { from: 'implement-change', to: 'basic-test', priority: 1 },
+            { from: 'basic-test', to: 'build-check', priority: 1 },
+            { from: 'build-check', to: 'commit-simple', priority: 1 }
+        ];
+        return {
+            id: 'simple-development-v1',
+            name: 'Simple Development Workflow',
+            flowType: types_1.FlowType.SIMPLE_DEVELOPMENT,
+            nodes,
+            edges,
+            entryPoints: ['classify-work'],
+            mergePoints: ['build-check'],
+            exitPoints: ['commit-simple'],
+            backtrackRules: [
+                {
+                    id: 'build-failure-simple',
+                    trigger: types_1.BacktrackTrigger.BUILD_FAILURE,
+                    targetNode: 'implement-change',
+                    condition: 'buildStatus === "FAILED"',
+                    priority: 1,
+                    includeContext: [types_1.ContextType.ERROR_LOGS],
+                    maxBacktrackCount: 2
+                }
+            ]
+        };
+    }
+    static createPrototypeDevelopmentWorkflow() {
+        const nodes = new Map();
+        nodes?.set('prototype-classify', {
+            id: 'prototype-classify',
+            roleType: types_1.RoleType.WORK_CLASSIFIER,
+            name: 'Classify Prototype',
+            description: 'Quick prototype requirement analysis',
+            dependencies: [],
+            inputs: [types_1.InputType.REQUIREMENTS],
+            outputs: [types_1.OutputType.SPECIFICATIONS],
+            executionTimeoutMs: 300000, // 5 minutes
+            retryAttempts: 2,
+            branchStrategy: {
+                pattern: 'prototype/{workItemId}',
+                baseRef: 'main',
+                mergeTarget: 'prototype/{workItemId}',
+                autoDelete: true
+            }
+        });
+        nodes?.set('fast-implement', {
+            id: 'fast-implement',
+            roleType: types_1.RoleType.IMPLEMENTATION_DEVELOPER,
+            name: 'Fast Implementation',
+            description: 'Rapid prototype implementation focusing on core functionality',
+            dependencies: ['prototype-classify'],
+            inputs: [types_1.InputType.SPECIFICATIONS],
+            outputs: [types_1.OutputType.IMPLEMENTED_CODE],
+            executionTimeoutMs: 2400000, // 40 minutes
+            retryAttempts: 2,
+            branchStrategy: {
+                pattern: 'prototype/{workItemId}',
+                baseRef: 'prototype/{workItemId}',
+                mergeTarget: 'prototype/{workItemId}',
+                autoDelete: false
+            }
+        });
+        nodes?.set('prototype-validation', {
+            id: 'prototype-validation',
+            roleType: types_1.RoleType.UNIT_TEST_EXECUTOR,
+            name: 'Prototype Validation',
+            description: 'Basic validation that prototype works',
+            dependencies: ['fast-implement'],
+            inputs: [types_1.InputType.IMPLEMENTED_CODE],
+            outputs: [types_1.OutputType.TEST_REPORT],
+            executionTimeoutMs: 600000, // 10 minutes
+            retryAttempts: 1,
+            branchStrategy: {
+                pattern: 'prototype/{workItemId}',
+                baseRef: 'prototype/{workItemId}',
+                mergeTarget: 'prototype/{workItemId}',
+                autoDelete: false
+            }
+        });
+        nodes?.set('demo-prep', {
+            id: 'demo-prep',
+            roleType: types_1.RoleType.USER_DOCUMENTER,
+            name: 'Demo Preparation',
+            description: 'Prepare prototype for demonstration',
+            dependencies: ['prototype-validation'],
+            inputs: [types_1.InputType.IMPLEMENTED_CODE, types_1.InputType.TEST_REPORT],
+            outputs: [types_1.OutputType.DOCUMENTATION_UPDATE],
+            executionTimeoutMs: 900000, // 15 minutes
+            retryAttempts: 1,
+            branchStrategy: {
+                pattern: 'prototype/{workItemId}',
+                baseRef: 'prototype/{workItemId}',
+                mergeTarget: 'prototype/{workItemId}',
+                autoDelete: false
+            }
+        });
+        const edges = [
+            { from: 'prototype-classify', to: 'fast-implement', priority: 1 },
+            { from: 'fast-implement', to: 'prototype-validation', priority: 1 },
+            { from: 'prototype-validation', to: 'demo-prep', priority: 1 }
+        ];
+        return {
+            id: 'prototype-development-v1',
+            name: 'Prototype Development Workflow',
+            flowType: types_1.FlowType.PROTOTYPE_DEVELOPMENT,
+            nodes,
+            edges,
+            entryPoints: ['prototype-classify'],
+            mergePoints: ['demo-prep'],
+            exitPoints: ['demo-prep'],
+            backtrackRules: []
+        };
+    }
+    static createNonFunctionalImprovementsWorkflow() {
+        const nodes = new Map();
+        nodes?.set('analyze-current-state', {
+            id: 'analyze-current-state',
+            roleType: types_1.RoleType.REQUIREMENT_ANALYST,
+            name: 'Analyze Current State',
+            description: 'Analyze current performance, security, and quality metrics',
+            dependencies: [],
+            inputs: [types_1.InputType.REQUIREMENTS],
+            outputs: [types_1.OutputType.SPECIFICATIONS],
+            executionTimeoutMs: 1800000, // 30 minutes
+            retryAttempts: 2,
+            branchStrategy: {
+                pattern: 'nonfunctional/{workItemId}',
+                baseRef: 'main',
+                mergeTarget: 'nonfunctional/{workItemId}',
+                autoDelete: true
+            }
+        });
+        nodes?.set('performance-analysis', {
+            id: 'performance-analysis',
+            roleType: types_1.RoleType.PERFORMANCE_AUDITOR,
+            name: 'Performance Analysis',
+            description: 'Deep dive into performance bottlenecks and optimization opportunities',
+            dependencies: ['analyze-current-state'],
+            parallelWith: ['security-analysis'],
+            inputs: [types_1.InputType.SPECIFICATIONS],
+            outputs: [types_1.OutputType.PERFORMANCE_ANALYSIS],
+            executionTimeoutMs: 2400000, // 40 minutes
+            retryAttempts: 2,
+            branchStrategy: {
+                pattern: 'perf/{workItemId}',
+                baseRef: 'nonfunctional/{workItemId}',
+                mergeTarget: 'nonfunctional/{workItemId}',
+                autoDelete: true
+            }
+        });
+        nodes?.set('security-analysis', {
+            id: 'security-analysis',
+            roleType: types_1.RoleType.SECURITY_AUDITOR,
+            name: 'Security Analysis',
+            description: 'Comprehensive security assessment and vulnerability analysis',
+            dependencies: ['analyze-current-state'],
+            parallelWith: ['performance-analysis'],
+            inputs: [types_1.InputType.SPECIFICATIONS],
+            outputs: [types_1.OutputType.SECURITY_ASSESSMENT],
+            executionTimeoutMs: 2400000, // 40 minutes
+            retryAttempts: 2,
+            qualityGates: [{
+                    id: 'security-baseline',
+                    name: 'Security Baseline Gate',
+                    type: types_1.QualityGateType.QUALITY_GATE,
+                    criteria: [
+                        { metric: types_1.QualityMetric.SECURITY_SCORE, operator: 'GTE', threshold: 0.80, weight: 1.0 }
+                    ],
+                    blockingLevel: 'WARNING',
+                    autoFix: false
+                }],
+            branchStrategy: {
+                pattern: 'security/{workItemId}',
+                baseRef: 'nonfunctional/{workItemId}',
+                mergeTarget: 'nonfunctional/{workItemId}',
+                autoDelete: true
+            }
+        });
+        nodes?.set('quality-improvements', {
+            id: 'quality-improvements',
+            roleType: types_1.RoleType.QUALITY_AUDITOR,
+            name: 'Quality Improvements',
+            description: 'Implement code quality and architecture improvements',
+            dependencies: ['performance-analysis', 'security-analysis'],
+            inputs: [types_1.InputType.PERFORMANCE_ANALYSIS, types_1.InputType.SECURITY_ASSESSMENT],
+            outputs: [types_1.OutputType.IMPLEMENTED_CODE],
+            executionTimeoutMs: 3600000, // 1 hour
+            retryAttempts: 3,
+            branchStrategy: {
+                pattern: 'quality/{workItemId}',
+                baseRef: 'nonfunctional/{workItemId}',
+                mergeTarget: 'nonfunctional/{workItemId}',
+                autoDelete: true
+            }
+        });
+        nodes?.set('performance-optimization', {
+            id: 'performance-optimization',
+            roleType: types_1.RoleType.IMPLEMENTATION_DEVELOPER,
+            name: 'Performance Optimization',
+            description: 'Implement performance optimizations based on analysis',
+            dependencies: ['quality-improvements'],
+            inputs: [types_1.InputType.PERFORMANCE_ANALYSIS, types_1.InputType.IMPLEMENTED_CODE],
+            outputs: [types_1.OutputType.IMPLEMENTED_CODE],
+            executionTimeoutMs: 4200000, // 70 minutes
+            retryAttempts: 3,
+            branchStrategy: {
+                pattern: 'perf-opt/{workItemId}',
+                baseRef: 'nonfunctional/{workItemId}',
+                mergeTarget: 'nonfunctional/{workItemId}',
+                autoDelete: true
+            }
+        });
+        nodes?.set('security-hardening', {
+            id: 'security-hardening',
+            roleType: types_1.RoleType.SECURITY_AUDITOR,
+            name: 'Security Hardening',
+            description: 'Implement security improvements and fixes',
+            dependencies: ['quality-improvements'],
+            inputs: [types_1.InputType.SECURITY_ASSESSMENT, types_1.InputType.IMPLEMENTED_CODE],
+            outputs: [types_1.OutputType.IMPLEMENTED_CODE],
+            executionTimeoutMs: 3600000, // 1 hour
+            retryAttempts: 2,
+            branchStrategy: {
+                pattern: 'sec-hard/{workItemId}',
+                baseRef: 'nonfunctional/{workItemId}',
+                mergeTarget: 'nonfunctional/{workItemId}',
+                autoDelete: true
+            }
+        });
+        nodes?.set('final-validation', {
+            id: 'final-validation',
+            roleType: types_1.RoleType.INTEGRATION_TEST_ENGINEER,
+            name: 'Final Validation',
+            description: 'Comprehensive validation of all improvements',
+            dependencies: ['performance-optimization', 'security-hardening'],
+            inputs: [types_1.InputType.IMPLEMENTED_CODE],
+            outputs: [types_1.OutputType.TEST_REPORT],
+            executionTimeoutMs: 2400000, // 40 minutes
+            retryAttempts: 2,
+            qualityGates: [{
+                    id: 'improvement-validation',
+                    name: 'Improvement Validation Gate',
+                    type: types_1.QualityGateType.QUALITY_GATE,
+                    criteria: [
+                        { metric: types_1.QualityMetric.PERFORMANCE_IMPROVEMENT, operator: 'GTE', threshold: 0.15, weight: 0.4 },
+                        { metric: types_1.QualityMetric.SECURITY_SCORE, operator: 'GTE', threshold: 0.90, weight: 0.3 },
+                        { metric: types_1.QualityMetric.CODE_COVERAGE, operator: 'GTE', threshold: 0.80, weight: 0.3 }
+                    ],
+                    blockingLevel: 'ERROR',
+                    autoFix: false
+                }],
+            branchStrategy: {
+                pattern: 'nonfunctional/{workItemId}',
+                baseRef: 'nonfunctional/{workItemId}',
+                mergeTarget: 'nonfunctional/{workItemId}',
+                autoDelete: false
+            }
+        });
+        const edges = [
+            { from: 'analyze-current-state', to: 'performance-analysis', priority: 1 },
+            { from: 'analyze-current-state', to: 'security-analysis', priority: 1 },
+            { from: 'performance-analysis', to: 'quality-improvements', priority: 1 },
+            { from: 'security-analysis', to: 'quality-improvements', priority: 1 },
+            { from: 'quality-improvements', to: 'performance-optimization', priority: 1 },
+            { from: 'quality-improvements', to: 'security-hardening', priority: 1 },
+            { from: 'performance-optimization', to: 'final-validation', priority: 1 },
+            { from: 'security-hardening', to: 'final-validation', priority: 1 }
+        ];
+        return {
+            id: 'nonfunctional-improvements-v1',
+            name: 'Non-Functional Improvements Workflow',
+            flowType: types_1.FlowType.NONFUNCTIONAL_IMPROVEMENTS,
+            nodes,
+            edges,
+            entryPoints: ['analyze-current-state'],
+            mergePoints: ['quality-improvements', 'final-validation'],
+            exitPoints: ['final-validation'],
+            backtrackRules: [
+                {
+                    id: 'performance-regression',
+                    trigger: types_1.BacktrackTrigger.QUALITY_GATE_FAILURE,
+                    targetNode: 'performance-optimization',
+                    condition: 'performanceImprovement < 0.10',
+                    priority: 1,
+                    includeContext: [types_1.ContextType.PERFORMANCE_METRICS],
+                    maxBacktrackCount: 2
+                }
+            ]
+        };
+    }
     static getAllWorkflows() {
         return [
             this?.createFeatureDevelopmentWorkflow(),
             this?.createDefectResolutionWorkflow(),
+            this?.createSimpleDevelopmentWorkflow(),
+            this?.createPrototypeDevelopmentWorkflow(),
+            this?.createNonFunctionalImprovementsWorkflow(),
             this?.createTechDebtWorkflow(),
             this?.createHotfixWorkflow()
         ];

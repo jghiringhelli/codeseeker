@@ -133,7 +133,7 @@ class SemanticAnalyzer {
             return { nodes: 0, triads: 0 };
         try {
             this.logger.debug(`Analyzing file: ${path?.relative(this.config.projectPath, filePath)}`);
-            const analysis = await this.astAnalyzer?.analyzeCode(content, this?.getLanguageFromPath(filePath));
+            const analysis = await this.astAnalyzer?.analyzeCode?.(content, this?.getLanguageFromPath(filePath)) || { functions: [], classes: [], dependencies: [] };
             const sourceLocation = {
                 filePath: path?.relative(this.config.projectPath, filePath),
                 startLine: 1,

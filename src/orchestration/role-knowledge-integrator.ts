@@ -6,7 +6,7 @@ import { RoleType, WorkflowNode, WorkflowExecution } from './types';
 
 export { RoleType };
 import { SemanticKnowledgeGraph } from '../knowledge/graph/knowledge-graph';
-import { KnowledgeRepository, RAGContext } from '../knowledge/repository/knowledge-repository';
+import { KnowledgeRepository, RAGContext, KnowledgeType } from '../knowledge/repository/knowledge-repository';
 import { ProjectManagementKB } from './project-management-kb';
 import ClassTraversalEngine, { 
   ClassTraversalQuery, 
@@ -407,7 +407,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
     const searchResults = await this.knowledgeRepo?.searchKnowledge(
       `${roleType} ${inputs.domain || ''}`,
       { 
-        types: ['PROFESSIONAL_ADVICE', 'RESEARCH_PAPER', 'BEST_PRACTICE'],
+        types: [KnowledgeType.PROFESSIONAL_ADVICE, KnowledgeType.RESEARCH_PAPER, KnowledgeType.BEST_PRACTICE],
         limit: 10 
       }
     );
@@ -521,7 +521,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
   }
 
   private mapRoleToClassFocusArea(roleType: RoleType): ClassFocusArea {
-    const roleToFocusAreaMap: Record<RoleType, ClassFocusArea> = {
+    const roleToFocusAreaMap: Partial<Record<RoleType, ClassFocusArea>> = {
       [RoleType.REQUIREMENT_ANALYST]: ClassFocusArea.BUSINESS_LOGIC,
       [RoleType.TEST_DESIGNER]: ClassFocusArea.TESTING,
       [RoleType.IMPLEMENTATION_DEVELOPER]: ClassFocusArea.ARCHITECTURE,
@@ -548,7 +548,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
   }
 
   private getRoleSpecificConcept(roleType: RoleType): string {
-    const roleToConcept: Record<RoleType, string> = {
+    const roleToConcept: Partial<Record<RoleType, string>> = {
       [RoleType.REQUIREMENT_ANALYST]: 'business-logic',
       [RoleType.TEST_DESIGNER]: 'testing',
       [RoleType.IMPLEMENTATION_DEVELOPER]: 'architecture',
@@ -801,8 +801,12 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
       ...baseMetrics,
       ...qualityMetrics,
       ...businessMetrics,
-      ...learningMetrics
-    };
+      ...learningMetrics,
+      // Ensure required properties exist
+      accuracy: qualityMetrics?.accuracy ?? 0,
+      completeness: qualityMetrics?.completeness ?? 0,
+      consistency: qualityMetrics?.consistency ?? 0
+    } as any;
   }
 
   private async calculateRoleQualityMetrics(
@@ -1110,7 +1114,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
   }
 
   private getDependentRoles(roleType: RoleType): string[] {
-    const dependencies: Record<RoleType, string[]> = {
+    const dependencies: Partial<Record<RoleType, string[]>> = {
       [RoleType.TEST_DESIGNER]: [RoleType.REQUIREMENT_ANALYST],
       [RoleType.IMPLEMENTATION_DEVELOPER]: [RoleType.TEST_DESIGNER, RoleType.REQUIREMENT_ANALYST],
       [RoleType.SECURITY_AUDITOR]: [RoleType.IMPLEMENTATION_DEVELOPER],
@@ -1123,7 +1127,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
   }
 
   private getParallelRoles(roleType: RoleType): string[] {
-    const parallel: Record<RoleType, string[]> = {
+    const parallel: Partial<Record<RoleType, string[]>> = {
       [RoleType.SECURITY_AUDITOR]: [RoleType.PERFORMANCE_AUDITOR, RoleType.QUALITY_AUDITOR],
       [RoleType.PERFORMANCE_AUDITOR]: [RoleType.SECURITY_AUDITOR, RoleType.QUALITY_AUDITOR],
       [RoleType.QUALITY_AUDITOR]: [RoleType.SECURITY_AUDITOR, RoleType.PERFORMANCE_AUDITOR],
@@ -1134,7 +1138,7 @@ export class RoleKnowledgeIntegrator extends EventEmitter {
   }
 
   private getNextRoles(roleType: RoleType): string[] {
-    const next: Record<RoleType, string[]> = {
+    const next: Partial<Record<RoleType, string[]>> = {
       [RoleType.REQUIREMENT_ANALYST]: [RoleType.TEST_DESIGNER],
       [RoleType.TEST_DESIGNER]: [RoleType.IMPLEMENTATION_DEVELOPER],
       [RoleType.IMPLEMENTATION_DEVELOPER]: [RoleType.SECURITY_AUDITOR, RoleType.PERFORMANCE_AUDITOR, RoleType.QUALITY_AUDITOR],

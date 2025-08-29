@@ -1,7 +1,14 @@
-// Workflow Orchestrator - Core Execution Engine
+// ⚠️ DEPRECATED: Legacy Workflow Orchestrator - Core Execution Engine
+// This file is part of the legacy parallel orchestration system.
+// New implementations should use sequential-workflow-orchestrator.ts instead.
+// This file will be removed in a future version.
 
 import { EventEmitter } from 'events';
 import { Logger } from '../shared/logger';
+import { ClaudeIntegration } from '../cli/claude-integration';
+import { Database } from '../database/database';
+import { PerformanceMonitor } from '../shared/performance-monitor';
+import { IntelligentToolSelector } from '../cli/intelligent-tool-selector';
 import {
   WorkflowDAG,
   WorkflowExecution,
@@ -13,12 +20,18 @@ import {
   ConcurrencyConfig,
   TerminalSession,
   MultiplexorConfig,
-  BacktrackEvent
+  BacktrackEvent,
+  ClaudeWorkflowDecision,
+  WorkflowContext
 } from './types';
 import { WorkflowDefinitions } from './workflow-definitions';
 
 export class WorkflowOrchestrator extends EventEmitter {
   private logger: Logger;
+  private claude: ClaudeIntegration;
+  private db: Database;
+  private monitor: PerformanceMonitor;
+  private toolSelector: IntelligentToolSelector;
   private activeExecutions: Map<string, WorkflowExecution> = new Map();
   private roleInstances: Map<RoleType, number> = new Map();
   private terminalSessions: Map<string, TerminalSession> = new Map();
@@ -28,19 +41,27 @@ export class WorkflowOrchestrator extends EventEmitter {
 
   constructor(
     logger: Logger,
+    claude: ClaudeIntegration,
+    db: Database,
+    monitor: PerformanceMonitor,
+    toolSelector: IntelligentToolSelector,
     concurrencyConfig: ConcurrencyConfig,
     multiplexorConfig: MultiplexorConfig
   ) {
     super();
     this.logger = logger;
+    this.claude = claude;
+    this.db = db;
+    this.monitor = monitor;
+    this.toolSelector = toolSelector;
     this.concurrencyConfig = concurrencyConfig;
     this.multiplexorConfig = multiplexorConfig;
     
     // Initialize workflow definitions
-    this?.loadWorkflowDefinitions();
+    this.loadWorkflowDefinitions();
     
     // Initialize role instance tracking
-    this?.initializeRoleInstanceTracking();
+    this.initializeRoleInstanceTracking();
   }
 
   private loadWorkflowDefinitions(): void {
@@ -65,12 +86,350 @@ export class WorkflowOrchestrator extends EventEmitter {
     inputs: any,
     metadata: any
   ): Promise<string> {
-    const workflow = this.workflowDefinitions?.get(workflowId);
+    const startTime = Date.now();
+    
+    try {
+      this.logger.info(`🧠 Claude analyzing workflow requirements for: ${workItemId}`);
+      
+      // Let Claude analyze the workflow requirements
+      const workflowContext: WorkflowContext = {
+        workItemId,
+        projectPath: metadata.projectPath || '.',
+        workflowId,
+        inputs,
+        metadata,
+        projectContext: await this.gatherProjectContext(metadata.projectPath),
+        systemLoad: await this.getSystemLoad()
+      };
+
+      // Claude makes workflow decisions
+      const claudeDecision = await this.claudeAnalyzeWorkflow(workflowContext);
+      
+      // Get or optimize workflow based on Claude's analysis
+      const workflow = await this.getOptimizedWorkflow(claudeDecision, workflowContext);
+      
+      if (!workflow) {
+        throw new Error(`Workflow ${workflowId} not found or could not be optimized`);
+      }
+
+      const executionId = `${workItemId}-${Date.now()}`;
+      
+      const execution: WorkflowExecution = {
+        id: executionId,
+        workflowId: claudeDecision.selectedWorkflow || workflowId,
+        workItemId,
+        status: ExecutionStatus.PENDING,
+        currentNode: null,
+        completedNodes: [],
+        failedNodes: [],
+        startTime: new Date(),
+        qualityScores: new Map(),
+        branchRefs: new Map(),
+        backtrackHistory: [],
+        metadata: {
+          ...metadata,
+          claudeDecision,
+          optimizations: claudeDecision.optimizations
+        }
+      };
+
+      this.activeExecutions.set(executionId, execution);
+      
+      // Record Claude's workflow decision
+      await this.recordWorkflowDecision(execution, claudeDecision);
+      
+      this.logger.info(`🚀 Started workflow execution: ${executionId} with Claude optimizations`);
+
+      // Monitor workflow initiation performance
+      this.monitor.record('workflow_initiation', {
+        duration: Date.now() - startTime,
+        workflowId: execution.workflowId,
+        optimizations: claudeDecision.optimizations.length
+      });
+
+      // Start execution asynchronously
+      this.executeWorkflow(executionId).catch(error => {
+        this.logger.error(`Workflow execution failed: ${executionId}`, error as Error);
+        this.handleExecutionFailure(executionId, error);
+      });
+
+      return executionId;
+      
+    } catch (error) {
+      this.logger.error('Failed to start workflow with Claude analysis, using fallback', error);
+      return this.fallbackWorkflowStart(workItemId, workflowId, inputs, metadata);
+    }
+  }
+
+  private async claudeAnalyzeWorkflow(context: WorkflowContext): Promise<ClaudeWorkflowDecision> {
+    const prompt = this.buildWorkflowAnalysisPrompt(context);
+    
+    try {
+      const response = await this.claude.askQuestion(prompt, {
+        projectPath: context.projectContext?.projectPath || '.',
+        estimatedTokens: 2000,
+        priorityFiles: [],
+        tokenBudget: 2000,
+        strategy: 'smart',
+        focusArea: 'orchestration'
+      } as any);
+
+      return this.parseWorkflowDecision(response.content);
+      
+    } catch (error) {
+      this.logger.warn('Claude workflow analysis failed, using defaults');
+      return this.getDefaultWorkflowDecision(context);
+    }
+  }
+
+  private buildWorkflowAnalysisPrompt(context: WorkflowContext): string {
+    return `# Intelligent Workflow Orchestration
+
+You are Claude, the central brain of the CodeMind orchestration system. Analyze this work item and optimize the workflow execution.
+
+## Work Item Analysis
+**ID**: ${context.workItemId}
+**Type**: ${context.metadata?.workItemType || 'unknown'}
+**Complexity**: ${context.metadata?.complexity || 'medium'}
+**Priority**: ${context.metadata?.priority || 'normal'}
+
+## Project Context
+${context.projectContext ? `
+- Project Path: ${context.projectContext.projectPath}
+- Size: ${context.projectContext.size} files
+- Languages: ${context.projectContext.primaryLanguages?.join(', ')}
+- Frameworks: ${context.projectContext.frameworks?.join(', ')}
+- Has Tests: ${context.projectContext.hasTests}
+- Architecture: ${context.projectContext.architecture || 'unknown'}
+` : 'No project context available'}
+
+## System Load
+- Active Workflows: ${context.systemLoad?.activeWorkflows || 0}
+- CPU Usage: ${context.systemLoad?.cpuUsage || 0}%
+- Memory Usage: ${context.systemLoad?.memoryUsage || 0}%
+- Queue Length: ${context.systemLoad?.queueLength || 0}
+
+## Available Workflows
+- feature_development: Complete feature development with quality gates
+- bug_fix: Fast bug resolution with testing focus
+- refactoring: Code improvement with safety checks
+- security_audit: Security-focused analysis and fixes
+- performance_optimization: Performance improvement workflow
+
+## Your Task
+
+As the orchestration brain, decide:
+
+1. **Workflow Selection**: Which workflow best fits this work item?
+2. **Role Optimization**: Which roles are essential vs optional?
+3. **Execution Strategy**: Parallel, sequential, or adaptive?
+4. **Quality Gates**: Which quality thresholds are appropriate?
+5. **Performance**: How to optimize for current system load?
+
+## Response Format
+
+\`\`\`json
+{
+  "selectedWorkflow": "feature_development",
+  "reasoning": "This work item requires full development cycle with testing",
+  "confidence": 0.92,
+  "optimizations": [
+    "skip_documentation_role_due_to_low_priority",
+    "parallel_test_design_and_security_audit",
+    "reduce_quality_threshold_for_speed"
+  ],
+  "executionStrategy": "adaptive",
+  "estimatedDuration": 1800,
+  "roleAdjustments": {
+    "documentation_writer": "optional",
+    "performance_auditor": "required"
+  },
+  "qualityGates": {
+    "test_coverage": 0.80,
+    "security_score": 0.85,
+    "code_quality": 0.90
+  },
+  "resourceAllocation": {
+    "maxParallelRoles": 3,
+    "memoryBudget": "512MB",
+    "timeoutMinutes": 30
+  }
+}
+\`\`\`
+
+**Decision Criteria**:
+- Consider work item complexity and type
+- Account for current system load
+- Balance speed vs quality based on priority
+- Optimize resource usage
+- Ensure quality gates are appropriate
+- Plan for potential failures and backtracking`;
+  }
+
+  private parseWorkflowDecision(response: string): ClaudeWorkflowDecision {
+    try {
+      const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[1]);
+      }
+
+      const directJsonMatch = response.match(/\{[\s\S]*\}/);
+      if (directJsonMatch) {
+        return JSON.parse(directJsonMatch[0]);
+      }
+    } catch (error) {
+      this.logger.warn('Failed to parse Claude workflow decision:', error);
+    }
+
+    // Fallback decision
+    return this.getDefaultWorkflowDecision();
+  }
+
+  private getDefaultWorkflowDecision(context?: WorkflowContext): ClaudeWorkflowDecision {
+    return {
+      selectedWorkflow: context?.workflowId || 'feature_development',
+      reasoning: 'Default workflow selection due to parsing failure',
+      confidence: 0.5,
+      optimizations: [],
+      executionStrategy: 'sequential',
+      estimatedDuration: 3600,
+      roleAdjustments: {},
+      qualityGates: {
+        test_coverage: 0.85,
+        security_score: 0.90,
+        code_quality: 0.85
+      },
+      resourceAllocation: {
+        maxParallelRoles: 2,
+        memoryBudget: '256MB',
+        timeoutMinutes: 60
+      }
+    };
+  }
+
+  private async getOptimizedWorkflow(
+    decision: ClaudeWorkflowDecision, 
+    context: WorkflowContext
+  ): Promise<WorkflowDAG | null> {
+    const baseWorkflow = this.workflowDefinitions.get(decision.selectedWorkflow);
+    if (!baseWorkflow) return null;
+
+    // Apply Claude's optimizations to the workflow
+    const optimizedWorkflow = await this.applyWorkflowOptimizations(
+      baseWorkflow,
+      decision,
+      context
+    );
+
+    return optimizedWorkflow;
+  }
+
+  private async applyWorkflowOptimizations(
+    workflow: WorkflowDAG,
+    decision: ClaudeWorkflowDecision,
+    context: WorkflowContext
+  ): Promise<WorkflowDAG> {
+    // Clone the workflow for optimization
+    const optimized = JSON.parse(JSON.stringify(workflow));
+
+    // Apply role adjustments
+    for (const [roleType, adjustment] of Object.entries(decision.roleAdjustments)) {
+      if (adjustment === 'optional') {
+        // Mark role as optional (can be skipped under load)
+        const nodes = Array.from(optimized.nodes.values())
+          .filter((node: WorkflowNode) => node.roleType === roleType);
+        nodes.forEach((node: WorkflowNode) => {
+          node.optional = true;
+        });
+      }
+    }
+
+    // Update quality gates
+    if (decision.qualityGates) {
+      optimized.qualityGates = {
+        ...optimized.qualityGates,
+        ...decision.qualityGates
+      };
+    }
+
+    // Apply execution strategy optimizations
+    if (decision.executionStrategy === 'parallel') {
+      // Mark more nodes as parallelizable
+      this.optimizeForParallelExecution(optimized);
+    }
+
+    return optimized;
+  }
+
+  private async gatherProjectContext(projectPath?: string): Promise<any> {
+    if (!projectPath) return null;
+    
+    try {
+      // Use tool selector to gather project insights
+      const toolChain = await this.toolSelector.selectOptimalTools({
+        task: 'Analyze project for workflow optimization',
+        projectPath,
+        optimization: 'speed'
+      });
+
+      return {
+        projectPath,
+        // Add more context as needed
+        size: 100, // placeholder
+        primaryLanguages: ['TypeScript'],
+        frameworks: ['Node.js'],
+        hasTests: true,
+        architecture: 'layered'
+      };
+    } catch (error) {
+      this.logger.warn('Failed to gather project context:', error);
+      return null;
+    }
+  }
+
+  private async getSystemLoad(): Promise<any> {
+    return {
+      activeWorkflows: this.activeExecutions.size,
+      cpuUsage: process.cpuUsage().system / 1000000, // Convert to percentage
+      memoryUsage: (process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100,
+      queueLength: Array.from(this.activeExecutions.values())
+        .filter(exec => exec.status === ExecutionStatus.PENDING).length
+    };
+  }
+
+  private async recordWorkflowDecision(
+    execution: WorkflowExecution,
+    decision: ClaudeWorkflowDecision
+  ): Promise<void> {
+    try {
+      await this.db.recordClaudeDecision({
+        project_id: execution.metadata.projectId,
+        decision_type: 'workflow_orchestration',
+        context: {
+          workItemId: execution.workItemId,
+          workItemType: execution.metadata.workItemType
+        },
+        decision: decision,
+        timestamp: new Date()
+      });
+    } catch (error) {
+      this.logger.warn('Failed to record workflow decision:', error);
+    }
+  }
+
+  private async fallbackWorkflowStart(
+    workItemId: string,
+    workflowId: string,
+    inputs: any,
+    metadata: any
+  ): Promise<string> {
+    // Fallback to original implementation
+    const workflow = this.workflowDefinitions.get(workflowId);
     if (!workflow) {
       throw new Error(`Workflow ${workflowId} not found`);
     }
 
-    const executionId = `${workItemId}-${Date?.now()}`;
+    const executionId = `${workItemId}-${Date.now()}`;
     
     const execution: WorkflowExecution = {
       id: executionId,
@@ -87,16 +446,32 @@ export class WorkflowOrchestrator extends EventEmitter {
       metadata
     };
 
-    this.activeExecutions?.set(executionId, execution);
-    this.logger.info(`Started workflow execution: ${executionId} for workflow: ${workflowId}`);
-
-    // Start execution asynchronously
-    this?.executeWorkflow(executionId).catch(error => {
-      this.logger.error(`Workflow execution failed: ${executionId}`, error as Error);
-      this?.handleExecutionFailure(executionId, error);
+    this.activeExecutions.set(executionId, execution);
+    
+    // Start execution
+    this.executeWorkflow(executionId).catch(error => {
+      this.handleExecutionFailure(executionId, error);
     });
 
     return executionId;
+  }
+
+  private optimizeForParallelExecution(workflow: WorkflowDAG): void {
+    // Mark compatible roles as parallelizable
+    const parallelizableRoles = [
+      RoleType.TEST_DESIGNER,
+      RoleType.SECURITY_AUDITOR,
+      RoleType.PERFORMANCE_AUDITOR,
+      RoleType.DOCUMENTATION_WRITER
+    ];
+
+    Array.from(workflow.nodes.values()).forEach((node: WorkflowNode) => {
+      if (parallelizableRoles.includes(node.roleType)) {
+        if (!node.parallelWith) node.parallelWith = [];
+        // Add other parallelizable roles
+        node.parallelWith.push(...parallelizableRoles.filter(r => r !== node.roleType));
+      }
+    });
   }
 
   private async executeWorkflow(executionId: string): Promise<void> {
@@ -615,5 +990,31 @@ export class WorkflowOrchestrator extends EventEmitter {
 
   async getTerminalSessions(): Promise<TerminalSession[]> {
     return Array.from(this.terminalSessions?.values());
+  }
+
+  // Public wrapper for external tool integration
+  async executeWorkflowPublic(params: any): Promise<any> {
+    try {
+      const workflowId = params.workflowId || 'default-workflow';
+      const workItemId = params.workItemId || 'external-' + Date.now();
+      
+      const executionId = await this.startWorkflow(
+        workItemId,
+        workflowId,
+        params,
+        { 
+          workItemType: 'SIMPLE_DEVELOPMENT',
+          priority: 'MEDIUM',
+          complexity: 'MODERATE',
+          riskLevel: 'LOW',
+          projectPath: params.projectPath || '.'
+        }
+      );
+      
+      return { executionId, status: 'started' };
+    } catch (error) {
+      this.logger.error('Failed to execute workflow:', error);
+      throw error;
+    }
   }
 }

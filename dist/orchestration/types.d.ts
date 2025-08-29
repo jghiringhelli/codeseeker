@@ -11,6 +11,7 @@ export interface WorkflowNode {
     retryAttempts: number;
     qualityGates?: QualityGate[];
     branchStrategy: BranchStrategy;
+    optional?: boolean;
 }
 export interface WorkflowDAG {
     id: string;
@@ -41,6 +42,7 @@ export declare enum RoleType {
     QUALITY_AUDITOR = "QUALITY_AUDITOR",
     TECHNICAL_DOCUMENTER = "TECHNICAL_DOCUMENTER",
     USER_DOCUMENTER = "USER_DOCUMENTER",
+    DOCUMENTATION_WRITER = "DOCUMENTATION_WRITER",
     RELEASE_MANAGER = "RELEASE_MANAGER",
     COMMITTER = "COMMITTER"
 }
@@ -49,7 +51,10 @@ export declare enum FlowType {
     DEFECT_RESOLUTION = "DEFECT_RESOLUTION",
     TECH_DEBT_REDUCTION = "TECH_DEBT_REDUCTION",
     HOTFIX = "HOTFIX",
-    REFACTORING = "REFACTORING"
+    REFACTORING = "REFACTORING",
+    SIMPLE_DEVELOPMENT = "SIMPLE_DEVELOPMENT",
+    PROTOTYPE_DEVELOPMENT = "PROTOTYPE_DEVELOPMENT",
+    NONFUNCTIONAL_IMPROVEMENTS = "NONFUNCTIONAL_IMPROVEMENTS"
 }
 export interface WorkflowEdge {
     from: string;
@@ -90,6 +95,7 @@ export declare enum QualityMetric {
     RESPONSE_TIME = "RESPONSE_TIME",
     MEMORY_USAGE = "MEMORY_USAGE",
     CPU_UTILIZATION = "CPU_UTILIZATION",
+    PERFORMANCE_IMPROVEMENT = "PERFORMANCE_IMPROVEMENT",
     CODE_COVERAGE = "CODE_COVERAGE",
     CYCLOMATIC_COMPLEXITY = "CYCLOMATIC_COMPLEXITY",
     DUPLICATION_PERCENTAGE = "DUPLICATION_PERCENTAGE",
@@ -171,6 +177,27 @@ export interface ExecutionMetadata {
     actualDuration?: number;
     complexity: 'TRIVIAL' | 'SIMPLE' | 'MODERATE' | 'COMPLEX' | 'VERY_COMPLEX';
     riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+    projectId?: string;
+}
+export interface WorkflowContext {
+    workItemId: string;
+    projectPath: string;
+    metadata: ExecutionMetadata;
+    workflowId?: string;
+    projectContext?: any;
+    systemLoad?: any;
+    inputs?: any;
+}
+export interface ClaudeWorkflowDecision {
+    selectedWorkflow: string;
+    confidence: number;
+    reasoning: string;
+    estimatedDuration: number;
+    optimizations?: any;
+    roleAdjustments?: any;
+    qualityGates?: any;
+    executionStrategy?: any;
+    resourceAllocation?: any;
 }
 export declare enum InputType {
     REQUIREMENTS = "REQUIREMENTS",
@@ -181,6 +208,8 @@ export declare enum InputType {
     QUALITY_REPORT = "QUALITY_REPORT",
     SECURITY_REPORT = "SECURITY_REPORT",
     PERFORMANCE_METRICS = "PERFORMANCE_METRICS",
+    PERFORMANCE_ANALYSIS = "PERFORMANCE_ANALYSIS",
+    SECURITY_ASSESSMENT = "SECURITY_ASSESSMENT",
     DOCUMENTATION = "DOCUMENTATION",
     SPECIFICATIONS = "SPECIFICATIONS",
     TEST_SUITE = "TEST_SUITE",
@@ -209,6 +238,7 @@ export declare enum ContextType {
     QUALITY_ISSUES = "QUALITY_ISSUES",
     SECURITY_VULNERABILITIES = "SECURITY_VULNERABILITIES",
     PERFORMANCE_BOTTLENECKS = "PERFORMANCE_BOTTLENECKS",
+    PERFORMANCE_METRICS = "PERFORMANCE_METRICS",
     DEPENDENCY_CONFLICTS = "DEPENDENCY_CONFLICTS",
     ARCHITECTURAL_VIOLATIONS = "ARCHITECTURAL_VIOLATIONS"
 }

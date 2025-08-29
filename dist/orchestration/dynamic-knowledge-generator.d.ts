@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { Logger } from '../shared/logger';
 import { RoleType } from './types';
-export { RoleType, Action, Warning, Pattern, QualityCheck };
+export { RoleType };
 import { RoleKnowledgeContext } from './role-knowledge-integrator';
 import { SemanticKnowledgeGraph } from '../knowledge/graph/knowledge-graph';
 import { KnowledgeRepository } from '../knowledge/repository/knowledge-repository';

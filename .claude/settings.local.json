@@ -26,12 +26,23 @@
       "Bash(git commit:*)",
       "Bash(npm test:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker ps:*)",
+      "Bash(bash:*)",
+      "Bash(grep:*)",
+      "Bash(docker:*)",
+      "Bash(DB_HOST=localhost DB_PORT=5432 REDIS_HOST=localhost REDIS_PORT=6379 npm run dashboard)",
+      "Bash(DB_HOST=localhost DB_PORT=5432 REDIS_HOST=localhost REDIS_PORT=6379 ORCHESTRATOR_PORT=3006 npm run orchestrator)",
+      "Bash(DB_HOST=localhost DB_PORT=5432 DB_NAME=codemind DB_USER=codemind DB_PASSWORD=codemind123 node dist/orchestration/orchestrator-server.js)"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "C:\\workspace\\claude\\TestNewProject"
+      "C:\\workspace\\claude\\TestNewProject",
+      "C:\\workspace\\claude\\FreshTestProject"
     ]
   }
 }

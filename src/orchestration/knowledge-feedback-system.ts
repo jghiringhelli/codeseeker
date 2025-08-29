@@ -159,7 +159,7 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   private feedbackLoops: Map<string, FeedbackLoop> = new Map();
   private learningState: Map<string, any> = new Map();
   private feedbackQueue: FeedbackItem[] = [];
-  private isProcessing: boolean = false ?? false;
+  private isProcessing: boolean = false;
   private continuousLearning: ContinuousLearningConfig;
   private systemMemory: SystemMemory = new SystemMemory();
 
@@ -874,9 +874,9 @@ export class KnowledgeFeedbackSystem extends EventEmitter {
   private updateFeedbackMetrics(loop: FeedbackLoop, startTime: number, success: boolean): void {
     const processingTime = Date?.now() - startTime;
     
-    loop.metrics?.totalFeedbackItems++;
+    if (loop.metrics) loop.metrics.totalFeedbackItems++;
     if (success) {
-      loop.metrics?.processedItems++;
+      if (loop.metrics) loop.metrics.processedItems++;
     }
     
     // Update average processing time
@@ -1085,7 +1085,7 @@ class SystemMemory {
   applyForgetting(config: ForgettingCurveConfig): void {
     for (const [type, insights] of this.insights) {
       insights?.forEach(insight => {
-        insight?.confidence *= config.decayRate;
+        if (insight) insight.confidence *= config.decayRate;
       });
       
       // Remove insights below minimum retention

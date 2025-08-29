@@ -61,6 +61,19 @@ class TreeNavigator {
     logger = logger_1.Logger?.getInstance();
     astAnalyzer = new analyzer_1.ASTAnalyzer();
     rl;
+    // Alias for backward compatibility
+    async analyze(params) {
+        const request = {
+            projectPath: params.projectPath || '.',
+            includeExternal: params.includeImpactAnalysis || false,
+            showDependencies: params.trackChangePropagation || true
+        };
+        return this.buildTree(request);
+    }
+    // Another alias for backward compatibility
+    async buildDependencyTree(projectPath) {
+        return this.buildTree({ projectPath });
+    }
     async buildTree(request) {
         this.logger.info(`Building dependency tree for ${request.projectPath}`);
         const nodes = new Map();

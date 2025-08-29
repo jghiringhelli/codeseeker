@@ -39,6 +39,10 @@ export declare class PostgreSQLAdapter extends DatabaseAdapter {
     recordOperationMetrics(operation: string, projectId: string | null, durationMs: number, success: boolean, error?: string, metadata?: Record<string, any>): Promise<void>;
     cleanupExpiredResumeStates(): Promise<number>;
     archiveOldAnalysisResults(olderThanDays: number): Promise<number>;
+    query(sql: string, params?: any[]): Promise<{
+        rows: any[];
+        rowCount: number;
+    }>;
     private mapRowToProject;
     private mapRowToProjectPath;
     private mapRowToInitializationProgress;

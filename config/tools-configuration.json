@@ -1,0 +1,197 @@
+{
+  "tools": {
+    "duplication-detector": {
+      "name": "Duplication Detector",
+      "description": "Finds duplicate code, classes, and enums across the project. Essential for refactoring requests, code cleanup, and maintaining code quality. Use when user asks about duplicate code, similar functions, refactoring opportunities, or code organization.",
+      "keywords": ["duplicate", "similar", "copy", "refactor", "cleanup", "organize", "redundant", "repetitive"],
+      "impactScenarios": [
+        "User wants to refactor duplicate code",
+        "User asks to clean up similar functions", 
+        "User mentions code repetition or redundancy",
+        "User wants to improve code organization"
+      ],
+      "enabled": true,
+      "priority": 7,
+      "costBenefit": "medium-high",
+      "executionTime": "medium",
+      "reliability": 0.95
+    },
+    "tree-navigator": {
+      "name": "Tree Navigator", 
+      "description": "Analyzes project structure, dependencies, and circular references. Critical for understanding code architecture, navigation, and dependency issues. Use when user asks about project structure, imports, dependencies, or architectural questions.",
+      "keywords": ["structure", "architecture", "dependency", "import", "navigation", "circular", "relationship", "hierarchy"],
+      "impactScenarios": [
+        "User wants to understand project architecture",
+        "User asks about dependencies between files",
+        "User mentions circular dependency issues",
+        "User needs help navigating large codebase"
+      ],
+      "enabled": true,
+      "priority": 9,
+      "costBenefit": "high",
+      "executionTime": "fast",
+      "reliability": 0.98
+    },
+    "context-optimizer": {
+      "name": "Context Optimizer",
+      "description": "Optimizes context for Claude interactions by selecting the most relevant files and code sections. Always useful for reducing token usage and improving response quality. Use for almost every request to provide focused, relevant context.",
+      "keywords": ["context", "optimize", "focus", "relevant", "token", "efficiency"],
+      "impactScenarios": [
+        "Any request that needs focused code context",
+        "Large codebase queries that might hit token limits",
+        "User asks for specific code analysis or modification",
+        "General code understanding or explanation requests"
+      ],
+      "enabled": true,
+      "priority": 10,
+      "costBenefit": "very-high",
+      "executionTime": "fast", 
+      "reliability": 0.92
+    },
+    "vector-search": {
+      "name": "Vector Search & RAG",
+      "description": "Semantic code search and similarity analysis using vector embeddings. Essential for finding related code, similar patterns, and retrieving relevant context based on meaning rather than keywords.",
+      "keywords": ["search", "find", "similar", "semantic", "pattern", "example", "related", "like"],
+      "impactScenarios": [
+        "User asks to find similar code patterns",
+        "User wants examples of how something is implemented",
+        "User searches for specific functionality semantically",
+        "User needs to understand code relationships"
+      ],
+      "enabled": true,
+      "priority": 8,
+      "costBenefit": "high",
+      "executionTime": "slow",
+      "reliability": 0.88
+    },
+    "issues-detector": {
+      "name": "Issues Detector",
+      "description": "Comprehensive Claude Code issue detection including scope problems, topology issues, and quality assessment. Use when user reports bugs, asks for code review, or wants quality improvement.",
+      "keywords": ["issue", "problem", "bug", "error", "quality", "review", "fix", "broken"],
+      "impactScenarios": [
+        "User reports bugs or errors in code", 
+        "User asks for code review or quality assessment",
+        "User wants to improve code quality",
+        "User mentions performance or reliability issues"
+      ],
+      "enabled": true,
+      "priority": 8,
+      "costBenefit": "high",
+      "executionTime": "medium",
+      "reliability": 0.90
+    },
+    "knowledge-graph": {
+      "name": "Semantic Knowledge Graph",
+      "description": "Builds semantic understanding of codebase relationships and entities. Provides deep architectural insights and pattern detection. Use for complex architectural questions and relationship understanding.",
+      "keywords": ["relationship", "entity", "semantic", "architecture", "insight", "pattern", "connection"],
+      "impactScenarios": [
+        "User asks about architectural relationships",
+        "User wants to understand complex code interactions", 
+        "User needs insights about code patterns",
+        "User asks about semantic meaning of code structure"
+      ],
+      "enabled": true,
+      "priority": 6,
+      "costBenefit": "medium",
+      "executionTime": "slow",
+      "reliability": 0.85
+    },
+    "centralization-detector": {
+      "name": "Centralization Detector", 
+      "description": "Detects scattered configuration and centralization opportunities. Critical for config management, environment setup, and code organization. Use when user asks about configuration, environment variables, or code consolidation.",
+      "keywords": ["config", "configuration", "environment", "centralize", "consolidate", "scatter", "organize", "setup"],
+      "impactScenarios": [
+        "User asks about configuration management",
+        "User wants to centralize scattered config values",
+        "User mentions environment setup issues",
+        "User wants to organize configuration files"
+      ],
+      "enabled": true,
+      "priority": 7,
+      "costBenefit": "high",
+      "executionTime": "medium", 
+      "reliability": 0.92
+    },
+    "code-docs-reconciler": {
+      "name": "Code-Documentation Reconciler",
+      "description": "Bidirectional synchronization between code implementation and documentation. Essential for documentation updates, API spec validation, and ensuring code-docs alignment.",
+      "keywords": ["documentation", "docs", "sync", "reconcile", "api", "spec", "comment", "readme"],
+      "impactScenarios": [
+        "User asks about updating documentation",
+        "User wants to sync code with API specifications",
+        "User mentions documentation is out of date",
+        "User needs to generate documentation from code"
+      ],
+      "enabled": true,
+      "priority": 6,
+      "costBenefit": "medium-high",
+      "executionTime": "slow",
+      "reliability": 0.89
+    },
+    "workflow-orchestrator": {
+      "name": "Workflow Orchestrator",
+      "description": "Orchestrates multiple tools in intelligent workflows for complex, multi-step analysis. Use for comprehensive requests that benefit from combining multiple tools in sequence or parallel.",
+      "keywords": ["workflow", "orchestrate", "pipeline", "comprehensive", "multi-step", "analysis", "complete"],
+      "impactScenarios": [
+        "User asks for comprehensive code analysis",
+        "User wants production readiness check", 
+        "User requests multi-faceted code review",
+        "User asks for complete project assessment"
+      ],
+      "enabled": true,
+      "priority": 5,
+      "costBenefit": "very-high",
+      "executionTime": "variable",
+      "reliability": 0.94
+    }
+  },
+  "selectionCriteria": {
+    "maxToolsPerRequest": 6,
+    "tokenBudget": 8000,
+    "preferredCombinations": [
+      ["context-optimizer", "tree-navigator"],
+      ["duplication-detector", "issues-detector"], 
+      ["vector-search", "knowledge-graph"],
+      ["centralization-detector", "code-docs-reconciler"]
+    ],
+    "mandatoryForLargeRequests": ["context-optimizer", "tree-navigator"],
+    "fallbackTools": ["context-optimizer", "issues-detector"]
+  },
+  "requestPatterns": {
+    "newFeature": {
+      "description": "User wants to implement new functionality",
+      "recommendedTools": ["tree-navigator", "context-optimizer", "vector-search", "centralization-detector"],
+      "priority": "high"
+    },
+    "bugFix": {
+      "description": "User reports bugs or needs fixes",
+      "recommendedTools": ["issues-detector", "context-optimizer", "tree-navigator", "duplication-detector"],
+      "priority": "high" 
+    },
+    "codeReview": {
+      "description": "User wants code review or quality assessment",
+      "recommendedTools": ["issues-detector", "duplication-detector", "knowledge-graph", "context-optimizer"],
+      "priority": "medium"
+    },
+    "refactoring": {
+      "description": "User wants to refactor or reorganize code",
+      "recommendedTools": ["duplication-detector", "centralization-detector", "tree-navigator", "context-optimizer"],
+      "priority": "high"
+    },
+    "documentation": {
+      "description": "User wants to update or create documentation",
+      "recommendedTools": ["code-docs-reconciler", "context-optimizer", "knowledge-graph"],
+      "priority": "medium"
+    },
+    "architecture": {
+      "description": "User asks about project architecture or design",
+      "recommendedTools": ["tree-navigator", "knowledge-graph", "context-optimizer", "issues-detector"],
+      "priority": "high"
+    },
+    "comprehensive": {
+      "description": "User requests thorough analysis or production readiness",
+      "recommendedTools": ["workflow-orchestrator"],
+      "priority": "very-high"
+    }
+  }
+}

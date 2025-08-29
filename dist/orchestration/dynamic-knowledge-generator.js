@@ -1,5 +1,7 @@
 "use strict";
-// Dynamic Knowledge Context Generation Per Role
+// ⚠️ DEPRECATED: Legacy Dynamic Knowledge Context Generation Per Role
+// This file is part of the legacy parallel orchestration system.
+// This file will be removed in a future version.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DynamicKnowledgeGenerator = exports.RoleType = void 0;
 const events_1 = require("events");
@@ -461,7 +463,7 @@ class DynamicKnowledgeGenerator extends events_1.EventEmitter {
             [types_1.RoleType.TEST_DESIGNER]: [types_1.RoleType.REQUIREMENT_ANALYST],
             [types_1.RoleType.IMPLEMENTATION_DEVELOPER]: [types_1.RoleType.REQUIREMENT_ANALYST, types_1.RoleType.TEST_DESIGNER],
             [types_1.RoleType.SECURITY_AUDITOR]: [types_1.RoleType.IMPLEMENTATION_DEVELOPER],
-            // Add more mappings...
+            // Add more mappings as needed...
         };
         return relevanceMap[roleType] || [];
     }

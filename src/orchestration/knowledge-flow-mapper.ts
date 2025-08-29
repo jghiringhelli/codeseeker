@@ -966,8 +966,8 @@ export class KnowledgeFlowMapper {
     flow?.forEach((step, roleType) => {
       step.knowledgeInputs?.forEach(input => analysis.knowledgeInputTypes?.add(input.type));
       step.knowledgeOutputs?.forEach(output => analysis.outputTypes?.add(output.type));
-      analysis?.feedbackLoops += step.feedbackLoops?.length;
-      analysis?.qualityGates += step.qualityGates?.length;
+      if (analysis) analysis.feedbackLoops += step.feedbackLoops?.length || 0;
+      if (analysis) analysis.qualityGates += step.qualityGates?.length || 0;
     });
 
     return analysis;

@@ -323,6 +323,7 @@ export class WorkflowVisualizer {
       [RoleType.QUALITY_AUDITOR]: '⭐',
       [RoleType.TECHNICAL_DOCUMENTER]: '📚',
       [RoleType.USER_DOCUMENTER]: '📖',
+      [RoleType.DOCUMENTATION_WRITER]: '📄',
       [RoleType.RELEASE_MANAGER]: '🏷️',
       [RoleType.COMMITTER]: '📝'
     };

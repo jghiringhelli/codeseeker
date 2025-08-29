@@ -142,7 +142,7 @@ class SelfImprovementEngine extends events_1.EventEmitter {
                     target: group.locations[0].file,
                     description: `Found ${group.locations.length} duplicates with ${group.similarity}% similarity`,
                     suggestion: group.refactoring.description,
-                    estimatedEffort: group.refactoring.estimatedEffort.level,
+                    estimatedEffort: group.refactoring.estimatedEffort?.level || 'medium',
                     benefit: this.calculateDuplicationBenefit(group),
                     status: 'identified',
                     metadata: {
@@ -164,13 +164,7 @@ class SelfImprovementEngine extends events_1.EventEmitter {
     async optimizeDependencies() {
         this.logger.info('Analyzing CodeMind dependency tree...');
         const improvements = [];
-        const tree = await this.treeNavigator.buildDependencyTree({
-            projectPath: this.projectPath,
-            filePattern: 'src/**/*.ts',
-            showDependencies: true,
-            circularOnly: false,
-            maxDepth: 10
-        });
+        const tree = await this.treeNavigator.buildDependencyTree(this.projectPath);
         // Check for circular dependencies
         for (const circular of tree.circularDependencies) {
             const improvement = {

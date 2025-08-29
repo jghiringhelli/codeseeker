@@ -1345,6 +1345,11 @@ export class CentralizationDetector {
 
     return recommendations;
   }
+
+  async analyze(params: any): Promise<any> {
+    // Alias for backward compatibility
+    return this.scanProject(params);
+  }
 }
 
 export default CentralizationDetector;

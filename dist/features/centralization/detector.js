@@ -1062,6 +1062,10 @@ class CentralizationDetector {
         }
         return recommendations;
     }
+    async analyze(params) {
+        // Alias for backward compatibility
+        return this.scanProject(params);
+    }
 }
 exports.CentralizationDetector = CentralizationDetector;
 exports.default = CentralizationDetector;

@@ -205,6 +205,7 @@ export declare class CentralizationDetector {
     private calculateStatistics;
     private calculatePriority;
     private generateGlobalRecommendations;
+    analyze(params: any): Promise<any>;
 }
 export default CentralizationDetector;
 //# sourceMappingURL=detector.d.ts.map

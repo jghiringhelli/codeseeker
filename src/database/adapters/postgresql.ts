@@ -787,6 +787,21 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
     }
   }
 
+  // Generic query method for compatibility with ExternalToolManager
+  async query(sql: string, params?: any[]): Promise<{ rows: any[]; rowCount: number }> {
+    if (!this.pool) throw new Error('Database not initialized');
+
+    try {
+      const result = await this.pool?.query(sql, params || []);
+      return {
+        rows: result.rows || [],
+        rowCount: result.rowCount || 0
+      };
+    } catch (error) {
+      throw this?.handleError('query', error);
+    }
+  }
+
   // Helper mapping methods
   private mapRowToProject(row: any): Project {
     return {

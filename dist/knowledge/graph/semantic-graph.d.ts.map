@@ -1,0 +1,1 @@
+{"version":3,"file":"semantic-graph.d.ts","sourceRoot":"","sources":["../../../src/knowledge/graph/semantic-graph.ts"],"names":[],"mappings":"AAAA;;GAEG;AACH,qBAAa,cAAc;IACnB,KAAK,CAAC,MAAM,EAAE;QAClB,WAAW,EAAE,MAAM,CAAC;QACpB,KAAK,CAAC,EAAE,MAAM,CAAC;KAChB,GAAG,OAAO,CAAC,GAAG,CAAC;CASjB;AAED,eAAe,cAAc,CAAC"}

@@ -1,26 +1,29 @@
 # Multi-stage Docker build for CodeMind Dashboard
-FROM node:18-alpine AS base
+FROM node:20-slim AS base
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apk add --no-cache \
+# Install system dependencies including Python for native builds
+RUN apt-get update && apt-get install -y \
     postgresql-client \
     curl \
     bash \
-    && rm -rf /var/cache/apk/*
+    python3 \
+    make \
+    g++ \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 1001 -S codemind && \
-    adduser -S codemind -u 1001 -G codemind
+RUN groupadd -g 1001 codemind && \
+    useradd -u 1001 -g codemind -m codemind
 
 # Development stage
 FROM base AS development
 
 # Copy package files
 COPY package*.json ./
-COPY src/dashboard/package*.json ./src/dashboard/
 
 # Install all dependencies (including dev dependencies)
 RUN npm ci --include=dev
@@ -44,7 +47,7 @@ FROM base AS builder
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -53,26 +56,25 @@ COPY . .
 RUN if [ -f "src/dashboard/build.js" ]; then node src/dashboard/build.js; fi
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:20-slim AS production
 
 # Install production system dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     postgresql-client \
     curl \
     bash \
-    tini \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 1001 -S codemind && \
-    adduser -S codemind -u 1001 -G codemind
+RUN groupadd -g 1001 codemind && \
+    useradd -u 1001 -g codemind -m codemind
 
 # Set working directory
 WORKDIR /app
 
 # Copy built application from builder stage
 COPY --from=builder --chown=codemind:codemind /app/node_modules ./node_modules
-COPY --from=builder --chown=codemind:codemind /app/src/dashboard ./src/dashboard
+COPY --from=builder --chown=codemind:codemind /app/src ./src
 COPY --from=builder --chown=codemind:codemind /app/package*.json ./
 
 # Create logs directory
@@ -97,10 +99,9 @@ USER codemind
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD /app/healthcheck.sh
 
-# Use tini as PID 1 for proper signal handling
-ENTRYPOINT ["/sbin/tini", "--"]
+# Use node directly as entrypoint
 
-# Start the dashboard server
+# Start the dashboard server (minimal version for deployment)
 CMD ["node", "src/dashboard/server.js"]
 
 # Metadata labels

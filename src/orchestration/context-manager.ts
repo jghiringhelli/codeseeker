@@ -1,4 +1,7 @@
-// Advanced Context Management System with Claude Limit Detection
+// ⚠️ DEPRECATED: Legacy Advanced Context Management System with Claude Limit Detection
+// This file is part of the legacy parallel orchestration system.
+// New implementations should use context optimization in sequential-workflow-orchestrator.ts instead.
+// This file will be removed in a future version.
 
 import { EventEmitter } from 'events';
 import { Logger } from '../shared/logger';
@@ -177,6 +180,12 @@ export class ContextManager extends EventEmitter {
         preserveKeys: ['version', 'changelog', 'releaseNotes'],
         summarizationLevel: 2,
         useVectorSearch: false
+      },
+      [RoleType.DOCUMENTATION_WRITER]: {
+        maxTokens: 3000,
+        preserveKeys: ['documentation', 'content', 'structure'],
+        summarizationLevel: 2,
+        useVectorSearch: true
       },
       [RoleType.COMMITTER]: {
         maxTokens: 1500,
@@ -470,7 +479,7 @@ export class ContextManager extends EventEmitter {
 
   private increaseCompressionLevels(): void {
     for (const [roleType, strategy] of this.compressionStrategies) {
-      strategy.summarizationLevel = Math.min(3, strategy.summarizationLevel + 1);
+      strategy.summarizationLevel = Math.min(3, strategy.summarizationLevel + 1) as 0 | 1 | 2 | 3;
       strategy.maxTokens = Math.floor(strategy.maxTokens * 0.7); // Reduce by 30%
     }
     this.logger.info('Compression levels increased due to limit approaching');
@@ -548,6 +557,7 @@ export class ContextManager extends EventEmitter {
       [RoleType.E2E_TEST_ENGINEER]: 3,
       [RoleType.TECHNICAL_DOCUMENTER]: 2,
       [RoleType.USER_DOCUMENTER]: 2,
+      [RoleType.DOCUMENTATION_WRITER]: 2,
       [RoleType.RELEASE_MANAGER]: 2,
       [RoleType.COMMITTER]: 1
     };

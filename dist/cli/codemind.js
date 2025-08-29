@@ -520,8 +520,9 @@ program
         console?.log('\n🛤️  Path Analysis:');
         console?.log('─'.repeat(50));
         if (options.allPaths) {
-            console?.log(`Found ${result.data?.length} paths`);
-            result.data?.forEach((path, i) => {
+            const paths = Array.isArray(result.data) ? result.data : [result.data];
+            console?.log(`Found ${paths.length} paths`);
+            paths.forEach((path, i) => {
                 console?.log(`\nPath ${i + 1} (confidence: ${(path?.confidence * 100).toFixed(1)}%):`);
                 path.path?.forEach((node, nodeIndex) => {
                     console?.log(`  ${nodeIndex + 1}. ${node.name} (${node.type})`);
@@ -533,15 +534,20 @@ program
             });
         }
         else if (result.data) {
-            console?.log(`Shortest path found (confidence: ${(result.data?.confidence * 100).toFixed(1)}%):`);
-            result.data.path?.forEach((node, i) => {
-                console?.log(`${i + 1}. ${node.name} (${node.type})`);
-                if (i < result.data.relationships?.length) {
-                    const rel = result.data.relationships[i];
-                    console?.log(`   --[${rel.predicate}]-->`);
+            const pathData = Array.isArray(result.data) ? result.data[0] : result.data;
+            if (pathData) {
+                console?.log(`Shortest path found (confidence: ${((pathData.confidence || 0) * 100).toFixed(1)}%):`);
+                if (pathData.path) {
+                    pathData.path.forEach((node, i) => {
+                        console?.log(`${i + 1}. ${node.name} (${node.type})`);
+                        if (i < pathData.relationships?.length) {
+                            const rel = pathData.relationships[i];
+                            console?.log(`   --[${rel.predicate}]-->`);
+                        }
+                    });
                 }
-            });
-            console?.log(`\nTotal weight: ${result.data.totalWeight?.toFixed(2)}`);
+                console?.log(`\nTotal weight: ${(pathData.totalWeight || 0).toFixed(2)}`);
+            }
         }
         else {
             console?.log('❌ No path found between the specified nodes');
@@ -628,18 +634,32 @@ program
                 defaultFilename = 'knowledge-graph.json';
                 break;
             case 'graphml':
-                exportData = await this?.convertToGraphML(graphData);
+                const convertToGraphMLFn = this.convertToGraphML;
+                if (convertToGraphMLFn && graphData) {
+                    const result = await convertToGraphMLFn(graphData);
+                    exportData = result ?? '';
+                }
+                else {
+                    exportData = '';
+                }
                 defaultFilename = 'knowledge-graph.graphml';
                 break;
             case 'cypher':
-                exportData = await this?.convertToCypher(graphData);
+                const convertToCypherFn = this.convertToCypher;
+                if (convertToCypherFn && graphData) {
+                    const result = await convertToCypherFn(graphData);
+                    exportData = result ?? '';
+                }
+                else {
+                    exportData = '';
+                }
                 defaultFilename = 'knowledge-graph.cypher';
                 break;
             default:
                 throw new Error(`Unsupported export format: ${options.format}`);
         }
         const outputPath = options.output || defaultFilename;
-        await fs?.writeFile(outputPath, exportData, 'utf-8');
+        await fs.promises.writeFile(outputPath, exportData, 'utf-8');
         console?.log(`✅ Knowledge graph exported to ${outputPath}`);
         console?.log(`   Nodes: ${graphData.nodes?.length}`);
         console?.log(`   Triads: ${graphData.triads?.length}`);
@@ -735,12 +755,7 @@ program
                     break;
             case 'tree':
                 console?.log('🌳 Analyzing CodeMind dependency tree...');
-                const tree = await treeNavigator?.buildDependencyTree({
-                    projectPath,
-                    filePattern: 'src/**/*.ts',
-                    showDependencies: true,
-                    circularOnly: false
-                });
+                const tree = await treeNavigator?.buildDependencyTree(projectPath);
                 console?.log(`Tree has ${tree.nodes.size} nodes and ${tree.circularDependencies?.length} circular dependencies`);
                 if (options?.feature !== 'all')
                     break;

@@ -226,7 +226,7 @@ class ASTAnalyzer {
                     symbols?.push({
                         name: path.node.id.name,
                         type: 'function',
-                        location: this?.getBabelLocation(path.node, filePath),
+                        location: this.getBabelLocation?.(path.node, filePath) || { filePath, line: 0, column: 0 },
                         isAsync: path.node.async
                     });
                 }
@@ -236,7 +236,7 @@ class ASTAnalyzer {
                     symbols?.push({
                         name: path.node.id.name,
                         type: 'class',
-                        location: this?.getBabelLocation(path.node, filePath)
+                        location: this.getBabelLocation?.(path.node, filePath) || { filePath, line: 0, column: 0 }
                     });
                 }
             },
@@ -245,7 +245,7 @@ class ASTAnalyzer {
                     symbols?.push({
                         name: path.node.id.name,
                         type: 'variable',
-                        location: this?.getBabelLocation(path.node, filePath)
+                        location: this.getBabelLocation?.(path.node, filePath) || { filePath, line: 0, column: 0 }
                     });
                 }
             }

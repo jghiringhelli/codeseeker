@@ -38,6 +38,7 @@ exports.RoleKnowledgeIntegrator = exports.RoleType = void 0;
 const events_1 = require("events");
 const types_1 = require("./types");
 Object.defineProperty(exports, "RoleType", { enumerable: true, get: function () { return types_1.RoleType; } });
+const knowledge_repository_1 = require("../knowledge/repository/knowledge-repository");
 const class_traversal_engine_1 = __importStar(require("../knowledge/tree/class-traversal-engine"));
 class RoleKnowledgeIntegrator extends events_1.EventEmitter {
     logger;
@@ -217,7 +218,7 @@ class RoleKnowledgeIntegrator extends events_1.EventEmitter {
     async getDomainKnowledge(roleType, inputs) {
         // Search for role-specific domain knowledge
         const searchResults = await this.knowledgeRepo?.searchKnowledge(`${roleType} ${inputs.domain || ''}`, {
-            types: ['PROFESSIONAL_ADVICE', 'RESEARCH_PAPER', 'BEST_PRACTICE'],
+            types: [knowledge_repository_1.KnowledgeType.PROFESSIONAL_ADVICE, knowledge_repository_1.KnowledgeType.RESEARCH_PAPER, knowledge_repository_1.KnowledgeType.BEST_PRACTICE],
             limit: 10
         });
         const expertAdvice = searchResults
@@ -522,7 +523,11 @@ class RoleKnowledgeIntegrator extends events_1.EventEmitter {
             ...baseMetrics,
             ...qualityMetrics,
             ...businessMetrics,
-            ...learningMetrics
+            ...learningMetrics,
+            // Ensure required properties exist
+            accuracy: qualityMetrics?.accuracy ?? 0,
+            completeness: qualityMetrics?.completeness ?? 0,
+            consistency: qualityMetrics?.consistency ?? 0
         };
     }
     async calculateRoleQualityMetrics(roleType, outputs, context) {

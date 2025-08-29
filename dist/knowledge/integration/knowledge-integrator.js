@@ -661,7 +661,7 @@ class KnowledgeIntegrator {
         return priorities?.sort((a, b) => b?.priority - a.priority);
     }
     calculateContextQuality(context, query) {
-        const totalNodes = Object.values(context).reduce((sum, nodes) => sum + nodes?.length, 0);
+        const totalNodes = Number(Object.values(context).reduce((sum, nodes) => sum + (Array.isArray(nodes) ? nodes.length : 0), 0));
         const coverage = Math.min(totalNodes / 20, 1.0); // Ideal context has ~20 nodes
         // Boost quality if we have diverse node types
         const nodeTypes = new Set();

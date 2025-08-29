@@ -1,18 +1,37 @@
 import { EventEmitter } from 'events';
 import { Logger } from '../shared/logger';
+import { ClaudeIntegration } from '../cli/claude-integration';
+import { Database } from '../database/database';
+import { PerformanceMonitor } from '../shared/performance-monitor';
+import { IntelligentToolSelector } from '../cli/intelligent-tool-selector';
 import { WorkflowExecution, ConcurrencyConfig, TerminalSession, MultiplexorConfig } from './types';
 export declare class WorkflowOrchestrator extends EventEmitter {
     private logger;
+    private claude;
+    private db;
+    private monitor;
+    private toolSelector;
     private activeExecutions;
     private roleInstances;
     private terminalSessions;
     private concurrencyConfig;
     private multiplexorConfig;
     private workflowDefinitions;
-    constructor(logger: Logger, concurrencyConfig: ConcurrencyConfig, multiplexorConfig: MultiplexorConfig);
+    constructor(logger: Logger, claude: ClaudeIntegration, db: Database, monitor: PerformanceMonitor, toolSelector: IntelligentToolSelector, concurrencyConfig: ConcurrencyConfig, multiplexorConfig: MultiplexorConfig);
     private loadWorkflowDefinitions;
     private initializeRoleInstanceTracking;
     startWorkflow(workItemId: string, workflowId: string, inputs: any, metadata: any): Promise<string>;
+    private claudeAnalyzeWorkflow;
+    private buildWorkflowAnalysisPrompt;
+    private parseWorkflowDecision;
+    private getDefaultWorkflowDecision;
+    private getOptimizedWorkflow;
+    private applyWorkflowOptimizations;
+    private gatherProjectContext;
+    private getSystemLoad;
+    private recordWorkflowDecision;
+    private fallbackWorkflowStart;
+    private optimizeForParallelExecution;
     private executeWorkflow;
     private traverseWorkflow;
     private getReadyNodes;
@@ -47,5 +66,6 @@ export declare class WorkflowOrchestrator extends EventEmitter {
     cancelExecution(executionId: string): Promise<boolean>;
     getActiveExecutions(): Promise<WorkflowExecution[]>;
     getTerminalSessions(): Promise<TerminalSession[]>;
+    executeWorkflowPublic(params: any): Promise<any>;
 }
 //# sourceMappingURL=workflow-orchestrator.d.ts.map

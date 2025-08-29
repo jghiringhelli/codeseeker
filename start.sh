@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 # Default configuration
 ENVIRONMENT=${1:-"local"}
 WORKSPACE_PATH=${WORKSPACE_PATH:-"../workspace"}
-API_PORT=${API_PORT:-3000}
+API_PORT=${API_PORT:-3004}
 
 echo -e "${BLUE}🚀 CodeMind - Intelligent Code Auxiliary System${NC}"
 echo -e "${BLUE}===============================================${NC}"
@@ -60,22 +60,13 @@ start_services() {
     local profile_args=""
     
     case $ENVIRONMENT in
-        "local"|"dev")
-            compose_file="docker-compose.local.yml"
-            echo -e "${BLUE}📦 Starting local development environment...${NC}"
-            ;;
-        "production"|"prod")
+        "local"|"dev"|"production"|"prod")
             compose_file="docker-compose.yml"
-            echo -e "${BLUE}📦 Starting production environment...${NC}"
-            ;;
-        "monitoring")
-            compose_file="docker-compose.yml"
-            profile_args="--profile monitoring"
-            echo -e "${BLUE}📦 Starting with monitoring stack...${NC}"
+            echo -e "${BLUE}📦 Starting CodeMind services...${NC}"
             ;;
         *)
             echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
-            echo -e "${YELLOW}   Valid options: local, production, monitoring${NC}"
+            echo -e "${YELLOW}   Valid options: local, production${NC}"
             exit 1
             ;;
     esac
@@ -166,12 +157,12 @@ show_help() {
     echo
     echo "Environment Variables:"
     echo "  WORKSPACE_PATH - Path to user workspace (default: ../workspace)"
-    echo "  API_PORT       - API port (default: 3000)"
+    echo "  API_PORT       - API port (default: 3004)"
     echo
     echo "Examples:"
     echo "  ./start.sh local"
     echo "  WORKSPACE_PATH=/home/user/code ./start.sh production"
-    echo "  API_PORT=3001 ./start.sh local"
+    echo "  API_PORT=3005 ./start.sh local"
 }
 
 # Handle arguments

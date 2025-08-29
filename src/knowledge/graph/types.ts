@@ -88,6 +88,7 @@ export enum RelationType {
   
   // Dependency Relationships
   DEPENDS_ON = 'depends_on',
+  USES = 'uses',
   IMPORTS = 'imports',
   EXPORTS = 'exports',
   REQUIRES = 'requires',
@@ -104,6 +105,7 @@ export enum RelationType {
   IS_TYPE_OF = 'is_type_of',
   IS_INSTANCE_OF = 'is_instance_of',
   REPRESENTS = 'represents',
+  RELATES_TO = 'relates_to',
   
   // Business Logic Relationships
   SATISFIES = 'satisfies',

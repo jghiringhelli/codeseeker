@@ -1,114 +1,101 @@
 ﻿# CLAUDE.md - CodeMind
 
-This file provides guidance to Claude Code when working with this project.
+This file provides comprehensive guidance to Claude Code when working with this project.
 
 ## Project Overview
 
-**Project**: CodeMind - Intelligent Code Auxiliary System
-**Type**: api_service with AI orchestration
-**Languages**: JavaScript, TypeScript, Python
-**Architecture**: Layered Architecture with Multi-Role AI Orchestration
-**Testing**: Unit + Integration + End-to-End Testing
-**Intent**: Computational backend for coding LLMs that provides code analysis, pattern detection, knowledge management, and automated development orchestration
-**Business Value**: Provide reliable API services to clients with intelligent development workflow automation
-
-### Core Capabilities
-- **Semantic Knowledge Graph**: Triad-based (Subject-Predicate-Object) code relationship analysis
-- **Multi-Role AI Orchestration**: 19 specialized AI roles coordinating development workflows
-- **Quality Gates & Scoring**: Automated quality assessment across security, performance, architecture
-- **Parallel Workflow Execution**: Concurrent processing with intelligent resource management
-- **Branch-Based Development**: Automated git workflow with merge strategies
+**Project**: CodeMind
+**Type**: api_service
+**Description**: Smart Claude Code CLI with intelligent tool selection, token optimization, and real-time quality monitoring
+**Languages**: JavaScript, TypeScript
+**Architecture**: Layered Architecture
+**Testing Strategy**: Unit + Integration Testing
+**Coding Standards**: Strict (ESLint/Prettier with custom rules)
+**Project Intent**: Smart Claude Code CLI with intelligent tool selection, token optimization, and real-time quality monitoring
+**Business Value**: Provide reliable and scalable backend services
+**Quality Requirements**: High Performance, High Reliability, Secure
 
 ## CodeMind Integration
 
-Use token-efficient API: http://localhost:3004
-Project path: .
+This project uses the CodeMind Intelligent Code Auxiliary System for enhanced context and analysis.
 
-### Quick Commands
+### Token-Efficient API Usage
 
-Get project context:
-```powershell
-Invoke-WebRequest -Uri "http://localhost:3004/claude/context/CodeMind?intent=coding"
-```
+**Environment Setup:**
+`powershell
+$env:CODEMIND_API_URL = "http://localhost:3004"
+$env:PROJECT_PATH = "C:\workspace\claude\CodeMind"
+`
 
-Get smart questions:
-```powershell
-Invoke-WebRequest -Uri "http://localhost:3004/claude/suggest-questions/CodeMind"
-```
+### Intelligent Context Patterns
 
-**Setup completed**: 2025-08-24 20:03
-**Integration**: Claude Code Enhanced Setup
+#### Before Any Changes (Overview - ~200 tokens)
+`powershell
+Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/context/$env:PROJECT_PATH?intent=overview"
+`
 
-## Development Orchestration System
+#### Before Coding (Development Context - ~500 tokens)
+`powershell
+Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/context/$env:PROJECT_PATH?intent=coding&maxTokens=800"
+`
 
-### Multi-Role AI Workflow
-The system orchestrates 19 specialized AI roles through sophisticated DAG-based workflows:
+#### For Architecture Decisions (Detailed Analysis - ~1000 tokens)
+`powershell
+Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/context/$env:PROJECT_PATH?intent=architecture&maxTokens=1500"
+`
 
-**Core Roles:**
-- 🎭 Orchestrator (workflow coordination)
-- 📋 Work Classifier (requirement categorization)
-- 📝 Requirement Analyst (specification breakdown)
-- 🧪 Test Designer (TDD approach)
-- 💻 Implementation Developer (code implementation)
-- 🔍 Code Reviewer (quality assurance)
-- 🔒 Security Auditor (vulnerability assessment)
-- ⚡ Performance Auditor (optimization analysis)
-- ⭐ Quality Auditor (architecture compliance)
-- 📚 Technical Documenter (API documentation)
-- 🏷️ Release Manager (version coordination)
+#### When Debugging (Error Context - ~600 tokens)
+`powershell
+Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/context/$env:PROJECT_PATH?intent=debugging&maxTokens=1000"
+`
 
-### Workflow Types
-1. **Feature Development**: Complete TDD workflow with parallel quality gates
-2. **Defect Resolution**: Streamlined bug fix process with rapid deployment
-3. **Tech Debt Reduction**: Systematic refactoring with quality tracking
-4. **Hotfix Workflow**: Critical issue resolution with minimal overhead
+#### For User Interaction (Smart Questions)
+`powershell
+Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/suggest-questions/$env:PROJECT_PATH?maxQuestions=3"
+`
 
-### Quality Gates & Metrics
-- **Security Score**: ≥90% (zero critical vulnerabilities)
-- **Code Coverage**: ≥85% with comprehensive test suites
-- **SOLID Compliance**: ≥90% adherence to principles
-- **Performance**: ≤2s response time, ≤80% memory usage
-- **Architecture**: Complexity metrics and dependency analysis
+### Project-Specific Workflow
 
-### Usage Examples
+1. **Start every session** with overview context to understand current state
+2. **Before creating features** get coding context for patterns and standards
+3. **For architectural changes** use architecture context for design guidance
+4. **When debugging** use error context for common issues and solutions
+5. **For user requirements** use smart questions to gather focused information
 
-```powershell
-# Start feature development workflow
-npx codemind orchestrate start-workflow --type feature --item FEAT-001
+### Smart Questions for User Interaction
 
-# Monitor workflow progress
-npx codemind orchestrate status --execution-id <execution-id>
+When you need to gather requirements, consider asking:
 
-# View role utilization
-npx codemind orchestrate roles --utilization
+- What specific coding patterns should I follow?
+- How should I structure the test files?
+- What quality metrics are most important?
 
-# Generate workflow visualization
-npx codemind orchestrate visualize --workflow feature-development-v1
 
-# Semantic knowledge graph operations
-npx codemind knowledge analyze --project ./src
-npx codemind knowledge query "FIND nodes WHERE type=CLASS"
-npx codemind knowledge path "User" "Order" --max-depth 3
-```
+## Development Guidelines
 
-## Implementation Phases
+### Architecture Principles
+- Follow Layered Architecture patterns consistently
+- Use the coding context API before creating new components
+- Validate architectural decisions with the architecture context endpoint
 
-### Phase 3: Advanced Intelligence (Implemented)
-- ✅ Semantic knowledge graph with triads
-- ✅ Multi-role AI orchestration system
-- ✅ Quality gates and scoring framework
-- ✅ Parallel workflow execution
-- ✅ Branch-based development strategies
+### Testing Approach
+- Implement Unit + Integration Testing
+- Use debugging context when tests fail
+- Check existing test patterns before adding new ones
 
-### Phase 4: Production Ready (Next)
-- 🔄 Full deployment automation
-- 🔄 Advanced monitoring and alerting
-- 🔄 Machine learning workflow optimization
-- 🔄 Integration with external tools (Jira, Slack)
-- 🔄 Visual workflow designer
+### Code Quality Standards
+- Maintain Strict (ESLint/Prettier with custom rules)
+- Use smart questions to clarify quality requirements
+- Project Intent: Smart Claude Code CLI with intelligent tool selection, token optimization, and real-time quality monitoring
+- Quality Focus: High Performance, High Reliability, Secure
 
-### Phase 5: Future Enhancements
-- 🔮 Predictive quality scoring
-- 🔮 Self-healing workflows
-- 🔮 Distributed multi-environment execution
-- 🔮 Advanced conflict resolution
+### Integration Notes
+
+- All CodeMind API calls are cached for 5 minutes
+- Context responses are optimized for token efficiency
+- Different intents provide focused information for specific tasks
+- The system learns from your project patterns over time
+
+**Setup completed**: 2025-08-27 12:37
+**Integration**: Interactive Enhanced Setup v2.0 (PowerShell)
+**Resume Token**: 

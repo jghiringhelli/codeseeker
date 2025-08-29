@@ -5,7 +5,7 @@ set -e
 
 # Configuration
 DASHBOARD_PORT=${DASHBOARD_PORT:-3005}
-HEALTH_ENDPOINT="http://localhost:${DASHBOARD_PORT}/api/dashboard/status"
+HEALTH_ENDPOINT="http://localhost:${DASHBOARD_PORT}/health"
 MAX_RETRIES=3
 RETRY_INTERVAL=2
 

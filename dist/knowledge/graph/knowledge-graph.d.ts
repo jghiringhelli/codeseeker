@@ -84,5 +84,8 @@ export declare class SemanticKnowledgeGraph {
     findQualityRelationships(codeFiles: string[]): Promise<any[]>;
     getQualityDependencies(modules: string[]): Promise<any[]>;
     findSimilarQualityIssues(metrics: string[]): Promise<any[]>;
+    query(params: any): Promise<any>;
 }
+export declare const KnowledgeGraph: typeof SemanticKnowledgeGraph;
+export default SemanticKnowledgeGraph;
 //# sourceMappingURL=knowledge-graph.d.ts.map

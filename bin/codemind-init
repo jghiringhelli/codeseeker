@@ -1,0 +1,128 @@
+#!/usr/bin/env node
+
+/**
+ * CodeMind Project Initialization CLI
+ * 
+ * Usage:
+ *   codemind-init [project-path] [options]
+ *   
+ * Examples:
+ *   codemind-init                           # Initialize current directory
+ *   codemind-init ./my-project              # Initialize specific project
+ *   codemind-init --interactive            # Interactive mode (default)
+ *   codemind-init --no-interactive         # Batch mode
+ *   codemind-init --verbose                # Detailed logging
+ *   codemind-init --force-reinit           # Reinitialize existing data
+ *   codemind-init --level=comprehensive    # Full initialization
+ *   codemind-init --level=basic            # Minimal initialization
+ */
+
+const path = require('path');
+const { execSync } = require('child_process');
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+const options = {
+    projectPath: process.cwd(),
+    interactive: true,
+    verbose: false,
+    skipDuplicates: true,
+    level: 'standard',
+    help: false
+};
+
+// Parse arguments
+for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    
+    if (arg === '--help' || arg === '-h') {
+        options.help = true;
+    } else if (arg === '--no-interactive') {
+        options.interactive = false;
+    } else if (arg === '--interactive') {
+        options.interactive = true;
+    } else if (arg === '--verbose' || arg === '-v') {
+        options.verbose = true;
+    } else if (arg === '--force-reinit') {
+        options.skipDuplicates = false;
+    } else if (arg.startsWith('--level=')) {
+        options.level = arg.split('=')[1];
+    } else if (!arg.startsWith('--') && i === 0) {
+        // First non-flag argument is project path
+        options.projectPath = path.resolve(arg);
+    }
+}
+
+// Show help
+if (options.help) {
+    console.log(`
+CodeMind Project Initialization CLI
+
+USAGE:
+    codemind-init [PROJECT_PATH] [OPTIONS]
+
+ARGUMENTS:
+    PROJECT_PATH    Path to project directory (default: current directory)
+
+OPTIONS:
+    --interactive         Interactive mode with prompts (default)
+    --no-interactive      Batch mode without prompts
+    --verbose, -v         Detailed logging output
+    --force-reinit        Reinitialize existing data
+    --level=LEVEL         Initialization level: basic, standard, comprehensive
+    --help, -h            Show this help message
+
+INITIALIZATION LEVELS:
+    basic          - File tree, classes, basic analysis
+    standard       - Basic + RAG indexing, navigation, config
+    comprehensive  - Standard + metrics, roadmap, diagrams, use cases
+
+EXAMPLES:
+    codemind-init                           # Initialize current directory
+    codemind-init ./my-project              # Initialize specific project  
+    codemind-init --level=comprehensive     # Full initialization
+    codemind-init --no-interactive --verbose # Batch mode with logging
+    codemind-init --force-reinit            # Reinitialize existing data
+
+SERVICES:
+    Ensure CodeMind services are running:
+    docker-compose up -d
+
+    Dashboard: http://localhost:3005/project-view.html
+    API: http://localhost:3004/claude/context/[project-name]
+`);
+    process.exit(0);
+}
+
+// Import and run the initializer
+try {
+    const CodeMindProjectInitializer = require('../scripts/init-project.js');
+    const initializer = new CodeMindProjectInitializer(options);
+    
+    console.log('🚀 CodeMind Project Initialization CLI');
+    console.log('=====================================');
+    console.log(`Mode: ${options.interactive ? 'Interactive' : 'Batch'}`);
+    console.log(`Level: ${options.level}`);
+    console.log(`Project: ${options.projectPath}`);
+    console.log('');
+    
+    initializer.initialize().catch(error => {
+        console.error('❌ Initialization failed:', error.message);
+        if (options.verbose) {
+            console.error(error.stack);
+        }
+        
+        console.log('\n💡 Troubleshooting:');
+        console.log('   • Ensure CodeMind services are running: docker-compose up -d');
+        console.log('   • Check project path exists and is accessible');
+        console.log('   • Verify dashboard is accessible at http://localhost:3005');
+        console.log('   • Use --verbose flag for detailed error information');
+        
+        process.exit(1);
+    });
+    
+} catch (error) {
+    console.error('❌ Failed to start initializer:', error.message);
+    console.log('\n💡 Make sure you are in the CodeMind directory');
+    process.exit(1);
+}

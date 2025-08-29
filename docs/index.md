@@ -1,87 +1,62 @@
 # CodeMind Documentation
 
-**CodeMind** is an intelligent code auxiliary system that provides comprehensive code analysis, pattern detection, knowledge management, and automated development orchestration with AI-powered workflows.
+**CodeMind** is a three-layer AI development platform that transforms ideas into implemented code through intelligent planning, orchestration, and execution using Claude AI at every layer.
 
-## 📚 Documentation Structure
+## 🏗️ Three-Layer Architecture
 
-### [User Guides](user-guides/README.md)
-Comprehensive guides for using CodeMind in your development workflow.
+### Layer 1: Smart CLI 🧠
+**Database-backed intelligent tool selection for daily development**
+- [Platform Overview](architecture/platform-overview.md) - Complete three-layer architecture
+- [Installation Guide](guides/installation-guide.md) - Platform setup and configuration
+- **Usage**: `codemind "your query" ./project` - AI selects optimal tools, updates databases
 
-- **[Getting Started Guide](user-guides/getting-started.md)** - Quick setup and first steps
-- **[Installation Guide](user-guides/installation.md)** - Detailed installation instructions
-- **[Configuration Guide](user-guides/configuration.md)** - Project configuration and customization
-- **[Auto-Improvement Guide](user-guides/auto-improvement.md)** - Interactive code improvement workflows
+### Layer 2: Workflow Orchestrator 🎭  
+**Redis-based sequential role coordination for complex implementations**
+- [Sequential Workflows](architecture/sequential-workflows.md) - Technical architecture details
+- [Migration Guide](guides/migration-to-sequential-workflows.md) - Upgrading from legacy system
+- **Usage**: `codemind orchestrate "complex task" ./project` - 5-role coordinated pipeline
 
-### [Feature Documentation](features/README.md)
-Detailed documentation of all CodeMind features and capabilities.
+### Layer 3: Idea Planner 🚀
+**Interactive AI planning for idea-to-implementation workflows**
+- Dashboard → "💡 I have an idea" button → AI conversation
+- Automated generation of roadmaps, business plans, tech stacks, architectures
+- Seamless handoff to Orchestrator for implementation
 
-- **[Core Features Overview](features/overview.md)** - Complete feature matrix
-- **[Knowledge Graph System](features/knowledge-graph.md)** - Semantic code analysis
-- **[AI Orchestration](features/orchestration.md)** - Multi-role AI workflows
-- **[Code Analysis](features/analysis.md)** - Duplication, centralization, and quality analysis
-- **[Auto-Improvement Mode](features/auto-improvement.md)** - Interactive code improvement
+## 📖 Essential Documentation
 
-### [API Reference](api-reference/README.md)
-Complete API documentation for developers and integrators.
+### Getting Started
+- **[Platform Overview](architecture/platform-overview.md)** - Complete architecture understanding
+- **[Installation Guide](guides/installation-guide.md)** - Setup and configuration
+- **[Migration Guide](guides/migration-to-sequential-workflows.md)** - Upgrading from legacy
 
-- **[CLI Commands](api-reference/cli.md)** - Command-line interface reference
-- **[REST API](api-reference/rest-api.md)** - HTTP API endpoints
-- **[TypeScript API](api-reference/typescript-api.md)** - Programmatic API usage
-- **[Configuration Schema](api-reference/configuration.md)** - Configuration file reference
-
-### [Architecture Documentation](architecture/README.md)
-Technical architecture and design documentation.
-
-- **[System Architecture](architecture/overview.md)** - High-level system design
-- **[Component Architecture](architecture/components.md)** - Detailed component design
-- **[Database Schema](architecture/database.md)** - Data model and schema
-- **[Knowledge Integration](architecture/knowledge-integration.md)** - Knowledge system design
-- **[Orchestration System](architecture/orchestration.md)** - AI workflow architecture
-
-### [Development Documentation](development/README.md)
-Documentation for CodeMind contributors and developers.
-
-- **[Contributing Guide](development/contributing.md)** - How to contribute to CodeMind
-- **[Development Setup](development/setup.md)** - Development environment setup
-- **[Testing Guide](development/testing.md)** - Testing strategies and guidelines
-- **[Release Process](development/releases.md)** - Release and deployment process
-
-### [Troubleshooting](troubleshooting/README.md)
-Common issues, solutions, and performance optimization.
-
-- **[Common Issues](troubleshooting/common-issues.md)** - Frequently encountered problems
-- **[Performance Tuning](troubleshooting/performance.md)** - Optimization guidelines
-- **[Error Reference](troubleshooting/errors.md)** - Error codes and solutions
+### Technical Reference  
+- **[Sequential Workflows](architecture/sequential-workflows.md)** - Layer 2 technical architecture
+- **[Database Schema](../src/database/schema.postgres.sql)** - PostgreSQL schema reference
 
 ## 🚀 Quick Start
 
-1. **Install CodeMind**: See [Installation Guide](user-guides/installation.md)
-2. **Configure your project**: Follow [Configuration Guide](user-guides/configuration.md)
-3. **Run your first analysis**: Try the [Getting Started Guide](user-guides/getting-started.md)
-4. **Improve your codebase**: Use [Auto-Improvement Mode](features/auto-improvement.md)
+### Three-Layer Platform Setup
+```bash
+# 1. Install platform
+git clone https://github.com/your-org/codemind.git
+cd codemind && npm install && npm run build
 
-## 🔗 Key Links
+# 2. Start services  
+docker-compose up -d
 
+# 3. Use the layers
+codemind "optimize performance" ./project          # Layer 1: Smart CLI
+codemind orchestrate "production review" ./project  # Layer 2: Orchestrator  
+# Layer 3: Dashboard → http://localhost:3005 → "💡 I have an idea"
+```
+
+## 🔗 Key Resources
+
+- **[Platform Overview](architecture/platform-overview.md)** - Complete three-layer architecture
 - **[GitHub Repository](https://github.com/your-org/codemind)** - Source code and issues
-- **[NPM Package](https://npmjs.com/package/codemind)** - Package downloads
-- **[API Documentation](api-reference/README.md)** - Complete API reference
-- **[Examples](https://github.com/your-org/codemind-examples)** - Usage examples and demos
-
-## 📖 Documentation Conventions
-
-- **Internal Links**: Use relative paths for cross-references
-- **External Links**: Include full URLs for external resources
-- **Code Examples**: Include working examples with expected output
-- **Version Tags**: Documentation applies to version `0.1.0` unless noted
-
-## 📝 Contributing to Documentation
-
-See the [Documentation Contributing Guide](development/contributing.md#documentation) for guidelines on:
-- Writing style and formatting
-- Adding new documentation
-- Updating existing content
-- Review and approval process
+- **[Migration Guide](guides/migration-to-sequential-workflows.md)** - Upgrading from legacy system
 
 ---
 
-**Version**: 0.1.0 | **Last Updated**: 2025-08-25 | **License**: MIT
+**CodeMind Platform**: Three-layer AI development ecosystem  
+**From ideas to implementation** 🚀

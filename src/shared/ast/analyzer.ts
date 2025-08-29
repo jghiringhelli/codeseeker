@@ -295,7 +295,7 @@ export class ASTAnalyzer {
           symbols?.push({
             name: path.node.id.name,
             type: 'function',
-            location: this?.getBabelLocation(path.node, filePath),
+            location: (this as any).getBabelLocation?.(path.node, filePath) || { filePath, line: 0, column: 0 },
             isAsync: path.node.async
           });
         }
@@ -306,7 +306,7 @@ export class ASTAnalyzer {
           symbols?.push({
             name: path.node.id.name,
             type: 'class',
-            location: this?.getBabelLocation(path.node, filePath)
+            location: (this as any).getBabelLocation?.(path.node, filePath) || { filePath, line: 0, column: 0 }
           });
         }
       },
@@ -316,7 +316,7 @@ export class ASTAnalyzer {
           symbols?.push({
             name: path.node.id.name,
             type: 'variable',
-            location: this?.getBabelLocation(path.node, filePath)
+            location: (this as any).getBabelLocation?.(path.node, filePath) || { filePath, line: 0, column: 0 }
           });
         }
       }
@@ -530,11 +530,11 @@ export class ASTAnalyzer {
   }
 
   private hasExportModifier(node: ts.Node): boolean {
-    return node.modifiers?.some(mod => mod?.kind === ts.SyntaxKind.ExportKeyword) || false;
+    return (node as any).modifiers?.some(mod => mod?.kind === ts.SyntaxKind.ExportKeyword) || false;
   }
 
   private hasAsyncModifier(node: ts.Node): boolean {
-    return node.modifiers?.some(mod => mod?.kind === ts.SyntaxKind.AsyncKeyword) || false;
+    return (node as any).modifiers?.some(mod => mod?.kind === ts.SyntaxKind.AsyncKeyword) || false;
   }
 
   private getFunctionParameters(node: ts.FunctionDeclaration): Parameter[] {
@@ -546,10 +546,10 @@ export class ASTAnalyzer {
   }
 
   private getVisibility(node: ts.ClassElement): 'public' | 'private' | 'protected' {
-    if (node.modifiers?.some(mod => mod?.kind === ts.SyntaxKind.PrivateKeyword)) {
+    if ((node as any).modifiers?.some(mod => mod?.kind === ts.SyntaxKind.PrivateKeyword)) {
       return 'private';
     }
-    if (node.modifiers?.some(mod => mod?.kind === ts.SyntaxKind.ProtectedKeyword)) {
+    if ((node as any).modifiers?.some(mod => mod?.kind === ts.SyntaxKind.ProtectedKeyword)) {
       return 'protected';
     }
     return 'public';

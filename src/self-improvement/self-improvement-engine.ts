@@ -122,7 +122,7 @@ export class SelfImprovementEngine extends EventEmitter {
           target: group.locations[0].file,
           description: `Found ${group.locations.length} duplicates with ${group.similarity}% similarity`,
           suggestion: group.refactoring.description,
-          estimatedEffort: group.refactoring.estimatedEffort.level,
+          estimatedEffort: (group.refactoring.estimatedEffort as any)?.level || 'medium',
           benefit: this.calculateDuplicationBenefit(group),
           status: 'identified',
           metadata: {
@@ -147,13 +147,7 @@ export class SelfImprovementEngine extends EventEmitter {
     this.logger.info('Analyzing CodeMind dependency tree...');
     const improvements: Improvement[] = [];
     
-    const tree = await this.treeNavigator.buildDependencyTree({
-      projectPath: this.projectPath,
-      filePattern: 'src/**/*.ts',
-      showDependencies: true,
-      circularOnly: false,
-      maxDepth: 10
-    });
+    const tree = await this.treeNavigator.buildDependencyTree(this.projectPath);
     
     // Check for circular dependencies
     for (const circular of tree.circularDependencies) {
@@ -277,7 +271,7 @@ export class SelfImprovementEngine extends EventEmitter {
           feature: 'centralization_detection',
           target: opportunity.scatteredLocations[0].file,
           description: `${opportunity.configType} scattered across ${opportunity.scatteredLocations.length} files`,
-          suggestion: opportunity.migrationPlan?.description || 'Centralize configuration',
+          suggestion: (opportunity.migrationPlan as any)?.description || 'Centralize configuration',
           estimatedEffort: this.mapComplexityToEffort(opportunity.complexityScore),
           benefit: opportunity.benefitScore,
           status: 'identified',
@@ -309,7 +303,7 @@ export class SelfImprovementEngine extends EventEmitter {
     });
     
     // Check if our files are too large for optimal context
-    const largeFiles = analysis.files?.filter((f: any) => f.tokenCount > 2000) || [];
+    const largeFiles = (analysis as any).files?.filter((f: any) => f.tokenCount > 2000) || [];
     
     for (const file of largeFiles) {
       const improvement: Improvement = {

@@ -64,9 +64,6 @@ export class SelfImprovementScheduler extends EventEmitter {
       } catch (error) {
         this.logger.error(`Scheduled self-improvement failed: ${analysisType}`, error as Error);
       }
-    }, {
-      scheduled: false,
-      name: `self-improvement-${analysisType}`
     });
     
     this.scheduledTasks?.push(task);
@@ -97,9 +94,6 @@ export class SelfImprovementScheduler extends EventEmitter {
         } catch (error) {
           this.logger.error(`Phase 2 dogfooding failed for ${feature}`, error as Error);
         }
-      }, {
-        scheduled: false,
-        name: `phase2-day-${day}-${feature}`
       });
       
       this.scheduledTasks?.push(task);
@@ -198,12 +192,7 @@ export class SelfImprovementScheduler extends EventEmitter {
   private async optimizeOurDependencyTree(): Promise<void> {
     const { treeNavigator } = await this?.getOurOwnTools();
     
-    const tree = await treeNavigator?.buildDependencyTree({
-      projectPath: this.engine['projectPath'],
-      filePattern: 'src/**/*.ts',
-      showDependencies: true,
-      circularOnly: false
-    });
+    const tree = await treeNavigator?.buildDependencyTree(this.engine['projectPath']);
     
     this.logger.info(`Our dependency tree: ${tree.nodes.size} nodes, ${tree.circularDependencies?.length} circular deps`);
     
@@ -348,10 +337,10 @@ export class SelfImprovementScheduler extends EventEmitter {
     running: boolean;
     nextRun?: Date;
   }> {
-    return this.scheduledTasks?.map(task => ({
-      name: task.options.name || 'unnamed',
-      running: task.running,
-      nextRun: task?.nextDates(1)[0]
+    return this.scheduledTasks?.map((task, index) => ({
+      name: `task-${index}`,
+      running: false, // node-cron doesn't expose running state
+      nextRun: undefined // node-cron doesn't expose next run dates
     }));
   }
 

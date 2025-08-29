@@ -6,13 +6,17 @@ This section provides detailed technical documentation for all CodeMind features
 
 CodeMind provides comprehensive code analysis and improvement capabilities through multiple integrated systems:
 
-### 🧠 [Knowledge Graph System](knowledge-graph.md)
+### 🧠 [Core Features Overview](overview.md)
 **Status**: ✅ Fully Implemented  
-Semantic code analysis using triad-based knowledge representation for deep code understanding.
+Complete overview of all CodeMind capabilities including semantic analysis and pattern detection.
 
 ### 🤖 [AI Orchestration System](orchestration.md)  
 **Status**: ✅ Fully Implemented  
 Multi-role AI coordination with 19 specialized roles for systematic development workflows.
+
+### 👥 [AI Roles & Knowledge Integration](ai-roles.md)
+**Status**: ✅ Fully Implemented  
+Role-based knowledge synthesis with tree traversal integration for contextual code analysis.
 
 ### 🔧 [Auto-Improvement Mode](auto-improvement.md)
 **Status**: ✅ Fully Implemented  

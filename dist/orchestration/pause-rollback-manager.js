@@ -1,5 +1,8 @@
 "use strict";
-// Pause and Rollback Manager with Git Integration
+// ⚠️ DEPRECATED: Legacy Pause and Rollback Manager with Git Integration
+// This file is part of the legacy parallel orchestration system.
+// New implementations should handle error recovery within the sequential workflow system.
+// This file will be removed in a future version.
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -45,7 +48,7 @@ class PauseRollbackManager extends events_1.EventEmitter {
     rollbackPoints = new Map();
     pausedExecutions = new Set();
     escapeKeyHandler;
-    gitEnabled = true ?? false;
+    gitEnabled = true;
     stateStorePath;
     constructor(logger, stateStorePath = './workflow-states') {
         super();

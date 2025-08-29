@@ -1079,4 +1079,19 @@ export class SemanticKnowledgeGraph {
     this.logger.info(`Finding similar quality issues for metrics: ${metrics?.join(', ')}`);
     return [];
   }
+
+  async query(params: any): Promise<any> {
+    // General query method for backward compatibility
+    if (params.type === 'nodes') {
+      return this.queryNodes(params as GraphQuery);
+    } else if (params.type === 'triads') {
+      return this.queryTriads(params as GraphQuery);
+    } else if (params.type === 'traverse') {
+      return this.traverse(params as TraversalQuery);
+    }
+    return [];
+  }
 }
+
+export const KnowledgeGraph = SemanticKnowledgeGraph;
+export default SemanticKnowledgeGraph;

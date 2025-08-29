@@ -39,7 +39,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SemanticKnowledgeGraph = void 0;
+exports.KnowledgeGraph = exports.SemanticKnowledgeGraph = void 0;
 const types_1 = require("./types");
 const logger_1 = require("../../utils/logger");
 const factory_1 = require("../../database/factory");
@@ -863,6 +863,21 @@ class SemanticKnowledgeGraph {
         this.logger.info(`Finding similar quality issues for metrics: ${metrics?.join(', ')}`);
         return [];
     }
+    async query(params) {
+        // General query method for backward compatibility
+        if (params.type === 'nodes') {
+            return this.queryNodes(params);
+        }
+        else if (params.type === 'triads') {
+            return this.queryTriads(params);
+        }
+        else if (params.type === 'traverse') {
+            return this.traverse(params);
+        }
+        return [];
+    }
 }
 exports.SemanticKnowledgeGraph = SemanticKnowledgeGraph;
+exports.KnowledgeGraph = SemanticKnowledgeGraph;
+exports.default = SemanticKnowledgeGraph;
 //# sourceMappingURL=knowledge-graph.js.map

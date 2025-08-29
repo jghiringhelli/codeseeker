@@ -90,6 +90,8 @@ export declare class TreeNavigator {
     private logger;
     private astAnalyzer;
     private rl?;
+    analyze(params: any): Promise<any>;
+    buildDependencyTree(projectPath: string): Promise<DependencyTree>;
     buildTree(request: TreeNavigationRequest): Promise<DependencyTree>;
     private getProjectFiles;
     private createFileNode;

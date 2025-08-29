@@ -20,7 +20,8 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": true,
-    "downlevelIteration": true
+    "downlevelIteration": true,
+    "jsx": "react-jsx"
   },
   "include": [
     "src/**/*",

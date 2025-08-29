@@ -1,4 +1,7 @@
-// Pause and Rollback Manager with Git Integration
+// ⚠️ DEPRECATED: Legacy Pause and Rollback Manager with Git Integration
+// This file is part of the legacy parallel orchestration system.
+// New implementations should handle error recovery within the sequential workflow system.
+// This file will be removed in a future version.
 
 import { EventEmitter } from 'events';
 import { Logger } from '../shared/logger';
@@ -56,7 +59,7 @@ export class PauseRollbackManager extends EventEmitter {
   private rollbackPoints: Map<string, RollbackPoint> = new Map();
   private pausedExecutions: Set<string> = new Set();
   private escapeKeyHandler: any;
-  private gitEnabled: boolean = true ?? false;
+  private gitEnabled: boolean = true;
   private stateStorePath: string;
 
   constructor(logger: Logger, stateStorePath: string = './workflow-states') {

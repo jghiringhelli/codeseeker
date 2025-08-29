@@ -278,6 +278,7 @@ class WorkflowVisualizer {
             [types_1.RoleType.QUALITY_AUDITOR]: '⭐',
             [types_1.RoleType.TECHNICAL_DOCUMENTER]: '📚',
             [types_1.RoleType.USER_DOCUMENTER]: '📖',
+            [types_1.RoleType.DOCUMENTATION_WRITER]: '📄',
             [types_1.RoleType.RELEASE_MANAGER]: '🏷️',
             [types_1.RoleType.COMMITTER]: '📝'
         };

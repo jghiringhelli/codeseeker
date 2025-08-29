@@ -122,6 +122,21 @@ export class TreeNavigator {
   private astAnalyzer = new ASTAnalyzer();
   private rl?: readline.Interface;
 
+  // Alias for backward compatibility
+  async analyze(params: any): Promise<any> {
+    const request: TreeNavigationRequest = {
+      projectPath: params.projectPath || '.',
+      includeExternal: params.includeImpactAnalysis || false,
+      showDependencies: params.trackChangePropagation || true
+    };
+    return this.buildTree(request);
+  }
+
+  // Another alias for backward compatibility
+  async buildDependencyTree(projectPath: string): Promise<DependencyTree> {
+    return this.buildTree({ projectPath });
+  }
+
   async buildTree(request: TreeNavigationRequest): Promise<DependencyTree> {
     this.logger.info(`Building dependency tree for ${request.projectPath}`);
 

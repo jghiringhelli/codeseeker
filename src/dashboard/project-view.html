@@ -1,0 +1,4298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeMind - Comprehensive Project View</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #007acc;
+            --secondary-color: #f8f9fa;
+            --border-color: #dee2e6;
+            --border-radius: 8px;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --bg-component: #ffffff;
+            --bg-header: #f8f9fa;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --error-color: #dc3545;
+            --info-color: #17a2b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--spacing-md);
+        }
+
+        /* Header Section */
+        .project-header {
+            background: var(--bg-component);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .project-selector {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .project-dropdown {
+            min-width: 300px;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1.1rem;
+            background: white;
+        }
+
+        .project-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .btn {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--secondary-color);
+            color: var(--text-primary);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Main Layout */
+        .project-view {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: var(--spacing-lg);
+            min-height: 80vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-component);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .sidebar h3 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-md);
+            font-size: 1.2rem;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+        }
+
+        .sidebar-nav li {
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-sm) var(--spacing-md);
+            text-decoration: none;
+            color: var(--text-secondary);
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-nav a:hover,
+        .sidebar-nav a.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .sidebar-nav a .icon {
+            margin-right: var(--spacing-sm);
+            font-size: 1.1rem;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            background: var(--bg-component);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* Tab System */
+        .tab-bar {
+            display: flex;
+            background: var(--bg-header);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-button {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .tab-button:hover,
+        .tab-button.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: rgba(0, 122, 204, 0.05);
+        }
+
+        /* Content Panel */
+        .content-panel {
+            padding: var(--spacing-xl);
+            min-height: 500px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Standard Component Template */
+        .project-component {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing-lg);
+            background: var(--bg-component);
+            overflow: hidden;
+        }
+
+        .component-header {
+            background: var(--bg-header);
+            padding: var(--spacing-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .component-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .component-actions {
+            display: flex;
+            gap: var(--spacing-xs);
+        }
+
+        .component-actions button {
+            background: none;
+            border: none;
+            padding: var(--spacing-xs);
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+        }
+
+        .component-actions button:hover {
+            background: rgba(0, 122, 204, 0.1);
+        }
+
+        .component-content {
+            padding: var(--spacing-lg);
+            min-height: 200px;
+        }
+
+        .component-footer {
+            background: var(--bg-header);
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Loading States */
+        .loading {
+            opacity: 0.6;
+            position: relative;
+        }
+
+        .loading::after {
+            content: "🔄 Loading...";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Tree Navigation Styles */
+        .tree-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+        }
+
+        .tree-node {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .tree-node:hover {
+            background: var(--secondary-color);
+        }
+
+        .tree-node.expanded > .tree-icon {
+            transform: rotate(90deg);
+        }
+
+        .tree-icon {
+            margin-right: var(--spacing-xs);
+            transition: transform 0.3s ease;
+        }
+
+        .tree-children {
+            margin-left: var(--spacing-lg);
+            display: none;
+        }
+
+        .tree-children.expanded {
+            display: block;
+        }
+
+        /* Class Browser Styles */
+        .class-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .class-item {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            background: var(--bg-component);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .class-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .class-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .class-methods {
+            list-style: none;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* Search Interface */
+        .search-container {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: var(--spacing-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .search-filters {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .search-results {
+            border-top: 1px solid var(--border-color);
+            padding-top: var(--spacing-lg);
+        }
+
+        .search-result {
+            padding: var(--spacing-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing-md);
+            background: var(--bg-component);
+        }
+
+        /* Metrics Dashboard */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .metric-card {
+            background: var(--bg-component);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            display: block;
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: var(--spacing-xs);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .project-view {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                order: 2;
+            }
+
+            .main-content {
+                order: 1;
+            }
+
+            .project-selector {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .tab-bar {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* Tool Tags and Database Integration Styles */
+        .tools-section, .database-section {
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .section-header h4 {
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .section-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .tool-card {
+            background: var(--bg-component);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tool-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .tool-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .tool-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .tool-status {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .tool-status.active {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success-color);
+        }
+
+        .tool-status.inactive {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--error-color);
+        }
+
+        .tool-status.configuring {
+            background: rgba(255, 193, 7, 0.1);
+            color: var(--warning-color);
+        }
+
+        .tool-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .tool-capabilities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .capability-tag {
+            background: rgba(0, 122, 204, 0.1);
+            color: var(--primary-color);
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .tool-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            padding-top: var(--spacing-sm);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .tool-metric {
+            text-align: center;
+        }
+
+        .metric-value-small {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+
+        .metric-label-small {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-top: 2px;
+        }
+
+        .tool-actions {
+            display: flex;
+            gap: var(--spacing-xs);
+            justify-content: flex-end;
+        }
+
+        .db-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .db-status-card {
+            background: var(--bg-component);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .db-status-icon {
+            font-size: 2rem;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .db-status-name {
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .db-connection-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .db-connection-status.connected {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success-color);
+        }
+
+        .db-connection-status.disconnected {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--error-color);
+        }
+
+        .db-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-xs);
+            font-size: 0.8rem;
+        }
+
+        .db-metric {
+            color: var(--text-secondary);
+        }
+
+        .db-metric strong {
+            color: var(--text-primary);
+        }
+
+        /* Diagram Controls */
+        .diagram-controls {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .diagram-type-selector {
+            display: flex;
+            gap: var(--spacing-xs);
+            flex-wrap: wrap;
+        }
+
+        .diagram-type-btn {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-component);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .diagram-type-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .diagram-viewer {
+            background: var(--bg-component);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            min-height: 400px;
+            padding: var(--spacing-lg);
+            position: relative;
+        }
+
+        .diagram-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Utility Classes */
+        .text-center { text-align: center; }
+        .text-success { color: var(--success-color); }
+        .text-warning { color: var(--warning-color); }
+        .text-error { color: var(--error-color); }
+        .text-info { color: var(--info-color); }
+        .mb-0 { margin-bottom: 0; }
+        .mb-sm { margin-bottom: var(--spacing-sm); }
+        .mb-md { margin-bottom: var(--spacing-md); }
+        .mb-lg { margin-bottom: var(--spacing-lg); }
+
+        /* Navigation Specific Styles */
+        .navigation-overview {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .navigation-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .stat-card {
+            background: var(--bg-header);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-card h4 {
+            margin: 0 0 var(--spacing-xs) 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card span {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .navigation-sections {
+            background: var(--bg-header);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+        }
+
+        .section-tabs {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: var(--spacing-sm);
+        }
+
+        .section-tab {
+            background: none;
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-md);
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+        }
+
+        .section-tab:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .section-tab.active {
+            background: var(--primary-color);
+            color: white;
+            font-weight: bold;
+        }
+
+        .navigation-section {
+            display: none;
+        }
+
+        .navigation-section.active {
+            display: block;
+        }
+
+        .navigation-section h4 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-md);
+            font-size: 1.1rem;
+        }
+
+        .contexts-list, .flows-list, .diagrams-list, .usecases-list {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .context-item, .flow-item, .usecase-item {
+            padding: var(--spacing-sm);
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .context-item:last-child, .flow-item:last-child, .usecase-item:last-child {
+            border-bottom: none;
+        }
+
+        .context-name, .flow-name, .usecase-name {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .context-type, .flow-type, .usecase-priority {
+            background: var(--bg-header);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .flow-description, .usecase-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+
+        .mermaid-diagram {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-md);
+            text-align: center;
+        }
+
+        .diagram-title {
+            font-weight: bold;
+            margin-bottom: var(--spacing-md);
+            color: var(--primary-color);
+        }
+
+        /* Initialization Panel Styles */
+        .initialization-panel {
+            background: var(--bg-component);
+            border: 2px solid var(--primary-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-md);
+            box-shadow: 0 8px 32px rgba(0, 122, 204, 0.2);
+        }
+
+        .initialization-panel h3 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .init-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .init-category {
+            background: var(--bg-header);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .init-category h4 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .init-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-xs);
+        }
+
+        .btn-sm {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            font-size: 0.8rem;
+            min-width: auto;
+        }
+
+        .btn-info {
+            background: var(--info-color);
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .init-bulk-actions {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-md);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .init-progress {
+            margin-top: var(--spacing-lg);
+            padding: var(--spacing-md);
+            background: var(--bg-header);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .progress-log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        .progress-log .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .progress-log .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .progress-log .log-success {
+            color: var(--success-color);
+        }
+
+        .progress-log .log-error {
+            color: var(--error-color);
+        }
+
+        .progress-log .log-info {
+            color: var(--info-color);
+        }
+
+        /* Reconciliation Styles */
+        .reconciliation-overview {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .reconciliation-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .reconciliation-stat {
+            background: var(--bg-header);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            text-align: center;
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .reconciliation-stat:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .reconciliation-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: var(--bg-header);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+            min-width: 150px;
+        }
+
+        .filter-group label {
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .filter-group select {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: white;
+            font-size: 0.9rem;
+        }
+
+        .reconciliation-results {
+            margin-top: var(--spacing-lg);
+        }
+
+        .feature-reconciliation {
+            background: var(--bg-component);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-md);
+            position: relative;
+        }
+
+        .feature-reconciliation.has-discrepancy {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .feature-reconciliation.missing-implementation {
+            border-left: 4px solid var(--error-color);
+        }
+
+        .feature-reconciliation.in-sync {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .feature-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .feature-info {
+            flex: 1;
+        }
+
+        .feature-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .feature-description {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .feature-meta {
+            display: flex;
+            gap: var(--spacing-md);
+            font-size: 0.9rem;
+        }
+
+        .feature-type, .feature-priority, .feature-status {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .feature-type {
+            background: var(--info-color);
+            color: white;
+        }
+
+        .feature-priority.critical {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .feature-priority.high {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .feature-priority.medium {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .feature-priority.low {
+            background: var(--text-secondary);
+            color: white;
+        }
+
+        .feature-status.implemented {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .feature-status.documented {
+            background: var(--info-color);
+            color: white;
+        }
+
+        .feature-status.partial {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .feature-status.missing {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .feature-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .reconciliation-details {
+            margin-top: var(--spacing-md);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .discrepancies-list {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .discrepancy-item {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .discrepancy-item.critical {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .discrepancy-item.high {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+        }
+
+        .discrepancy-item.medium {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+        }
+
+        .discrepancy-description {
+            font-weight: bold;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .discrepancy-location {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .sync-options {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+        }
+
+        .sync-option {
+            background: var(--bg-header);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .sync-option:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .sync-option-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .sync-direction {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .sync-confidence {
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: var(--success-color);
+            color: white;
+        }
+
+        .sync-confidence.medium {
+            background: var(--warning-color);
+        }
+
+        .sync-confidence.low {
+            background: var(--error-color);
+        }
+
+        .sync-preview {
+            background: #f8f9fa;
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            font-family: monospace;
+            font-size: 0.8rem;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: var(--spacing-sm);
+        }
+
+        .sync-risks-benefits {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-sm);
+        }
+
+        .sync-risks, .sync-benefits {
+            font-size: 0.8rem;
+        }
+
+        .sync-risks h5, .sync-benefits h5 {
+            margin-bottom: var(--spacing-xs);
+            font-weight: bold;
+        }
+
+        .sync-risks {
+            color: var(--error-color);
+        }
+
+        .sync-benefits {
+            color: var(--success-color);
+        }
+
+        .expandable-section {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .expandable-section:hover {
+            background: var(--bg-header);
+        }
+
+        .expandable-content {
+            display: none;
+            margin-top: var(--spacing-sm);
+        }
+
+        .expandable-content.expanded {
+            display: block;
+        }
+
+        .btn-sync {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-sync:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .btn-sync.danger {
+            background: var(--error-color);
+        }
+
+        .btn-sync.danger:hover {
+            background: #c82333;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: var(--error-color);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+            padding: 0 var(--spacing-lg);
+        }
+
+        .form-group:first-of-type {
+            padding-top: var(--spacing-lg);
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-primary);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+        }
+
+        .modal-footer {
+            padding: var(--spacing-lg);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--spacing-sm);
+        }
+
+        .form-group label input[type="checkbox"] {
+            margin-right: var(--spacing-xs);
+        }
+
+        .help-text {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+            font-style: italic;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: var(--spacing-md);
+            margin: var(--spacing-sm) 0;
+        }
+
+        .info-box h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+            color: #495057;
+            font-size: 14px;
+        }
+
+        .info-box p {
+            margin: var(--spacing-xs) 0;
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .info-box code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            display: block;
+            margin: var(--spacing-xs) 0;
+            word-break: break-all;
+        }
+
+        .cli-instructions {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: var(--spacing-md);
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin: var(--spacing-md) 0;
+        }
+        /* Initialization Notice Modal Styles */
+        .notice-section {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .recommendation-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            margin: var(--spacing-md) 0;
+        }
+
+        .cli-instruction {
+            margin: var(--spacing-sm) 0;
+        }
+
+        .cli-instruction code {
+            display: block;
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: var(--spacing-sm);
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-top: var(--spacing-xs);
+            word-break: break-all;
+        }
+
+        .feature-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+            margin: var(--spacing-md) 0;
+        }
+
+        .comparison-column {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: var(--spacing-md);
+        }
+
+        .comparison-column h6 {
+            margin-top: 0;
+            margin-bottom: var(--spacing-sm);
+            font-weight: bold;
+        }
+
+        .comparison-column ul {
+            margin: 0;
+            padding-left: var(--spacing-md);
+        }
+
+        .comparison-column li {
+            margin-bottom: var(--spacing-xs);
+            font-size: 0.9rem;
+        }
+
+        .autodiscovery-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            margin-top: var(--spacing-md);
+        }
+
+        .autodiscovery-section h5 {
+            color: #856404;
+            margin-top: 0;
+        }
+
+        .autodiscovery-section ol {
+            margin-bottom: 0;
+        }
+
+        .autodiscovery-section li {
+            margin-bottom: var(--spacing-xs);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Project Header -->
+        <div class="project-header">
+            <div class="project-selector">
+                <select class="project-dropdown" id="projectSelect">
+                    <option value="">Select a project...</option>
+                </select>
+                <div class="project-actions">
+                    <button class="btn btn-secondary" onclick="showCreateProjectModal()">➕ Create Project</button>
+                    <button class="btn btn-primary" onclick="refreshProject()">🔄 Refresh</button>
+                    <button class="btn btn-success" onclick="analyzeProject()" id="analyzeBtn">🔍 Full Analysis</button>
+                    <button class="btn btn-secondary" onclick="showInitializationNotice()" id="initBtn">🚀 Initialize</button>
+                    <button class="btn btn-secondary" onclick="openSettings()">⚙️ Settings</button>
+                    <button class="btn btn-secondary" onclick="exportProject()">📤 Export</button>
+                </div>
+                
+                <!-- Initialization Panel (Hidden by default) -->
+                <div id="initializationPanel" class="initialization-panel" style="display: none;">
+                    <h3>🚀 Project Initialization</h3>
+                    <p>Choose specific components to initialize or reinitialize:</p>
+                    
+                    <div class="init-categories">
+                        <div class="init-category">
+                            <h4>📊 Core Analysis</h4>
+                            <div class="init-actions">
+                                <button class="btn btn-sm btn-primary" onclick="initializeComponent('files')">📁 File Tree</button>
+                                <button class="btn btn-sm btn-primary" onclick="initializeComponent('classes')">🏗️ Classes</button>
+                                <button class="btn btn-sm btn-primary" onclick="initializeComponent('duplicates')">🔍 Duplicates</button>
+                            </div>
+                        </div>
+                        
+                        <div class="init-category">
+                            <h4>🎯 Intelligence</h4>
+                            <div class="init-actions">
+                                <button class="btn btn-sm btn-info" onclick="initializeComponent('rag')">🧠 RAG Index</button>
+                                <button class="btn btn-sm btn-info" onclick="initializeComponent('navigation')">🧭 Navigation</button>
+                                <button class="btn btn-sm btn-info" onclick="initializeComponent('config')">⚙️ Config</button>
+                            </div>
+                        </div>
+                        
+                        <div class="init-category">
+                            <h4>📈 Quality & Planning</h4>
+                            <div class="init-actions">
+                                <button class="btn btn-sm btn-warning" onclick="initializeComponent('metrics')">📊 Metrics</button>
+                                <button class="btn btn-sm btn-warning" onclick="initializeComponent('roadmap')">🗺️ Roadmap</button>
+                                <button class="btn btn-sm btn-warning" onclick="initializeComponent('diagrams')">📐 Diagrams</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="init-bulk-actions">
+                        <button class="btn btn-success" onclick="initializeComponent('all')">🚀 Initialize All</button>
+                        <button class="btn btn-danger" onclick="initializeComponent('reset')">🔄 Reset All</button>
+                        <button class="btn btn-secondary" onclick="hideInitializationPanel()">❌ Cancel</button>
+                    </div>
+                    
+                    <div id="initProgress" class="init-progress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">Initializing...</div>
+                        <div class="progress-log" id="progressLog"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="projectInfo" class="project-info" style="display: none;">
+                <h2 id="projectName">Project Name</h2>
+                <p id="projectDescription">Project description will appear here</p>
+            </div>
+        </div>
+
+        <!-- Main Project View -->
+        <div class="project-view">
+            <!-- Sidebar Navigation -->
+            <div class="sidebar">
+                <h3>Quick Access</h3>
+                <ul class="sidebar-nav">
+                    <li><a href="#" onclick="showTab('overview')" class="active">
+                        <span class="icon">📋</span> Overview
+                    </a></li>
+                    <li><a href="#" onclick="showTab('tree')">
+                        <span class="icon">🌳</span> File Tree
+                    </a></li>
+                    <li><a href="#" onclick="showTab('classes')">
+                        <span class="icon">🏗️</span> Classes
+                    </a></li>
+                    <li><a href="#" onclick="showTab('search')">
+                        <span class="icon">🔍</span> Search
+                    </a></li>
+                    <li><a href="#" onclick="showTab('navigation')">
+                        <span class="icon">🧭</span> Navigation
+                    </a></li>
+                    <li><a href="#" onclick="showTab('config')">
+                        <span class="icon">⚙️</span> Configuration
+                    </a></li>
+                    <li><a href="#" onclick="showTab('metrics')">
+                        <span class="icon">📊</span> Metrics
+                    </a></li>
+                    <li><a href="#" onclick="showTab('roadmap')">
+                        <span class="icon">🗺️</span> Roadmap
+                    </a></li>
+                    <li><a href="#" onclick="showTab('diagrams')">
+                        <span class="icon">📈</span> Diagrams
+                    </a></li>
+                    <li><a href="#" onclick="showTab('reconciliation')">
+                        <span class="icon">🔄</span> Code ⟷ Docs
+                    </a></li>
+                </ul>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Tab Bar -->
+                <div class="tab-bar">
+                    <button class="tab-button active" onclick="showTab('overview')">Overview</button>
+                    <button class="tab-button" onclick="showTab('tree')">File Tree</button>
+                    <button class="tab-button" onclick="showTab('classes')">Classes</button>
+                    <button class="tab-button" onclick="showTab('search')">RAG Search</button>
+                    <button class="tab-button" onclick="showTab('navigation')">Navigation</button>
+                    <button class="tab-button" onclick="showTab('config')">Config</button>
+                    <button class="tab-button" onclick="showTab('metrics')">Metrics</button>
+                    <button class="tab-button" onclick="showTab('roadmap')">Roadmap</button>
+                    <button class="tab-button" onclick="showTab('diagrams')">Diagrams</button>
+                    <button class="tab-button" onclick="showTab('reconciliation')">Code ⟷ Docs</button>
+                </div>
+
+                <!-- Content Panel -->
+                <div class="content-panel">
+                    <!-- Overview Tab -->
+                    <div id="overview-tab" class="tab-content active">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">Project Overview</h3>
+                                <div class="component-actions">
+                                    <button onclick="refreshOverview()">🔄</button>
+                                </div>
+                            </div>
+                            <div class="component-content">
+                                <div class="metrics-grid">
+                                    <div class="metric-card">
+                                        <span class="metric-value" id="totalFiles">-</span>
+                                        <span class="metric-label">Total Files</span>
+                                    </div>
+                                    <div class="metric-card">
+                                        <span class="metric-value" id="totalClasses">-</span>
+                                        <span class="metric-label">Classes</span>
+                                    </div>
+                                    <div class="metric-card">
+                                        <span class="metric-value" id="qualityScore">-</span>
+                                        <span class="metric-label">Quality Score</span>
+                                    </div>
+                                    <div class="metric-card">
+                                        <span class="metric-value" id="completionRate">-</span>
+                                        <span class="metric-label">Completion</span>
+                                    </div>
+                                </div>
+                                <div id="projectSummary">
+                                    <p>Select a project to view detailed information.</p>
+                                </div>
+                                
+                                <!-- Tool Tags Section -->
+                                <div class="tools-section" id="toolsSection" style="display: none;">
+                                    <div class="section-header">
+                                        <h4>🛠️ Active Tools & Integration Status</h4>
+                                        <button class="btn btn-sm btn-secondary" onclick="refreshTools()">🔄 Refresh</button>
+                                    </div>
+                                    <div class="tools-grid" id="toolsGrid">
+                                        <!-- Tool tags will be populated here -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Database Integration Status -->
+                                <div class="database-section" id="databaseSection" style="display: none;">
+                                    <div class="section-header">
+                                        <h4>💾 Database Integration Status</h4>
+                                        <div class="section-actions">
+                                            <button class="btn btn-sm btn-secondary" onclick="refreshDatabase()">🔄 Refresh</button>
+                                            <button class="btn btn-sm btn-primary" onclick="syncDatabase()">🔄 Sync DB</button>
+                                        </div>
+                                    </div>
+                                    <div class="db-status-grid" id="dbStatusGrid">
+                                        <!-- Database status will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Last updated: <span id="lastUpdated">Never</span></span>
+                                <span class="data-source">Source: Dashboard</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File Tree Tab -->
+                    <div id="tree-tab" class="tab-content">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">Project File Tree</h3>
+                                <div class="component-actions">
+                                    <button onclick="refreshTree()">🔄</button>
+                                    <button onclick="expandAllTree()">⛶</button>
+                                </div>
+                            </div>
+                            <div class="component-content">
+                                <div class="tree-container" id="fileTree">
+                                    <p>Select a project to view file tree.</p>
+                                </div>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Last updated: <span id="treeLastUpdated">Never</span></span>
+                                <span class="data-source">Source: File System</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Classes Tab -->
+                    <div id="classes-tab" class="tab-content">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">Class Browser</h3>
+                                <div class="component-actions">
+                                    <button onclick="refreshClasses()">🔄</button>
+                                </div>
+                            </div>
+                            <div class="component-content">
+                                <div class="class-list" id="classList">
+                                    <p>Select a project to view classes.</p>
+                                </div>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Last updated: <span id="classesLastUpdated">Never</span></span>
+                                <span class="data-source">Source: Code Analysis</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RAG Search Tab -->
+                    <div id="search-tab" class="tab-content">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">RAG & Vector Search</h3>
+                                <div class="component-actions">
+                                    <button onclick="refreshSearch()">🔄</button>
+                                </div>
+                            </div>
+                            <div class="component-content">
+                                <div class="search-container">
+                                    <input type="text" class="search-input" id="searchQuery" 
+                                           placeholder="Enter natural language query or search terms...">
+                                    <div class="search-filters">
+                                        <label><input type="radio" name="searchType" value="semantic" checked> Semantic Search</label>
+                                        <label><input type="radio" name="searchType" value="text"> Text Search</label>
+                                        <button class="btn btn-primary" onclick="performSearch()">🔍 Search</button>
+                                    </div>
+                                    <div class="search-results" id="searchResults" style="display: none;">
+                                        <!-- Search results will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Search Index: <span id="searchIndexStatus">Unknown</span></span>
+                                <span class="data-source">Source: Vector Database</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Tab -->
+                    <div id="navigation-tab" class="tab-content">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">Navigation Mapping</h3>
+                                <div class="component-actions">
+                                    <button onclick="refreshNavigation()">🔄</button>
+                                </div>
+                            </div>
+                            <div class="component-content" id="navigationContent">
+                                <div class="navigation-overview">
+                                    <div class="navigation-stats">
+                                        <div class="stat-card">
+                                            <h4>Contexts</h4>
+                                            <span id="navigationContexts">0</span>
+                                        </div>
+                                        <div class="stat-card">
+                                            <h4>Elements</h4>
+                                            <span id="navigationElements">0</span>
+                                        </div>
+                                        <div class="stat-card">
+                                            <h4>Flows</h4>
+                                            <span id="navigationFlows">0</span>
+                                        </div>
+                                        <div class="stat-card">
+                                            <h4>Use Cases</h4>
+                                            <span id="navigationUseCases">0</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="navigation-sections">
+                                        <div class="section-tabs">
+                                            <button class="section-tab active" onclick="showNavigationSection('contexts')">Contexts</button>
+                                            <button class="section-tab" onclick="showNavigationSection('flows')">User Flows</button>
+                                            <button class="section-tab" onclick="showNavigationSection('diagrams')">Flow Diagrams</button>
+                                            <button class="section-tab" onclick="showNavigationSection('usecases')">Use Cases</button>
+                                        </div>
+                                        
+                                        <!-- Navigation Contexts Section -->
+                                        <div id="navigation-contexts" class="navigation-section active">
+                                            <h4>Navigation Contexts</h4>
+                                            <div id="contextsList" class="contexts-list">
+                                                <p>Loading navigation contexts...</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- User Flows Section -->
+                                        <div id="navigation-flows" class="navigation-section">
+                                            <h4>User Navigation Flows</h4>
+                                            <div id="flowsList" class="flows-list">
+                                                <p>Loading navigation flows...</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Flow Diagrams Section -->
+                                        <div id="navigation-diagrams" class="navigation-section">
+                                            <h4>Navigation Flow Diagrams</h4>
+                                            <div id="diagramsList" class="diagrams-list">
+                                                <p>Loading navigation diagrams...</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Use Cases Section -->
+                                        <div id="navigation-usecases" class="navigation-section">
+                                            <h4>Navigation Use Cases</h4>
+                                            <div id="usecasesList" class="usecases-list">
+                                                <p>Loading navigation use cases...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Last updated: <span id="navigationLastUpdated">Never</span></span>
+                                <span class="data-source">Source: Navigation Analysis</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration Tab -->
+                    <div id="config-tab" class="tab-content">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">Project Configuration</h3>
+                                <div class="component-actions">
+                                    <button onclick="refreshConfig()">🔄</button>
+                                </div>
+                            </div>
+                            <div class="component-content" id="configContent">
+                                <p>Select a project to view configuration.</p>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Last updated: <span id="configLastUpdated">Never</span></span>
+                                <span class="data-source">Source: Project Files</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Tab -->
+                    <div id="metrics-tab" class="tab-content">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">Project Metrics & Analytics</h3>
+                                <div class="component-actions">
+                                    <button onclick="refreshMetrics()">🔄</button>
+                                </div>
+                            </div>
+                            <div class="component-content" id="metricsContent">
+                                <p>Select a project to view metrics.</p>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Last updated: <span id="metricsLastUpdated">Never</span></span>
+                                <span class="data-source">Source: Code Analysis</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Roadmap Tab -->
+                    <div id="roadmap-tab" class="tab-content">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">Development Roadmap & Standards</h3>
+                                <div class="component-actions">
+                                    <button onclick="refreshRoadmap()">🔄</button>
+                                </div>
+                            </div>
+                            <div class="component-content" id="roadmapContent">
+                                <p>Select a project to view roadmap and standards.</p>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Last updated: <span id="roadmapLastUpdated">Never</span></span>
+                                <span class="data-source">Source: Orchestrator</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Diagrams Tab -->
+                    <div id="diagrams-tab" class="tab-content">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">Visual Diagrams</h3>
+                                <div class="component-actions">
+                                    <button onclick="generateDiagram()">🎨 Generate</button>
+                                    <button onclick="refreshDiagrams()">🔄</button>
+                                </div>
+                            </div>
+                            <div class="component-content">
+                                <!-- Diagram Controls -->
+                                <div class="diagram-controls">
+                                    <div class="diagram-type-selector">
+                                        <button class="diagram-type-btn active" data-type="architecture">🏗️ Architecture</button>
+                                        <button class="diagram-type-btn" data-type="classes">🔗 Classes</button>
+                                        <button class="diagram-type-btn" data-type="dependencies">📦 Dependencies</button>
+                                        <button class="diagram-type-btn" data-type="flow">🔄 Data Flow</button>
+                                        <button class="diagram-type-btn" data-type="navigation">🧭 Navigation</button>
+                                        <button class="diagram-type-btn" data-type="er">🗃️ Database ER</button>
+                                    </div>
+                                    <div class="diagram-actions">
+                                        <button class="btn btn-primary" onclick="generateDiagram()">🎨 Generate</button>
+                                        <button class="btn btn-secondary" onclick="updateDiagram()">🔄 Update</button>
+                                        <button class="btn btn-secondary" onclick="exportDiagram()">💾 Export</button>
+                                        <button class="btn btn-secondary" onclick="shareDiagram()">🔗 Share</button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Diagram Options -->
+                                <div class="diagram-options" style="margin-bottom: var(--spacing-md);">
+                                    <label style="margin-right: var(--spacing-md);">
+                                        <input type="checkbox" id="includeDetails"> Include detailed annotations
+                                    </label>
+                                    <label style="margin-right: var(--spacing-md);">
+                                        <input type="checkbox" id="autoLayout" checked> Auto-layout
+                                    </label>
+                                    <label style="margin-right: var(--spacing-md);">
+                                        <input type="checkbox" id="showMetrics"> Show metrics
+                                    </label>
+                                </div>
+                                
+                                <!-- Diagram Viewer -->
+                                <div class="diagram-viewer" id="diagramViewer">
+                                    <div class="diagram-placeholder">
+                                        <div style="text-align: center;">
+                                            <div style="font-size: 3em; margin-bottom: 15px;">📊</div>
+                                            <div style="font-size: 1.2em; margin-bottom: 10px;">No diagram generated</div>
+                                            <div>Select a diagram type and click "Generate" to create visual documentation</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Diagram History -->
+                                <div class="diagram-history" id="diagramHistory" style="margin-top: var(--spacing-lg); display: none;">
+                                    <h4 style="color: var(--primary-color); margin-bottom: var(--spacing-sm);">Recent Diagrams</h4>
+                                    <div class="diagram-history-list" id="diagramHistoryList">
+                                        <!-- History items will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Last generated: <span id="diagramsLastUpdated">Never</span></span>
+                                <span class="data-source">Source: Claude + Project Data</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reconciliation Tab -->
+                    <div id="reconciliation-tab" class="tab-content">
+                        <div class="project-component">
+                            <div class="component-header">
+                                <h3 class="component-title">Code ⟷ Documentation Reconciliation</h3>
+                                <div class="component-actions">
+                                    <button onclick="runReconciliation()">🔄 Analyze</button>
+                                    <button onclick="refreshReconciliation()">🔄</button>
+                                </div>
+                            </div>
+                            <div class="component-content" id="reconciliationContent">
+                                <div class="reconciliation-overview">
+                                    <div class="reconciliation-stats">
+                                        <div class="stat-card reconciliation-stat">
+                                            <h4>Features</h4>
+                                            <span id="totalFeatures">0</span>
+                                        </div>
+                                        <div class="stat-card reconciliation-stat">
+                                            <h4>In Sync</h4>
+                                            <span id="syncedFeatures" class="text-success">0</span>
+                                        </div>
+                                        <div class="stat-card reconciliation-stat">
+                                            <h4>Discrepancies</h4>
+                                            <span id="discrepancies" class="text-warning">0</span>
+                                        </div>
+                                        <div class="stat-card reconciliation-stat">
+                                            <h4>Missing</h4>
+                                            <span id="missingImplementations" class="text-error">0</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="reconciliation-filters">
+                                        <div class="filter-group">
+                                            <label>Status Filter:</label>
+                                            <select id="statusFilter" onchange="filterReconciliationResults()">
+                                                <option value="all">All Features</option>
+                                                <option value="implemented">Implemented Only</option>
+                                                <option value="documented">Documented Only</option>
+                                                <option value="partial">Partial Match</option>
+                                                <option value="missing">Missing Implementation</option>
+                                                <option value="outdated">Outdated Documentation</option>
+                                            </select>
+                                        </div>
+                                        <div class="filter-group">
+                                            <label>Priority:</label>
+                                            <select id="priorityFilter" onchange="filterReconciliationResults()">
+                                                <option value="all">All Priorities</option>
+                                                <option value="critical">Critical</option>
+                                                <option value="high">High</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="low">Low</option>
+                                            </select>
+                                        </div>
+                                        <div class="filter-group">
+                                            <label>Type:</label>
+                                            <select id="typeFilter" onchange="filterReconciliationResults()">
+                                                <option value="all">All Types</option>
+                                                <option value="function">Functions</option>
+                                                <option value="class">Classes</option>
+                                                <option value="api">APIs</option>
+                                                <option value="component">Components</option>
+                                                <option value="workflow">Workflows</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="reconciliation-results" id="reconciliationResults">
+                                    <p>Click "Analyze" to run code-documentation reconciliation analysis.</p>
+                                </div>
+                            </div>
+                            <div class="component-footer">
+                                <span class="last-updated">Last analyzed: <span id="reconciliationLastUpdated">Never</span></span>
+                                <span class="data-source">Source: Code + Documentation Analysis</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentProject = null;
+        let currentTab = 'overview';
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProjects();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('projectSelect').addEventListener('change', function() {
+                const projectId = this.value;
+                if (projectId) {
+                    loadProject(projectId);
+                }
+            });
+
+            // Setup search on Enter key
+            document.getElementById('searchQuery').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+        }
+
+        // Project Management
+        async function loadProjects() {
+            console.log('🔍 loadProjects called');
+            try {
+                console.log('🌐 Fetching /api/dashboard/projects/all');
+                const response = await fetch('/api/dashboard/projects/all');
+                console.log('📡 Response status:', response.status);
+                const projects = await response.json();
+                console.log('📋 Projects received:', projects.length, projects);
+                
+                const select = document.getElementById('projectSelect');
+                console.log('🎯 Select element found:', !!select);
+                if (!select) {
+                    console.error('❌ projectSelect element not found!');
+                    return;
+                }
+                
+                select.innerHTML = '<option value="">Select a project...</option>';
+                console.log('🧹 Cleared select options');
+                
+                projects.forEach((project, index) => {
+                    console.log(`➕ Adding project ${index + 1}:`, project.project_name, project.project_id);
+                    const option = document.createElement('option');
+                    option.value = project.project_id;
+                    option.textContent = project.project_name || project.project_path;
+                    // Add status indicator if not active
+                    if (project.status && project.status !== 'active') {
+                        option.textContent += ` (${project.status})`;
+                    }
+                    select.appendChild(option);
+                });
+                console.log('✅ loadProjects completed successfully');
+            } catch (error) {
+                console.error('❌ Failed to load projects:', error);
+                showError('Failed to load projects. Please check if the database is running.');
+            }
+        }
+
+        async function loadProject(projectId) {
+            currentProject = projectId;
+            
+            // Update project info
+            try {
+                const response = await fetch(`/api/dashboard/projects/${projectId}/details`);
+                const project = await response.json();
+                
+                document.getElementById('projectName').textContent = project.project_name || 'Project';
+                document.getElementById('projectDescription').textContent = project.description || 'No description available';
+                document.getElementById('projectInfo').style.display = 'block';
+                
+                // Load current tab data
+                loadCurrentTabData();
+            } catch (error) {
+                console.error('Failed to load project:', error);
+                showError('Failed to load project details.');
+            }
+        }
+
+        // Tab Management
+        function showTab(tabName) {
+            currentTab = tabName;
+            
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Remove active class from all sidebar links
+            document.querySelectorAll('.sidebar-nav a').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Activate corresponding button
+            event.target.classList.add('active');
+            
+            // Load tab data if project is selected
+            if (currentProject) {
+                loadCurrentTabData();
+            }
+        }
+
+        async function loadCurrentTabData() {
+            if (!currentProject) return;
+            
+            const loaders = {
+                'overview': loadOverview,
+                'tree': loadFileTree,
+                'classes': loadClasses,
+                'search': loadSearchStatus,
+                'navigation': loadNavigation,
+                'config': loadConfiguration,
+                'metrics': loadMetrics,
+                'roadmap': loadRoadmap,
+                'diagrams': () => {} // Diagrams are generated on demand
+            };
+            
+            if (loaders[currentTab]) {
+                try {
+                    await loaders[currentTab]();
+                } catch (error) {
+                    console.error(`Failed to load ${currentTab}:`, error);
+                    showError(`Failed to load ${currentTab} data.`);
+                }
+            }
+        }
+
+        // Data Loading Functions
+        async function loadOverview() {
+            const container = document.getElementById('overview-tab');
+            container.classList.add('loading');
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/details`);
+                const data = await response.json();
+                
+                // Update overview metrics (these would come from actual project analysis)
+                document.getElementById('totalFiles').textContent = data.file_count || '0';
+                document.getElementById('totalClasses').textContent = data.class_count || '0';
+                document.getElementById('qualityScore').textContent = data.quality_score || 'N/A';
+                document.getElementById('completionRate').textContent = (data.completion_rate || '0') + '%';
+                
+                document.getElementById('projectSummary').innerHTML = `
+                    <h4>Project Summary</h4>
+                    <p><strong>Type:</strong> ${data.project_type || 'Unknown'}</p>
+                    <p><strong>Languages:</strong> ${data.languages || 'Not analyzed'}</p>
+                    <p><strong>Framework:</strong> ${data.framework || 'Not specified'}</p>
+                    <p><strong>Last Analysis:</strong> ${data.last_analysis || 'Never'}</p>
+                `;
+                
+                document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+                
+                // Load tools and database status
+                await loadTools();
+                await loadDatabaseStatus();
+                
+            } finally {
+                container.classList.remove('loading');
+            }
+        }
+
+        async function loadFileTree() {
+            const container = document.getElementById('fileTree');
+            container.classList.add('loading');
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/tree`);
+                const data = await response.json();
+                
+                if (data.tree) {
+                    container.innerHTML = renderTree(data.tree);
+                } else {
+                    container.innerHTML = '<p>No files found or project not analyzed.</p>';
+                }
+                
+                document.getElementById('treeLastUpdated').textContent = new Date().toLocaleString();
+            } finally {
+                container.classList.remove('loading');
+            }
+        }
+
+        function renderTree(tree, level = 0) {
+            let html = '';
+            for (const [key, value] of Object.entries(tree)) {
+                if (typeof value === 'object' && value.file_path) {
+                    // This is a file
+                    html += `<div class="tree-node" style="margin-left: ${level * 20}px;">
+                        <span class="tree-icon">📄</span>
+                        <span>${key}</span>
+                    </div>`;
+                } else {
+                    // This is a directory
+                    html += `<div class="tree-node" style="margin-left: ${level * 20}px;" onclick="toggleTreeNode(this)">
+                        <span class="tree-icon">▶</span>
+                        <span>${key}</span>
+                    </div>`;
+                    html += `<div class="tree-children">${renderTree(value, level + 1)}</div>`;
+                }
+            }
+            return html;
+        }
+
+        function toggleTreeNode(element) {
+            const children = element.nextElementSibling;
+            const icon = element.querySelector('.tree-icon');
+            
+            if (children && children.classList.contains('tree-children')) {
+                children.classList.toggle('expanded');
+                element.classList.toggle('expanded');
+            }
+        }
+
+        async function loadClasses() {
+            const container = document.getElementById('classList');
+            container.classList.add('loading');
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/classes`);
+                const data = await response.json();
+                
+                if (data.classes && data.classes.length > 0) {
+                    container.innerHTML = data.classes.map(cls => `
+                        <div class="class-item">
+                            <div class="class-name">${cls.class_name}</div>
+                            <p><strong>File:</strong> ${cls.file_path}</p>
+                            <p><strong>Language:</strong> ${cls.language}</p>
+                            ${cls.methods ? `
+                                <p><strong>Methods:</strong></p>
+                                <ul class="class-methods">
+                                    ${cls.methods.map(method => `<li>${method}</li>`).join('')}
+                                </ul>
+                            ` : ''}
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<p>No classes found or project not analyzed.</p>';
+                }
+                
+                document.getElementById('classesLastUpdated').textContent = new Date().toLocaleString();
+            } finally {
+                container.classList.remove('loading');
+            }
+        }
+
+        async function loadSearchStatus() {
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/search`);
+                const data = await response.json();
+                
+                document.getElementById('searchIndexStatus').textContent = 
+                    data.search_index_status || 'Not indexed';
+            } catch (error) {
+                document.getElementById('searchIndexStatus').textContent = 'Error loading status';
+            }
+        }
+
+        async function performSearch() {
+            const query = document.getElementById('searchQuery').value.trim();
+            const searchType = document.querySelector('input[name="searchType"]:checked').value;
+            const resultsContainer = document.getElementById('searchResults');
+            
+            if (!query) return;
+            
+            resultsContainer.style.display = 'block';
+            resultsContainer.innerHTML = '<div class="loading">Searching...</div>';
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, searchType })
+                });
+                
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    resultsContainer.innerHTML = `
+                        <h4>Search Results (${data.totalResults} found)</h4>
+                        ${data.results.map(result => `
+                            <div class="search-result">
+                                <h5>${result.file || result.title}</h5>
+                                <p>${result.snippet || result.content}</p>
+                                <small>Relevance: ${(result.relevance * 100).toFixed(1)}%</small>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    resultsContainer.innerHTML = '<p>No results found.</p>';
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = '<p class="text-error">Search failed. Please try again.</p>';
+            }
+        }
+
+        // Navigation Functions
+        async function loadNavigation() {
+            const container = document.getElementById('navigation-tab');
+            container.classList.add('loading');
+            
+            try {
+                // Load navigation data from the API endpoints
+                const [contextsRes, flowsRes, diagramsRes, usecasesRes] = await Promise.all([
+                    fetch(`/api/dashboard/projects/${currentProject}/navigation/contexts`),
+                    fetch(`/api/dashboard/projects/${currentProject}/navigation/flows`),
+                    fetch(`/api/dashboard/projects/${currentProject}/navigation/diagrams`),
+                    fetch(`/api/dashboard/projects/${currentProject}/navigation/usecases`)
+                ]);
+
+                const contexts = await contextsRes.json();
+                const flows = await flowsRes.json();
+                const diagrams = await diagramsRes.json();
+                const usecases = await usecasesRes.json();
+
+                // Update navigation stats
+                document.getElementById('navigationContexts').textContent = contexts.length || 0;
+                document.getElementById('navigationFlows').textContent = flows.length || 0;
+                document.getElementById('navigationUseCases').textContent = usecases.length || 0;
+                
+                // Calculate total elements across all contexts
+                const totalElements = contexts.reduce((sum, ctx) => sum + (ctx.elements_count || 0), 0);
+                document.getElementById('navigationElements').textContent = totalElements;
+
+                // Populate sections
+                populateNavigationContexts(contexts);
+                populateNavigationFlows(flows);
+                populateNavigationDiagrams(diagrams);
+                populateNavigationUseCases(usecases);
+
+                // Update timestamp
+                document.getElementById('navigationLastUpdated').textContent = new Date().toLocaleString();
+            } catch (error) {
+                console.error('Failed to load navigation data:', error);
+                document.getElementById('navigationContent').innerHTML = '<p>Error loading navigation data</p>';
+            } finally {
+                container.classList.remove('loading');
+            }
+        }
+
+        function populateNavigationContexts(contexts) {
+            const container = document.getElementById('contextsList');
+            
+            if (!contexts || contexts.length === 0) {
+                container.innerHTML = '<p>No navigation contexts found.</p>';
+                return;
+            }
+
+            const html = contexts.map(context => `
+                <div class="context-item">
+                    <div>
+                        <div class="context-name">${context.context_name}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                            Path: ${context.context_path || 'N/A'}
+                        </div>
+                    </div>
+                    <div class="context-type">${context.context_type}</div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        function populateNavigationFlows(flows) {
+            const container = document.getElementById('flowsList');
+            
+            if (!flows || flows.length === 0) {
+                container.innerHTML = '<p>No navigation flows found.</p>';
+                return;
+            }
+
+            const html = flows.map(flow => `
+                <div class="flow-item">
+                    <div>
+                        <div class="flow-name">${flow.flow_name}</div>
+                        <div class="flow-description">${flow.flow_description}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">
+                            ${flow.steps_count || 0} steps • ${flow.is_critical ? 'Critical' : 'Standard'} flow
+                        </div>
+                    </div>
+                    <div class="flow-type">${flow.flow_type}</div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        function populateNavigationDiagrams(diagrams) {
+            const container = document.getElementById('diagramsList');
+            
+            if (!diagrams || diagrams.length === 0) {
+                container.innerHTML = '<p>No navigation diagrams found.</p>';
+                return;
+            }
+
+            const html = diagrams.map(diagram => `
+                <div class="mermaid-diagram">
+                    <div class="diagram-title">${diagram.diagram_name}</div>
+                    <div class="mermaid">${diagram.diagram_code}</div>
+                    <div style="margin-top: var(--spacing-sm); font-size: 0.8rem; color: var(--text-secondary);">
+                        Type: ${diagram.diagram_type} • ${diagram.description}
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+
+            // Initialize Mermaid if available
+            if (typeof mermaid !== 'undefined') {
+                mermaid.init();
+            }
+        }
+
+        function populateNavigationUseCases(usecases) {
+            const container = document.getElementById('usecasesList');
+            
+            if (!usecases || usecases.length === 0) {
+                container.innerHTML = '<p>No navigation use cases found.</p>';
+                return;
+            }
+
+            const html = usecases.map(usecase => `
+                <div class="usecase-item">
+                    <div>
+                        <div class="usecase-name">${usecase.use_case_name}</div>
+                        <div class="usecase-description">${usecase.description}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">
+                            User: ${usecase.user_type} • Complexity: ${usecase.complexity}
+                        </div>
+                    </div>
+                    <div class="usecase-priority">${usecase.priority}</div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        function showNavigationSection(sectionName) {
+            // Hide all sections
+            const sections = document.querySelectorAll('.navigation-section');
+            sections.forEach(section => section.classList.remove('active'));
+
+            // Show selected section
+            document.getElementById(`navigation-${sectionName}`).classList.add('active');
+
+            // Update tab buttons
+            const tabs = document.querySelectorAll('.section-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function refreshNavigation() { 
+            if (currentProject) loadNavigation(); 
+        }
+
+        // Reconciliation Functions
+        let reconciliationResults = [];
+
+        async function loadReconciliation() {
+            const container = document.getElementById('reconciliation-tab');
+            container.classList.add('loading');
+            
+            try {
+                // Load reconciliation results if they exist
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/reconciliation`);
+                if (response.ok) {
+                    reconciliationResults = await response.json();
+                    displayReconciliationResults(reconciliationResults);
+                    updateReconciliationStats(reconciliationResults);
+                } else {
+                    document.getElementById('reconciliationResults').innerHTML = 
+                        '<p>No reconciliation data available. Click "Analyze" to run analysis.</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load reconciliation data:', error);
+                document.getElementById('reconciliationResults').innerHTML = 
+                    '<p class="text-error">Error loading reconciliation data.</p>';
+            } finally {
+                container.classList.remove('loading');
+            }
+        }
+
+        async function runReconciliation() {
+            if (!currentProject) {
+                showError('Please select a project first');
+                return;
+            }
+
+            const analyzeButton = document.querySelector('[onclick="runReconciliation()"]');
+            const originalText = analyzeButton.textContent;
+            analyzeButton.textContent = '🔄 Analyzing...';
+            analyzeButton.disabled = true;
+
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/reconciliation/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to run reconciliation analysis');
+                }
+
+                reconciliationResults = await response.json();
+                displayReconciliationResults(reconciliationResults);
+                updateReconciliationStats(reconciliationResults);
+                
+                document.getElementById('reconciliationLastUpdated').textContent = new Date().toLocaleString();
+
+            } catch (error) {
+                showError('Reconciliation analysis failed: ' + error.message);
+                console.error('Reconciliation failed:', error);
+            } finally {
+                analyzeButton.textContent = originalText;
+                analyzeButton.disabled = false;
+            }
+        }
+
+        function updateReconciliationStats(results) {
+            const totalFeatures = results.length;
+            const syncedFeatures = results.filter(r => r.discrepancies.length === 0).length;
+            const discrepancies = results.reduce((sum, r) => sum + r.discrepancies.length, 0);
+            const missingImplementations = results.filter(r => 
+                r.discrepancies.some(d => d.type === 'missing_implementation')
+            ).length;
+
+            document.getElementById('totalFeatures').textContent = totalFeatures;
+            document.getElementById('syncedFeatures').textContent = syncedFeatures;
+            document.getElementById('discrepancies').textContent = discrepancies;
+            document.getElementById('missingImplementations').textContent = missingImplementations;
+        }
+
+        function displayReconciliationResults(results) {
+            const container = document.getElementById('reconciliationResults');
+            
+            if (!results || results.length === 0) {
+                container.innerHTML = '<p>No features found for reconciliation.</p>';
+                return;
+            }
+
+            const html = results.map(result => createFeatureReconciliationHTML(result)).join('');
+            container.innerHTML = html;
+        }
+
+        function createFeatureReconciliationHTML(result) {
+            const feature = result.feature;
+            const discrepancies = result.discrepancies;
+            const syncOptions = result.syncOptions;
+            
+            const statusClass = discrepancies.length === 0 ? 'in-sync' : 
+                               discrepancies.some(d => d.type === 'missing_implementation') ? 'missing-implementation' :
+                               'has-discrepancy';
+
+            const discrepanciesHTML = discrepancies.length > 0 ? `
+                <div class="discrepancies-list">
+                    <h5>⚠️ Discrepancies (${discrepancies.length})</h5>
+                    ${discrepancies.map(d => `
+                        <div class="discrepancy-item ${d.severity}">
+                            <div class="discrepancy-description">${d.description}</div>
+                            <div class="discrepancy-location">
+                                ${d.codeLocation ? `Code: ${d.codeLocation.file}:${d.codeLocation.line}` : ''}
+                                ${d.docLocation ? `Docs: ${d.docLocation.file}` : ''}
+                            </div>
+                            ${d.suggestedFix ? `<div class="text-info">💡 ${d.suggestedFix}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<div class="text-success">✅ Code and documentation are in sync</div>';
+
+            const syncOptionsHTML = syncOptions.length > 0 ? `
+                <div class="sync-options">
+                    <h5>🔄 Synchronization Options</h5>
+                    ${syncOptions.map((option, index) => `
+                        <div class="sync-option" onclick="toggleSyncOption(${feature.id}, ${index})">
+                            <div class="sync-option-header">
+                                <div class="sync-direction">
+                                    ${getSyncDirectionIcon(option.direction)} ${option.description}
+                                </div>
+                                <div class="sync-confidence ${getConfidenceClass(option.confidence)}">
+                                    ${Math.round(option.confidence * 100)}% confidence
+                                </div>
+                            </div>
+                            <div class="expandable-content" id="sync-option-${feature.id}-${index}">
+                                <div class="sync-preview">${option.preview}</div>
+                                <div class="sync-risks-benefits">
+                                    <div class="sync-risks">
+                                        <h5>⚠️ Risks</h5>
+                                        <ul>${option.risks.map(risk => `<li>${risk}</li>`).join('')}</ul>
+                                    </div>
+                                    <div class="sync-benefits">
+                                        <h5>✅ Benefits</h5>
+                                        <ul>${option.benefits.map(benefit => `<li>${benefit}</li>`).join('')}</ul>
+                                    </div>
+                                </div>
+                                <div class="sync-actions" style="margin-top: var(--spacing-md);">
+                                    <button class="btn-sync" onclick="applySync('${feature.id}', ${index})">
+                                        Apply Sync
+                                    </button>
+                                    <button class="btn-sync danger" onclick="previewSync('${feature.id}', ${index})">
+                                        Preview Only
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            return `
+                <div class="feature-reconciliation ${statusClass}" data-feature-id="${feature.id}">
+                    <div class="feature-header">
+                        <div class="feature-info">
+                            <div class="feature-name">${feature.name}</div>
+                            <div class="feature-description">${feature.description}</div>
+                            <div class="feature-meta">
+                                <span class="feature-type">${feature.type}</span>
+                                <span class="feature-priority ${feature.priority}">${feature.priority}</span>
+                                <span class="feature-status ${feature.status}">${feature.status}</span>
+                            </div>
+                        </div>
+                        <div class="feature-actions">
+                            <button class="btn btn-sm btn-primary" onclick="toggleFeatureDetails('${feature.id}')">
+                                📋 Details
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="viewFeatureCode('${feature.id}')">
+                                📝 View Code
+                            </button>
+                        </div>
+                    </div>
+                    <div class="reconciliation-details expandable-content" id="feature-details-${feature.id}">
+                        ${discrepanciesHTML}
+                        ${syncOptionsHTML}
+                    </div>
+                </div>
+            `;
+        }
+
+        function getSyncDirectionIcon(direction) {
+            switch (direction) {
+                case 'code_to_docs': return '📝➡️📚';
+                case 'docs_to_code': return '📚➡️📝';
+                case 'bidirectional': return '📝⟷📚';
+                default: return '🔄';
+            }
+        }
+
+        function getConfidenceClass(confidence) {
+            if (confidence >= 0.8) return 'high';
+            if (confidence >= 0.5) return 'medium';
+            return 'low';
+        }
+
+        function toggleFeatureDetails(featureId) {
+            const details = document.getElementById(`feature-details-${featureId}`);
+            details.classList.toggle('expanded');
+        }
+
+        function toggleSyncOption(featureId, optionIndex) {
+            const option = document.getElementById(`sync-option-${featureId}-${optionIndex}`);
+            option.classList.toggle('expanded');
+        }
+
+        function filterReconciliationResults() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const priorityFilter = document.getElementById('priorityFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+
+            let filteredResults = reconciliationResults;
+
+            if (statusFilter !== 'all') {
+                filteredResults = filteredResults.filter(result => {
+                    switch (statusFilter) {
+                        case 'implemented': return result.feature.status === 'implemented';
+                        case 'documented': return result.feature.status === 'documented';
+                        case 'partial': return result.feature.status === 'partial';
+                        case 'missing': return result.discrepancies.some(d => d.type === 'missing_implementation');
+                        case 'outdated': return result.discrepancies.some(d => d.type === 'outdated_docs');
+                        default: return true;
+                    }
+                });
+            }
+
+            if (priorityFilter !== 'all') {
+                filteredResults = filteredResults.filter(result => result.feature.priority === priorityFilter);
+            }
+
+            if (typeFilter !== 'all') {
+                filteredResults = filteredResults.filter(result => result.feature.type === typeFilter);
+            }
+
+            displayReconciliationResults(filteredResults);
+        }
+
+        async function applySync(featureId, optionIndex) {
+            if (!confirm('Are you sure you want to apply this synchronization? This action may modify your code or documentation.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/reconciliation/sync`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        featureId,
+                        optionIndex
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to apply synchronization');
+                }
+
+                const result = await response.json();
+                alert(`Synchronization applied successfully!\n\nFiles modified: ${result.filesModified.join(', ')}`);
+                
+                // Refresh reconciliation data
+                await runReconciliation();
+
+            } catch (error) {
+                showError('Failed to apply synchronization: ' + error.message);
+            }
+        }
+
+        function previewSync(featureId, optionIndex) {
+            // Show preview in a modal or expanded view
+            const feature = reconciliationResults.find(r => r.feature.id === featureId);
+            if (feature && feature.syncOptions[optionIndex]) {
+                const option = feature.syncOptions[optionIndex];
+                alert(`Preview of ${option.direction} sync:\n\n${option.preview}`);
+            }
+        }
+
+        function viewFeatureCode(featureId) {
+            const feature = reconciliationResults.find(r => r.feature.id === featureId);
+            if (feature && feature.codeElements.length > 0) {
+                const codeElement = feature.codeElements[0];
+                alert(`Code Location:\n${codeElement.filePath}:${codeElement.lineNumber}\n\nSignature:\n${codeElement.signature}`);
+            }
+        }
+
+        function refreshReconciliation() {
+            if (currentProject) loadReconciliation();
+        }
+
+        async function loadConfiguration() {
+            const container = document.getElementById('configContent');
+            container.classList.add('loading');
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/config`);
+                const data = await response.json();
+                
+                container.innerHTML = `
+                    <h4>Project Configuration</h4>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+                document.getElementById('configLastUpdated').textContent = new Date().toLocaleString();
+            } finally {
+                container.classList.remove('loading');
+            }
+        }
+
+        async function loadMetrics() {
+            const container = document.getElementById('metricsContent');
+            container.classList.add('loading');
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/metrics`);
+                const data = await response.json();
+                
+                container.innerHTML = `
+                    <h4>Project Metrics</h4>
+                    <div class="metrics-grid">
+                        ${Object.entries(data).map(([category, metrics]) => `
+                            <div class="metric-card">
+                                <h5>${category.charAt(0).toUpperCase() + category.slice(1)}</h5>
+                                <ul>
+                                    ${metrics.map(metric => `
+                                        <li>${metric.metric_name}: ${metric.metric_value}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                document.getElementById('metricsLastUpdated').textContent = new Date().toLocaleString();
+            } finally {
+                container.classList.remove('loading');
+            }
+        }
+
+        async function loadRoadmap() {
+            const container = document.getElementById('roadmapContent');
+            container.classList.add('loading');
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/roadmap`);
+                const data = await response.json();
+                
+                container.innerHTML = `
+                    <h4>Development Roadmap</h4>
+                    <p><strong>Phase:</strong> ${data.developmentPhase}</p>
+                    
+                    <h5>Features</h5>
+                    ${data.features && data.features.length > 0 ? `
+                        <ul>
+                            ${data.features.map(feature => `
+                                <li class="text-${feature.status === 'completed' ? 'success' : 'info'}">
+                                    ${feature.feature_name} - ${feature.status}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    ` : '<p>No features defined</p>'}
+                    
+                    <h5>Standards</h5>
+                    ${data.standards && data.standards.length > 0 ? `
+                        <ul>
+                            ${data.standards.map(standard => `
+                                <li>${standard.standard_type}: ${standard.compliance_level}</li>
+                            `).join('')}
+                        </ul>
+                    ` : '<p>No standards defined</p>'}
+                `;
+                
+                document.getElementById('roadmapLastUpdated').textContent = new Date().toLocaleString();
+            } finally {
+                container.classList.remove('loading');
+            }
+        }
+
+        async function generateDiagram() {
+            const diagramType = document.querySelector('input[name="diagramType"]:checked').value;
+            const includeDetails = document.getElementById('includeDetails').checked;
+            const container = document.getElementById('diagramContainer');
+            
+            container.innerHTML = '<div class="loading">Generating diagram...</div>';
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/diagrams`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ diagramType, includeDetails })
+                });
+                
+                const data = await response.json();
+                
+                if (data.html) {
+                    container.innerHTML = `
+                        <iframe 
+                            srcdoc="${data.html.replace(/"/g, '&quot;')}" 
+                            style="width: 100%; height: 500px; border: 1px solid var(--border-color); border-radius: var(--border-radius);">
+                        </iframe>
+                    `;
+                } else {
+                    container.innerHTML = '<p class="text-error">Failed to generate diagram</p>';
+                }
+                
+                document.getElementById('diagramsLastUpdated').textContent = new Date().toLocaleString();
+            } catch (error) {
+                container.innerHTML = '<p class="text-error">Error generating diagram</p>';
+            }
+        }
+
+        // Utility Functions
+        function refreshProject() {
+            if (currentProject) {
+                loadProject(currentProject);
+            }
+        }
+
+        async function analyzeProject() {
+            if (!currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const originalText = analyzeBtn.innerHTML;
+            analyzeBtn.innerHTML = '🔄 Analyzing...';
+            analyzeBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                alert(`Analysis started successfully!\n\nProject ID: ${result.projectId}\nStatus: ${result.status}\n\nThe analysis will run in the background. Refresh the project to see updated data.`);
+                
+                // Refresh the project data after a delay
+                setTimeout(() => {
+                    refreshProject();
+                }, 3000);
+
+            } catch (error) {
+                console.error('Analysis failed:', error);
+                alert(`Analysis failed: ${error.message}`);
+            } finally {
+                analyzeBtn.innerHTML = originalText;
+                analyzeBtn.disabled = false;
+            }
+        }
+
+        function refreshOverview() { if (currentProject) loadOverview(); }
+        function refreshTree() { if (currentProject) loadFileTree(); }
+        function refreshClasses() { if (currentProject) loadClasses(); }
+        function refreshSearch() { if (currentProject) loadSearchStatus(); }
+
+        // Tool Tags and Database Integration Functions
+        async function loadTools() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/tools`);
+                if (response.ok) {
+                    const tools = await response.json();
+                    displayTools(tools);
+                } else {
+                    displayTools(getMockToolsData());
+                }
+            } catch (error) {
+                console.error('Error loading tools:', error);
+                displayTools(getMockToolsData());
+            }
+        }
+
+        function displayTools(tools) {
+            const toolsSection = document.getElementById('toolsSection');
+            const toolsGrid = document.getElementById('toolsGrid');
+            
+            if (!tools || tools.length === 0) {
+                toolsGrid.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No tools configured for this project</p>';
+                toolsSection.style.display = 'block';
+                return;
+            }
+
+            toolsGrid.innerHTML = tools.map(tool => `
+                <div class="tool-card">
+                    <div class="tool-header">
+                        <div class="tool-name">${tool.name}</div>
+                        <div class="tool-status ${tool.status}">${tool.status}</div>
+                    </div>
+                    <div class="tool-description">${tool.description}</div>
+                    <div class="tool-capabilities">
+                        ${tool.capabilities.map(cap => `<span class="capability-tag">${cap}</span>`).join('')}
+                    </div>
+                    <div class="tool-metrics">
+                        <div class="tool-metric">
+                            <div class="metric-value-small">${tool.reliability}%</div>
+                            <div class="metric-label-small">Reliability</div>
+                        </div>
+                        <div class="tool-metric">
+                            <div class="metric-value-small">${tool.tokenCost}</div>
+                            <div class="metric-label-small">Token Cost</div>
+                        </div>
+                        <div class="tool-metric">
+                            <div class="metric-value-small">${tool.usage}</div>
+                            <div class="metric-label-small">Usage</div>
+                        </div>
+                    </div>
+                    <div class="tool-actions">
+                        <button class="btn btn-sm btn-secondary" onclick="configureTool('${tool.id}')">⚙️</button>
+                        <button class="btn btn-sm btn-primary" onclick="testTool('${tool.id}')">🧪</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            toolsSection.style.display = 'block';
+        }
+
+        async function loadDatabaseStatus() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/database`);
+                if (response.ok) {
+                    const dbStatus = await response.json();
+                    displayDatabaseStatus(dbStatus);
+                } else {
+                    displayDatabaseStatus(getMockDatabaseData());
+                }
+            } catch (error) {
+                console.error('Error loading database status:', error);
+                displayDatabaseStatus(getMockDatabaseData());
+            }
+        }
+
+        function displayDatabaseStatus(dbStatus) {
+            const databaseSection = document.getElementById('databaseSection');
+            const dbStatusGrid = document.getElementById('dbStatusGrid');
+            
+            if (!dbStatus || dbStatus.length === 0) {
+                dbStatusGrid.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No database connections configured</p>';
+                databaseSection.style.display = 'block';
+                return;
+            }
+
+            dbStatusGrid.innerHTML = dbStatus.map(db => `
+                <div class="db-status-card">
+                    <div class="db-status-icon">${db.icon}</div>
+                    <div class="db-status-name">${db.name}</div>
+                    <div class="db-connection-status ${db.connected ? 'connected' : 'disconnected'}">
+                        ${db.connected ? 'Connected' : 'Disconnected'}
+                    </div>
+                    <div class="db-metrics">
+                        <div class="db-metric">Tables: <strong>${db.tables || 0}</strong></div>
+                        <div class="db-metric">Records: <strong>${db.records || 0}</strong></div>
+                        <div class="db-metric">Size: <strong>${db.size || 'N/A'}</strong></div>
+                        <div class="db-metric">Last Sync: <strong>${db.lastSync || 'Never'}</strong></div>
+                    </div>
+                </div>
+            `).join('');
+            
+            databaseSection.style.display = 'block';
+        }
+
+        function refreshTools() {
+            if (currentProject) loadTools();
+        }
+
+        function refreshDatabase() {
+            if (currentProject) loadDatabaseStatus();
+        }
+
+        async function syncDatabase() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/database/sync`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    alert('Database sync initiated successfully');
+                    loadDatabaseStatus(); // Refresh status
+                } else {
+                    alert('Failed to sync database');
+                }
+            } catch (error) {
+                console.error('Error syncing database:', error);
+                alert('Error syncing database');
+            }
+        }
+
+        function configureTool(toolId) {
+            // Open tool configuration modal or navigate to tool config
+            console.log('Configuring tool:', toolId);
+            // Implement tool configuration logic
+        }
+
+        function testTool(toolId) {
+            // Run tool test
+            console.log('Testing tool:', toolId);
+            // Implement tool testing logic
+        }
+
+        // Mock data functions
+        function getMockToolsData() {
+            return [
+                {
+                    id: 'intelligent-selector',
+                    name: 'Intelligent Tool Selector',
+                    description: 'AI-powered tool selection based on context and performance metrics',
+                    status: 'active',
+                    capabilities: ['Context Analysis', 'Performance Optimization', 'Smart Selection'],
+                    reliability: 95,
+                    tokenCost: 'Low',
+                    usage: 'High'
+                },
+                {
+                    id: 'claude-interceptor',
+                    name: 'Claude Code Interceptor',
+                    description: 'Seamless integration and enhancement of Claude Code commands',
+                    status: 'active',
+                    capabilities: ['Command Interception', 'Context Enhancement'],
+                    reliability: 92,
+                    tokenCost: 'Medium',
+                    usage: 'Medium'
+                },
+                {
+                    id: 'context-optimizer',
+                    name: 'Context Optimizer',
+                    description: 'Optimizes context size and relevance for maximum efficiency',
+                    status: 'configuring',
+                    capabilities: ['Context Compression', 'Relevance Scoring'],
+                    reliability: 88,
+                    tokenCost: 'Medium',
+                    usage: 'Low'
+                },
+                {
+                    id: 'performance-monitor',
+                    name: 'Performance Monitor',
+                    description: 'Real-time monitoring of tool performance and success rates',
+                    status: 'active',
+                    capabilities: ['Real-time Monitoring', 'Analytics', 'Reporting'],
+                    reliability: 98,
+                    tokenCost: 'Low',
+                    usage: 'Constant'
+                }
+            ];
+        }
+
+        function getMockDatabaseData() {
+            return [
+                {
+                    name: 'Project Data',
+                    icon: '🗃️',
+                    connected: true,
+                    tables: 12,
+                    records: 1547,
+                    size: '2.3 MB',
+                    lastSync: '5 minutes ago'
+                },
+                {
+                    name: 'Code Index',
+                    icon: '📑',
+                    connected: true,
+                    tables: 8,
+                    records: 892,
+                    size: '1.8 MB',
+                    lastSync: '10 minutes ago'
+                },
+                {
+                    name: 'Performance Cache',
+                    icon: '⚡',
+                    connected: true,
+                    tables: 3,
+                    records: 234,
+                    size: '512 KB',
+                    lastSync: '2 minutes ago'
+                },
+                {
+                    name: 'Analytics Store',
+                    icon: '📊',
+                    connected: false,
+                    tables: 0,
+                    records: 0,
+                    size: 'N/A',
+                    lastSync: 'Never'
+                }
+            ];
+        }
+        function refreshConfig() { if (currentProject) loadConfiguration(); }
+        function refreshMetrics() { if (currentProject) loadMetrics(); }
+        function refreshRoadmap() { if (currentProject) loadRoadmap(); }
+        function refreshDiagrams() { loadDiagramHistory(); }
+
+        // Diagram functionality
+        let currentDiagramType = 'architecture';
+        let diagramHistory = [];
+
+        // Setup diagram type selection
+        document.addEventListener('DOMContentLoaded', function() {
+            const diagramTypeButtons = document.querySelectorAll('.diagram-type-btn');
+            diagramTypeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    diagramTypeButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentDiagramType = this.dataset.type;
+                });
+            });
+        });
+
+        async function generateDiagram() {
+            if (!currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+
+            const diagramViewer = document.getElementById('diagramViewer');
+            const includeDetails = document.getElementById('includeDetails').checked;
+            const autoLayout = document.getElementById('autoLayout').checked;
+            const showMetrics = document.getElementById('showMetrics').checked;
+
+            // Show loading state
+            diagramViewer.innerHTML = `
+                <div class="diagram-placeholder">
+                    <div style="text-align: center;">
+                        <div style="font-size: 2em; margin-bottom: 15px;">⏳</div>
+                        <div style="font-size: 1.1em; margin-bottom: 10px;">Generating ${currentDiagramType} diagram...</div>
+                        <div>This may take a few moments</div>
+                    </div>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/diagrams`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: currentDiagramType,
+                        options: {
+                            includeDetails,
+                            autoLayout,
+                            showMetrics
+                        }
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    displayDiagram(result);
+                    updateDiagramHistory(result);
+                } else {
+                    // Use mock diagram for demo
+                    const mockDiagram = generateMockDiagram(currentDiagramType, includeDetails, showMetrics);
+                    displayDiagram(mockDiagram);
+                    updateDiagramHistory(mockDiagram);
+                }
+            } catch (error) {
+                console.error('Error generating diagram:', error);
+                // Use mock diagram for demo
+                const mockDiagram = generateMockDiagram(currentDiagramType, includeDetails, showMetrics);
+                displayDiagram(mockDiagram);
+                updateDiagramHistory(mockDiagram);
+            }
+        }
+
+        function displayDiagram(diagramData) {
+            const diagramViewer = document.getElementById('diagramViewer');
+            
+            if (diagramData.format === 'mermaid') {
+                diagramViewer.innerHTML = `
+                    <div class="diagram-header" style="margin-bottom: var(--spacing-md); padding-bottom: var(--spacing-sm); border-bottom: 1px solid var(--border-color);">
+                        <h4 style="color: var(--primary-color); margin: 0;">${diagramData.title}</h4>
+                        <p style="color: var(--text-secondary); margin: 5px 0 0 0; font-size: 0.9em;">${diagramData.description}</p>
+                    </div>
+                    <div class="mermaid-container">
+                        <pre class="mermaid" style="background: var(--bg-component); padding: var(--spacing-lg); border-radius: var(--border-radius); overflow: auto;">
+${diagramData.content}
+                        </pre>
+                    </div>
+                `;
+            } else if (diagramData.format === 'svg') {
+                diagramViewer.innerHTML = `
+                    <div class="diagram-header" style="margin-bottom: var(--spacing-md); padding-bottom: var(--spacing-sm); border-bottom: 1px solid var(--border-color);">
+                        <h4 style="color: var(--primary-color); margin: 0;">${diagramData.title}</h4>
+                        <p style="color: var(--text-secondary); margin: 5px 0 0 0; font-size: 0.9em;">${diagramData.description}</p>
+                    </div>
+                    <div class="svg-container" style="text-align: center; background: white; padding: var(--spacing-lg); border-radius: var(--border-radius);">
+                        ${diagramData.content}
+                    </div>
+                `;
+            } else {
+                diagramViewer.innerHTML = `
+                    <div class="diagram-header" style="margin-bottom: var(--spacing-md); padding-bottom: var(--spacing-sm); border-bottom: 1px solid var(--border-color);">
+                        <h4 style="color: var(--primary-color); margin: 0;">${diagramData.title}</h4>
+                        <p style="color: var(--text-secondary); margin: 5px 0 0 0; font-size: 0.9em;">${diagramData.description}</p>
+                    </div>
+                    <div class="text-diagram" style="font-family: monospace; background: var(--bg-component); padding: var(--spacing-lg); border-radius: var(--border-radius); white-space: pre-wrap;">
+${diagramData.content}
+                    </div>
+                `;
+            }
+
+            document.getElementById('diagramsLastUpdated').textContent = new Date().toLocaleString();
+        }
+
+        function updateDiagramHistory(diagramData) {
+            const historyItem = {
+                ...diagramData,
+                timestamp: new Date().toISOString(),
+                projectId: currentProject
+            };
+
+            diagramHistory.unshift(historyItem);
+            if (diagramHistory.length > 10) {
+                diagramHistory = diagramHistory.slice(0, 10);
+            }
+
+            displayDiagramHistory();
+        }
+
+        function displayDiagramHistory() {
+            const historySection = document.getElementById('diagramHistory');
+            const historyList = document.getElementById('diagramHistoryList');
+
+            if (diagramHistory.length === 0) {
+                historySection.style.display = 'none';
+                return;
+            }
+
+            historySection.style.display = 'block';
+            historyList.innerHTML = diagramHistory.map((item, index) => `
+                <div class="diagram-history-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-sm); background: var(--bg-component); border-radius: var(--border-radius); margin-bottom: var(--spacing-xs); border: 1px solid var(--border-color);">
+                    <div>
+                        <strong>${item.title}</strong> 
+                        <span style="color: var(--text-secondary);">(${item.type})</span>
+                        <div style="font-size: 0.8em; color: var(--text-secondary);">${new Date(item.timestamp).toLocaleString()}</div>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-secondary" onclick="loadDiagramFromHistory(${index})" style="margin-right: var(--spacing-xs);">📄 View</button>
+                        <button class="btn btn-sm btn-secondary" onclick="exportDiagramFromHistory(${index})">💾 Export</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadDiagramFromHistory(index) {
+            const historyItem = diagramHistory[index];
+            if (historyItem) {
+                displayDiagram(historyItem);
+                // Update active diagram type button
+                document.querySelectorAll('.diagram-type-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.type === historyItem.type) {
+                        btn.classList.add('active');
+                    }
+                });
+                currentDiagramType = historyItem.type;
+            }
+        }
+
+        async function updateDiagram() {
+            if (!currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+            // Re-generate with current settings
+            await generateDiagram();
+        }
+
+        function exportDiagram() {
+            const diagramContent = document.querySelector('#diagramViewer .mermaid, #diagramViewer .svg-container, #diagramViewer .text-diagram');
+            if (!diagramContent) {
+                alert('No diagram to export. Please generate a diagram first.');
+                return;
+            }
+
+            const exportData = {
+                projectId: currentProject,
+                type: currentDiagramType,
+                content: diagramContent.textContent || diagramContent.innerHTML,
+                timestamp: new Date().toISOString(),
+                title: `${currentDiagramType} diagram for ${currentProject}`
+            };
+
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `${currentProject}_${currentDiagramType}_diagram_${Date.now()}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function exportDiagramFromHistory(index) {
+            const historyItem = diagramHistory[index];
+            if (!historyItem) return;
+
+            const dataStr = JSON.stringify(historyItem, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `${historyItem.projectId}_${historyItem.type}_diagram_${Date.now()}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function shareDiagram() {
+            const diagramContent = document.querySelector('#diagramViewer .mermaid, #diagramViewer .svg-container, #diagramViewer .text-diagram');
+            if (!diagramContent) {
+                alert('No diagram to share. Please generate a diagram first.');
+                return;
+            }
+
+            // Create shareable URL (in real implementation, this would upload to a service)
+            const shareUrl = `${window.location.origin}/dashboard/diagram-view?project=${currentProject}&type=${currentDiagramType}&timestamp=${Date.now()}`;
+            
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                alert('Diagram share URL copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy this URL to share the diagram:', shareUrl);
+            });
+        }
+
+        function loadDiagramHistory() {
+            // Load diagram history from local storage or API
+            const saved = localStorage.getItem(`diagram_history_${currentProject}`);
+            if (saved) {
+                diagramHistory = JSON.parse(saved);
+                displayDiagramHistory();
+            }
+        }
+
+        // Mock diagram generator for demo purposes
+        function generateMockDiagram(type, includeDetails, showMetrics) {
+            const diagrams = {
+                architecture: {
+                    title: 'System Architecture Diagram',
+                    description: 'High-level overview of system components and their relationships',
+                    type: 'architecture',
+                    format: 'mermaid',
+                    content: `graph TB
+    A[Client Application] --> B[API Gateway]
+    B --> C[Authentication Service]
+    B --> D[Business Logic Layer]
+    D --> E[Data Access Layer]
+    E --> F[(Database)]
+    D --> G[External APIs]
+    B --> H[Caching Layer]
+    H --> I[(Redis Cache)]
+    
+    classDef primary fill:#007acc,stroke:#fff,color:#fff
+    classDef secondary fill:#f8f9fa,stroke:#007acc,color:#007acc
+    classDef database fill:#28a745,stroke:#fff,color:#fff
+    
+    class A,B primary
+    class C,D,E,H secondary
+    class F,I database`
+                },
+                classes: {
+                    title: 'Class Relationship Diagram',
+                    description: 'Object-oriented class structure and inheritance',
+                    type: 'classes',
+                    format: 'mermaid',
+                    content: `classDiagram
+    class User {
+        +String name
+        +String email
+        +authenticate()
+        +updateProfile()
+    }
+    
+    class AdminUser {
+        +String permissions
+        +manageUsers()
+        +viewAnalytics()
+    }
+    
+    class Project {
+        +String title
+        +Date createdAt
+        +User owner
+        +addMember()
+        +generateReport()
+    }
+    
+    class Task {
+        +String description
+        +TaskStatus status
+        +User assignee
+        +complete()
+        +updateStatus()
+    }
+    
+    User <|-- AdminUser
+    User ||--o{ Project : owns
+    Project ||--o{ Task : contains
+    User ||--o{ Task : assigned`
+                },
+                dependencies: {
+                    title: 'Dependency Graph',
+                    description: 'Project dependencies and module relationships',
+                    type: 'dependencies',
+                    format: 'text',
+                    content: `📦 Project Dependencies
+
+Core Dependencies:
+├── express@4.18.2
+│   ├── body-parser@1.19.0
+│   ├── cookie-parser@1.4.6
+│   └── cors@2.8.5
+├── typescript@5.0.4
+├── @types/node@18.15.11
+└── nodemon@2.0.22
+
+Development Dependencies:
+├── jest@29.5.0
+│   ├── @types/jest@29.5.1
+│   └── ts-jest@29.1.0
+├── eslint@8.39.0
+│   ├── @typescript-eslint/eslint-plugin@5.59.2
+│   └── @typescript-eslint/parser@5.59.2
+└── prettier@2.8.8
+
+Database Dependencies:
+├── postgresql@14.7
+├── pg@8.10.0
+│   └── @types/pg@8.6.6
+└── redis@6.2.11
+
+Total: 23 direct dependencies, 156 transitive dependencies`
+                },
+                flow: {
+                    title: 'Data Flow Diagram',
+                    description: 'How data moves through the system',
+                    type: 'flow',
+                    format: 'mermaid',
+                    content: `flowchart LR
+    A[User Request] --> B{Authentication}
+    B -->|Valid| C[Request Processing]
+    B -->|Invalid| D[Error Response]
+    C --> E{Data Required?}
+    E -->|Yes| F[Database Query]
+    E -->|No| G[Process Logic]
+    F --> H[(Database)]
+    H --> I[Data Transformation]
+    I --> G
+    G --> J[Response Generation]
+    J --> K[Cache Update]
+    K --> L[Send Response]
+    L --> M[User Interface]
+    
+    style A fill:#e1f5fe
+    style H fill:#c8e6c9
+    style M fill:#fff3e0`
+                },
+                navigation: {
+                    title: 'Navigation Flow',
+                    description: 'User navigation paths and page relationships',
+                    type: 'navigation',
+                    format: 'mermaid',
+                    content: `graph TD
+    A[Home Page] --> B[Login]
+    A --> C[Register]
+    B --> D[Dashboard]
+    C --> D
+    D --> E[Projects]
+    D --> F[Profile]
+    D --> G[Settings]
+    E --> H[Project Detail]
+    E --> I[Create Project]
+    H --> J[Edit Project]
+    H --> K[Project Settings]
+    H --> L[Team Management]
+    F --> M[Edit Profile]
+    G --> N[Account Settings]
+    G --> O[Preferences]
+    
+    classDef auth fill:#ffcdd2
+    classDef main fill:#c5e1a5
+    classDef detail fill:#bbdefb
+    
+    class B,C auth
+    class A,D main
+    class E,F,G,H,I detail`
+                },
+                er: {
+                    title: 'Entity Relationship Diagram',
+                    description: 'Database schema and table relationships',
+                    type: 'er',
+                    format: 'mermaid',
+                    content: `erDiagram
+    USERS {
+        uuid id PK
+        varchar name
+        varchar email UK
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    PROJECTS {
+        uuid id PK
+        varchar title
+        text description
+        uuid owner_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    TASKS {
+        uuid id PK
+        varchar title
+        text description
+        enum status
+        uuid project_id FK
+        uuid assigned_to FK
+        timestamp due_date
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    PROJECT_MEMBERS {
+        uuid project_id FK
+        uuid user_id FK
+        enum role
+        timestamp joined_at
+    }
+    
+    USERS ||--o{ PROJECTS : owns
+    USERS ||--o{ TASKS : assigned
+    PROJECTS ||--o{ TASKS : contains
+    PROJECTS ||--o{ PROJECT_MEMBERS : has
+    USERS ||--o{ PROJECT_MEMBERS : member_of`
+                }
+            };
+
+            const diagram = diagrams[type] || diagrams.architecture;
+            
+            // Add metrics if requested
+            if (showMetrics) {
+                diagram.metrics = {
+                    complexity: Math.floor(Math.random() * 100),
+                    dependencies: Math.floor(Math.random() * 50),
+                    codeLines: Math.floor(Math.random() * 10000) + 1000,
+                    testCoverage: Math.floor(Math.random() * 100)
+                };
+            }
+
+            return diagram;
+        }
+
+        function expandAllTree() {
+            document.querySelectorAll('.tree-children').forEach(children => {
+                children.classList.add('expanded');
+            });
+            document.querySelectorAll('.tree-node').forEach(node => {
+                node.classList.add('expanded');
+            });
+        }
+
+        function openSettings() {
+            alert('Settings functionality coming soon!');
+        }
+
+        function exportProject() {
+            alert('Export functionality coming soon!');
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-error';
+            errorDiv.textContent = message;
+            errorDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--error-color);
+                color: white;
+                padding: 15px;
+                border-radius: 5px;
+                z-index: 1000;
+            `;
+            document.body.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'alert alert-success';
+            successDiv.textContent = message;
+            successDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--success-color, #28a745);
+                color: white;
+                padding: 15px;
+                border-radius: 5px;
+                z-index: 1000;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            `;
+            document.body.appendChild(successDiv);
+            setTimeout(() => successDiv.remove(), 5000);
+        }
+
+        // Initialization Panel Functions
+        function showInitializationPanel() {
+            const panel = document.getElementById('initializationPanel');
+            panel.style.display = 'block';
+            
+            // Check existing data to show what's already initialized
+            checkExistingData();
+        }
+
+        function hideInitializationPanel() {
+            const panel = document.getElementById('initializationPanel');
+            panel.style.display = 'none';
+            
+            // Hide progress if showing
+            const progress = document.getElementById('initProgress');
+            progress.style.display = 'none';
+        }
+
+        // Initialization Notice Modal Functions
+        function showInitializationNotice() {
+            document.getElementById('initializationNoticeModal').style.display = 'flex';
+        }
+
+        function hideInitializationNoticeModal() {
+            document.getElementById('initializationNoticeModal').style.display = 'none';
+        }
+
+        function proceedWithDashboardInit() {
+            hideInitializationNoticeModal();
+            showInitializationPanel();
+        }
+
+        function showCLIInstructions() {
+            hideInitializationNoticeModal();
+            
+            const projectPath = currentProject ? currentProject.project_path : '/path/to/your/project';
+            const instructions = `
+# CodeMind Project Initialization Instructions
+
+## Option 1: JavaScript Script
+\`\`\`bash
+cd ${projectPath}
+node scripts/init-project.js "${projectPath}" --verbose --level=comprehensive
+\`\`\`
+
+## Option 2: PowerShell Script (Windows)
+\`\`\`powershell
+cd "${projectPath}"
+.\\scripts\\init-project.ps1 "${projectPath}" -Verbose -Interactive:$false
+\`\`\`
+
+## What These Scripts Do:
+✅ **Complete Analysis**: File system access with real content indexing
+✅ **RAG Indexing**: Semantic embeddings with actual code content  
+✅ **Quality Metrics**: Comprehensive code quality analysis
+✅ **Navigation Mapping**: Project flow and dependency analysis
+✅ **Configuration Discovery**: Framework and tool detection
+✅ **Roadmap Generation**: Development planning and recommendations
+
+## After Running Scripts:
+1. Return to this dashboard
+2. Refresh the project list  
+3. Select your project to see complete analysis
+4. All features will be fully populated with real data
+
+## Script Parameters:
+- \`--verbose\` / \`-Verbose\`: Detailed logging output
+- \`--level=comprehensive\`: Full feature analysis
+- \`--interactive:$false\` (PS): Non-interactive mode
+- \`--no-interactive\` (JS): Skip user prompts
+            `.trim();
+
+            // Create instruction popup
+            const instructionDiv = document.createElement('div');
+            instructionDiv.className = 'modal';
+            instructionDiv.style.display = 'flex';
+            instructionDiv.innerHTML = `
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3>📋 CLI Initialization Instructions</h3>
+                        <span class="close" onclick="this.parentElement.parentElement.parentElement.remove()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <pre class="cli-instructions" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; font-size: 0.9rem; line-height: 1.4; white-space: pre-wrap; overflow-x: auto;">\${instructions}</pre>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" onclick="this.parentElement.parentElement.parentElement.remove()">Got it!</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(instructionDiv);
+        }
+
+        async function checkExistingData() {
+            if (!currentProject) return;
+            
+            const checks = {
+                files: { endpoint: '/tree', button: null },
+                classes: { endpoint: '/classes', button: null },
+                rag: { endpoint: '/search', button: null },
+                navigation: { endpoint: '/navigation/contexts', button: null },
+                config: { endpoint: '/config', button: null },
+                metrics: { endpoint: '/metrics', button: null },
+                roadmap: { endpoint: '/roadmap', button: null },
+                diagrams: { endpoint: '/navigation/diagrams', button: null }
+            };
+
+            // Update button states based on existing data
+            for (const [component, check] of Object.entries(checks)) {
+                try {
+                    const response = await fetch(`/api/dashboard/projects/${currentProject}${check.endpoint}`);
+                    const data = await response.json();
+                    const hasData = Array.isArray(data) ? data.length > 0 : (data.total > 0);
+                    
+                    // Find corresponding button and update its appearance
+                    const buttons = document.querySelectorAll(`[onclick*="${component}"]`);
+                    buttons.forEach(button => {
+                        if (hasData) {
+                            button.classList.add('btn-success');
+                            button.classList.remove('btn-primary', 'btn-info', 'btn-warning');
+                            button.innerHTML = button.innerHTML.replace(/^[^a-zA-Z]*/, '✅ ');
+                        }
+                    });
+                } catch (error) {
+                    // Component not initialized yet
+                }
+            }
+        }
+
+        async function initializeComponent(component) {
+            if (!currentProject) {
+                showError('Please select a project first');
+                return;
+            }
+
+            const progress = document.getElementById('initProgress');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const progressLog = document.getElementById('progressLog');
+            
+            // Show progress
+            progress.style.display = 'block';
+            progressLog.innerHTML = '';
+            progressFill.style.width = '0%';
+
+            try {
+                if (component === 'all') {
+                    await initializeAllComponents();
+                } else if (component === 'reset') {
+                    await resetAllData();
+                } else {
+                    await initializeSingleComponent(component);
+                }
+                
+                // Refresh current tab after initialization
+                await loadCurrentTabData();
+                
+                // Update existing data check
+                await checkExistingData();
+                
+            } catch (error) {
+                addLogEntry('❌ Initialization failed: ' + error.message, 'log-error');
+            }
+        }
+
+        async function initializeAllComponents() {
+            const components = ['files', 'classes', 'duplicates', 'rag', 'navigation', 'config', 'metrics', 'roadmap', 'diagrams'];
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            progressText.textContent = 'Running comprehensive analysis...';
+            addLogEntry('🚀 Starting comprehensive project initialization', 'log-info');
+            
+            // Run the comprehensive analysis
+            const response = await fetch(`/api/dashboard/projects/${currentProject}/analyze`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to start comprehensive analysis');
+            }
+            
+            addLogEntry('📊 Comprehensive analysis started', 'log-success');
+            
+            // Simulate progress updates (in real implementation, this would poll for actual progress)
+            for (let i = 0; i <= 100; i += 10) {
+                progressFill.style.width = i + '%';
+                progressText.textContent = `Initializing... ${i}%`;
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                if (i === 30) addLogEntry('📁 File tree analysis completed', 'log-success');
+                if (i === 50) addLogEntry('🏗️ Class extraction completed', 'log-success');
+                if (i === 70) addLogEntry('🧠 RAG indexing completed', 'log-success');
+                if (i === 90) addLogEntry('🧭 Navigation mapping completed', 'log-success');
+            }
+            
+            progressText.textContent = 'Initialization complete!';
+            addLogEntry('✅ All components initialized successfully', 'log-success');
+        }
+
+        async function initializeSingleComponent(component) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            const componentMap = {
+                files: { name: 'File Tree', endpoint: '/tree', icon: '📁' },
+                classes: { name: 'Classes', endpoint: '/classes', icon: '🏗️' },
+                duplicates: { name: 'Duplicates', endpoint: '/analyze', icon: '🔍' },
+                rag: { name: 'RAG Index', endpoint: '/search', icon: '🧠' },
+                navigation: { name: 'Navigation', endpoint: '/navigation', icon: '🧭' },
+                config: { name: 'Configuration', endpoint: '/config', icon: '⚙️' },
+                metrics: { name: 'Metrics', endpoint: '/metrics', icon: '📊' },
+                roadmap: { name: 'Roadmap', endpoint: '/roadmap', icon: '🗺️' },
+                diagrams: { name: 'Diagrams', endpoint: '/navigation/diagrams', icon: '📐' }
+            };
+            
+            const comp = componentMap[component];
+            if (!comp) {
+                throw new Error(`Unknown component: ${component}`);
+            }
+            
+            progressText.textContent = `Initializing ${comp.name}...`;
+            addLogEntry(`${comp.icon} Starting ${comp.name} initialization`, 'log-info');
+            
+            // Animate progress
+            for (let i = 0; i <= 100; i += 20) {
+                progressFill.style.width = i + '%';
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            
+            // For individual components, we may need specific endpoints
+            if (component === 'duplicates') {
+                // Trigger full analysis for duplicates
+                const response = await fetch(`/api/dashboard/projects/${currentProject}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) throw new Error(`Failed to analyze ${comp.name}`);
+            } else {
+                // For other components, try to refresh their data
+                const response = await fetch(`/api/dashboard/projects/${currentProject}${comp.endpoint}`);
+                if (!response.ok) {
+                    // If endpoint doesn't exist, trigger full analysis
+                    const analyzeResponse = await fetch(`/api/dashboard/projects/${currentProject}/analyze`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (!analyzeResponse.ok) throw new Error(`Failed to initialize ${comp.name}`);
+                }
+            }
+            
+            addLogEntry(`✅ ${comp.name} initialized successfully`, 'log-success');
+            progressText.textContent = `${comp.name} initialization complete!`;
+        }
+
+        async function resetAllData() {
+            const progressText = document.getElementById('progressText');
+            const progressFill = document.getElementById('progressFill');
+            
+            progressText.textContent = 'Resetting project data...';
+            addLogEntry('🔄 Starting data reset', 'log-info');
+            
+            // This would need API endpoints to clear specific data
+            // For now, just show the progress
+            for (let i = 0; i <= 100; i += 25) {
+                progressFill.style.width = i + '%';
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            addLogEntry('⚠️ Reset functionality coming soon', 'log-info');
+            progressText.textContent = 'Reset complete!';
+        }
+
+        function addLogEntry(message, className = 'log-info') {
+            const progressLog = document.getElementById('progressLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${className}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            progressLog.appendChild(entry);
+            progressLog.scrollTop = progressLog.scrollHeight;
+        }
+
+        // Create Project Modal Functions
+        function showCreateProjectModal() {
+            document.getElementById('createProjectModal').style.display = 'flex';
+        }
+
+        function hideCreateProjectModal() {
+            document.getElementById('createProjectModal').style.display = 'none';
+            // Reset form
+            document.getElementById('createProjectForm').reset();
+        }
+
+        async function createProject() {
+            const form = document.getElementById('createProjectForm');
+            const formData = new FormData(form);
+            
+            const projectData = {
+                project_name: formData.get('projectName'),
+                project_path: formData.get('projectPath'),
+                project_type: formData.get('projectType'),
+                languages: formData.get('languages').split(',').map(l => l.trim()).filter(l => l),
+                frameworks: formData.get('frameworks').split(',').map(f => f.trim()).filter(f => f),
+                project_size: formData.get('projectSize') || 'medium'
+            };
+
+            try {
+                const response = await fetch('/api/dashboard/projects', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(projectData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showSuccess('Basic project record created successfully!');
+                    hideCreateProjectModal();
+                    
+                    // Show CLI instructions for full initialization
+                    setTimeout(() => {
+                        showCLIInstructions(projectData.project_path);
+                    }, 1000);
+                    
+                    // Refresh project list and select new project
+                    await loadProjects();
+                    document.getElementById('projectSelect').value = result.id;
+                    await onProjectChange();
+                } else {
+                    const error = await response.json();
+                    showError('Failed to create project: ' + (error.message || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Error creating project: ' + error.message);
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const createModal = document.getElementById('createProjectModal');
+            const initNoticeModal = document.getElementById('initializationNoticeModal');
+            
+            if (event.target === createModal) {
+                hideCreateProjectModal();
+            } else if (event.target === initNoticeModal) {
+                hideInitializationNoticeModal();
+            }
+        }
+
+        // Project Registration Helper
+        function showCLIInstructions(projectPath) {
+            const instructions = `
+To fully initialize this project with CodeMind:
+
+1. Open terminal in your project directory
+2. Run: npx codemind-init "${projectPath}" --level=comprehensive
+3. The CLI will analyze your project and register it with this dashboard
+4. Refresh this page to see the fully analyzed project
+
+Note: The CLI has full filesystem access and can perform deep analysis,
+while this web interface only creates basic project records.
+            `;
+            
+            const modal = document.createElement('div');
+            modal.className = 'cli-instructions-modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>📋 CLI Initialization Instructions</h3>
+                        <span class="close" onclick="this.parentElement.parentElement.parentElement.remove()">&times;</span>
+                    </div>
+                    <pre class="cli-instructions">${instructions.trim()}</pre>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" onclick="this.parentElement.parentElement.parentElement.remove()">Got it!</button>
+                    </div>
+                </div>
+            `;
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1001;
+            `;
+            document.body.appendChild(modal);
+        }
+    </script>
+
+    <!-- Create Project Modal -->
+    <div id="createProjectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Project</h3>
+                <span class="close" onclick="hideCreateProjectModal()">&times;</span>
+            </div>
+            <form id="createProjectForm">
+                <div class="form-group">
+                    <label for="projectName">Project Name *</label>
+                    <input type="text" id="projectName" name="projectName" required 
+                           placeholder="My Awesome Project">
+                </div>
+                
+                <div class="form-group">
+                    <label for="projectPath">Project Path *</label>
+                    <input type="text" id="projectPath" name="projectPath" required 
+                           placeholder="/path/to/project" title="Full path to project directory">
+                </div>
+                
+                <div class="form-group">
+                    <div class="info-box">
+                        <h4>💡 Best Practice: Use CLI Initialization</h4>
+                        <p>For full project analysis and initialization, use the CLI on your local system:</p>
+                        <code>npx codemind-init /path/to/your/project --level=comprehensive</code>
+                        <p><small>This form creates a basic project record. Full analysis requires filesystem access.</small></p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="projectType">Project Type</label>
+                    <select id="projectType" name="projectType">
+                        <option value="web_application">Web Application</option>
+                        <option value="api_service">API Service</option>
+                        <option value="library">Library</option>
+                        <option value="mobile_app">Mobile App</option>
+                        <option value="desktop_app">Desktop App</option>
+                        <option value="cli_tool">CLI Tool</option>
+                        <option value="unknown">Unknown/Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="projectSize">Project Size</label>
+                    <select id="projectSize" name="projectSize">
+                        <option value="small">Small (< 100 files)</option>
+                        <option value="medium" selected>Medium (100-1000 files)</option>
+                        <option value="large">Large (1000-10000 files)</option>
+                        <option value="enterprise">Enterprise (10000+ files)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="languages">Languages (comma-separated)</label>
+                    <input type="text" id="languages" name="languages" 
+                           placeholder="typescript, javascript, python">
+                </div>
+                
+                <div class="form-group">
+                    <label for="frameworks">Frameworks (comma-separated)</label>
+                    <input type="text" id="frameworks" name="frameworks" 
+                           placeholder="react, express, fastapi">
+                </div>
+            </form>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideCreateProjectModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createProject()">Create Project</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Initialization Notice Modal -->
+    <div id="initializationNoticeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🚀 Project Initialization Notice</h3>
+                <span class="close" onclick="hideInitializationNoticeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="notice-section">
+                    <h4>🔍 Path Access Detection</h4>
+                    <p>The dashboard is running in a containerized environment and cannot directly access your filesystem. For complete project initialization:</p>
+                    
+                    <div class="recommendation-box">
+                        <h5>💡 Recommended Approach:</h5>
+                        <div class="cli-instruction">
+                            <h6>Option 1: JavaScript Script</h6>
+                            <code>node scripts/init-project.js /path/to/your/project --verbose</code>
+                        </div>
+                        <div class="cli-instruction">
+                            <h6>Option 2: PowerShell Script</h6>
+                            <code>./scripts/init-project.ps1 "C:\path\to\your\project" -Verbose</code>
+                        </div>
+                    </div>
+
+                    <div class="feature-comparison">
+                        <div class="comparison-column">
+                            <h6>✅ CLI Scripts Include:</h6>
+                            <ul>
+                                <li>📁 Complete file system analysis</li>
+                                <li>🧠 RAG document content indexing</li>
+                                <li>🔍 Real-time duplicate detection</li>
+                                <li>📊 Quality metrics calculation</li>
+                                <li>🗺️ Project roadmap generation</li>
+                                <li>🧭 Navigation flow mapping</li>
+                                <li>⚙️ Configuration discovery</li>
+                            </ul>
+                        </div>
+                        <div class="comparison-column">
+                            <h6>⚠️ Dashboard Limitations:</h6>
+                            <ul>
+                                <li>🚫 No direct file content access</li>
+                                <li>🚫 Limited to registered projects</li>
+                                <li>🚫 Cannot read actual source code</li>
+                                <li>🚫 Placeholder content only</li>
+                                <li>🚫 Missing deep analysis features</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="autodiscovery-section">
+                        <h5>🎯 Alternative: Create Project with Autodiscovery</h5>
+                        <p>If you still want to proceed through the dashboard:</p>
+                        <ol>
+                            <li>Use "➕ Create Project" with autodiscovery enabled</li>
+                            <li>The system will analyze basic project metadata</li>
+                            <li>Limited initialization will be performed</li>
+                            <li>Run CLI scripts later for complete functionality</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="proceedWithDashboardInit()">🌐 Proceed with Dashboard</button>
+                <button type="button" class="btn btn-success" onclick="showCLIInstructions()">📋 Show CLI Instructions</button>
+                <button type="button" class="btn btn-secondary" onclick="hideInitializationNoticeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

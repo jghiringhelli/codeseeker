@@ -1,5 +1,8 @@
 "use strict";
-// Advanced Context Management System with Claude Limit Detection
+// ⚠️ DEPRECATED: Legacy Advanced Context Management System with Claude Limit Detection
+// This file is part of the legacy parallel orchestration system.
+// New implementations should use context optimization in sequential-workflow-orchestrator.ts instead.
+// This file will be removed in a future version.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContextManager = void 0;
 const events_1 = require("events");
@@ -137,6 +140,12 @@ class ContextManager extends events_1.EventEmitter {
                 preserveKeys: ['version', 'changelog', 'releaseNotes'],
                 summarizationLevel: 2,
                 useVectorSearch: false
+            },
+            [types_1.RoleType.DOCUMENTATION_WRITER]: {
+                maxTokens: 3000,
+                preserveKeys: ['documentation', 'content', 'structure'],
+                summarizationLevel: 2,
+                useVectorSearch: true
             },
             [types_1.RoleType.COMMITTER]: {
                 maxTokens: 1500,
@@ -433,6 +442,7 @@ class ContextManager extends events_1.EventEmitter {
             [types_1.RoleType.E2E_TEST_ENGINEER]: 3,
             [types_1.RoleType.TECHNICAL_DOCUMENTER]: 2,
             [types_1.RoleType.USER_DOCUMENTER]: 2,
+            [types_1.RoleType.DOCUMENTATION_WRITER]: 2,
             [types_1.RoleType.RELEASE_MANAGER]: 2,
             [types_1.RoleType.COMMITTER]: 1
         };

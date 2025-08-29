@@ -1,10 +1,12 @@
-// Dynamic Knowledge Context Generation Per Role
+// ⚠️ DEPRECATED: Legacy Dynamic Knowledge Context Generation Per Role
+// This file is part of the legacy parallel orchestration system.
+// This file will be removed in a future version.
 
 import { EventEmitter } from 'events';
 import { Logger } from '../shared/logger';
 import { RoleType, WorkflowExecution } from './types';
 
-export { RoleType, Action, Warning, Pattern, QualityCheck };
+export { RoleType };
 import { RoleKnowledgeContext, KnowledgePacket } from './role-knowledge-integrator';
 import { KnowledgeFlowStep, KnowledgeFlowMapper } from './knowledge-flow-mapper';
 import { SemanticKnowledgeGraph } from '../knowledge/graph/knowledge-graph';
@@ -783,11 +785,11 @@ export class DynamicKnowledgeGenerator extends EventEmitter {
   }
 
   private getRelevantRoles(roleType: RoleType): RoleType[] {
-    const relevanceMap: Record<RoleType, RoleType[]> = {
+    const relevanceMap: Partial<Record<RoleType, RoleType[]>> = {
       [RoleType.TEST_DESIGNER]: [RoleType.REQUIREMENT_ANALYST],
       [RoleType.IMPLEMENTATION_DEVELOPER]: [RoleType.REQUIREMENT_ANALYST, RoleType.TEST_DESIGNER],
       [RoleType.SECURITY_AUDITOR]: [RoleType.IMPLEMENTATION_DEVELOPER],
-      // Add more mappings...
+      // Add more mappings as needed...
     };
     
     return relevanceMap[roleType] || [];

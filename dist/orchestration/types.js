@@ -1,5 +1,8 @@
 "use strict";
-// Development Orchestration System - Type Definitions
+// ⚠️ DEPRECATED: Legacy Development Orchestration System - Type Definitions
+// This file is part of the legacy parallel orchestration system.
+// New implementations should use the interfaces in sequential-workflow-orchestrator.ts instead.
+// This file will be removed in a future version.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContextType = exports.OutputType = exports.InputType = exports.ExecutionStatus = exports.BacktrackTrigger = exports.QualityMetric = exports.QualityGateType = exports.FlowType = exports.RoleType = void 0;
 var RoleType;
@@ -21,6 +24,7 @@ var RoleType;
     RoleType["QUALITY_AUDITOR"] = "QUALITY_AUDITOR";
     RoleType["TECHNICAL_DOCUMENTER"] = "TECHNICAL_DOCUMENTER";
     RoleType["USER_DOCUMENTER"] = "USER_DOCUMENTER";
+    RoleType["DOCUMENTATION_WRITER"] = "DOCUMENTATION_WRITER";
     RoleType["RELEASE_MANAGER"] = "RELEASE_MANAGER";
     RoleType["COMMITTER"] = "COMMITTER";
 })(RoleType || (exports.RoleType = RoleType = {}));
@@ -31,6 +35,9 @@ var FlowType;
     FlowType["TECH_DEBT_REDUCTION"] = "TECH_DEBT_REDUCTION";
     FlowType["HOTFIX"] = "HOTFIX";
     FlowType["REFACTORING"] = "REFACTORING";
+    FlowType["SIMPLE_DEVELOPMENT"] = "SIMPLE_DEVELOPMENT";
+    FlowType["PROTOTYPE_DEVELOPMENT"] = "PROTOTYPE_DEVELOPMENT";
+    FlowType["NONFUNCTIONAL_IMPROVEMENTS"] = "NONFUNCTIONAL_IMPROVEMENTS";
 })(FlowType || (exports.FlowType = FlowType = {}));
 var QualityGateType;
 (function (QualityGateType) {
@@ -50,6 +57,7 @@ var QualityMetric;
     QualityMetric["RESPONSE_TIME"] = "RESPONSE_TIME";
     QualityMetric["MEMORY_USAGE"] = "MEMORY_USAGE";
     QualityMetric["CPU_UTILIZATION"] = "CPU_UTILIZATION";
+    QualityMetric["PERFORMANCE_IMPROVEMENT"] = "PERFORMANCE_IMPROVEMENT";
     // Quality Metrics
     QualityMetric["CODE_COVERAGE"] = "CODE_COVERAGE";
     QualityMetric["CYCLOMATIC_COMPLEXITY"] = "CYCLOMATIC_COMPLEXITY";
@@ -91,6 +99,8 @@ var InputType;
     InputType["QUALITY_REPORT"] = "QUALITY_REPORT";
     InputType["SECURITY_REPORT"] = "SECURITY_REPORT";
     InputType["PERFORMANCE_METRICS"] = "PERFORMANCE_METRICS";
+    InputType["PERFORMANCE_ANALYSIS"] = "PERFORMANCE_ANALYSIS";
+    InputType["SECURITY_ASSESSMENT"] = "SECURITY_ASSESSMENT";
     InputType["DOCUMENTATION"] = "DOCUMENTATION";
     InputType["SPECIFICATIONS"] = "SPECIFICATIONS";
     InputType["TEST_SUITE"] = "TEST_SUITE";
@@ -121,6 +131,7 @@ var ContextType;
     ContextType["QUALITY_ISSUES"] = "QUALITY_ISSUES";
     ContextType["SECURITY_VULNERABILITIES"] = "SECURITY_VULNERABILITIES";
     ContextType["PERFORMANCE_BOTTLENECKS"] = "PERFORMANCE_BOTTLENECKS";
+    ContextType["PERFORMANCE_METRICS"] = "PERFORMANCE_METRICS";
     ContextType["DEPENDENCY_CONFLICTS"] = "DEPENDENCY_CONFLICTS";
     ContextType["ARCHITECTURAL_VIOLATIONS"] = "ARCHITECTURAL_VIOLATIONS";
 })(ContextType || (exports.ContextType = ContextType = {}));

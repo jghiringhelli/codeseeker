@@ -1,64 +1,113 @@
-# Multi-stage build for production optimization
-FROM node:20-alpine AS builder
-
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
+# Multi-stage Docker build for CodeMind API
+FROM node:20-slim AS base
 
 # Set working directory
 WORKDIR /app
+
+# Install system dependencies including Python for native builds
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    curl \
+    bash \
+    python3 \
+    make \
+    g++ \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -g 1001 codemind && \
+    useradd -u 1001 -g codemind -m codemind
+
+# Development stage
+FROM base AS development
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci --include=dev
+
+# Copy source code
+COPY --chown=codemind:codemind . .
+
+# Expose development port
+EXPOSE 3004
+
+# Switch to non-root user
+USER codemind
+
+# Development command
+CMD ["npm", "run", "dev"]
+
+# Production build stage
+FROM base AS builder
 
 # Copy package files
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install all dependencies (needed for build)
+# Install all dependencies (including dev for build)
 RUN npm ci && npm cache clean --force
 
 # Copy source code
-COPY src/ ./src/
-COPY demo/ ./demo/
+COPY . .
 
-# Build the application
+# Build TypeScript
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 
-# Install runtime dependencies (PostgreSQL client tools)
-RUN apk add --no-cache postgresql-client
+# Install production system dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    curl \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S codemind -u 1001
+RUN groupadd -g 1001 codemind && \
+    useradd -u 1001 -g codemind -m codemind
 
 # Set working directory
 WORKDIR /app
 
-# Copy built application
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
+# Install production dependencies only
+COPY --from=builder --chown=codemind:codemind /app/package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 
-# Copy PostgreSQL schema file (needed for runtime)
-COPY src/database/schema.postgres.sql ./dist/src/database/
+# Copy built application from builder stage
+COPY --from=builder --chown=codemind:codemind /app/dist ./dist
+COPY --from=builder --chown=codemind:codemind /app/src ./src
 
-# Set permissions
-RUN chown -R codemind:nodejs /app
+# Create logs directory
+RUN mkdir -p /app/logs && chown codemind:codemind /app/logs
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV DASHBOARD_PORT=3005
+ENV LOG_LEVEL=info
+
+# Expose port
+EXPOSE 3005
 
 # Switch to non-root user
 USER codemind
 
-# Expose port
-EXPOSE 3004
-
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3004/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3005/health || exit 1
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV DB_TYPE=postgresql
-ENV PORT=3004
+# Start the API server
+CMD ["node", "src/dashboard/server.js"]
 
-# Start the application
-CMD ["node", "dist/api/server.js"]
+# Metadata labels
+LABEL maintainer="CodeMind Team <team@codemind.dev>" \
+      version="0.1.0" \
+      description="CodeMind API - Intelligent code analysis and orchestration" \
+      org.opencontainers.image.title="CodeMind API" \
+      org.opencontainers.image.description="API service for CodeMind intelligent code orchestration" \
+      org.opencontainers.image.vendor="CodeMind" \
+      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.schema-version="1.0"

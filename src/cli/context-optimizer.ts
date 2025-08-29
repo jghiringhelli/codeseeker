@@ -4,12 +4,23 @@ import { glob } from 'fast-glob';
 import { Logger } from '../utils/logger';
 import { ASTAnalyzer } from '../shared/ast/analyzer';
 
+export interface ContextOptimizationRequest {
+  projectPath: string;
+  query: string;
+  tokenBudget?: number;
+  strategy?: 'minimal' | 'smart' | 'full' | 'auto';
+  optimization?: 'speed' | 'accuracy' | 'balanced' | 'cost_efficient';
+  contextType?: string;
+  focusArea?: string;
+}
+
 export interface ContextOptimization {
   projectPath: string;
   tokenBudget: number;
   strategy: 'minimal' | 'smart' | 'full' | 'auto';
   estimatedTokens: number;
   priorityFiles: PriorityFile[];
+  relevantFiles?: string[]; // Added for compatibility
   projectInfo?: ProjectInfo;
   detectedPatterns?: DetectedPattern[];
   focusArea?: string;
@@ -40,6 +51,7 @@ export interface ProjectInfo {
   packageManager?: 'npm' | 'yarn' | 'pnpm' | 'pip' | 'poetry' | 'cargo' | 'other';
   totalFiles: number;
   totalLinesOfCode: number;
+  files?: Array<{path: string; tokenCount: number; language: string;}>;
 }
 
 export interface DetectedPattern {
@@ -49,13 +61,6 @@ export interface DetectedPattern {
   files: string[];
 }
 
-export interface ContextOptimizationRequest {
-  projectPath: string;
-  query?: string;
-  tokenBudget: number;
-  contextType: string;
-  focusArea?: string;
-}
 
 export interface ProjectAnalysisRequest {
   projectPath: string;

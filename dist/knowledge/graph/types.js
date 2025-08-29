@@ -63,6 +63,7 @@ var RelationType;
     RelationType["CONSUMES"] = "consumes";
     // Dependency Relationships
     RelationType["DEPENDS_ON"] = "depends_on";
+    RelationType["USES"] = "uses";
     RelationType["IMPORTS"] = "imports";
     RelationType["EXPORTS"] = "exports";
     RelationType["REQUIRES"] = "requires";
@@ -77,6 +78,7 @@ var RelationType;
     RelationType["IS_TYPE_OF"] = "is_type_of";
     RelationType["IS_INSTANCE_OF"] = "is_instance_of";
     RelationType["REPRESENTS"] = "represents";
+    RelationType["RELATES_TO"] = "relates_to";
     // Business Logic Relationships
     RelationType["SATISFIES"] = "satisfies";
     RelationType["VALIDATES"] = "validates";

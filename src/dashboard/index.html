@@ -32,6 +32,100 @@
             backdrop-filter: blur(10px);
         }
 
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(45deg, #6366f1, #8b5cf6);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .nav-tab:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .project-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .project-dropdown {
+            padding: 10px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+            min-width: 200px;
+        }
+
+        .project-dropdown option {
+            background: #2d2d44;
+            color: white;
+        }
+
+        .project-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .breadcrumb-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .breadcrumb-separator {
+            opacity: 0.5;
+        }
+
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
@@ -228,6 +322,368 @@
         .impact-moderate { background: #10b981; }
         .impact-minor { background: #6b7280; }
 
+        .workflow-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .workflow-btn-primary {
+            background: linear-gradient(45deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .workflow-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        .workflow-btn-warning {
+            background: linear-gradient(45deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .workflow-btn-danger {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .workflow-dropdown, .workflow-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .workflow-dropdown option {
+            background: #2d2d44;
+            color: white;
+        }
+
+        .template-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #6366f1;
+        }
+
+        .template-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .template-header h4 {
+            margin: 0;
+            color: #6366f1;
+        }
+
+        .template-btn {
+            padding: 4px 12px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid #6366f1;
+            border-radius: 4px;
+            color: #6366f1;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .template-btn:hover {
+            background: rgba(99, 102, 241, 0.3);
+        }
+
+        .config-section {
+            margin-bottom: 25px;
+        }
+
+        .config-section h3 {
+            color: #6366f1;
+            margin-bottom: 15px;
+        }
+
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .config-row label {
+            font-weight: 500;
+        }
+
+        .config-row input {
+            width: 80px;
+            padding: 4px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .flow-toggles {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .flow-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+        }
+
+        .toggle-switch {
+            width: 40px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #6366f1;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s ease;
+        }
+
+        .toggle-switch.active::after {
+            left: 22px;
+        }
+
+        .workflow-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #10b981;
+        }
+
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .workflow-title {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .workflow-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .workflow-action-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .action-pause {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .action-stop {
+            background: #ef4444;
+            color: white;
+        }
+
+        .action-view {
+            background: #6366f1;
+            color: white;
+        }
+
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            padding: 30px;
+            border-radius: 15px;
+            width: 400px;
+            max-width: 90%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content h2 {
+            color: #6366f1;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: white;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .login-btn {
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(45deg, #6366f1, #8b5cf6);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .cancel-btn {
+            flex: 1;
+            padding: 12px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            border-radius: 6px;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .cancel-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        .login-note {
+            text-align: center;
+            margin-top: 15px;
+            opacity: 0.7;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+        }
+
+        .logout-btn {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        .protected-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            text-align: center;
+        }
+
+        .protected-overlay h2 {
+            color: #6366f1;
+            margin-bottom: 20px;
+        }
+
+        .protected-overlay button {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #6366f1, #8b5cf6);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
         .refresh-indicator {
             position: fixed;
             top: 20px;
@@ -257,82 +713,951 @@
                 font-size: 2em;
             }
         }
+        /* Voice and Planner UI Styles */
+        .quick-action-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            background: linear-gradient(45deg, #6366f1, #8b5cf6);
+            color: white;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .quick-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .conversation-message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .conversation-message.user {
+            background: rgba(99, 102, 241, 0.2);
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .conversation-message.ai {
+            background: rgba(139, 92, 246, 0.2);
+            margin-right: auto;
+        }
+
+        .conversation-message .sender {
+            font-weight: bold;
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .voice-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .voice-indicator {
+            width: 10px;
+            height: 10px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .voice-indicator.listening {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>🔐 Dashboard Login</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required placeholder="admin" />
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required placeholder="codemind123" />
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="login-btn">🔑 Login</button>
+                    <button type="button" class="cancel-btn" onclick="hideLogin()">❌ Cancel</button>
+                </div>
+                <div id="loginError" class="error-message" style="display: none;"></div>
+            </form>
+            <div class="login-note">
+                <small>📝 Default credentials: admin / codemind123</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal Orchestration Dialog -->
+    <div id="orchestrationModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>🎭 Start Terminal Orchestration</h2>
+            <p>Launch multiple Claude Code terminals with specialized roles for complex analysis.</p>
+            
+            <div style="margin: 20px 0;">
+                <label for="orchestrationQuery" style="font-weight: 500;">Query:</label>
+                <textarea id="orchestrationQuery" 
+                         style="width: 100%; height: 100px; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #666; background: #2d2d44; color: white;" 
+                         placeholder="Describe your analysis request (e.g., 'Comprehensive production readiness review')"></textarea>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <label for="orchestrationProjectPath" style="font-weight: 500;">Project Path:</label>
+                <input type="text" id="orchestrationProjectPath" 
+                       style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #666; background: #2d2d44; color: white;" 
+                       placeholder="./my-project" />
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button onclick="hideOrchestrationDialog()" 
+                        style="padding: 10px 20px; border: none; border-radius: 5px; background: #666; color: white; cursor: pointer;">
+                    Cancel
+                </button>
+                <button onclick="startTerminalOrchestration()" 
+                        style="padding: 10px 20px; border: none; border-radius: 5px; background: #007ACC; color: white; cursor: pointer;">
+                    🚀 Start Orchestration
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="dashboard">
         <div class="header">
-            <h1>🧠 CodeMind System Dashboard</h1>
-            <p>Real-time monitoring of AI orchestration processes, metrics, and accomplishments</p>
+            <div class="header-content">
+                <div>
+                    <h1>🧠 CodeMind System Dashboard</h1>
+                    <p>Real-time monitoring of AI orchestration processes, metrics, and accomplishments</p>
+                </div>
+                <div class="user-info" id="userInfo" style="display: none;">
+                    <span id="userName"></span>
+                    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+                </div>
+            </div>
         </div>
 
         <div class="refresh-indicator" id="refreshIndicator">
             🔄 Last updated: Never
         </div>
 
-        <div class="grid">
-            <!-- System Health Overview -->
-            <div class="card">
-                <h2>📊 System Health</h2>
-                <div class="metric">
-                    <span>Active Processes</span>
-                    <span class="metric-value" id="activeProcesses">0</span>
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('system')" id="systemTab">
+                🌐 System Overview
+            </button>
+            <button class="nav-tab" onclick="openCliPage()" id="cliTab">
+                🧠 Smart CLI
+            </button>
+            <button class="nav-tab" onclick="openOrchestratorPage()" id="sequentialTab">
+                🎭 Orchestrator
+            </button>
+            <button class="nav-tab" onclick="openPlannerPage()" id="plannerTab">
+                🚀 Idea Planner
+            </button>
+            <button class="nav-tab" onclick="switchTab('project')" id="projectTab">
+                📁 Project View
+            </button>
+        </div>
+
+        <!-- System Overview Tab -->
+        <div id="systemContent" class="tab-content active">
+            <div class="breadcrumb">
+                <div class="breadcrumb-item">
+                    🏠 <span>System Dashboard</span>
                 </div>
-                <div class="metric">
-                    <span>Completed Today</span>
-                    <span class="metric-value" id="completedToday">0</span>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item">
+                    <span>Overall Behavior</span>
                 </div>
-                <div class="metric">
-                    <span>Failed Today</span>
-                    <span class="metric-value" id="failedToday">0</span>
+            </div>
+            
+                <!-- System Health Overview -->
+                <div class="card">
+                    <h2>📊 System Health</h2>
+                    <div class="metric">
+                        <span>Active Processes</span>
+                        <span class="metric-value" id="activeProcesses">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Completed Today</span>
+                        <span class="metric-value" id="completedToday">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Failed Today</span>
+                        <span class="metric-value" id="failedToday">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Average Quality Score</span>
+                        <span class="metric-value" id="avgQualityScore">0%</span>
+                    </div>
+                    <div class="metric">
+                        <span>Total Tokens Used Today</span>
+                        <span class="metric-value" id="totalTokens">0</span>
+                    </div>
                 </div>
-                <div class="metric">
-                    <span>Average Quality Score</span>
-                    <span class="metric-value" id="avgQualityScore">0%</span>
+
+                <!-- Active Processes -->
+                <div class="card">
+                    <h2>🔄 Active Processes</h2>
+                    <div id="activeProcessesList">
+                        <p style="opacity: 0.6;">No active processes</p>
+                    </div>
                 </div>
-                <div class="metric">
-                    <span>Total Tokens Used Today</span>
-                    <span class="metric-value" id="totalTokens">0</span>
+
+                <!-- AI Roles Activity -->
+                <div class="card">
+                    <h2>🤖 AI Roles Activity</h2>
+                    <div id="roleActivity">
+                        <p style="opacity: 0.6;">Loading role activity...</p>
+                    </div>
+                </div>
+
+                <!-- Recent Accomplishments -->
+                <div class="card">
+                    <h2>🏆 Recent Accomplishments</h2>
+                    <div id="accomplishments">
+                        <p style="opacity: 0.6;">No recent accomplishments</p>
+                    </div>
+                </div>
+
+                <!-- Workflow Visualization -->
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h2>📈 Workflow Visualization</h2>
+                    <div id="workflowGraph" class="node-graph">
+                        <p style="text-align: center; margin-top: 100px; opacity: 0.6;">No active workflows to visualize</p>
+                    </div>
+                </div>
+
+                <!-- System Logs -->
+                <div class="card logs-container">
+                    <h2>📝 System Logs</h2>
+                    <div id="systemLogs">
+                        <p style="opacity: 0.6;">Loading system logs...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Layer 1: Smart CLI Tab -->
+        <div id="cliContent" class="tab-content">
+            <div class="breadcrumb">
+                <div class="breadcrumb-item">
+                    🏠 <span>System Dashboard</span>
+                </div>
+                <div class="breadcrumb-divider">></div>
+                <div class="breadcrumb-item active">
+                    🧠 <span>Smart CLI</span>
                 </div>
             </div>
 
-            <!-- Active Processes -->
-            <div class="card">
-                <h2>🔄 Active Processes</h2>
-                <div id="activeProcessesList">
-                    <p style="opacity: 0.6;">No active processes</p>
+            <!-- CLI Query Interface -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🧠 Smart CLI - Database-backed Tool Selection</h3>
+                        <div class="card-status" id="cliStatus">
+                            <span class="status-dot" style="background-color: #10b981;"></span>
+                            <span>Available</span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p>Intelligent tool selection with 75-90% token cost reduction through Claude AI analysis:</p>
+                        
+                        <!-- Quick CLI Query -->
+                        <div style="margin: 20px 0;">
+                            <h4>🎯 Run Smart Analysis</h4>
+                            <div style="display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap;">
+                                <input type="text" id="cliQuery" placeholder="Describe your analysis need..." 
+                                       style="flex: 1; min-width: 300px; padding: 10px; border: 1px solid rgba(255,255,255,0.2); 
+                                              border-radius: 5px; background: rgba(255,255,255,0.1); color: white;">
+                                <input type="text" id="cliProjectPath" placeholder="Project path (optional)" 
+                                       style="min-width: 200px; padding: 10px; border: 1px solid rgba(255,255,255,0.2); 
+                                              border-radius: 5px; background: rgba(255,255,255,0.1); color: white;">
+                                <button onclick="runSmartCLI()" 
+                                        style="padding: 10px 20px; border: none; border-radius: 5px; 
+                                               background: linear-gradient(45deg, #10b981, #059669); color: white; cursor: pointer;">
+                                    Analyze
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- AI Roles Activity -->
-            <div class="card">
-                <h2>🤖 AI Roles Activity</h2>
-                <div id="roleActivity">
-                    <p style="opacity: 0.6;">Loading role activity...</p>
+            <!-- Database Tool Analytics -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📊 Tool Selection Analytics</h3>
+                        <button onclick="refreshToolAnalytics()" class="refresh-btn">🔄 Refresh</button>
+                    </div>
+                    <div class="card-content">
+                        <div id="toolAnalytics">Loading tool selection analytics...</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Recent Accomplishments -->
-            <div class="card">
-                <h2>🏆 Recent Accomplishments</h2>
-                <div id="accomplishments">
-                    <p style="opacity: 0.6;">No recent accomplishments</p>
+            <!-- Project Database Insights -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🗄️ Project Database Insights</h3>
+                    </div>
+                    <div class="card-content">
+                        <div id="projectDatabaseInsights">Loading database insights...</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Workflow Visualization -->
-            <div class="card" style="grid-column: 1 / -1;">
-                <h2>📈 Workflow Visualization</h2>
-                <div id="workflowGraph" class="node-graph">
-                    <p style="text-align: center; margin-top: 100px; opacity: 0.6;">No active workflows to visualize</p>
+            <!-- Recent CLI Usage -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📋 Recent Smart CLI Usage</h3>
+                    </div>
+                    <div class="card-content">
+                        <div id="recentCliUsage">Loading recent usage...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project View Tab -->
+        <div id="projectContent" class="tab-content">
+            <div class="breadcrumb">
+                <div class="breadcrumb-item">
+                    🏠 <span>System Dashboard</span>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item">
+                    <span>Project View</span>
+                </div>
+                <span class="breadcrumb-separator" id="projectBreadcrumbSeparator" style="display: none;">›</span>
+                <div class="breadcrumb-item" id="projectBreadcrumbItem" style="display: none;">
+                    <span id="selectedProjectName">No Project Selected</span>
                 </div>
             </div>
 
-            <!-- System Logs -->
-            <div class="card logs-container">
-                <h2>📝 System Logs</h2>
-                <div id="systemLogs">
-                    <p style="opacity: 0.6;">Loading system logs...</p>
+            <!-- Project Selector -->
+            <div class="project-selector">
+                <label for="projectSelect" style="font-weight: 500;">📁 Select Project:</label>
+                <select id="projectSelect" class="project-dropdown" onchange="selectProject(this.value)">
+                    <option value="">Loading projects...</option>
+                </select>
+                <div class="project-info" id="projectInfo">
+                    <span id="projectType"></span>
+                    <span>•</span>
+                    <span id="projectFileCount"></span>
+                    <span>•</span>
+                    <span id="projectStatus"></span>
+                </div>
+            </div>
+
+            <div class="grid" id="projectGrid">
+                <!-- Project-Specific Health -->
+                <div class="card">
+                    <h2>📊 Project Health</h2>
+                    <div class="metric">
+                        <span>Active Processes</span>
+                        <span class="metric-value" id="projectActiveProcesses">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Quality Score</span>
+                        <span class="metric-value" id="projectQualityScore">N/A</span>
+                    </div>
+                    <div class="metric">
+                        <span>Files Analyzed</span>
+                        <span class="metric-value" id="projectFilesAnalyzed">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Patterns Detected</span>
+                        <span class="metric-value" id="projectPatternsDetected">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Last Analysis</span>
+                        <span class="metric-value" id="projectLastAnalysis">Never</span>
+                    </div>
+                </div>
+
+                <!-- Project Processes -->
+                <div class="card">
+                    <h2>🔄 Project Processes</h2>
+                    <div id="projectProcessesList">
+                        <p style="opacity: 0.6;">Select a project to view processes</p>
+                    </div>
+                </div>
+
+                <!-- Project Patterns -->
+                <div class="card">
+                    <h2>🧩 Detected Patterns</h2>
+                    <div id="projectPatterns">
+                        <p style="opacity: 0.6;">Select a project to view patterns</p>
+                    </div>
+                </div>
+
+                <!-- Project Accomplishments -->
+                <div class="card">
+                    <h2>🏆 Project Accomplishments</h2>
+                    <div id="projectAccomplishments">
+                        <p style="opacity: 0.6;">Select a project to view accomplishments</p>
+                    </div>
+                </div>
+
+                <!-- Project Metrics Chart -->
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h2>📈 Project Metrics Over Time</h2>
+                    <div id="projectMetricsChart" style="min-height: 300px;">
+                        <p style="text-align: center; margin-top: 100px; opacity: 0.6;">Select a project to view metrics</p>
+                    </div>
+                </div>
+
+                <!-- Project Logs -->
+                <div class="card logs-container">
+                    <h2>📝 Project Logs</h2>
+                    <div id="projectLogs">
+                        <p style="opacity: 0.6;">Select a project to view logs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orchestrator Tab -->
+        <div id="orchestratorContent" class="tab-content">
+            <div class="breadcrumb">
+                <div class="breadcrumb-item">
+                    🏠 <span>System Dashboard</span>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item">
+                    <span>Orchestrator Management</span>
+                </div>
+            </div>
+
+            <div class="grid">
+                <!-- Orchestrator Status -->
+                <div class="card">
+                    <h2>🎯 Orchestrator Status</h2>
+                    <div class="metric">
+                        <span>Status</span>
+                        <span class="metric-value" id="orchestratorStatus">Loading...</span>
+                    </div>
+                    <div class="metric">
+                        <span>Active Workflows</span>
+                        <span class="metric-value" id="activeWorkflows">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Queued Workflows</span>
+                        <span class="metric-value" id="queuedWorkflows">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Total Flows Available</span>
+                        <span class="metric-value" id="totalFlows">0</span>
+                    </div>
+                </div>
+
+                <!-- Workflow Controls -->
+                <div class="card">
+                    <h2>🎮 Workflow Controls</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button class="workflow-btn workflow-btn-primary" onclick="startWorkflow()">
+                            ▶️ Start Workflow
+                        </button>
+                        <button class="workflow-btn workflow-btn-warning" onclick="pauseAllWorkflows()">
+                            ⏸️ Pause All
+                        </button>
+                        <button class="workflow-btn workflow-btn-danger" onclick="stopAllWorkflows()">
+                            ⏹️ Stop All
+                        </button>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label for="workflowSelect" style="font-weight: 500;">Select Workflow Template:</label>
+                        <select id="workflowSelect" class="workflow-dropdown">
+                            <option value="">Loading templates...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="workItemId" style="font-weight: 500;">Work Item ID:</label>
+                        <input type="text" id="workItemId" class="workflow-input" placeholder="Enter work item ID" />
+                    </div>
+                </div>
+
+                <!-- Active Workflows -->
+                <div class="card">
+                    <h2>🔄 Active Workflows</h2>
+                    <div id="activeWorkflowsList">
+                        <p style="opacity: 0.6;">No active workflows</p>
+                    </div>
+                </div>
+
+                <!-- Prebuilt Flow Templates -->
+                <div class="card">
+                    <h2>📋 Prebuilt Flow Templates</h2>
+                    <div id="prebuiltTemplates">
+                        <div class="template-item" data-template="complete-flow">
+                            <div class="template-header">
+                                <h4>🌟 Complete Development Flow</h4>
+                                <button class="template-btn" onclick="loadTemplate('complete-flow')">Load</button>
+                            </div>
+                            <p>Full end-to-end development workflow with all nodes in sequence</p>
+                            <small>Includes: Classification → Requirements → Tests → Implementation → Review → Build → Deploy</small>
+                        </div>
+                        
+                        <div class="template-item" data-template="simple-start">
+                            <div class="template-header">
+                                <h4>🚀 Simple Starting Point</h4>
+                                <button class="template-btn" onclick="loadTemplate('simple-start')">Load</button>
+                            </div>
+                            <p>Basic workflow for getting started quickly</p>
+                            <small>Includes: Classification → Implementation → Basic Tests</small>
+                        </div>
+                        
+                        <div class="template-item" data-template="prototype-dev">
+                            <div class="template-header">
+                                <h4>⚡ Prototype Development</h4>
+                                <button class="template-btn" onclick="loadTemplate('prototype-dev')">Load</button>
+                            </div>
+                            <p>Fast-track workflow for prototype and proof-of-concept development</p>
+                            <small>Includes: Classification → Fast Implementation → Basic Validation</small>
+                        </div>
+                        
+                        <div class="template-item" data-template="nonfunctional-improvements">
+                            <div class="template-header">
+                                <h4>📈 Non-Functional Improvements</h4>
+                                <button class="template-btn" onclick="loadTemplate('nonfunctional-improvements')">Load</button>
+                            </div>
+                            <p>Focus on performance, security, and quality improvements for existing projects</p>
+                            <small>Includes: Analysis → Performance Audit → Security Audit → Quality Improvements</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flow Configuration -->
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h2>⚙️ Flow Configuration</h2>
+                    <div id="flowConfiguration">
+                        <div class="config-section">
+                            <h3>Enabled Flows</h3>
+                            <div id="enabledFlows" class="flow-toggles">
+                                <!-- Flow toggles will be populated here -->
+                            </div>
+                        </div>
+                        
+                        <div class="config-section">
+                            <h3>Concurrency Settings</h3>
+                            <div class="config-row">
+                                <label>Max Parallel Workflows:</label>
+                                <input type="number" id="maxParallelWorkflows" min="1" max="10" value="3" />
+                            </div>
+                            <div class="config-row">
+                                <label>Max Parallel Nodes per Workflow:</label>
+                                <input type="number" id="maxParallelNodes" min="1" max="20" value="5" />
+                            </div>
+                        </div>
+                        
+                        <div class="config-section">
+                            <button class="workflow-btn workflow-btn-primary" onclick="saveConfiguration()">
+                                💾 Save Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sequential Workflows Tab -->
+        <div id="sequentialContent" class="tab-content">
+            <div class="breadcrumb">
+                <div class="breadcrumb-item">
+                    🏠 <span>System Dashboard</span>
+                </div>
+                <div class="breadcrumb-divider">></div>
+                <div class="breadcrumb-item active">
+                    🎭 <span>Sequential Workflows</span>
+                </div>
+            </div>
+
+            <!-- Sequential Workflow Controls -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🎭 Sequential Workflow Orchestration</h3>
+                        <div class="card-status" id="sequentialStatus">
+                            <span class="status-dot" id="sequentialStatusDot"></span>
+                            <span id="sequentialStatusText">Checking...</span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p>Advanced multi-role sequential analysis pipeline with specialized role-based terminals:</p>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            <li><strong>🏗️ Architect</strong> - System design, dependencies, architecture patterns</li>
+                            <li><strong>🔒 Security</strong> - Vulnerability assessment, threat modeling, compliance</li>
+                            <li><strong>✅ Quality</strong> - Code quality, testing coverage, maintainability</li>
+                            <li><strong>⚡ Performance</strong> - Bottleneck identification, optimization opportunities</li>
+                            <li><strong>🎯 Coordinator</strong> - Synthesizes insights into actionable recommendations</li>
+                        </ul>
+                        
+                        <!-- Quick Start Sequential Workflow -->
+                        <div style="margin-top: 20px;">
+                            <h4>🚀 Start Sequential Analysis</h4>
+                            <div style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+                                <input type="text" id="sequentialQuery" placeholder="Describe your analysis request..." 
+                                       style="flex: 1; min-width: 300px; padding: 10px; border: 1px solid rgba(255,255,255,0.2); 
+                                              border-radius: 5px; background: rgba(255,255,255,0.1); color: white;">
+                                <input type="text" id="sequentialProjectPath" placeholder="Project path (optional)" 
+                                       style="min-width: 200px; padding: 10px; border: 1px solid rgba(255,255,255,0.2); 
+                                              border-radius: 5px; background: rgba(255,255,255,0.1); color: white;">
+                                <button onclick="startSequentialWorkflow()" 
+                                        style="padding: 10px 20px; border: none; border-radius: 5px; 
+                                               background: linear-gradient(45deg, #6366f1, #8b5cf6); color: white; cursor: pointer;">
+                                    Start Workflow
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Sequential Workflows -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🔄 Active Sequential Workflows</h3>
+                        <button onclick="refreshSequentialWorkflows()" class="refresh-btn">🔄 Refresh</button>
+                    </div>
+                    <div class="card-content">
+                        <div id="activeSequentialWorkflows">Loading active workflows...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🏥 System Health</h3>
+                    </div>
+                    <div class="card-content">
+                        <div id="sequentialSystemHealth">Loading system health...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workflow History -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📊 Recent Sequential Workflows</h3>
+                    </div>
+                    <div class="card-content">
+                        <div id="sequentialWorkflowHistory">Loading workflow history...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Layer 3: Idea Planner Tab -->
+        <div id="plannerContent" class="tab-content">
+            <div class="breadcrumb">
+                <div class="breadcrumb-item">
+                    🏠 <span>System Dashboard</span>
+                </div>
+                <div class="breadcrumb-divider">></div>
+                <div class="breadcrumb-item active">
+                    🚀 <span>Idea Planner</span>
+                </div>
+            </div>
+
+            <!-- "I have an idea" Interface -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>💡 Interactive Idea Development</h3>
+                        <div class="card-status" id="plannerStatus">
+                            <span class="status-dot" style="background-color: #8b5cf6;"></span>
+                            <span>Ready</span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p>Transform your ideas into complete implementation plans through AI conversation:</p>
+                        
+                        <!-- Main CTA Button -->
+                        <div style="text-align: center; margin: 30px 0;">
+                            <button onclick="startIdeaConversation()" id="startIdeaBtn"
+                                    style="padding: 15px 30px; border: none; border-radius: 10px; 
+                                           background: linear-gradient(45deg, #8b5cf6, #6366f1); color: white; 
+                                           font-size: 1.2em; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
+                                💡 I have an idea!
+                            </button>
+                        </div>
+
+                        <!-- Voice Interface -->
+                        <div style="display: flex; gap: 15px; justify-content: center; align-items: center; margin: 20px 0;">
+                            <button onclick="toggleVoiceInput()" id="voiceInputBtn"
+                                    style="padding: 10px 15px; border: none; border-radius: 8px; 
+                                           background: rgba(139, 92, 246, 0.2); color: #8b5cf6; cursor: pointer;">
+                                🎤 Voice Input
+                            </button>
+                            <span style="color: rgba(255,255,255,0.6);">or</span>
+                            <button onclick="toggleVoiceOutput()" id="voiceOutputBtn"
+                                    style="padding: 10px 15px; border: none; border-radius: 8px; 
+                                           background: rgba(139, 92, 246, 0.2); color: #8b5cf6; cursor: pointer;">
+                                🔊 Voice Output
+                            </button>
+                        </div>
+
+                        <!-- Conversation Interface (Hidden initially) -->
+                        <div id="conversationInterface" style="display: none; margin-top: 20px;">
+                            <div style="border: 2px solid rgba(139, 92, 246, 0.3); border-radius: 10px; padding: 20px; background: rgba(139, 92, 246, 0.05);">
+                                
+                                <!-- Voice Status -->
+                                <div id="voiceStatus" style="text-align: center; margin-bottom: 15px; display: none;">
+                                    <span id="voiceStatusText" style="color: #8b5cf6; font-style: italic;">🎤 Listening...</span>
+                                </div>
+
+                                <!-- Conversation History -->
+                                <div id="conversationHistory" style="max-height: 400px; overflow-y: auto; margin-bottom: 15px; 
+                                                                    border: 1px solid rgba(255,255,255,0.1); border-radius: 5px; padding: 10px; 
+                                                                    background: rgba(0,0,0,0.2);">
+                                    <div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px;">
+                                        Start sharing your idea...
+                                    </div>
+                                </div>
+
+                                <!-- Input Area -->
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" id="conversationInput" placeholder="Describe your idea or ask questions..." 
+                                           style="flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.2); 
+                                                  border-radius: 5px; background: rgba(255,255,255,0.1); color: white;"
+                                           onkeypress="handleConversationEnter(event)">
+                                    <button onclick="sendConversationMessage()" 
+                                            style="padding: 10px 20px; border: none; border-radius: 5px; 
+                                                   background: linear-gradient(45deg, #8b5cf6, #6366f1); color: white; cursor: pointer;">
+                                        Send
+                                    </button>
+                                </div>
+
+                                <!-- Quick Actions -->
+                                <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <button onclick="generatePlans()" id="generatePlansBtn" style="display: none;"
+                                            class="quick-action-btn">📊 Generate Plans</button>
+                                    <button onclick="createWorkflow()" id="createWorkflowBtn" style="display: none;"
+                                            class="quick-action-btn">🎭 Create Workflow</button>
+                                    <button onclick="startImplementation()" id="implementBtn" style="display: none;"
+                                            class="quick-action-btn">⚡ Start Implementation</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Conversations -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>💬 Active Idea Conversations</h3>
+                        <button onclick="refreshActiveConversations()" class="refresh-btn">🔄 Refresh</button>
+                    </div>
+                    <div class="card-content">
+                        <div id="activeConversations">Loading active conversations...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generated Plans -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📋 Generated Plans</h3>
+                    </div>
+                    <div class="card-content">
+                        <div id="generatedPlans">No plans generated yet. Start a conversation above!</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Implementation Progress -->
+            <div class="info-cards">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>⚡ Implementation Progress</h3>
+                    </div>
+                    <div class="card-content">
+                        <div id="implementationProgress">No implementations started yet.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Three High-Impact Tools Tab -->
+        <div id="threetoolsContent" class="tab-content">
+            <div class="breadcrumb">
+                <div class="breadcrumb-item">
+                    🏠 <span>System Dashboard</span>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item">
+                    <span>High-Impact Tools</span>
+                </div>
+            </div>
+
+            <!-- Project Selector for Tools -->
+            <div class="project-selector">
+                <label for="toolsProjectSelect" style="font-weight: 500;">📁 Select Project:</label>
+                <select id="toolsProjectSelect" class="project-dropdown" onchange="selectProjectForTools(this.value)">
+                    <option value="">Select a project...</option>
+                </select>
+                <div class="project-info" id="toolsProjectInfo">
+                    <span>Select a project to view tool analysis</span>
+                </div>
+            </div>
+
+            <div class="grid" id="threetoolsGrid">
+                <!-- Centralization Detector Card -->
+                <div class="card">
+                    <h2>🎯 Centralization Detector</h2>
+                    <div class="metric">
+                        <span>Configuration Items Found</span>
+                        <span class="metric-value" id="configItemsFound">-</span>
+                    </div>
+                    <div class="metric">
+                        <span>Centralization Opportunities</span>
+                        <span class="metric-value" id="centralizationOpportunities">-</span>
+                    </div>
+                    <div class="metric">
+                        <span>Potential Benefit Score</span>
+                        <span class="metric-value" id="centralizationBenefit">-</span>
+                    </div>
+                    <div class="metric">
+                        <span>Last Scan</span>
+                        <span class="metric-value" id="centralizationLastScan">Never</span>
+                    </div>
+                </div>
+
+                <!-- Code-Docs Reconciler Card -->
+                <div class="card">
+                    <h2>📚 Code-Docs Reconciler</h2>
+                    <div class="metric">
+                        <span>Features Tracked</span>
+                        <span class="metric-value" id="featuresTracked">-</span>
+                    </div>
+                    <div class="metric">
+                        <span>Documentation Coverage</span>
+                        <span class="metric-value" id="docCoverage">-</span>
+                    </div>
+                    <div class="metric">
+                        <span>Discrepancies Found</span>
+                        <span class="metric-value" id="discrepanciesFound">-</span>
+                    </div>
+                    <div class="metric">
+                        <span>Sync Status</span>
+                        <span class="metric-value" id="syncStatus">-</span>
+                    </div>
+                </div>
+
+                <!-- Workflow Orchestrator Card -->
+                <div class="card">
+                    <h2>🔄 Workflow Orchestrator</h2>
+                    <div class="metric">
+                        <span>Available Workflows</span>
+                        <span class="metric-value" id="availableWorkflows">-</span>
+                    </div>
+                    <div class="metric">
+                        <span>Executed Today</span>
+                        <span class="metric-value" id="workflowsExecutedToday">-</span>
+                    </div>
+                    <div class="metric">
+                        <span>Success Rate</span>
+                        <span class="metric-value" id="workflowSuccessRate">-</span>
+                    </div>
+                    <div class="metric">
+                        <span>Average Duration</span>
+                        <span class="metric-value" id="avgWorkflowDuration">-</span>
+                    </div>
+                </div>
+
+                <!-- Terminal Orchestration Card -->
+                <div class="card">
+                    <h2>🎭 Terminal Orchestration</h2>
+                    <div class="metric">
+                        <span>Active Orchestrations</span>
+                        <span class="metric-value" id="activeOrchestrations">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Running Terminals</span>
+                        <span class="metric-value" id="runningTerminals">0</span>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button class="workflow-btn workflow-btn-primary" onclick="showOrchestrationDialog()">
+                            🚀 Start Terminal Orchestration
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Terminal Orchestrations -->
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h2>🖥️ Active Terminal Orchestrations</h2>
+                    <div id="activeTerminalOrchestrations">
+                        <p style="opacity: 0.6;">No active terminal orchestrations</p>
+                    </div>
+                </div>
+
+                <!-- Tool Performance Comparison -->
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h2>📊 Tool Performance Comparison</h2>
+                    <div id="toolPerformanceChart" style="min-height: 300px;">
+                        <p style="text-align: center; margin-top: 100px; opacity: 0.6;">Select a project to view tool performance</p>
+                    </div>
+                </div>
+
+                <!-- Centralization Opportunities Detail -->
+                <div class="card">
+                    <h2>🎯 Centralization Opportunities</h2>
+                    <div id="centralizationOpportunitiesList">
+                        <p style="opacity: 0.6;">Select a project to view centralization opportunities</p>
+                    </div>
+                </div>
+
+                <!-- Documentation Discrepancies -->
+                <div class="card">
+                    <h2>📝 Documentation Discrepancies</h2>
+                    <div id="documentationDiscrepanciesList">
+                        <p style="opacity: 0.6;">Select a project to view documentation sync issues</p>
+                    </div>
+                </div>
+
+                <!-- Workflow Executions -->
+                <div class="card">
+                    <h2>⚙️ Recent Workflow Executions</h2>
+                    <div id="recentWorkflowExecutions">
+                        <p style="opacity: 0.6;">Select a project to view recent workflow executions</p>
+                    </div>
+                </div>
+
+                <!-- Cross-Tool Insights -->
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h2>🔍 Cross-Tool Insights</h2>
+                    <div id="crossToolInsights">
+                        <p style="text-align: center; margin-top: 50px; opacity: 0.6;">Select a project to view intelligent insights from combined tool analysis</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -344,10 +1669,14 @@
                 this.apiBase = '/api/dashboard';
                 this.refreshInterval = 5000; // 5 seconds
                 this.maxLogs = 100;
+                this.currentTab = 'system';
+                this.selectedProjectId = null;
+                this.projects = [];
                 this.init();
             }
 
             init() {
+                this.loadProjects();
                 this.startAutoRefresh();
                 this.loadDashboardData();
             }
@@ -360,14 +1689,37 @@
 
             async loadDashboardData() {
                 try {
-                    await Promise.all([
-                        this.loadSystemHealth(),
-                        this.loadActiveProcesses(),
-                        this.loadRoleActivity(),
-                        this.loadAccomplishments(),
-                        this.loadSystemLogs(),
-                        this.loadWorkflowNodes()
-                    ]);
+                    // Check authentication status first
+                    await this.checkAuthStatus();
+                    
+                    if (this.currentTab === 'system') {
+                        await Promise.all([
+                            this.loadSystemHealth(),
+                            this.loadActiveProcesses(),
+                            this.loadRoleActivity(),
+                            this.loadAccomplishments(),
+                            this.loadSystemLogs(),
+                            this.loadWorkflowNodes()
+                        ]);
+                    } else if (this.currentTab === 'project' && this.selectedProjectId) {
+                        await Promise.all([
+                            this.loadProjectHealth(),
+                            this.loadProjectProcesses(),
+                            this.loadProjectPatterns(),
+                            this.loadProjectAccomplishments(),
+                            this.loadProjectLogs(),
+                            this.loadProjectMetrics()
+                        ]);
+                    } else if (this.currentTab === 'orchestrator') {
+                        await Promise.all([
+                            this.loadOrchestratorStatus(),
+                            this.loadWorkflowTemplates(),
+                            this.loadActiveWorkflowsList(),
+                            this.loadFlowConfiguration()
+                        ]);
+                        // Load terminal orchestrations separately due to different API
+                        loadActiveTerminalOrchestrations();
+                    }
                     
                     this.updateRefreshIndicator();
                 } catch (error) {
@@ -619,17 +1971,1574 @@
                 
                 document.querySelector('.dashboard').insertBefore(
                     errorEl, 
-                    document.querySelector('.grid')
+                    document.querySelector('.nav-tabs')
                 );
 
                 setTimeout(() => errorEl.remove(), 10000);
             }
+
+            async loadProjects() {
+                try {
+                    const response = await fetch(`${this.apiBase}/projects`);
+                    this.projects = await response.json();
+                    
+                    const projectSelect = document.getElementById('projectSelect');
+                    projectSelect.innerHTML = '<option value="">Select a project...</option>';
+                    
+                    this.projects.forEach(project => {
+                        const option = document.createElement('option');
+                        option.value = project.project_id;
+                        option.textContent = `${project.project_name} (${project.project_path})`;
+                        projectSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Failed to load projects:', error);
+                    document.getElementById('projectSelect').innerHTML = '<option value="">Failed to load projects</option>';
+                }
+            }
+
+            async loadProjectHealth() {
+                if (!this.selectedProjectId) return;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/projects/${this.selectedProjectId}/details`);
+                    const project = await response.json();
+                    
+                    document.getElementById('projectActiveProcesses').textContent = project.active_processes || 0;
+                    document.getElementById('projectQualityScore').textContent = project.quality_score ? `${Math.round(project.quality_score * 100)}%` : 'N/A';
+                    document.getElementById('projectFilesAnalyzed').textContent = project.total_files || 0;
+                    document.getElementById('projectPatternsDetected').textContent = project.pattern_summary?.total_patterns || 0;
+                    document.getElementById('projectLastAnalysis').textContent = 
+                        project.last_progress_update ? this.formatTimeAgo(project.last_progress_update) : 'Never';
+                } catch (error) {
+                    console.error('Failed to load project health:', error);
+                }
+            }
+
+            async loadProjectProcesses() {
+                if (!this.selectedProjectId) return;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/processes/active?project_id=${this.selectedProjectId}`);
+                    const processes = await response.json();
+                    
+                    const container = document.getElementById('projectProcessesList');
+                    
+                    if (processes.length === 0) {
+                        container.innerHTML = '<p style="opacity: 0.6;">No active processes for this project</p>';
+                        return;
+                    }
+
+                    container.innerHTML = processes.map(process => `
+                        <div class="process-item">
+                            <div class="process-header">
+                                <div>
+                                    <span class="status-indicator status-${process.status}"></span>
+                                    <span class="process-title">${process.process_name}</span>
+                                    <span style="opacity: 0.7; margin-left: 10px;">${process.process_type}</span>
+                                </div>
+                                <div style="font-size: 0.9em; opacity: 0.8;">
+                                    ${this.formatDuration(process.running_duration_seconds)}
+                                </div>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${process.progress_percent}%"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85em; opacity: 0.8;">
+                                <span>Phase ${process.current_phase} of ${process.total_phases}</span>
+                                <span>${process.progress_percent}% complete</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } catch (error) {
+                    console.error('Failed to load project processes:', error);
+                }
+            }
+
+            async loadProjectPatterns() {
+                if (!this.selectedProjectId) return;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/projects/${this.selectedProjectId}/patterns`);
+                    const patterns = await response.json();
+                    
+                    const container = document.getElementById('projectPatterns');
+                    
+                    if (patterns.length === 0) {
+                        container.innerHTML = '<p style="opacity: 0.6;">No patterns detected for this project</p>';
+                        return;
+                    }
+
+                    container.innerHTML = patterns.slice(0, 10).map(pattern => `
+                        <div class="metric">
+                            <span>🧩 ${pattern.pattern_name}</span>
+                            <span class="metric-value">${Math.round(pattern.confidence_score * 100)}%</span>
+                        </div>
+                    `).join('');
+                } catch (error) {
+                    console.error('Failed to load project patterns:', error);
+                }
+            }
+
+            async loadProjectAccomplishments() {
+                if (!this.selectedProjectId) return;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/accomplishments/recent?project_id=${this.selectedProjectId}`);
+                    const accomplishments = await response.json();
+                    
+                    const container = document.getElementById('projectAccomplishments');
+                    
+                    if (accomplishments.length === 0) {
+                        container.innerHTML = '<p style="opacity: 0.6;">No accomplishments for this project</p>';
+                        return;
+                    }
+
+                    container.innerHTML = accomplishments.slice(0, 5).map(acc => `
+                        <div class="accomplishment">
+                            <div>
+                                <h4>${acc.title}</h4>
+                                <span class="impact-badge impact-${acc.impact_level}">${acc.impact_level.toUpperCase()}</span>
+                            </div>
+                            <p style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;">
+                                ${acc.description}
+                            </p>
+                            <small style="opacity: 0.6;">
+                                ${this.formatTimeAgo(acc.achieved_at)}
+                            </small>
+                        </div>
+                    `).join('');
+                } catch (error) {
+                    console.error('Failed to load project accomplishments:', error);
+                }
+            }
+
+            async loadProjectLogs() {
+                if (!this.selectedProjectId) return;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/logs/recent?project_id=${this.selectedProjectId}&limit=${this.maxLogs}`);
+                    const logs = await response.json();
+                    
+                    const container = document.getElementById('projectLogs');
+                    
+                    if (logs.length === 0) {
+                        container.innerHTML = '<p style="opacity: 0.6;">No recent logs for this project</p>';
+                        return;
+                    }
+
+                    container.innerHTML = logs.map(log => `
+                        <div class="log-entry log-${log.log_level}">
+                            <span style="opacity: 0.7;">[${new Date(log.timestamp).toLocaleTimeString()}]</span>
+                            <span style="font-weight: bold; margin-left: 10px;">${log.log_level.toUpperCase()}</span>
+                            <span style="margin-left: 10px;">${log.message}</span>
+                        </div>
+                    `).join('');
+                    
+                    container.scrollTop = container.scrollHeight;
+                } catch (error) {
+                    console.error('Failed to load project logs:', error);
+                }
+            }
+
+            async loadProjectMetrics() {
+                if (!this.selectedProjectId) return;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/metrics?project_id=${this.selectedProjectId}&range=24h`);
+                    const metrics = await response.json();
+                    
+                    const container = document.getElementById('projectMetricsChart');
+                    
+                    if (metrics.length === 0) {
+                        container.innerHTML = '<p style="text-align: center; margin-top: 100px; opacity: 0.6;">No metrics data available for this project</p>';
+                        return;
+                    }
+
+                    // Simple metrics display (could be enhanced with charts)
+                    const metricGroups = metrics.reduce((groups, metric) => {
+                        if (!groups[metric.metric_type]) {
+                            groups[metric.metric_type] = [];
+                        }
+                        groups[metric.metric_type].push(metric);
+                        return groups;
+                    }, {});
+
+                    container.innerHTML = Object.entries(metricGroups).map(([type, typeMetrics]) => `
+                        <div style="margin-bottom: 20px;">
+                            <h4 style="color: #6366f1; margin-bottom: 10px;">${this.formatRoleName(type)} Metrics</h4>
+                            ${typeMetrics.slice(0, 5).map(metric => `
+                                <div class="metric">
+                                    <span>${metric.metric_name}</span>
+                                    <span class="metric-value">${this.formatMetricValue(metric.avg_value, metric.metric_unit)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `).join('');
+                } catch (error) {
+                    console.error('Failed to load project metrics:', error);
+                }
+            }
+
+            formatMetricValue(value, unit) {
+                if (unit === 'bytes') return this.formatBytes(value);
+                if (unit === 'seconds') return `${Math.round(value)}s`;
+                if (unit === 'milliseconds') return `${Math.round(value)}ms`;
+                return Math.round(value * 100) / 100;
+            }
+
+            formatBytes(bytes) {
+                if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}GB`;
+                if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+                if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+                return `${bytes}B`;
+            }
+
+            // Authentication methods
+            async checkAuthStatus() {
+                try {
+                    const response = await fetch(`${this.apiBase}/../auth/status`, {
+                        credentials: 'include'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.authenticated) {
+                        this.showUserInfo(data.user);
+                        this.hideProtectedOverlay();
+                    } else {
+                        this.hideUserInfo();
+                        if (this.currentTab === 'orchestrator') {
+                            this.showProtectedOverlay();
+                        }
+                    }
+                    
+                    return data;
+                } catch (error) {
+                    console.error('Auth status check failed:', error);
+                    return { authenticated: false };
+                }
+            }
+
+            showUserInfo(user) {
+                document.getElementById('userName').textContent = `Welcome, ${user.name}`;
+                document.getElementById('userInfo').style.display = 'flex';
+            }
+
+            hideUserInfo() {
+                document.getElementById('userInfo').style.display = 'none';
+            }
+
+            showProtectedOverlay() {
+                let overlay = document.getElementById('protectedOverlay');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'protectedOverlay';
+                    overlay.className = 'protected-overlay';
+                    overlay.innerHTML = `
+                        <h2>🔒 Authentication Required</h2>
+                        <p>Admin access is required to manage orchestrator workflows.</p>
+                        <button onclick="showLogin()">🔑 Login</button>
+                    `;
+                    document.body.appendChild(overlay);
+                }
+                overlay.style.display = 'flex';
+            }
+
+            hideProtectedOverlay() {
+                const overlay = document.getElementById('protectedOverlay');
+                if (overlay) {
+                    overlay.style.display = 'none';
+                }
+            }
+
+            async login(username, password) {
+                try {
+                    const response = await fetch(`${this.apiBase}/../auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ username, password })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.showUserInfo(data.user);
+                        this.hideProtectedOverlay();
+                        document.getElementById('loginModal').style.display = 'none';
+                        document.getElementById('loginForm').reset();
+                        document.getElementById('loginError').style.display = 'none';
+                        return { success: true };
+                    } else {
+                        return { success: false, error: data.error };
+                    }
+                } catch (error) {
+                    console.error('Login failed:', error);
+                    return { success: false, error: 'Login system error' };
+                }
+            }
+
+            async logout() {
+                try {
+                    await fetch(`${this.apiBase}/../auth/logout`, {
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+                    
+                    this.hideUserInfo();
+                    if (this.currentTab === 'orchestrator') {
+                        this.showProtectedOverlay();
+                    }
+                } catch (error) {
+                    console.error('Logout failed:', error);
+                }
+            }
+
+            // Orchestrator Management Methods
+            async loadOrchestratorStatus() {
+                try {
+                    const response = await fetch(`${this.apiBase}/orchestrator/status`);
+                    const status = await response.json();
+                    
+                    document.getElementById('orchestratorStatus').textContent = status.status || 'Unknown';
+                    document.getElementById('activeWorkflows').textContent = status.activeWorkflows || 0;
+                    document.getElementById('queuedWorkflows').textContent = status.queuedWorkflows || 0;
+                    document.getElementById('totalFlows').textContent = status.totalFlows || 0;
+                } catch (error) {
+                    console.error('Failed to load orchestrator status:', error);
+                    document.getElementById('orchestratorStatus').textContent = 'Error';
+                }
+            }
+
+            async loadWorkflowTemplates() {
+                try {
+                    const response = await fetch(`${this.apiBase}/orchestrator/templates`);
+                    const templates = await response.json();
+                    
+                    const select = document.getElementById('workflowSelect');
+                    select.innerHTML = '<option value="">Select a workflow template...</option>';
+                    
+                    templates.forEach(template => {
+                        const option = document.createElement('option');
+                        option.value = template.id;
+                        option.textContent = `${template.name} (${template.flowType})`;
+                        select.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Failed to load workflow templates:', error);
+                    document.getElementById('workflowSelect').innerHTML = '<option value="">Failed to load templates</option>';
+                }
+            }
+
+            async loadActiveWorkflowsList() {
+                try {
+                    const response = await fetch(`${this.apiBase}/orchestrator/workflows/active`);
+                    const workflows = await response.json();
+                    
+                    const container = document.getElementById('activeWorkflowsList');
+                    
+                    if (workflows.length === 0) {
+                        container.innerHTML = '<p style="opacity: 0.6;">No active workflows</p>';
+                        return;
+                    }
+
+                    container.innerHTML = workflows.map(workflow => `
+                        <div class="workflow-item">
+                            <div class="workflow-header">
+                                <div>
+                                    <span class="status-indicator status-${workflow.status}"></span>
+                                    <span class="workflow-title">${workflow.workflowName}</span>
+                                    <span style="opacity: 0.7; margin-left: 10px;">${workflow.workItemId}</span>
+                                </div>
+                                <div class="workflow-actions">
+                                    <button class="workflow-action-btn action-pause" onclick="pauseWorkflow('${workflow.executionId}')">⏸️</button>
+                                    <button class="workflow-action-btn action-stop" onclick="stopWorkflow('${workflow.executionId}')">⏹️</button>
+                                    <button class="workflow-action-btn action-view" onclick="viewWorkflow('${workflow.executionId}')">👁️</button>
+                                </div>
+                            </div>
+                            <div>
+                                <small style="opacity: 0.8;">Started: ${this.formatTimeAgo(workflow.startTime)}</small>
+                                <span style="margin-left: 15px;">Current: ${workflow.currentNode || 'N/A'}</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${workflow.progress || 0}%"></div>
+                            </div>
+                        </div>
+                    `).join('');
+                } catch (error) {
+                    console.error('Failed to load active workflows:', error);
+                }
+            }
+
+            async loadFlowConfiguration() {
+                try {
+                    const response = await fetch(`${this.apiBase}/orchestrator/configuration`);
+                    const config = await response.json();
+                    
+                    // Load enabled flows
+                    const enabledFlows = document.getElementById('enabledFlows');
+                    enabledFlows.innerHTML = config.availableFlows.map(flow => `
+                        <div class="flow-toggle">
+                            <span>${flow.name}</span>
+                            <div class="toggle-switch ${flow.enabled ? 'active' : ''}" 
+                                 onclick="toggleFlow('${flow.id}', ${!flow.enabled})">
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    // Load concurrency settings
+                    document.getElementById('maxParallelWorkflows').value = config.maxParallelWorkflows || 3;
+                    document.getElementById('maxParallelNodes').value = config.maxParallelNodes || 5;
+                } catch (error) {
+                    console.error('Failed to load flow configuration:', error);
+                }
+            }
+
+            async startWorkflow() {
+                const workflowId = document.getElementById('workflowSelect').value;
+                const workItemId = document.getElementById('workItemId').value;
+                
+                if (!workflowId || !workItemId) {
+                    alert('Please select a workflow template and enter a work item ID');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/orchestrator/workflows/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ workflowId, workItemId })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert(`Workflow started successfully. Execution ID: ${result.executionId}`);
+                        this.loadActiveWorkflowsList();
+                        this.loadOrchestratorStatus();
+                    } else {
+                        alert(`Failed to start workflow: ${result.error}`);
+                    }
+                } catch (error) {
+                    console.error('Failed to start workflow:', error);
+                    alert('Failed to start workflow: ' + error.message);
+                }
+            }
+
+            async pauseAllWorkflows() {
+                if (!confirm('Are you sure you want to pause all active workflows?')) return;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/orchestrator/workflows/pause-all`, {
+                        method: 'POST'
+                    });
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert(`Paused ${result.count} workflows`);
+                        this.loadActiveWorkflowsList();
+                        this.loadOrchestratorStatus();
+                    }
+                } catch (error) {
+                    console.error('Failed to pause workflows:', error);
+                }
+            }
+
+            async stopAllWorkflows() {
+                if (!confirm('Are you sure you want to stop all active workflows? This action cannot be undone.')) return;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/orchestrator/workflows/stop-all`, {
+                        method: 'POST'
+                    });
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert(`Stopped ${result.count} workflows`);
+                        this.loadActiveWorkflowsList();
+                        this.loadOrchestratorStatus();
+                    }
+                } catch (error) {
+                    console.error('Failed to stop workflows:', error);
+                }
+            }
+
+            async saveConfiguration() {
+                const config = {
+                    maxParallelWorkflows: parseInt(document.getElementById('maxParallelWorkflows').value),
+                    maxParallelNodes: parseInt(document.getElementById('maxParallelNodes').value)
+                };
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/orchestrator/configuration`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(config)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('Configuration saved successfully');
+                    } else {
+                        alert('Failed to save configuration: ' + result.error);
+                    }
+                } catch (error) {
+                    console.error('Failed to save configuration:', error);
+                    alert('Failed to save configuration: ' + error.message);
+                }
+            }
         }
+
+        // Authentication functions
+        function showLogin() {
+            document.getElementById('loginModal').style.display = 'flex';
+            document.getElementById('username').focus();
+        }
+
+        function hideLogin() {
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('loginForm').reset();
+            document.getElementById('loginError').style.display = 'none';
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const result = await window.dashboard.login(username, password);
+            
+            if (!result.success) {
+                const errorDiv = document.getElementById('loginError');
+                errorDiv.textContent = result.error;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        async function logout() {
+            await window.dashboard.logout();
+        }
+
+        // Tab switching functionality
+        async function switchTab(tabName) {
+            // Redirect to comprehensive project view
+            if (tabName === 'project') {
+                window.location.href = '/project-view';
+                return;
+            }
+            
+            // Check auth for protected tabs
+            if (tabName === 'orchestrator') {
+                const authStatus = await window.dashboard.checkAuthStatus();
+                if (!authStatus.authenticated) {
+                    window.dashboard.showProtectedOverlay();
+                }
+            } else {
+                window.dashboard.hideProtectedOverlay();
+            }
+            
+            // Update tab buttons
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + 'Content').classList.add('active');
+            
+            // Load tab-specific data
+            if (tabName === 'cli') {
+                // Load CLI data
+                setTimeout(() => {
+                    refreshToolAnalytics();
+                    loadProjectDatabaseInsights();
+                    loadRecentCliUsage();
+                }, 100);
+            } else if (tabName === 'sequential') {
+                // Load sequential workflow data
+                setTimeout(() => {
+                    refreshSequentialWorkflows();
+                    loadSequentialSystemHealth();
+                }, 100);
+            } else if (tabName === 'planner') {
+                // Load planner data
+                setTimeout(() => {
+                    refreshActiveConversations();
+                    loadGeneratedPlans();
+                    loadImplementationProgress();
+                }, 100);
+            }
+
+            // Update dashboard instance
+            window.dashboard.currentTab = tabName;
+            window.dashboard.loadDashboardData();
+        }
+
+        // Project selection functionality
+        function selectProject(projectId) {
+            if (!projectId) {
+                document.getElementById('selectedProjectName').textContent = 'No Project Selected';
+                document.getElementById('projectBreadcrumbSeparator').style.display = 'none';
+                document.getElementById('projectBreadcrumbItem').style.display = 'none';
+                document.getElementById('projectInfo').style.visibility = 'hidden';
+                window.dashboard.selectedProjectId = null;
+                return;
+            }
+
+            const project = window.dashboard.projects.find(p => p.project_id === projectId);
+            if (!project) return;
+
+            // Update breadcrumb
+            document.getElementById('selectedProjectName').textContent = project.project_name;
+            document.getElementById('projectBreadcrumbSeparator').style.display = 'inline';
+            document.getElementById('projectBreadcrumbItem').style.display = 'flex';
+
+            // Update project info
+            document.getElementById('projectType').textContent = project.project_type || 'Unknown';
+            document.getElementById('projectFileCount').textContent = `${project.total_files || 0} files`;
+            document.getElementById('projectStatus').textContent = project.status || 'Unknown';
+            document.getElementById('projectInfo').style.visibility = 'visible';
+
+            // Update dashboard instance
+            window.dashboard.selectedProjectId = projectId;
+            window.dashboard.loadDashboardData();
+        }
+
+        // Orchestrator Management Functions
+        async function startWorkflow() {
+            await window.dashboard.startWorkflow();
+        }
+
+        async function pauseAllWorkflows() {
+            await window.dashboard.pauseAllWorkflows();
+        }
+
+        async function stopAllWorkflows() {
+            await window.dashboard.stopAllWorkflows();
+        }
+
+        async function saveConfiguration() {
+            await window.dashboard.saveConfiguration();
+        }
+
+        async function pauseWorkflow(executionId) {
+            try {
+                const response = await fetch(`/api/dashboard/orchestrator/workflows/${executionId}/pause`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.dashboard.loadActiveWorkflowsList();
+                }
+            } catch (error) {
+                console.error('Failed to pause workflow:', error);
+            }
+        }
+
+        async function stopWorkflow(executionId) {
+            if (!confirm('Are you sure you want to stop this workflow?')) return;
+            
+            try {
+                const response = await fetch(`/api/dashboard/orchestrator/workflows/${executionId}/stop`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.dashboard.loadActiveWorkflowsList();
+                }
+            } catch (error) {
+                console.error('Failed to stop workflow:', error);
+            }
+        }
+
+        async function viewWorkflow(executionId) {
+            // TODO: Implement workflow detail view
+            alert(`Viewing workflow: ${executionId}`);
+        }
+
+        async function toggleFlow(flowId, enabled) {
+            try {
+                const response = await fetch(`/api/dashboard/orchestrator/flows/${flowId}/toggle`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.dashboard.loadFlowConfiguration();
+                }
+            } catch (error) {
+                console.error('Failed to toggle flow:', error);
+            }
+        }
+
+        // Terminal Orchestration Functions
+        function showOrchestrationDialog() {
+            // Pre-fill project path if available
+            const projectPathInput = document.getElementById('orchestrationProjectPath');
+            if (!projectPathInput.value) {
+                projectPathInput.value = './';
+            }
+            
+            document.getElementById('orchestrationModal').style.display = 'block';
+        }
+
+        function hideOrchestrationDialog() {
+            document.getElementById('orchestrationModal').style.display = 'none';
+            document.getElementById('orchestrationQuery').value = '';
+            document.getElementById('orchestrationProjectPath').value = '';
+        }
+
+        async function startTerminalOrchestration() {
+            const query = document.getElementById('orchestrationQuery').value.trim();
+            const projectPath = document.getElementById('orchestrationProjectPath').value.trim();
+
+            if (!query) {
+                alert('Please enter a query for the orchestration');
+                return;
+            }
+            
+            if (!projectPath) {
+                alert('Please enter a project path');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/orchestrate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        projectPath: projectPath,
+                        requestedBy: 'dashboard',
+                        options: {}
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`Terminal orchestration started!
+                    
+🎭 Orchestration ID: ${result.orchestrationId}
+🖥️ Terminals: ${result.terminalCount}
+⏱️ Estimated Duration: ${Math.round(result.estimatedDuration / 1000)} seconds
+🧮 Estimated Tokens: ${result.estimatedTokens}`);
+                    
+                    hideOrchestrationDialog();
+                    loadActiveTerminalOrchestrations();
+                } else {
+                    alert('Failed to start orchestration: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Failed to start terminal orchestration:', error);
+                alert('Failed to start orchestration: ' + error.message);
+            }
+        }
+
+        async function loadActiveTerminalOrchestrations() {
+            try {
+                const response = await fetch('/api/orchestration/active');
+                const data = await response.json();
+                
+                const container = document.getElementById('activeTerminalOrchestrations');
+                
+                if (data.orchestrations.length === 0) {
+                    container.innerHTML = '<p style="opacity: 0.6;">No active terminal orchestrations</p>';
+                    document.getElementById('activeOrchestrations').textContent = '0';
+                    document.getElementById('runningTerminals').textContent = '0';
+                } else {
+                    let totalTerminals = 0;
+                    
+                    const orchestrationElements = data.orchestrations.map(orchestration => {
+                        totalTerminals += orchestration.terminals ? orchestration.terminals.length : 0;
+                        
+                        const terminalList = orchestration.terminals ? 
+                            orchestration.terminals.map(t => `<span style="background: #007ACC; padding: 2px 8px; border-radius: 3px; font-size: 0.8em; margin-right: 5px;">${t.role}: ${t.status}</span>`).join('') : '';
+                        
+                        return `
+                            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <div>
+                                        <strong>🎭 ${orchestration.orchestrationId}</strong>
+                                        <span style="margin-left: 15px; opacity: 0.8;">${orchestration.status}</span>
+                                    </div>
+                                    <button onclick="stopTerminalOrchestration('${orchestration.orchestrationId}')" 
+                                            style="padding: 5px 10px; background: #cc4444; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                                        ⏹️ Stop
+                                    </button>
+                                </div>
+                                <div style="margin-bottom: 8px; opacity: 0.9;">Query: ${orchestration.query}</div>
+                                <div>${terminalList}</div>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = orchestrationElements.join('');
+                    document.getElementById('activeOrchestrations').textContent = data.orchestrations.length;
+                    document.getElementById('runningTerminals').textContent = totalTerminals;
+                }
+            } catch (error) {
+                console.error('Failed to load active orchestrations:', error);
+                document.getElementById('activeTerminalOrchestrations').innerHTML = '<p style="color: #cc4444;">Failed to load orchestrations</p>';
+            }
+        }
+
+        async function stopTerminalOrchestration(orchestrationId) {
+            if (!confirm(`Are you sure you want to stop orchestration ${orchestrationId}?`)) return;
+            
+            try {
+                const response = await fetch(`/api/orchestration/${orchestrationId}/stop`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`Orchestration stopped! Terminated ${result.terminatedTerminals} terminals.`);
+                    loadActiveTerminalOrchestrations();
+                } else {
+                    alert('Failed to stop orchestration: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Failed to stop orchestration:', error);
+                alert('Failed to stop orchestration: ' + error.message);
+            }
+        }
+
+        async function loadTemplate(templateName) {
+            const templates = {
+                'complete-flow': 'feature-development-v1',
+                'simple-start': 'simple-development-v1',
+                'prototype-dev': 'prototype-development-v1',
+                'nonfunctional-improvements': 'nonfunctional-improvements-v1'
+            };
+            
+            const workflowId = templates[templateName];
+            if (workflowId) {
+                document.getElementById('workflowSelect').value = workflowId;
+                document.getElementById('workItemId').value = `${templateName}-${Date.now()}`;
+            }
+        }
+
+        // Sequential Workflow Functions
+        async function startSequentialWorkflow() {
+            const query = document.getElementById('sequentialQuery').value.trim();
+            const projectPath = document.getElementById('sequentialProjectPath').value.trim() || './';
+
+            if (!query) {
+                alert('Please enter a query for the sequential workflow analysis');
+                return;
+            }
+
+            try {
+                // Show loading state
+                const button = event.target;
+                button.disabled = true;
+                button.textContent = 'Starting...';
+
+                const response = await fetch('/api/sequential/orchestrate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        projectPath: projectPath,
+                        requestedBy: 'dashboard',
+                        options: {
+                            priority: 'normal'
+                        }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`Sequential workflow started successfully!
+
+🎭 Orchestration ID: ${result.orchestrationId}
+📋 Workflow: ${result.workflowGraph.name}
+👥 Roles: ${result.workflowGraph.roles.map(r => r.name).join(' → ')}
+⏱️ Estimated Duration: ${Math.round(result.workflowGraph.estimatedDuration / 1000)}s
+🧮 Estimated Tokens: ${result.workflowGraph.estimatedTokens}
+
+Monitor progress in the dashboard below.`);
+                    
+                    // Clear form
+                    document.getElementById('sequentialQuery').value = '';
+                    document.getElementById('sequentialProjectPath').value = '';
+                    
+                    // Refresh active workflows
+                    refreshSequentialWorkflows();
+                } else {
+                    alert(`Error starting sequential workflow: ${result.error}\n\nDetails: ${result.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Failed to start sequential workflow:', error);
+                alert('Failed to start sequential workflow. Please check the console for details.');
+            } finally {
+                // Reset button
+                const button = document.querySelector('button[onclick="startSequentialWorkflow()"]');
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Start Workflow';
+                }
+            }
+        }
+
+        async function refreshSequentialWorkflows() {
+            const container = document.getElementById('activeSequentialWorkflows');
+            if (!container) return;
+
+            try {
+                container.innerHTML = '<div style="padding: 10px;">Loading active workflows...</div>';
+
+                const response = await fetch('/api/sequential/active');
+                const result = await response.json();
+
+                if (response.ok && result.orchestrations) {
+                    if (result.orchestrations.length === 0) {
+                        container.innerHTML = '<div style="padding: 10px; color: rgba(255,255,255,0.7);">No active sequential workflows</div>';
+                    } else {
+                        container.innerHTML = result.orchestrations.map(workflow => `
+                            <div style="margin: 10px 0; padding: 15px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.05);">
+                                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
+                                    <div>
+                                        <strong>${workflow.workflowGraph.name}</strong>
+                                        <div style="color: rgba(255,255,255,0.7); font-size: 0.9em;">ID: ${workflow.orchestrationId}</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.8em; ${getStatusColor(workflow.status)}">${workflow.status.toUpperCase()}</span>
+                                    </div>
+                                </div>
+                                <div style="color: rgba(255,255,255,0.8); margin-bottom: 8px;">
+                                    🎭 Roles: ${workflow.workflowGraph.roles.map(r => r.name).join(' → ')}
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.9em; color: rgba(255,255,255,0.7);">
+                                    <span>⏱️ Duration: ${Math.round((Date.now() - workflow.startTime) / 1000)}s</span>
+                                    <button onclick="stopSequentialWorkflow('${workflow.orchestrationId}')" 
+                                            style="padding: 4px 8px; background: #dc2626; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 0.8em;">
+                                        Stop
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    container.innerHTML = `<div style="padding: 10px; color: #dc2626;">Error: ${result.error || 'Failed to load workflows'}</div>`;
+                }
+            } catch (error) {
+                console.error('Failed to refresh sequential workflows:', error);
+                container.innerHTML = '<div style="padding: 10px; color: #dc2626;">Failed to load workflows</div>';
+            }
+        }
+
+        async function stopSequentialWorkflow(orchestrationId) {
+            if (!confirm('Are you sure you want to stop this sequential workflow?')) return;
+
+            try {
+                const response = await fetch(`/api/sequential/${orchestrationId}/stop`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`Sequential workflow stopped successfully!\n\nTerminated roles: ${result.terminatedRoles.join(', ')}`);
+                    refreshSequentialWorkflows();
+                } else {
+                    alert(`Error stopping workflow: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Failed to stop sequential workflow:', error);
+                alert('Failed to stop workflow. Please check the console for details.');
+            }
+        }
+
+        async function loadSequentialSystemHealth() {
+            const container = document.getElementById('sequentialSystemHealth');
+            if (!container) return;
+
+            try {
+                const response = await fetch('/api/sequential/system/status');
+                const result = await response.json();
+
+                const statusColor = result.status === 'available' ? '#10b981' : 
+                                  result.status === 'error' ? '#dc2626' : '#f59e0b';
+
+                container.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <div style="color: rgba(255,255,255,0.7);">System Status</div>
+                            <div style="color: ${statusColor}; font-weight: bold;">${result.status?.toUpperCase() || 'UNKNOWN'}</div>
+                        </div>
+                        <div>
+                            <div style="color: rgba(255,255,255,0.7);">Active Workflows</div>
+                            <div style="color: white; font-weight: bold;">${result.activeWorkflows || 0}</div>
+                        </div>
+                        <div>
+                            <div style="color: rgba(255,255,255,0.7);">System Health</div>
+                            <div style="color: ${result.systemHealth === 'healthy' ? '#10b981' : '#dc2626'}; font-weight: bold;">
+                                ${result.systemHealth?.toUpperCase() || 'UNKNOWN'}
+                            </div>
+                        </div>
+                    </div>
+                    ${result.message ? `<div style="margin-top: 10px; color: rgba(255,255,255,0.7); font-style: italic;">${result.message}</div>` : ''}
+                `;
+
+                // Update status indicator
+                const statusDot = document.getElementById('sequentialStatusDot');
+                const statusText = document.getElementById('sequentialStatusText');
+                if (statusDot && statusText) {
+                    statusDot.style.backgroundColor = statusColor;
+                    statusText.textContent = result.status === 'available' ? 'Available' : 
+                                           result.status === 'error' ? 'Error' : 'Unavailable';
+                }
+            } catch (error) {
+                console.error('Failed to load sequential system health:', error);
+                container.innerHTML = '<div style="color: #dc2626;">Failed to load system health</div>';
+            }
+        }
+
+        function getStatusColor(status) {
+            switch (status) {
+                case 'running': return 'background: #10b981; color: white;';
+                case 'completed': return 'background: #3b82f6; color: white;';
+                case 'failed': return 'background: #dc2626; color: white;';
+                case 'initiated': return 'background: #f59e0b; color: white;';
+                default: return 'background: rgba(255,255,255,0.2); color: white;';
+            }
+        }
+
+        // ===== LAYER 1: SMART CLI FUNCTIONS =====
+
+        async function runSmartCLI() {
+            const query = document.getElementById('cliQuery').value.trim();
+            const projectPath = document.getElementById('cliProjectPath').value.trim() || './';
+
+            if (!query) {
+                alert('Please enter an analysis query');
+                return;
+            }
+
+            try {
+                const button = event.target;
+                button.disabled = true;
+                button.textContent = 'Analyzing...';
+
+                // Simulate smart CLI API call
+                const response = await fetch('/api/cli/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        projectPath: projectPath
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`Smart CLI Analysis Complete!\n\n🧠 Selected Tools: ${result.selectedTools?.join(', ') || 'N/A'}\n💰 Token Savings: ${result.tokenSavings || 0}%\n📊 Results: ${result.relevanceScore || 'N/A'} relevance`);
+                    
+                    // Clear form and refresh data
+                    document.getElementById('cliQuery').value = '';
+                    document.getElementById('cliProjectPath').value = '';
+                    refreshToolAnalytics();
+                    loadRecentCliUsage();
+                } else {
+                    alert(`Error: ${result.error || 'Smart CLI analysis failed'}`);
+                }
+            } catch (error) {
+                console.error('Smart CLI error:', error);
+                alert('Smart CLI analysis failed. Check console for details.');
+            } finally {
+                const button = document.querySelector('button[onclick="runSmartCLI()"]');
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Analyze';
+                }
+            }
+        }
+
+        async function refreshToolAnalytics() {
+            const container = document.getElementById('toolAnalytics');
+            if (!container) return;
+
+            try {
+                container.innerHTML = '<div style="padding: 10px;">Loading analytics...</div>';
+
+                // Simulate tool analytics data
+                const mockData = {
+                    totalQueries: 1247,
+                    avgTokenSavings: 82,
+                    topTools: ['context-optimizer', 'issues-detector', 'performance-analyzer'],
+                    costSavings: '$156.80'
+                };
+
+                container.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div>
+                            <div style="color: rgba(255,255,255,0.7);">Total Queries</div>
+                            <div style="color: white; font-weight: bold; font-size: 1.2em;">${mockData.totalQueries}</div>
+                        </div>
+                        <div>
+                            <div style="color: rgba(255,255,255,0.7);">Avg Token Savings</div>
+                            <div style="color: #10b981; font-weight: bold; font-size: 1.2em;">${mockData.avgTokenSavings}%</div>
+                        </div>
+                        <div>
+                            <div style="color: rgba(255,255,255,0.7);">Cost Savings</div>
+                            <div style="color: #10b981; font-weight: bold; font-size: 1.2em;">${mockData.costSavings}</div>
+                        </div>
+                        <div>
+                            <div style="color: rgba(255,255,255,0.7);">Top Tools</div>
+                            <div style="color: white; font-weight: bold; font-size: 0.9em;">${mockData.topTools.join(', ')}</div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                container.innerHTML = '<div style="color: #dc2626;">Failed to load analytics</div>';
+            }
+        }
+
+        async function loadProjectDatabaseInsights() {
+            const container = document.getElementById('projectDatabaseInsights');
+            if (!container) return;
+
+            try {
+                // Simulate database insights
+                const insights = [
+                    { table: 'code_quality', records: 1523, last_updated: '2 hours ago' },
+                    { table: 'security_issues', records: 47, last_updated: '30 minutes ago' },
+                    { table: 'performance_metrics', records: 892, last_updated: '1 hour ago' }
+                ];
+
+                container.innerHTML = insights.map(insight => `
+                    <div style="margin: 10px 0; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 5px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <strong>${insight.table}</strong>
+                            <span style="color: rgba(255,255,255,0.7);">${insight.records} records</span>
+                        </div>
+                        <div style="color: rgba(255,255,255,0.5); font-size: 0.9em;">Updated: ${insight.last_updated}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = '<div style="color: #dc2626;">Failed to load insights</div>';
+            }
+        }
+
+        async function loadRecentCliUsage() {
+            const container = document.getElementById('recentCliUsage');
+            if (!container) return;
+
+            try {
+                // Simulate recent usage data
+                const usage = [
+                    { query: 'optimize React performance', tools: 2, savings: '89%', time: '5 min ago' },
+                    { query: 'find security vulnerabilities', tools: 3, savings: '76%', time: '15 min ago' },
+                    { query: 'refactor authentication', tools: 1, savings: '92%', time: '1 hour ago' }
+                ];
+
+                container.innerHTML = usage.map(item => `
+                    <div style="margin: 10px 0; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 5px;">
+                        <div style="font-weight: bold; margin-bottom: 5px;">${item.query}</div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9em; color: rgba(255,255,255,0.7);">
+                            <span>🛠️ ${item.tools} tools</span>
+                            <span style="color: #10b981;">💰 ${item.savings} saved</span>
+                            <span>⏰ ${item.time}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = '<div style="color: #dc2626;">Failed to load recent usage</div>';
+            }
+        }
+
+        // ===== LAYER 3: IDEA PLANNER FUNCTIONS =====
+
+        let voiceInputActive = false;
+        let voiceOutputActive = false;
+        let currentConversationId = null;
+        let recognition = null;
+        let synthesis = null;
+
+        function initializeVoiceAPIs() {
+            // Initialize Speech Recognition (Voice Input)
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+
+                recognition.onresult = function(event) {
+                    let finalTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        }
+                    }
+                    if (finalTranscript) {
+                        document.getElementById('conversationInput').value = finalTranscript;
+                    }
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    updateVoiceStatus('Voice recognition error', false);
+                };
+            }
+
+            // Initialize Speech Synthesis (Voice Output)
+            if ('speechSynthesis' in window) {
+                synthesis = window.speechSynthesis;
+            }
+        }
+
+        function startIdeaConversation() {
+            document.getElementById('conversationInterface').style.display = 'block';
+            document.getElementById('startIdeaBtn').textContent = '💬 Continue Conversation';
+            
+            if (!currentConversationId) {
+                currentConversationId = 'conv_' + Date.now();
+                addMessageToConversation('AI', 'Great! I\'d love to hear about your idea. What are you thinking about building or working on?');
+            }
+        }
+
+        function toggleVoiceInput() {
+            if (!recognition) {
+                initializeVoiceAPIs();
+                if (!recognition) {
+                    alert('Voice recognition is not supported in your browser.');
+                    return;
+                }
+            }
+
+            voiceInputActive = !voiceInputActive;
+            const btn = document.getElementById('voiceInputBtn');
+            
+            if (voiceInputActive) {
+                recognition.start();
+                btn.style.background = 'rgba(239, 68, 68, 0.2)';
+                btn.style.color = '#ef4444';
+                btn.innerHTML = '🎤 Stop Voice';
+                updateVoiceStatus('🎤 Listening... Speak your idea', true);
+            } else {
+                recognition.stop();
+                btn.style.background = 'rgba(139, 92, 246, 0.2)';
+                btn.style.color = '#8b5cf6';
+                btn.innerHTML = '🎤 Voice Input';
+                updateVoiceStatus('', false);
+            }
+        }
+
+        function toggleVoiceOutput() {
+            voiceOutputActive = !voiceOutputActive;
+            const btn = document.getElementById('voiceOutputBtn');
+            
+            if (voiceOutputActive) {
+                btn.style.background = 'rgba(16, 185, 129, 0.2)';
+                btn.style.color = '#10b981';
+                btn.innerHTML = '🔊 Voice On';
+            } else {
+                btn.style.background = 'rgba(139, 92, 246, 0.2)';
+                btn.style.color = '#8b5cf6';
+                btn.innerHTML = '🔊 Voice Output';
+                if (synthesis) synthesis.cancel();
+            }
+        }
+
+        function updateVoiceStatus(message, show) {
+            const statusDiv = document.getElementById('voiceStatus');
+            const statusText = document.getElementById('voiceStatusText');
+            
+            if (show && message) {
+                statusText.textContent = message;
+                statusDiv.style.display = 'block';
+            } else {
+                statusDiv.style.display = 'none';
+            }
+        }
+
+        function handleConversationEnter(event) {
+            if (event.key === 'Enter') {
+                sendConversationMessage();
+            }
+        }
+
+        async function sendConversationMessage() {
+            const input = document.getElementById('conversationInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Add user message
+            addMessageToConversation('You', message);
+            input.value = '';
+
+            try {
+                // Simulate AI response (in real implementation, this would call Claude API)
+                const aiResponse = await simulateAIResponse(message);
+                setTimeout(() => {
+                    addMessageToConversation('AI', aiResponse);
+                    
+                    // Voice output if enabled
+                    if (voiceOutputActive && synthesis) {
+                        const utterance = new SpeechSynthesisUtterance(aiResponse);
+                        utterance.rate = 0.9;
+                        utterance.pitch = 1.0;
+                        synthesis.speak(utterance);
+                    }
+
+                    // Show action buttons after some conversation
+                    showQuickActions();
+                }, 1000);
+
+            } catch (error) {
+                addMessageToConversation('AI', 'I apologize, but I encountered an error. Please try again.');
+            }
+        }
+
+        function addMessageToConversation(sender, message) {
+            const history = document.getElementById('conversationHistory');
+            
+            // Clear initial message
+            if (history.children.length === 1 && history.children[0].style.textAlign === 'center') {
+                history.innerHTML = '';
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `conversation-message ${sender.toLowerCase() === 'you' ? 'user' : 'ai'}`;
+            messageDiv.innerHTML = `
+                <div class="sender">${sender}</div>
+                <div>${message}</div>
+            `;
+            
+            history.appendChild(messageDiv);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        async function simulateAIResponse(userMessage) {
+            // Simple response simulation - in real implementation, this calls Claude API
+            const responses = [
+                "That's a fascinating idea! Can you tell me more about the specific problem you're trying to solve?",
+                "I love the direction you're thinking. What's the main value proposition for your users?",
+                "Interesting concept! What technology stack are you considering for this project?",
+                "That sounds promising. Have you thought about the business model and how you'd monetize this?",
+                "Great thinking! What would be the key features that would differentiate this from existing solutions?",
+                "I can see the potential here. What's your timeline for building this out?"
+            ];
+            
+            return responses[Math.floor(Math.random() * responses.length)];
+        }
+
+        function showQuickActions() {
+            // Show action buttons after some conversation
+            const conversation = document.getElementById('conversationHistory');
+            if (conversation.children.length > 4) {
+                document.getElementById('generatePlansBtn').style.display = 'inline-block';
+                document.getElementById('createWorkflowBtn').style.display = 'inline-block';
+                document.getElementById('implementBtn').style.display = 'inline-block';
+            }
+        }
+
+        async function generatePlans() {
+            if (!currentConversationId) return;
+
+            try {
+                // Simulate plan generation API call
+                const response = await fetch('/api/planner/generate-plans', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        conversationId: currentConversationId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    addMessageToConversation('AI', 'Great! I\'ve generated comprehensive plans based on our conversation. Check the "Generated Plans" section below to see your roadmap, business plan, tech stack, and system architecture.');
+                    loadGeneratedPlans();
+                } else {
+                    addMessageToConversation('AI', 'I encountered an issue generating the plans. Let me try again...');
+                }
+            } catch (error) {
+                addMessageToConversation('AI', 'I apologize, but I cannot generate plans right now. This feature is still in development.');
+            }
+        }
+
+        async function createWorkflow() {
+            if (!currentConversationId) return;
+
+            try {
+                addMessageToConversation('AI', 'Perfect! I\'m creating an orchestrator workflow based on your plans. This will coordinate all the implementation steps across our specialized roles.');
+                
+                // Simulate workflow creation
+                setTimeout(() => {
+                    addMessageToConversation('AI', '🎭 Workflow created! You can monitor it in the Orchestrator tab. It includes: Architect → Security → Quality → Performance → Coordinator roles.');
+                }, 2000);
+            } catch (error) {
+                addMessageToConversation('AI', 'Workflow creation is still in development. For now, you can manually use the Orchestrator tab.');
+            }
+        }
+
+        async function startImplementation() {
+            if (!currentConversationId) return;
+            
+            addMessageToConversation('AI', '🚀 Starting implementation! The orchestrator workflow will begin executing soon. Check the progress in the Implementation Progress section below.');
+            loadImplementationProgress();
+        }
+
+        async function refreshActiveConversations() {
+            const container = document.getElementById('activeConversations');
+            if (!container) return;
+
+            try {
+                // Simulate active conversations
+                const conversations = [
+                    { id: 'conv_1', title: 'E-commerce Platform', status: 'active', updated: '2 min ago' },
+                    { id: 'conv_2', title: 'Mobile App Idea', status: 'planning', updated: '1 hour ago' },
+                    { id: 'conv_3', title: 'SaaS Dashboard', status: 'implementing', updated: '3 hours ago' }
+                ];
+
+                container.innerHTML = conversations.map(conv => `
+                    <div style="margin: 10px 0; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 5px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong>${conv.title}</strong>
+                            <span style="padding: 2px 8px; border-radius: 3px; font-size: 0.8em; 
+                                       background: ${conv.status === 'active' ? '#10b981' : conv.status === 'implementing' ? '#6366f1' : '#f59e0b'}; 
+                                       color: white;">${conv.status}</span>
+                        </div>
+                        <div style="color: rgba(255,255,255,0.5); font-size: 0.9em; margin-top: 5px;">
+                            Updated: ${conv.updated}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = '<div style="color: #dc2626;">Failed to load conversations</div>';
+            }
+        }
+
+        async function loadGeneratedPlans() {
+            const container = document.getElementById('generatedPlans');
+            if (!container) return;
+
+            try {
+                // Simulate generated plans
+                const plans = [
+                    { type: 'Roadmap', title: 'E-commerce MVP', status: 'generated', items: 12 },
+                    { type: 'Business Plan', title: 'Market Analysis & Revenue', status: 'generated', items: 8 },
+                    { type: 'Tech Stack', title: 'React + Node.js + PostgreSQL', status: 'generated', items: 15 },
+                    { type: 'Architecture', title: 'Microservices Design', status: 'generated', items: 6 }
+                ];
+
+                container.innerHTML = plans.map(plan => `
+                    <div style="margin: 10px 0; padding: 10px; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 5px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>${plan.type}: ${plan.title}</strong>
+                                <div style="color: rgba(255,255,255,0.7); font-size: 0.9em;">${plan.items} items</div>
+                            </div>
+                            <div style="display: flex; gap: 5px;">
+                                <button onclick="viewPlan('${plan.type}')" style="padding: 4px 8px; border: none; border-radius: 3px; background: #8b5cf6; color: white; font-size: 0.8em; cursor: pointer;">
+                                    View
+                                </button>
+                                <button onclick="editPlan('${plan.type}')" style="padding: 4px 8px; border: none; border-radius: 3px; background: rgba(139, 92, 246, 0.2); color: #8b5cf6; font-size: 0.8em; cursor: pointer;">
+                                    Edit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = '<div style="color: #dc2626;">Failed to load plans</div>';
+            }
+        }
+
+        async function loadImplementationProgress() {
+            const container = document.getElementById('implementationProgress');
+            if (!container) return;
+
+            try {
+                // Simulate implementation progress
+                const progress = [
+                    { milestone: 'Database Setup', progress: 100, status: 'completed' },
+                    { milestone: 'API Development', progress: 75, status: 'in_progress' },
+                    { milestone: 'Frontend Components', progress: 45, status: 'in_progress' },
+                    { milestone: 'Testing & QA', progress: 0, status: 'pending' }
+                ];
+
+                container.innerHTML = progress.map(item => `
+                    <div style="margin: 10px 0; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 5px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <strong>${item.milestone}</strong>
+                            <span style="color: ${item.status === 'completed' ? '#10b981' : item.status === 'in_progress' ? '#6366f1' : '#6b7280'};">
+                                ${item.progress}%
+                            </span>
+                        </div>
+                        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px;">
+                            <div style="width: ${item.progress}%; height: 100%; 
+                                       background: ${item.status === 'completed' ? '#10b981' : item.status === 'in_progress' ? '#6366f1' : '#6b7280'}; 
+                                       border-radius: 3px; transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = '<div style="color: #dc2626;">Failed to load progress</div>';
+            }
+        }
+
+        function viewPlan(planType) {
+            alert(`Viewing ${planType} - This would open a detailed view of the generated plan.`);
+        }
+
+        function editPlan(planType) {
+            alert(`Editing ${planType} - This would open an editor for the plan.`);
+        }
+
+        // Initialize voice APIs when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeVoiceAPIs();
+        });
 
         // Initialize dashboard when page loads
         document.addEventListener('DOMContentLoaded', () => {
-            new CodeMindDashboard();
+            window.dashboard = new CodeMindDashboard();
+            
+            // Setup login form submission
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await login();
+            });
+            
+            // Close login modal when clicking outside
+            document.getElementById('loginModal').addEventListener('click', (e) => {
+                if (e.target.id === 'loginModal') {
+                    hideLogin();
+                }
+            });
         });
+
+        // Navigation functions for new dedicated pages
+        function openCliPage() {
+            window.location.href = '/dashboard/cli-page.html';
+        }
+
+        function openOrchestratorPage() {
+            window.location.href = '/dashboard/orchestrator-page.html';
+        }
+
+        function openPlannerPage() {
+            window.location.href = '/dashboard/planner-page.html';
+        }
     </script>
 </body>
 </html>

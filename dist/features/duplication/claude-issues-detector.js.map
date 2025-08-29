@@ -1,0 +1,1 @@
+{"version":3,"file":"claude-issues-detector.js","sourceRoot":"","sources":["../../../src/features/duplication/claude-issues-detector.ts"],"names":[],"mappings":";;;AAAA;;GAEG;AACH,MAAa,cAAc;IACzB,KAAK,CAAC,YAAY,CAAC,MAGlB;QACC,2CAA2C;QAC3C,OAAO;YACL,MAAM,EAAE,EAAE;YACV,OAAO,EAAE,6BAA6B;YACtC,WAAW,EAAE,MAAM,CAAC,WAAW;SAChC,CAAC;IACJ,CAAC;CACF;AAZD,wCAYC;AAED,kBAAe,cAAc,CAAC"}
