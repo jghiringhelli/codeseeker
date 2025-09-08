@@ -1,147 +1,46 @@
-{
-  "bundles": [
-    {
-      "id": "code-analysis-bundle",
-      "name": "Code Analysis Bundle",
-      "description": "Comprehensive code analysis including structure, patterns, and quality metrics",
-      "category": "analysis",
-      "tools": [
-        "ast-analyzer",
-        "pattern-detector",
-        "quality-metrics",
-        "complexity-analyzer"
-      ],
-      "dependencies": [],
-      "conditions": [
-        {
-          "type": "task_type",
-          "operator": "contains",
-          "value": "analyze",
-          "weight": 0.8
-        },
-        {
-          "type": "codebase_size",
-          "operator": "greater_than",
-          "value": 1000,
-          "weight": 0.6
-        }
-      ],
-      "executionOrder": "parallel",
-      "priority": 5,
-      "tokenCost": "medium",
-      "estimatedTime": "medium",
-      "scenarios": [
-        "code review",
-        "refactoring",
-        "quality assessment"
-      ],
-      "autoTrigger": [
-        "analyze",
-        "review",
-        "assess"
-      ],
-      "version": "1.0.0",
-      "created": "2025-08-29T14:32:27.382Z",
-      "lastModified": "2025-08-29T14:32:27.382Z",
-      "isDefault": true,
-      "isActive": true
-    },
-    {
-      "id": "documentation-bundle",
-      "name": "Documentation Bundle",
-      "description": "Generate and update project documentation, README files, and API docs",
-      "category": "documentation",
-      "tools": [
-        "readme-generator",
-        "api-doc-generator",
-        "comment-analyzer",
-        "doc-validator"
-      ],
-      "dependencies": [
-        "code-analysis-bundle"
-      ],
-      "conditions": [
-        {
-          "type": "task_type",
-          "operator": "contains",
-          "value": "document",
-          "weight": 0.9
-        },
-        {
-          "type": "task_type",
-          "operator": "contains",
-          "value": "readme",
-          "weight": 0.8
-        }
-      ],
-      "executionOrder": "sequential",
-      "priority": 4,
-      "tokenCost": "medium",
-      "estimatedTime": "medium",
-      "scenarios": [
-        "project setup",
-        "documentation update",
-        "onboarding"
-      ],
-      "autoTrigger": [
-        "document",
-        "readme",
-        "docs"
-      ],
-      "version": "1.0.0",
-      "created": "2025-08-29T14:32:27.382Z",
-      "lastModified": "2025-08-29T14:32:27.382Z",
-      "isDefault": true,
-      "isActive": true
-    },
-    {
-      "id": "testing-bundle",
-      "name": "Testing Bundle",
-      "description": "Comprehensive testing suite including unit tests, integration tests, and coverage",
-      "category": "testing",
-      "tools": [
-        "test-generator",
-        "coverage-analyzer",
-        "test-runner",
-        "mock-generator"
-      ],
-      "dependencies": [],
-      "conditions": [
-        {
-          "type": "task_type",
-          "operator": "contains",
-          "value": "test",
-          "weight": 0.9
-        },
-        {
-          "type": "context",
-          "operator": "contains",
-          "value": "hasTests",
-          "weight": 0.7
-        }
-      ],
-      "executionOrder": "sequential",
-      "priority": 6,
-      "tokenCost": "high",
-      "estimatedTime": "slow",
-      "scenarios": [
-        "test creation",
-        "coverage improvement",
-        "quality assurance"
-      ],
-      "autoTrigger": [
-        "test",
-        "coverage",
-        "unit test",
-        "integration"
-      ],
-      "version": "1.0.0",
-      "created": "2025-08-29T14:32:27.382Z",
-      "lastModified": "2025-08-29T14:32:27.382Z",
-      "isDefault": true,
-      "isActive": true
-    }
-  ],
-  "lastUpdated": "2025-08-29T14:32:27.789Z",
-  "version": "1.0.0"
-}
+[
+  {
+    "id": "code-search",
+    "name": "Semantic Code Search",
+    "description": "Find similar code patterns using AI-powered semantic search",
+    "category": "search",
+    "tools": ["semantic-search"],
+    "parameters": { "threshold": 0.7, "limit": 10 },
+    "confidence": 0.95,
+    "useCases": ["find", "search", "similar", "locate", "discover", "pattern", "example"],
+    "priority": 7
+  },
+  {
+    "id": "quick-debug",
+    "name": "Quick Debug Session", 
+    "description": "Fast debugging toolkit for immediate issue resolution",
+    "category": "development",
+    "tools": ["semantic-graph", "dependency-analyzer"],
+    "parameters": { "depth": 2, "quickMode": true },
+    "confidence": 0.82,
+    "useCases": ["debug", "troubleshoot", "quick fix", "issue resolution"],
+    "priority": 6
+  },
+  {
+    "id": "comprehensive-refactor",
+    "name": "Comprehensive Refactoring",
+    "description": "Complete refactoring analysis including patterns, duplication, and architecture",
+    "category": "quality",
+    "tools": ["semantic-graph", "duplication-detector", "solid-principles-analyzer", "centralization-detector", "code-complexity-analyzer"],
+    "parameters": { "depth": 4, "includeMetrics": true },
+    "confidence": 0.94,
+    "useCases": ["refactor", "restructure", "cleanup", "modernize", "improve"],
+    "priority": 9
+  },
+  {
+    "id": "new-developer-onboarding",
+    "name": "New Developer Onboarding",
+    "description": "Help new team members understand the codebase quickly",
+    "category": "development",
+    "tools": ["tree-navigator", "documentation-analyzer", "use-case-analyzer", "semantic-graph"],
+    "parameters": { "includeExamples": true, "generateGuide": true },
+    "confidence": 0.89,
+    "useCases": ["onboarding", "learning", "understanding", "exploration", "new team member"],
+    "priority": 8
+  }
+]

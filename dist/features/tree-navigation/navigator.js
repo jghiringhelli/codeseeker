@@ -39,6 +39,7 @@ const path = __importStar(require("path"));
 const fast_glob_1 = require("fast-glob");
 const analyzer_1 = require("../../shared/ast/analyzer");
 const logger_1 = require("../../utils/logger");
+const enhanced_tool_interface_1 = require("../../shared/enhanced-tool-interface");
 const readline = __importStar(require("readline"));
 var NodeType;
 (function (NodeType) {
@@ -57,29 +58,194 @@ var DependencyType;
     DependencyType["INHERITANCE"] = "inheritance";
     DependencyType["COMPOSITION"] = "composition";
 })(DependencyType || (exports.DependencyType = DependencyType = {}));
-class TreeNavigator {
+class TreeNavigator extends enhanced_tool_interface_1.EnhancedAnalysisTool {
+    // Tool metadata for auto-discovery and bundling
+    id = 'tree-navigator';
+    name = 'Enhanced Tree Navigator';
+    description = 'Tree navigation with semantic analysis for deep code understanding';
+    version = '2.0.0';
+    category = 'analysis';
+    languages = ['javascript', 'typescript', 'python', 'go', 'rust', 'java'];
+    frameworks = ['any'];
+    purposes = ['dependency-analysis', 'semantic-analysis', 'code-navigation'];
+    intents = ['navigate', 'explore', 'structure', 'dependencies', 'tree'];
+    keywords = ['tree', 'navigate', 'structure', 'dependencies', 'explore', 'files'];
+    // Performance characteristics
+    performanceImpact = 'low';
+    tokenUsage = 'variable';
+    // Capabilities
+    capabilities = {
+        'semanticClustering': true,
+        'similarityDetection': true,
+        'interactiveMode': true,
+        'dependencyTracking': true,
+        'circularDependencyDetection': true
+    };
     logger = logger_1.Logger?.getInstance();
     astAnalyzer = new analyzer_1.ASTAnalyzer();
     rl;
+    // ============================================
+    // ENHANCED TOOL INTERFACE IMPLEMENTATION
+    // ============================================
+    /**
+     * Database tool name for API calls
+     */
+    getDatabaseToolName() {
+        return 'tree-navigation';
+    }
+    /**
+     * Perform the actual tree navigation analysis
+     */
+    async performAnalysis(projectPath, projectId, parameters) {
+        const request = {
+            projectPath,
+            includeExternal: parameters.includeImpactAnalysis || parameters.includeExternal || false,
+            showDependencies: parameters.trackChangePropagation || parameters.showDependencies || true,
+            filePattern: parameters.filePattern,
+            circularOnly: parameters.circularOnly || false,
+            maxDepth: parameters.maxDepth || 10
+        };
+        // Use file context if available to focus analysis
+        if (parameters.fileContext) {
+            this.logger?.info(`[TreeNavigator] Using file context: ${parameters.fileContext.discoveredFiles?.length || 0} files`);
+        }
+        this.logger?.info(`[TreeNavigator] Starting analysis for project: ${projectPath}`);
+        const tree = await this.buildDependencyTree(request, parameters.fileContext);
+        const analysis = {
+            nodeCount: tree.nodes?.size || 0,
+            depth: this.calculateNodeDepth(tree.root || tree.nodes?.values().next().value),
+            dependencies: tree.edges?.length || 0
+        };
+        // Convert tree data to database format
+        const dbData = this.convertTreeToDbFormat(tree, projectPath);
+        return {
+            data: dbData,
+            analysis: {
+                tree,
+                ...analysis,
+                summary: this.generateSummary(tree, analysis),
+                metrics: this.calculateMetrics(tree)
+            }
+        };
+    }
+    /**
+     * Check if tool is applicable to the project
+     */
+    isApplicable(projectPath, context) {
+        // Check if project has supported file types
+        const supportedExtensions = ['.js', '.ts', '.py', '.go', '.rs', '.java'];
+        return context.projectFiles?.some((file) => supportedExtensions.some(ext => file.endsWith(ext))) ?? true;
+    }
+    /**
+     * Generate recommendations from tree analysis
+     */
+    getRecommendations(analysisResult) {
+        const recommendations = [];
+        const { tree, analysis } = analysisResult.analysis || {};
+        if (tree?.circularDependencies?.length > 0) {
+            recommendations.push(`Found ${tree.circularDependencies.length} circular dependencies that should be resolved`);
+        }
+        if (analysis?.deeplyNestedFiles?.length > 0) {
+            recommendations.push('Consider refactoring deeply nested file structures for better maintainability');
+        }
+        if (tree?.statistics?.averageComplexity > 15) {
+            recommendations.push('High average complexity detected - consider breaking down complex modules');
+        }
+        return recommendations;
+    }
+    // ============================================
+    // UTILITY METHODS FOR DATABASE INTEGRATION
+    // ============================================
+    /**
+     * Convert tree structure to database format
+     */
+    convertTreeToDbFormat(tree, projectPath) {
+        const dbData = [];
+        // Convert nodes to database format
+        tree.nodes.forEach((node, path) => {
+            dbData.push({
+                file_path: path,
+                node_type: this.mapNodeTypeToDb(node.type),
+                node_name: node.name,
+                parent_path: node.parents[0]?.path || null,
+                depth: node.position?.depth || 0,
+                children_count: node.children.length,
+                metadata: {
+                    language: node.language,
+                    size: node.size,
+                    type: node.type
+                },
+                relationships: node.children.map(child => ({
+                    type: 'child',
+                    target: child.path
+                })),
+                complexity_score: node.complexity,
+                last_modified: new Date()
+            });
+        });
+        return dbData;
+    }
+    /**
+     * Map internal node types to database enum values
+     */
+    mapNodeTypeToDb(nodeType) {
+        const mapping = {
+            [NodeType.FILE]: 'file',
+            [NodeType.MODULE]: 'module',
+            [NodeType.PACKAGE]: 'package',
+            [NodeType.EXTERNAL]: 'external',
+            [NodeType.VIRTUAL]: 'virtual'
+        };
+        return mapping[nodeType] || 'file';
+    }
+    /**
+     * Generate analysis summary
+     */
+    generateSummary(tree, analysis) {
+        return `Analyzed ${tree.nodes.size} nodes with ${tree.edges.length} dependencies. ` +
+            `Found ${tree.circularDependencies.length} circular dependencies and ${tree.clusters.length} clusters.`;
+    }
+    /**
+     * Calculate tree metrics
+     */
+    calculateMetrics(tree) {
+        return {
+            totalNodes: tree.nodes.size,
+            totalEdges: tree.edges.length,
+            circularDependencies: tree.circularDependencies.length,
+            clusters: tree.clusters.length,
+            averageDependencies: tree.statistics.averageDependencies,
+            maxDepth: tree.statistics.maxDepth
+        };
+    }
+    // ============================================
+    // EXISTING FUNCTIONALITY (PRESERVED)
+    // ============================================
     // Alias for backward compatibility
     async analyze(params) {
-        const request = {
-            projectPath: params.projectPath || '.',
-            includeExternal: params.includeImpactAnalysis || false,
-            showDependencies: params.trackChangePropagation || true
-        };
-        return this.buildTree(request);
+        // Use the enhanced analyze method from parent class
+        return super.analyze(params.projectPath || '.', params.projectId || 'unknown', params);
     }
-    // Another alias for backward compatibility
-    async buildDependencyTree(projectPath) {
-        return this.buildTree({ projectPath });
+    // Legacy method for existing code compatibility
+    async buildDependencyTree(request, fileContext) {
+        return this.buildTree(request, fileContext);
     }
-    async buildTree(request) {
+    async buildTree(request, fileContext) {
         this.logger.info(`Building dependency tree for ${request.projectPath}`);
         const nodes = new Map();
         const edges = [];
-        // Get all project files
-        const files = await this?.getProjectFiles(request.projectPath, request.filePattern);
+        // Get project files - use file context if available
+        let files;
+        if (fileContext?.discoveredFiles?.length > 0) {
+            // Use discovered files from semantic search and graph analysis
+            files = fileContext.discoveredFiles.map((f) => f.filePath || f);
+            this.logger.info(`Using ${files.length} files from context discovery`);
+        }
+        else {
+            // Fallback to full project scan
+            files = await this?.getProjectFiles(request.projectPath, request.filePattern);
+            this.logger.info(`Scanning all project files: ${files.length} found`);
+        }
         // Create nodes for each file
         for (const file of files) {
             const filePath = path?.join(request.projectPath, file);
@@ -175,7 +341,11 @@ class TreeNavigator {
                 linesOfCode,
                 maintainabilityIndex: Math.max(0, 171 - 5.2 * Math.log(linesOfCode) - 0.23 * complexity),
                 isEntryPoint: this?.isEntryPoint(name),
-                isLeaf: false // Will be determined later
+                isLeaf: false, // Will be determined later
+                semanticKeywords: [],
+                similarNodes: [],
+                businessDomain: 'unknown',
+                architecturalRole: 'unknown'
             }
         };
         return node;
@@ -228,7 +398,11 @@ class TreeNavigator {
                         linesOfCode: 0,
                         maintainabilityIndex: 100,
                         isEntryPoint: false,
-                        isLeaf: true
+                        isLeaf: true,
+                        semanticKeywords: [],
+                        similarNodes: [],
+                        businessDomain: 'external',
+                        architecturalRole: 'dependency'
                     }
                 };
                 nodes?.set(externalNodeId, externalNode);
@@ -474,7 +648,9 @@ class TreeNavigator {
             averageDependencies: nodes.size > 0 ? edges?.length / nodes.size : 0,
             circularDependencyCount: circularDependencies?.length,
             externalDependencyCount: externalEdges?.length,
-            clustersCount: 0 // Will be set after clusters are created
+            clustersCount: 0, // Will be set after clusters are created
+            semanticClusters: {},
+            similarityMappings: []
         };
     }
     calculateNodeDepth(node) {
@@ -524,7 +700,11 @@ class TreeNavigator {
                 linesOfCode: 0,
                 maintainabilityIndex: 100,
                 isEntryPoint: true,
-                isLeaf: false
+                isLeaf: false,
+                semanticKeywords: [],
+                similarNodes: [],
+                businessDomain: 'project',
+                architecturalRole: 'root'
             }
         };
         // Update root nodes to have virtual root as parent
@@ -815,6 +995,295 @@ Commands:
         return new Promise(resolve => {
             this.rl.question(question, resolve);
         });
+    }
+    // ========== SEMANTIC ANALYSIS EXTENSION ==========
+    // Enhanced semantic capabilities for better Claude Code understanding
+    /**
+     * Enhance tree with semantic analysis - replaces vector search functionality
+     */
+    async enhanceWithSemanticAnalysis(tree) {
+        this.logger.info('🧠 Starting semantic analysis enhancement...');
+        // Add semantic metadata to nodes
+        await this.addSemanticMetadata(tree.nodes);
+        // Find semantically similar nodes
+        const similarityMappings = this.findSemanticSimilarities(tree.nodes);
+        // Create semantic clusters
+        const semanticClusters = this.createSemanticClusters(tree.nodes, similarityMappings);
+        // Update statistics
+        tree.statistics.semanticClusters = this.convertClustersToRecord(semanticClusters);
+        tree.statistics.similarityMappings = similarityMappings.map(s => ({
+            nodeId: s.from,
+            similarTo: s.to,
+            similarity: s.similarity
+        }));
+        // Add semantic clusters to existing clusters
+        tree.clusters.push(...semanticClusters);
+        this.logger.info(`✅ Semantic analysis completed: ${semanticClusters.length} semantic clusters, ${similarityMappings.length} similarity mappings`);
+        return tree;
+    }
+    /**
+     * Add semantic metadata to nodes for business logic understanding
+     */
+    async addSemanticMetadata(nodes) {
+        for (const node of nodes.values()) {
+            if (node.type === NodeType.FILE) {
+                try {
+                    const filePath = node.path;
+                    const content = await fs.readFile(filePath, 'utf-8');
+                    node.metadata.semanticKeywords = this.extractSemanticKeywords(content, node.name);
+                    node.metadata.businessDomain = this.identifyBusinessDomain(content, node.path);
+                    node.metadata.architecturalRole = this.identifyArchitecturalRole(content, node.path);
+                }
+                catch (error) {
+                    this.logger.warn(`Could not enhance node ${node.path} with semantic data:`, error);
+                }
+            }
+        }
+    }
+    /**
+     * Extract semantic keywords from file content
+     */
+    extractSemanticKeywords(content, filename) {
+        const keywords = new Set();
+        // Extract from filename
+        const filenameWords = filename.replace(/[^a-zA-Z0-9]/g, ' ').toLowerCase().split(/\s+/);
+        filenameWords.forEach(word => {
+            if (word.length > 2)
+                keywords.add(word);
+        });
+        // Business logic patterns
+        const businessPatterns = [
+            /class\s+([A-Z][a-zA-Z0-9]*(?:Service|Manager|Controller|Handler|Repository|Model|Entity))/g,
+            /function\s+([a-zA-Z0-9]*(?:create|update|delete|get|find|process|handle|manage|calculate|validate)[A-Za-z0-9]*)/g,
+            /(?:export|const)\s+([a-zA-Z0-9]*(?:Schema|Model|Interface|Type)[A-Za-z0-9]*)/g
+        ];
+        businessPatterns.forEach(pattern => {
+            const matches = content.matchAll(pattern);
+            for (const match of matches) {
+                if (match[1]) {
+                    keywords.add(match[1].toLowerCase());
+                }
+            }
+        });
+        // Domain-specific keywords
+        const domainKeywords = [
+            'user', 'customer', 'product', 'order', 'payment', 'invoice', 'report',
+            'auth', 'security', 'admin', 'dashboard', 'api', 'database', 'cache',
+            'notification', 'email', 'analytics', 'logging', 'monitoring'
+        ];
+        const contentLower = content.toLowerCase();
+        domainKeywords.forEach(keyword => {
+            if (contentLower.includes(keyword)) {
+                keywords.add(keyword);
+            }
+        });
+        return Array.from(keywords).slice(0, 10); // Limit to most relevant
+    }
+    /**
+     * Identify business domain from content and path
+     */
+    identifyBusinessDomain(content, filePath) {
+        const pathLower = filePath.toLowerCase();
+        const contentLower = content.toLowerCase();
+        // Check path patterns
+        if (pathLower.includes('auth') || contentLower.includes('authentication'))
+            return 'authentication';
+        if (pathLower.includes('user') || contentLower.includes('user'))
+            return 'user-management';
+        if (pathLower.includes('product') || contentLower.includes('product'))
+            return 'product-catalog';
+        if (pathLower.includes('order') || contentLower.includes('order'))
+            return 'order-processing';
+        if (pathLower.includes('payment') || contentLower.includes('payment'))
+            return 'payment-processing';
+        if (pathLower.includes('admin') || contentLower.includes('admin'))
+            return 'administration';
+        if (pathLower.includes('api') || pathLower.includes('route'))
+            return 'api-layer';
+        if (pathLower.includes('database') || pathLower.includes('model'))
+            return 'data-layer';
+        if (pathLower.includes('ui') || pathLower.includes('component'))
+            return 'presentation-layer';
+        if (pathLower.includes('service') || contentLower.includes('business logic'))
+            return 'business-logic';
+        return 'general';
+    }
+    /**
+     * Identify architectural role from content and path
+     */
+    identifyArchitecturalRole(content, filePath) {
+        const pathLower = filePath.toLowerCase();
+        const contentLower = content.toLowerCase();
+        // Check for architectural patterns
+        if (pathLower.includes('controller') || contentLower.includes('express') || contentLower.includes('router'))
+            return 'controller';
+        if (pathLower.includes('service') || contentLower.includes('business'))
+            return 'service';
+        if (pathLower.includes('repository') || contentLower.includes('database') || contentLower.includes('query'))
+            return 'repository';
+        if (pathLower.includes('model') || contentLower.includes('schema') || contentLower.includes('entity'))
+            return 'model';
+        if (pathLower.includes('middleware') || contentLower.includes('middleware'))
+            return 'middleware';
+        if (pathLower.includes('util') || pathLower.includes('helper'))
+            return 'utility';
+        if (pathLower.includes('config') || contentLower.includes('configuration'))
+            return 'configuration';
+        if (pathLower.includes('test') || pathLower.includes('spec'))
+            return 'test';
+        if (pathLower.includes('component') && contentLower.includes('react'))
+            return 'ui-component';
+        return 'unknown';
+    }
+    /**
+     * Find semantic similarities between nodes (replaces vector search)
+     */
+    findSemanticSimilarities(nodes) {
+        const similarities = [];
+        const nodeArray = Array.from(nodes.values());
+        for (let i = 0; i < nodeArray.length; i++) {
+            for (let j = i + 1; j < nodeArray.length; j++) {
+                const nodeA = nodeArray[i];
+                const nodeB = nodeArray[j];
+                const similarity = this.calculateSemanticSimilarity(nodeA, nodeB);
+                if (similarity > 0.3) { // Threshold for similarity
+                    similarities.push({
+                        from: nodeA.id,
+                        to: nodeB.id,
+                        similarity
+                    });
+                    // Add to each node's similar nodes
+                    nodeA.metadata.similarNodes = nodeA.metadata.similarNodes || [];
+                    nodeB.metadata.similarNodes = nodeB.metadata.similarNodes || [];
+                    if (!nodeA.metadata.similarNodes.includes(nodeB.id)) {
+                        nodeA.metadata.similarNodes.push(nodeB.id);
+                    }
+                    if (!nodeB.metadata.similarNodes.includes(nodeA.id)) {
+                        nodeB.metadata.similarNodes.push(nodeA.id);
+                    }
+                }
+            }
+        }
+        return similarities.sort((a, b) => b.similarity - a.similarity);
+    }
+    /**
+     * Calculate semantic similarity between two nodes
+     */
+    calculateSemanticSimilarity(nodeA, nodeB) {
+        let similarity = 0;
+        // Business domain similarity
+        if (nodeA.metadata.businessDomain === nodeB.metadata.businessDomain && nodeA.metadata.businessDomain !== 'general') {
+            similarity += 0.3;
+        }
+        // Architectural role similarity
+        if (nodeA.metadata.architecturalRole === nodeB.metadata.architecturalRole && nodeA.metadata.architecturalRole !== 'unknown') {
+            similarity += 0.2;
+        }
+        // Keyword overlap
+        const keywordsA = new Set(nodeA.metadata.semanticKeywords);
+        const keywordsB = new Set(nodeB.metadata.semanticKeywords);
+        const intersection = new Set([...keywordsA].filter(x => keywordsB.has(x)));
+        const union = new Set([...keywordsA, ...keywordsB]);
+        if (union.size > 0) {
+            const jaccardIndex = intersection.size / union.size;
+            similarity += jaccardIndex * 0.4;
+        }
+        // Path similarity (same directory or similar naming)
+        const pathA = nodeA.path.toLowerCase();
+        const pathB = nodeB.path.toLowerCase();
+        const dirA = path.dirname(pathA);
+        const dirB = path.dirname(pathB);
+        if (dirA === dirB) {
+            similarity += 0.1;
+        }
+        return Math.min(similarity, 1.0);
+    }
+    /**
+     * Create semantic clusters based on business domains and architectural roles
+     */
+    createSemanticClusters(nodes, similarities) {
+        const clusters = [];
+        // Group by business domain
+        const domainGroups = new Map();
+        for (const node of nodes.values()) {
+            if (node.type === NodeType.FILE && node.metadata.businessDomain !== 'general') {
+                if (!domainGroups.has(node.metadata.businessDomain)) {
+                    domainGroups.set(node.metadata.businessDomain, []);
+                }
+                domainGroups.get(node.metadata.businessDomain).push(node);
+            }
+        }
+        // Create clusters from domain groups
+        for (const [domain, domainNodes] of domainGroups.entries()) {
+            if (domainNodes.length >= 2) {
+                clusters.push({
+                    id: `semantic_domain_${domain}`,
+                    name: `${domain.charAt(0).toUpperCase() + domain.slice(1).replace(/-/g, ' ')} Domain`,
+                    nodes: domainNodes.map(n => n.id),
+                    cohesion: this.calculateClusterCohesion(domainNodes, similarities),
+                    coupling: this.calculateClusterCoupling(domainNodes, nodes, similarities),
+                    description: `Semantic cluster for ${domain} business domain`
+                });
+            }
+        }
+        // Group by architectural role
+        const roleGroups = new Map();
+        for (const node of nodes.values()) {
+            if (node.type === NodeType.FILE && node.metadata.architecturalRole !== 'unknown') {
+                if (!roleGroups.has(node.metadata.architecturalRole)) {
+                    roleGroups.set(node.metadata.architecturalRole, []);
+                }
+                roleGroups.get(node.metadata.architecturalRole).push(node);
+            }
+        }
+        // Create clusters from role groups
+        for (const [role, roleNodes] of roleGroups.entries()) {
+            if (roleNodes.length >= 3) { // Higher threshold for architectural roles
+                clusters.push({
+                    id: `semantic_role_${role}`,
+                    name: `${role.charAt(0).toUpperCase() + role.slice(1).replace(/-/g, ' ')} Layer`,
+                    nodes: roleNodes.map(n => n.id),
+                    cohesion: this.calculateClusterCohesion(roleNodes, similarities),
+                    coupling: this.calculateClusterCoupling(roleNodes, nodes, similarities),
+                    description: `Semantic cluster for ${role} architectural role`
+                });
+            }
+        }
+        return clusters;
+    }
+    /**
+     * Calculate cluster cohesion based on internal similarities
+     */
+    calculateClusterCohesion(clusterNodes, similarities) {
+        if (clusterNodes.length < 2)
+            return 0;
+        const nodeIds = new Set(clusterNodes.map(n => n.id));
+        const internalSimilarities = similarities.filter(s => nodeIds.has(s.from) && nodeIds.has(s.to));
+        if (internalSimilarities.length === 0)
+            return 0;
+        const avgSimilarity = internalSimilarities.reduce((sum, s) => sum + s.similarity, 0) / internalSimilarities.length;
+        return Math.min(avgSimilarity, 1.0);
+    }
+    /**
+     * Calculate cluster coupling based on external similarities
+     */
+    calculateClusterCoupling(clusterNodes, allNodes, similarities) {
+        if (clusterNodes.length === 0)
+            return 0;
+        const nodeIds = new Set(clusterNodes.map(n => n.id));
+        const externalSimilarities = similarities.filter(s => (nodeIds.has(s.from) && !nodeIds.has(s.to)) ||
+            (!nodeIds.has(s.from) && nodeIds.has(s.to)));
+        if (externalSimilarities.length === 0)
+            return 0;
+        const avgCoupling = externalSimilarities.reduce((sum, s) => sum + s.similarity, 0) / externalSimilarities.length;
+        return Math.min(avgCoupling, 1.0);
+    }
+    convertClustersToRecord(clusters) {
+        const record = {};
+        clusters.forEach((cluster, index) => {
+            record[`cluster_${index}`] = cluster.nodes;
+        });
+        return record;
     }
 }
 exports.TreeNavigator = TreeNavigator;

@@ -872,8 +872,8 @@
             <button class="nav-tab" onclick="openPlannerPage()" id="plannerTab">
                 🚀 Idea Planner
             </button>
-            <button class="nav-tab" onclick="switchTab('project')" id="projectTab">
-                📁 Project View
+            <button class="nav-tab" onclick="openEnhancedProjectView()" id="projectTab">
+                📁 Enhanced Project View
             </button>
         </div>
 
@@ -3538,6 +3538,10 @@ Monitor progress in the dashboard below.`);
 
         function openPlannerPage() {
             window.location.href = '/dashboard/planner-page.html';
+        }
+
+        function openEnhancedProjectView() {
+            window.location.href = '/dashboard/project-view.html';
         }
     </script>
 </body>

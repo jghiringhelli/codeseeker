@@ -1,0 +1,133 @@
+%% CodeMind Enhanced Cycle Flow Diagram
+%% This diagram shows the complete request processing pipeline
+
+graph TD
+    A[👤 User Request<br/>npm run codemind:cycle code 'add auth'] --> B{🔍 Request Classification}
+    
+    B -->|code modification| C[📝 Code Request]
+    B -->|analysis| D[📊 Analysis Request] 
+    B -->|general| E[💬 General Request]
+    
+    C --> F[🏗️ Context Building]
+    D --> F
+    E --> F
+    
+    F --> G[📂 Git Status Check<br/>git status --porcelain]
+    F --> H[🔧 Technology Detection<br/>package.json, tsconfig.json]
+    F --> I[🎯 Intent Analysis<br/>userIntent: string]
+    
+    G --> J[📋 ProjectContext Assembly]
+    H --> J  
+    I --> J
+    
+    J --> K{🚫 Skip Cycles?}
+    K -->|No| L[🔄 Core Safety Cycle]
+    K -->|Yes| AA[⚡ Direct Execution]
+    
+    %% Core Safety Cycle
+    L --> M[🔨 Compilation Check<br/>~25-30 seconds]
+    M --> N[🧪 Test Execution<br/>~2-3 seconds]
+    N --> O[🛡️ Safety Guard<br/>~100ms]
+    
+    M -->|Fails| P[❌ Compilation Error]
+    N -->|Fails| Q[⚠️ Test Warning]
+    O -->|Dangerous| R[🚨 Safety Block]
+    
+    P --> S{🔧 Force Flag?}
+    R --> S
+    S -->|No| T[🛑 EXECUTION BLOCKED<br/>Return Error Response]
+    S -->|Yes| U[⚠️ Continue with Warning]
+    
+    Q --> U
+    M -->|Passes| U
+    N -->|Passes| U
+    O -->|Safe| U
+    
+    %% Quality Cycle Branch
+    U --> V{📝 Code Modification?}
+    V -->|Yes| W[🎯 Quality Cycle]
+    V -->|No| AA
+    
+    %% Quality Cycle Details
+    W --> X[🏗️ SOLID Analysis<br/>~100ms]
+    W --> Y[📝 Linting Check<br/>~50ms] 
+    W --> Z[🔄 Dependency Cycles<br/>~100ms]
+    W --> AB[🧠 Semantic Deduplication<br/>~200ms]
+    W --> AC[🔒 Smart Security<br/>~150ms]
+    
+    %% Semantic Deduplication Details
+    AB --> AD[🎯 Intent Analysis<br/>Extract functionality]
+    AD --> AE{🧠 Neo4j Available?}
+    AE -->|Yes| AF[🔍 Semantic Search<br/>Query graph for similar code]
+    AE -->|No| AG[📝 Pattern Matching<br/>Regex fallback]
+    
+    AF --> AH[📊 Similarity Scoring<br/>0-1 similarity score]
+    AG --> AH
+    AH --> AI{📈 High Similarity?}
+    AI -->|>80%| AJ[🚨 Duplication Warning]
+    AI -->|60-80%| AK[⚠️ Similar Code Found]
+    AI -->|<60%| AL[✅ Proceed]
+    
+    %% Smart Security Details  
+    AC --> AM[🎯 Context Detection<br/>Auth, API, File, DB patterns]
+    AM --> AN[🔍 Pattern Selection<br/>Choose relevant security checks]
+    AN --> AO[🛡️ Vulnerability Scan<br/>Check changed files]
+    AO --> AP[📊 Risk Assessment<br/>Calculate overall risk]
+    
+    %% Quality Results
+    X --> AQ[📋 Quality Results]
+    Y --> AQ
+    Z --> AQ
+    AJ --> AQ
+    AK --> AQ  
+    AL --> AQ
+    AP --> AQ
+    
+    Z -->|Circular Deps| AR[🚫 Dependency Block]
+    AR --> T
+    
+    %% Execution Phase
+    AA --> AS[🎭 Intelligent Execution]
+    AQ --> AS
+    
+    AS --> AT{📝 Request Type?}
+    AT -->|Code Mod| AU[🧠 Semantic Context Generation]
+    AT -->|Analysis| AV[📊 Context Optimization]
+    AT -->|General| AW[💡 Enhanced Context]
+    
+    AU --> AX[🎯 Architecture-Aware Response]
+    AV --> AX
+    AW --> AX
+    
+    AX --> AY{📝 Code Modified?}
+    AY -->|Yes| AZ[🔄 Post-Execution Validation]
+    AY -->|No| BA[📤 Final Response]
+    
+    AZ --> BB[🔨 Quick Compile Check]
+    BB --> BC[🧪 Critical Tests]
+    BC -->|Pass| BA
+    BC -->|Fail| BD[⚠️ Post-Execution Warning]
+    BD --> BA
+    
+    %% Final Output
+    BA --> BE[👤 Enhanced Response<br/>+ Quality Insights<br/>+ Security Recommendations<br/>+ Architectural Guidance]
+    T --> BF[❌ Blocked Response<br/>+ Error Details<br/>+ Fix Suggestions]
+    
+    %% Styling
+    classDef userAction fill:#e1f5fe
+    classDef safetyCheck fill:#ffebee
+    classDef qualityCheck fill:#f3e5f5
+    classDef semanticFeature fill:#e8f5e8
+    classDef securityFeature fill:#fff3e0
+    classDef executionPhase fill:#fce4ec
+    classDef blockingError fill:#ff5722,color:#fff
+    classDef success fill:#4caf50,color:#fff
+    
+    class A,BE userAction
+    class L,M,N,O,S safetyCheck
+    class W,X,Y,Z qualityCheck
+    class AB,AD,AE,AF,AG,AH,AI semanticFeature
+    class AC,AM,AN,AO,AP securityFeature
+    class AS,AT,AU,AV,AW,AX executionPhase
+    class T,P,R,AR,BF blockingError
+    class BA,BE success

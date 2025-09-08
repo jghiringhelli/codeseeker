@@ -1,5 +1,59 @@
-const { EnhancedToolSelector } = require('../../dist/cli/enhanced-tool-selector');
-const { ToolBundleSystem } = require('../../dist/cli/tool-bundle-system');
+// Try to load real implementations, fallback to mocks
+let EnhancedToolSelector, ToolBundleSystem;
+
+try {
+  // Try to load from compiled TypeScript
+  const toolSelector = require('../../dist/cli/enhanced-tool-selector');
+  const bundleSystem = require('../../dist/cli/tool-bundle-system');
+  
+  EnhancedToolSelector = toolSelector.EnhancedToolSelector || toolSelector.default;
+  ToolBundleSystem = bundleSystem.ToolBundleSystem || bundleSystem.default;
+  
+  console.log('✅ Loaded real tool implementations');
+} catch (e) {
+  console.warn('⚠️ Using mock tool implementations:', e.message);
+  
+  // Mock implementations
+  class MockEnhancedToolSelector {
+    constructor() {}
+    selectTools() { 
+      return {
+        selectedTools: [],
+        selectedBundles: [],
+        confidence: 0.5,
+        reasoning: 'Mock implementation',
+        estimatedTokens: 0,
+        executionStrategy: 'sequential'
+      };
+    }
+    getAvailableTools() { return []; }
+    getAvailableBundles() { return this.mockBundles(); }
+    mockBundles() {
+      return [
+        { id: 'architecture', name: 'Architecture Analysis', tools: ['semantic-graph', 'centralization'], category: 'architecture' },
+        { id: 'quality', name: 'Code Quality', tools: ['duplication', 'test-coverage'], category: 'quality' },
+        { id: 'performance', name: 'Performance', tools: ['performance-analyzer'], category: 'performance' }
+      ];
+    }
+  }
+
+  class MockToolBundleSystem {
+    constructor() {}
+    getBundles() { 
+      return [
+        { id: 'architecture', name: 'Architecture Analysis', tools: ['semantic-graph', 'centralization'], category: 'architecture' },
+        { id: 'quality', name: 'Code Quality', tools: ['duplication', 'test-coverage'], category: 'quality' },
+        { id: 'performance', name: 'Performance', tools: ['performance-analyzer'], category: 'performance' }
+      ]; 
+    }
+    executeBundle() { return { success: false, message: 'Tool execution not available in dashboard' }; }
+    createBundle() { return { success: false, message: 'Bundle creation not available' }; }
+    selectBundles() { return this.getBundles().slice(0, 2); }
+  }
+
+  EnhancedToolSelector = MockEnhancedToolSelector;
+  ToolBundleSystem = MockToolBundleSystem;
+}
 
 class ToolBundleAPI {
     constructor(database, performanceMonitor) {
@@ -10,8 +64,8 @@ class ToolBundleAPI {
     }
 
     async initialize() {
-        await this.enhancedSelector.initialize();
-        this.bundleSystem = await this.enhancedSelector.getBundleSystem();
+        // Enhanced selector is initialized in constructor
+        this.bundleSystem = this.enhancedSelector.getBundleSystem ? await this.enhancedSelector.getBundleSystem() : null;
         console.log('✅ Tool Bundle API initialized');
     }
 

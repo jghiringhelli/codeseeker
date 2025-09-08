@@ -1,3 +1,4 @@
+import { EnhancedAnalysisTool } from '../../shared/enhanced-tool-interface';
 export interface TreeNavigationRequest {
     projectPath: string;
     filePattern?: string;
@@ -61,6 +62,12 @@ export interface TreeStatistics {
     circularDependencyCount: number;
     externalDependencyCount: number;
     clustersCount: number;
+    semanticClusters: Record<string, string[]>;
+    similarityMappings: Array<{
+        nodeId: string;
+        similarTo: string;
+        similarity: number;
+    }>;
 }
 export interface NodeMetadata {
     exports: string[];
@@ -70,6 +77,10 @@ export interface NodeMetadata {
     maintainabilityIndex: number;
     isEntryPoint: boolean;
     isLeaf: boolean;
+    semanticKeywords: string[];
+    similarNodes: string[];
+    businessDomain: string;
+    architecturalRole: string;
 }
 export declare enum NodeType {
     FILE = "file",
@@ -86,13 +97,64 @@ export declare enum DependencyType {
     INHERITANCE = "inheritance",
     COMPOSITION = "composition"
 }
-export declare class TreeNavigator {
+export declare class TreeNavigator extends EnhancedAnalysisTool {
+    id: string;
+    name: string;
+    description: string;
+    version: string;
+    category: string;
+    languages: string[];
+    frameworks: string[];
+    purposes: string[];
+    intents: string[];
+    keywords: string[];
+    performanceImpact: 'low' | 'medium' | 'high';
+    tokenUsage: 'minimal' | 'low' | 'medium' | 'high' | 'variable';
+    capabilities: {
+        semanticClustering: boolean;
+        similarityDetection: boolean;
+        interactiveMode: boolean;
+        dependencyTracking: boolean;
+        circularDependencyDetection: boolean;
+    };
     private logger;
     private astAnalyzer;
     private rl?;
+    /**
+     * Database tool name for API calls
+     */
+    getDatabaseToolName(): string;
+    /**
+     * Perform the actual tree navigation analysis
+     */
+    performAnalysis(projectPath: string, projectId: string, parameters: any): Promise<any>;
+    /**
+     * Check if tool is applicable to the project
+     */
+    isApplicable(projectPath: string, context: any): boolean;
+    /**
+     * Generate recommendations from tree analysis
+     */
+    getRecommendations(analysisResult: any): string[];
+    /**
+     * Convert tree structure to database format
+     */
+    private convertTreeToDbFormat;
+    /**
+     * Map internal node types to database enum values
+     */
+    private mapNodeTypeToDb;
+    /**
+     * Generate analysis summary
+     */
+    private generateSummary;
+    /**
+     * Calculate tree metrics
+     */
+    private calculateMetrics;
     analyze(params: any): Promise<any>;
-    buildDependencyTree(projectPath: string): Promise<DependencyTree>;
-    buildTree(request: TreeNavigationRequest): Promise<DependencyTree>;
+    buildDependencyTree(request: TreeNavigationRequest, fileContext?: any): Promise<DependencyTree>;
+    buildTree(request: TreeNavigationRequest, fileContext?: any): Promise<DependencyTree>;
     private getProjectFiles;
     private createFileNode;
     private detectLanguage;
@@ -133,6 +195,47 @@ export declare class TreeNavigator {
     printTree(tree: DependencyTree, maxDepth?: number): void;
     private printNodeRecursive;
     private prompt;
+    /**
+     * Enhance tree with semantic analysis - replaces vector search functionality
+     */
+    enhanceWithSemanticAnalysis(tree: DependencyTree): Promise<DependencyTree>;
+    /**
+     * Add semantic metadata to nodes for business logic understanding
+     */
+    private addSemanticMetadata;
+    /**
+     * Extract semantic keywords from file content
+     */
+    private extractSemanticKeywords;
+    /**
+     * Identify business domain from content and path
+     */
+    private identifyBusinessDomain;
+    /**
+     * Identify architectural role from content and path
+     */
+    private identifyArchitecturalRole;
+    /**
+     * Find semantic similarities between nodes (replaces vector search)
+     */
+    private findSemanticSimilarities;
+    /**
+     * Calculate semantic similarity between two nodes
+     */
+    private calculateSemanticSimilarity;
+    /**
+     * Create semantic clusters based on business domains and architectural roles
+     */
+    private createSemanticClusters;
+    /**
+     * Calculate cluster cohesion based on internal similarities
+     */
+    private calculateClusterCohesion;
+    /**
+     * Calculate cluster coupling based on external similarities
+     */
+    private calculateClusterCoupling;
+    private convertClustersToRecord;
 }
 export default TreeNavigator;
 //# sourceMappingURL=navigator.d.ts.map

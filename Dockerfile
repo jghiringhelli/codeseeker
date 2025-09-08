@@ -86,21 +86,21 @@ RUN mkdir -p /app/logs && chown codemind:codemind /app/logs
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV DASHBOARD_PORT=3005
+ENV PORT=3004
 ENV LOG_LEVEL=info
 
 # Expose port
-EXPOSE 3005
+EXPOSE 3004
 
 # Switch to non-root user
 USER codemind
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:3005/health || exit 1
+    CMD curl -f http://localhost:3004/health || exit 1
 
-# Start the API server
-CMD ["node", "src/dashboard/server.js"]
+# Start the API server  
+CMD ["node", "dist/api/server.js"]
 
 # Metadata labels
 LABEL maintainer="CodeMind Team <team@codemind.dev>" \

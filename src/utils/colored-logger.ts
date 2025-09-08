@@ -252,7 +252,7 @@ export class ColoredLogger {
         console.log();
     }
 
-    private getLevelColor(level: LogEntry['level']): chalk.Chalk {
+    private getLevelColor(level: LogEntry['level']) {
         switch (level) {
             case 'success': return chalk.green;
             case 'error': return chalk.red;

@@ -1,887 +1,607 @@
 #!/usr/bin/env node
 
+/**
+ * CodeMind Core CLI - Local Workflow Implementation
+ * Self-contained CLI that executes complete workflow cycles locally
+ */
+
 import { Command } from 'commander';
-import { ClaudeIntegration } from './claude-integration';
-import { ContextOptimizer } from './context-optimizer';
-import { DuplicationDetector } from '../features/duplication/detector';
-import { TreeNavigator } from '../features/tree-navigation/navigator';
-import { VectorSearch } from '../features/vector-search/search-engine';
-import { CentralizationDetector } from '../features/centralization/detector';
-import { GitIntegration } from '../git/git-integration';
-import { SemanticKnowledgeGraph } from '../knowledge/graph/knowledge-graph';
-import { SemanticAnalyzer } from '../knowledge/analyzers/semantic-analyzer';
-import { GraphQueryEngine } from '../knowledge/query/graph-query-engine';
-import { SelfImprovementEngine } from '../self-improvement/self-improvement-engine';
-import { createAutoFixCommand } from './commands/auto-fix';
 import { Logger } from '../utils/logger';
+import { CLILogger } from '../utils/cli-logger';
+import { CodeMindLocalWorkflow } from './codemind-local-workflow';
+import { ContextOptimizer } from './context-optimizer';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const program = new Command();
-const logger = Logger?.getInstance();
+const logger = Logger.getInstance();
+const cliLogger = CLILogger.getInstance();
 
-// Initialize core services
-const claudeIntegration = new ClaudeIntegration();
-const contextOptimizer = new ContextOptimizer();
-const duplicationDetector = new DuplicationDetector();
-const treeNavigator = new TreeNavigator();
-const vectorSearch = new VectorSearch();
-const centralizationDetector = new CentralizationDetector();
-const gitIntegration = new GitIntegration();
-const selfImprovementEngine = new SelfImprovementEngine();
-
-// Initialize knowledge graph components
-let knowledgeGraph: SemanticKnowledgeGraph;
-let semanticAnalyzer: SemanticAnalyzer;
-let queryEngine: GraphQueryEngine;
-
-function initializeKnowledgeGraph(projectPath: string) {
-  if (!knowledgeGraph) {
-    knowledgeGraph = new SemanticKnowledgeGraph(projectPath);
-    queryEngine = new GraphQueryEngine(knowledgeGraph);
-    semanticAnalyzer = new SemanticAnalyzer({
-      projectPath,
-      filePatterns: ['**/*.ts', '**/*.js', '**/*.tsx', '**/*.jsx'],
-      includeTests: true,
-      minConfidence: 0.6,
-      enableSemanticSimilarity: true,
-      enablePatternDetection: true
-    }, knowledgeGraph);
+// Helper function to resolve project ID (shared utility)
+async function resolveProjectId(projectPath: string): Promise<string> {
+  try {
+    const configPath = path.join(projectPath, '.codemind', 'project.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      if (config.projectId) return config.projectId;
+    }
+  } catch (error) {
+    // Ignore config read errors
   }
-  return { knowledgeGraph, semanticAnalyzer, queryEngine };
+  return `proj_${Buffer.from(projectPath).toString('base64').replace(/[+=]/g, '').substring(0, 8)}`;
 }
 
 program
   .name('codemind')
-  .description('Intelligent Code Auxiliary System CLI')
-  .version('0.1.0');
+  .description('CodeMind - Intelligent Claude Code Enhancement Platform')
+  .version('2.0.0');
 
-// Claude integration commands
+// Core CLI command - local workflow implementation
 program
-  .command('ask')
-  .description('Ask Claude a question with optimized context')
-  .argument('<question>', 'Question to ask Claude')
-  .option('-c, --context <type>', 'Context type (auto|smart|minimal|full)', 'smart')
-  .option('-b, --budget <tokens>', 'Token budget for context', '8000')
-  .option('-f, --focus <area>', 'Focus area for context selection')
-  .option('--project <path>', 'Project path', '.')
-  .action(async (question: string, options: any) => {
+  .command('analyze')
+  .description('Execute complete local workflow for a request')
+  .argument('<request>', 'Your request description')
+  .argument('<projectPath>', 'Path to project directory')
+  .action(async (request: string, projectPath: string) => {
     try {
-      logger.info('Processing question with context optimization...');
-      
-      const optimization = await contextOptimizer?.optimizeContext({
-        projectPath: options.project,
-        query: question,
-        tokenBudget: parseInt(options.budget),
-        contextType: options.context,
-        focusArea: options.focus
-      });
-
-      const response = await claudeIntegration?.askQuestion(question, optimization);
-      
-      console?.log('\n🤖 Claude Response:');
-      console?.log('─'.repeat(50));
-      console?.log(response.content);
-      
-      if (response.contextUsed) {
-        console?.log('\n📊 Context Info:');
-        console?.log(`- Tokens used: ${response.contextUsed.tokensUsed}/${options.budget}`);
-        console?.log(`- Files included: ${response.contextUsed.filesIncluded?.length}`);
-        console?.log(`- Optimization: ${response.contextUsed.optimizationStrategy}`);
-      }
-      
+      const workflow = new CodeMindLocalWorkflow();
+      await workflow.executeWorkflow(request, projectPath);
     } catch (error) {
-      logger.error('Failed to process question', error as Error);
-      process?.exit(1);
+      logger.error('Workflow execution failed:', error);
+      process.exit(1);
     }
   });
 
+// Plan workflow without execution
 program
-  .command('optimize-context')
-  .description('Optimize context window for better Claude interactions')
-  .option('-b, --budget <tokens>', 'Token budget', '8000')
-  .option('-f, --focus <area>', 'Focus area')
-  .option('--project <path>', 'Project path', '.')
-  .action(async (options: any) => {
+  .command('plan')
+  .description('Plan workflow steps without execution')
+  .argument('<request>', 'Your request description')
+  .argument('<projectPath>', 'Path to project directory')
+  .action(async (request: string, projectPath: string) => {
     try {
-      const analysis = await contextOptimizer?.analyzeProject({
-        projectPath: options.project,
-        tokenBudget: parseInt(options.budget),
-        focusArea: options.focus
-      });
-
-      console?.log('\n📈 Context Optimization Analysis:');
-      console?.log('─'.repeat(50));
-      console?.log(`Project type: ${analysis.type}`);
-      console?.log(`Total files: ${analysis.totalFiles}`);
-      console?.log(`Primary language: ${analysis.primaryLanguage}`);
-      console?.log(`Framework: ${analysis.framework || 'None detected'}`);
+      const workflow = new CodeMindLocalWorkflow();
+      logger.info('🧠 Analyzing request and planning workflow...');
       
-      if ('recommendations' in analysis && analysis.recommendations) {
-        console?.log('\n💡 Recommendations:');
-        (analysis.recommendations as string[])?.forEach((rec: string, i: number) => {
-          console?.log(`${i + 1}. ${rec}`);
-        });
-      }
-
+      // Access private methods through any casting (for demo purposes)
+      const workflowAny = workflow as any;
+      const intention = workflowAny.inferUserIntention(request, projectPath);
+      const tools = await workflowAny.selectTools(intention, projectPath);
+      const files = await workflowAny.findRelevantFiles(intention, tools, projectPath);
+      const steps = await workflowAny.planWorkflowSteps(intention, tools, files, projectPath);
+      
+      logger.info('\n📋 Planned Workflow:');
+      steps.forEach((step: any, i: number) => {
+        logger.info(`  ${i + 1}. ${step.description}`);
+        logger.info(`     Files: ${step.files.length} files`);
+        logger.info(`     Action: ${step.action}`);
+        logger.info(`     Priority: ${step.priority}`);
+      });
+      
+      logger.info(`\n🚀 To execute: codemind analyze "${request}" "${projectPath}"`);
+      
     } catch (error) {
-      logger.error('Failed to optimize context', error as Error);
-      process?.exit(1);
+      logger.error('Planning failed:', error);
+      process.exit(1);
     }
   });
 
-// Duplication detection commands
+// List available tools
 program
-  .command('find-duplicates')
-  .description('Find code duplications across the codebase')
-  .option('--semantic', 'Include semantic duplications', false)
-  .option('-t, --threshold <value>', 'Similarity threshold', '0.8')
-  .option('--suggest-refactor', 'Include refactoring suggestions', false)
-  .option('--project <path>', 'Project path', '.')
-  .option('--output <format>', 'Output format (json|table)', 'table')
-  .action(async (options: any) => {
+  .command('tools')
+  .description('List available external tools')
+  .option('--category <category>', 'Filter by category')
+  .action(async (options) => {
     try {
-      logger.info('Scanning for code duplications...');
+      const orchestratorUrl = process.env.ORCHESTRATOR_URL || 'http://localhost:3006';
+      const url = `${orchestratorUrl}/api/tools/available${options.category ? `?category=${options.category}` : ''}`;
       
-      const results = await duplicationDetector?.findDuplicates({
-        projectPath: options.project,
-        includeSemantic: options.semantic,
-        similarityThreshold: parseFloat(options.threshold),
-        includeRefactoringSuggestions: options.suggestRefactor
-      });
-
-      if (options?.output === 'json') {
-        console?.log(JSON.stringify(results, null, 2));
-      } else {
-        console?.log('\n🔍 Duplication Analysis Results:');
-        console?.log('─'.repeat(50));
-        console?.log(`Found ${results.duplicates?.length} duplication groups`);
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
         
-        results.duplicates?.forEach((group, i) => {
-          console?.log(`\n${i + 1}. ${group.type} duplication (${group.similarity?.toFixed(2)} similarity)`);
-          console?.log(`   Files: ${group.locations?.map(l => l.file).join(', ')}`);
-          
-          if (group.refactoring && options.suggestRefactor) {
-            console?.log(`   💡 Suggestion: ${group.refactoring.approach}`);
-            console?.log(`   ⏱️  Estimated effort: ${group.refactoring.estimatedEffort}`);
-          }
-        });
-      }
-
-    } catch (error) {
-      logger.error('Failed to find duplicates', error as Error);
-      process?.exit(1);
-    }
-  });
-
-// Tree navigation commands
-program
-  .command('tree')
-  .description('Navigate project dependency tree')
-  .option('-i, --interactive', 'Interactive navigation mode', false)
-  .option('-f, --filter <pattern>', 'File filter pattern', '**/*.{ts,js,py}')
-  .option('--show-deps', 'Show dependencies', false)
-  .option('--circular', 'Show circular dependencies only', false)
-  .option('--project <path>', 'Project path', '.')
-  .action(async (options: any) => {
-    try {
-      logger.info('Building dependency tree...');
-      
-      const tree = await treeNavigator?.buildTree({
-        projectPath: options.project,
-        filePattern: options.filter,
-        showDependencies: options.showDeps,
-        circularOnly: options.circular
-      });
-
-      if (options.interactive) {
-        await treeNavigator?.startInteractiveMode(tree);
-      } else {
-        console?.log('\n🌲 Project Dependency Tree:');
-        console?.log('─'.repeat(50));
-        treeNavigator?.printTree(tree);
+        logger.info(`\n🔧 Available Tools (${data.totalCount}):`);
         
-        if (tree.circularDependencies?.length > 0) {
-          console?.log('\n⚠️  Circular Dependencies:');
-          tree.circularDependencies?.forEach((cycle, i) => {
-            console?.log(`${i + 1}. ${cycle.path?.join(' → ')}`);
+        const categories = [...new Set(data.tools.map((t: any) => t.category))];
+        categories.forEach(category => {
+          const toolsInCategory = data.tools.filter((t: any) => t.category === category);
+          logger.info(`\n📁 ${category}:`);
+          toolsInCategory.forEach((tool: any) => {
+            logger.info(`  - ${tool.name}: ${tool.description}`);
+            logger.info(`    Languages: ${tool.languages.join(', ')}`);
+            logger.info(`    Trust: ${tool.trustLevel}`);
           });
+        });
+        
+      } else {
+        logger.error('❌ Could not fetch tools from orchestrator');
+      }
+    } catch (error) {
+      logger.error('❌ Failed to fetch tools:', error);
+    }
+  });
+
+// System status
+program
+  .command('status')
+  .description('Check system status including semantic services')
+  .action(async () => {
+    try {
+      cliLogger.commandHeader('SYSTEM STATUS', 'Check all CodeMind services and semantic graph health');
+      
+      const orchestratorUrl = process.env.ORCHESTRATOR_URL || 'http://localhost:3006';
+      let services = {
+        neo4j: false,
+        semanticGraph: false,
+        orchestrator: false
+      };
+      
+      // Check orchestrator
+      try {
+        const response = await fetch(`${orchestratorUrl}/health`);
+        if (response.ok) {
+          services.orchestrator = true;
+          const data = await response.json();
+          
+          cliLogger.statusLine('Orchestrator Status', data.status, 'success');
+          cliLogger.statusLine('Uptime', `${Math.round(data.uptime)}s`, 'info');
+        }
+      } catch (error) {
+        cliLogger.statusLine('Orchestrator Status', 'Not responding', 'error');
+      }
+      
+      // Check Neo4j and semantic graph
+      try {
+        const response = await fetch('http://localhost:3005/api/semantic-graph/health');
+        if (response.ok) {
+          services.neo4j = true;
+          services.semanticGraph = true;
+          
+          const stats = await fetch('http://localhost:3005/api/semantic-graph/statistics');
+          if (stats.ok) {
+            const data = await stats.json();
+            cliLogger.statusLine('Graph Nodes', data.total_nodes || 0, 'success');
+            cliLogger.statusLine('Graph Relationships', data.total_relationships || 0, 'success');
+          }
+        }
+      } catch (error) {
+        // Try direct Neo4j check
+        try {
+          const response = await fetch('http://localhost:7474');
+          if (response.ok) {
+            services.neo4j = true;
+            cliLogger.statusLine('Neo4j Database', 'Connected', 'success');
+            cliLogger.statusLine('Semantic Graph API', 'Not responding', 'warning');
+          }
+        } catch (neo4jError) {
+          cliLogger.statusLine('Neo4j Database', 'Not running', 'error');
         }
       }
-
+      
+      // Show semantic health check
+      cliLogger.semanticHealthCheck(services);
+      
+      // Database status
+      console.log(`\n${cliLogger.highlight('📊 Database Status:')}`);
+      console.log(`${cliLogger.dim('Run:')} ${cliLogger.code('./scripts/db-status.ps1')} ${cliLogger.dim('for detailed database status')}`);
+      
+      // Quick start commands if services are down
+      if (!services.neo4j || !services.semanticGraph) {
+        console.log(`\n${cliLogger.highlight('🚀 Quick Start Commands:')}`);
+        if (!services.neo4j) {
+          console.log(`${cliLogger.dim('Start Neo4j:')} ${cliLogger.code('docker-compose -f docker-compose.semantic-graph.yml up -d')}`);
+        }
+        if (!services.semanticGraph) {
+          console.log(`${cliLogger.dim('Start Graph API:')} ${cliLogger.code('node src/dashboard/semantic-graph-api.js')}`);
+        }
+      }
+      
     } catch (error) {
-      logger.error('Failed to build tree', error as Error);
-      process?.exit(1);
+      cliLogger.error('Status check failed', error instanceof Error ? error.message : 'Unknown error');
     }
   });
 
-// Vector search commands
+// Orchestrate workflow
+program
+  .command('orchestrate')
+  .description('Start workflow orchestration')
+  .argument('<query>', 'Analysis query')
+  .argument('<projectPath>', 'Path to project')
+  .option('--priority <priority>', 'Priority level', 'normal')
+  .action(async (query, projectPath, options) => {
+    try {
+      logger.info(`🎭 Starting orchestration: ${query}`);
+      
+      const orchestratorUrl = process.env.ORCHESTRATOR_URL || 'http://localhost:3006';
+      const response = await fetch(`${orchestratorUrl}/api/orchestrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          projectPath,
+          requestedBy: 'cli',
+          options: {
+            priority: options.priority
+          }
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        logger.info(`✅ Orchestration started: ${data.orchestrationId}`);
+        logger.info(`Status: ${data.status}`);
+        logger.info(`Workflow: ${data.workflowGraph.name}`);
+        logger.info(`Estimated duration: ${data.workflowGraph.estimatedDuration}s`);
+        logger.info('\n💡 Monitor at: http://localhost:3005 (dashboard)');
+        
+        // Update tools after successful orchestration start
+        // Tools are updated through orchestrator messaging
+        
+      } else {
+        logger.error('❌ Orchestration failed');
+      }
+      
+    } catch (error) {
+      logger.error('❌ Orchestration error:', error);
+    }
+  });
+
+// Intelligent orchestration command with three-phase discovery
+program
+  .command('smart')
+  .description('Smart orchestration with three-phase discovery (semantic search → graph → tree)')
+  .argument('<intent>', 'User intent or task description')
+  .argument('<projectPath>', 'Path to project directory')
+  .option('-m, --max-context <size>', 'Maximum context window size', '8000')
+  .option('--no-cache', 'Disable cached results')
+  .option('--force-sync', 'Force file synchronization before analysis')
+  .action(async (intent: string, projectPath: string, options: any) => {
+    try {
+      const { IntelligentTaskOrchestrator } = await import('../orchestration/intelligent-task-orchestrator');
+      const { FileSynchronizationSystem } = await import('../shared/file-synchronization-system');
+      
+      logger.info('🧠 Starting intelligent orchestration...');
+      const startTime = Date.now();
+      
+      // Resolve project ID
+      const projectId = await resolveProjectId(projectPath);
+      
+      // Force sync if requested
+      if (options.forceSync) {
+        logger.info('🔄 Synchronizing project files...');
+        const syncSystem = new FileSynchronizationSystem(projectPath);
+        await syncSystem.initialize();
+        const syncResult = await syncSystem.synchronizeProject(projectPath, projectId);
+        logger.info(`✅ Synchronized: ${syncResult.totalFiles} files, ${syncResult.modifiedFiles} updated`);
+        await syncSystem.close();
+      }
+      
+      // Initialize orchestrator
+      const orchestrator = new IntelligentTaskOrchestrator();
+      await orchestrator.initialize();
+      
+      // Orchestrate with three-phase discovery
+      const result = await orchestrator.orchestrateRequest({
+        userQuery: intent || 'analyze project',
+        userIntent: intent,
+        projectPath,
+        projectId,
+        maxContextTokens: parseInt(options.maxContext)
+      });
+      
+      await orchestrator.close();
+      
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      
+      // Display results
+      console.log('\n' + '='.repeat(80));
+      console.log('🎯 INTELLIGENT ORCHESTRATION RESULTS');
+      console.log('='.repeat(80));
+      console.log(`📋 Intent: ${intent}`);
+      console.log(`⏱️  Duration: ${duration}s`);
+      console.log(`🎨 Tasks Created: ${result.orchestratedTasks.length}`);
+      console.log(`📁 Files Discovered: ${result.discoveredImpact.semanticFiles.length}`);
+      console.log(`🔍 Discovery Method: semantic+graph+tree`);
+      console.log('');
+      
+      // Show discovery summary
+      console.log('📊 DISCOVERY SUMMARY');
+      console.log('─'.repeat(40));
+      if (result.discoveredImpact.semanticFiles) {
+        console.log(`🔎 Semantic Search: ${result.discoveredImpact.semanticFiles.length} files`);
+      }
+      if (result.discoveredImpact.graphRelationships) {
+        console.log(`🕸️  Graph Expansion: ${result.discoveredImpact.graphRelationships.length} relationships`);
+      }
+      if (result.discoveredImpact.treeStructure) {
+        console.log(`🌳 Tree Analysis: ${result.discoveredImpact.treeStructure.length} structures`);
+      }
+      console.log('');
+      
+      // Show tasks
+      console.log('📝 TASK BREAKDOWN');
+      console.log('─'.repeat(40));
+      result.orchestratedTasks.forEach((task, index) => {
+        console.log(`${index + 1}. [PRIORITY ${task.priority}] ${task.description}`);
+        console.log(`   📦 Context Size: ${task.estimatedTokens} tokens`);
+        console.log(`   📁 Files: ${task.targetFiles.length}`);
+        console.log(`   🏷️ Category: ${task.category}`);
+        console.log('');
+      });
+      
+      // Show execution plan
+      console.log('💡 EXECUTION PLAN');
+      console.log('─'.repeat(40));
+      console.log(`Total Tasks: ${result.executionPlan.totalTasks}`);
+      console.log(`Estimated Duration: ${result.executionPlan.estimatedDuration}`);
+      console.log('');
+      
+      logger.info('✅ Intelligent orchestration completed successfully');
+      
+    } catch (error) {
+      logger.error('❌ Intelligent orchestration failed:', error);
+      
+      // Provide helpful error diagnosis and recovery suggestions
+      console.log('\n🔧 TROUBLESHOOTING GUIDE');
+      console.log('─'.repeat(40));
+      
+      if (error instanceof Error) {
+        if (error.message.includes('not initialized')) {
+          console.log('• Run initialization: ./scripts/init-project.ps1');
+          console.log('• Check database connections');
+        }
+        
+        if (error.message.includes('timeout')) {
+          console.log('• Services may be slow to respond');
+          console.log('• Check Docker containers: docker ps');
+          console.log('• Retry with --force-sync to refresh data');
+        }
+        
+        if (error.message.includes('OPENAI_API_KEY')) {
+          console.log('• Set OPENAI_API_KEY for semantic search');
+          console.log('• Or use --no-cache to skip embeddings');
+        }
+        
+        if (error.message.includes('connection')) {
+          console.log('• Check PostgreSQL: docker logs codemind-postgres');
+          console.log('• Check Neo4j: docker logs codemind-neo4j');
+        }
+      }
+      
+      console.log('• For support: https://github.com/anthropics/claude-code/issues');
+      console.log('');
+    }
+  });
+
+// Help and examples
+program
+  .command('examples')
+  .description('Show usage examples')
+  .action(() => {
+    console.log(`
+CodeMind CLI Examples - Three Layer Architecture
+
+🧠 Layer 1: Smart CLI
+  codemind analyze ./my-project --role architect
+  codemind analyze ./frontend --role security
+  codemind tools --category linting
+
+🎭 Layer 2: Orchestrator
+  codemind orchestrate "security audit" ./my-app
+  codemind orchestrate "performance optimization" ./backend
+  codemind status
+
+🚀 Layer 3: Planner (via Dashboard)
+  Visit: http://localhost:3005
+  Click: "💡 I have an idea" button
+
+System Management:
+  codemind status                    # Check all services
+  ./scripts/init-database.ps1       # Initialize database
+  ./scripts/db-status.ps1           # Database status
+
+Environment Setup:
+  export ORCHESTRATOR_URL=http://localhost:3006
+  export DB_HOST=localhost
+  export DB_PORT=5432
+    `);
+  });
+
+// Semantic search command
 program
   .command('search')
-  .description('Search code using semantic similarity')
+  .description('Search the codebase using semantic graph')
   .argument('<query>', 'Search query')
-  .option('--semantic', 'Use semantic search', true)
-  .option('-l, --limit <number>', 'Number of results', '10')
-  .option('--cross-project', 'Search across projects', false)
-  .option('--project <path>', 'Project path', '.')
-  .action(async (query: string, options: any) => {
+  .argument('<projectPath>', 'Path to project directory')
+  .option('--intent <intent>', 'Search intent (overview, coding, architecture, debugging)', 'overview')
+  .option('--max-results <n>', 'Maximum number of results', '10')
+  .action(async (query, projectPath, options) => {
+    const startTime = Date.now();
+    
     try {
-      logger.info('Searching with vector similarity...');
+      cliLogger.commandHeader('SEMANTIC SEARCH', 'Search codebase using intelligent semantic graph');
       
-      const results = await vectorSearch?.search({
+      // Provide enhanced context before processing
+      // Enhanced context is provided via local workflow
+      
+      cliLogger.semanticSearching(query, options.intent);
+      
+      // Import the class properly
+      const { SemanticOrchestrator } = require('../orchestration/semantic-orchestrator');
+      const semanticOrchestrator = new SemanticOrchestrator();
+      
+      cliLogger.semanticInitializing();
+      await semanticOrchestrator.initialize();
+      
+      // Get graph stats for status
+      const graphStats = await semanticOrchestrator['semanticGraph'].getGraphStatistics();
+      cliLogger.semanticConnected({ 
+        nodes: graphStats.total_nodes || 0, 
+        relationships: graphStats.total_relationships || 0 
+      });
+      
+      const result = await semanticOrchestrator.analyzeWithSemanticContext({
         query,
-        projectPath: options.project,
-        limit: parseInt(options.limit),
-        crossProject: options.crossProject,
-        useSemanticSearch: options.semantic
+        projectPath,
+        intent: options.intent,
+        maxResults: parseInt(options.maxResults),
+        includeRelated: true
       });
-
-      console?.log('\n🔎 Search Results:');
-      console?.log('─'.repeat(50));
       
-      results.matches?.forEach((match, i) => {
-        console?.log(`\n${i + 1}. ${match.file}:${match.line} (${match.similarity?.toFixed(3)} similarity)`);
-        console?.log(`   ${match.codeSnippet}`);
-        if (match.context) {
-          console?.log(`   📝 Context: ${match.context}`);
-        }
+      const duration = Date.now() - startTime;
+      cliLogger.semanticResults({
+        primaryResults: result.primaryResults.length,
+        relatedConcepts: result.relatedConcepts.length,
+        crossDomainInsights: result.crossDomainInsights.length,
+        duration
       });
-
-    } catch (error) {
-      logger.error('Failed to search', error as Error);
-      process?.exit(1);
-    }
-  });
-
-// Centralization detection commands
-program
-  .command('centralize-config')
-  .description('Detect scattered configurations that can be centralized')
-  .option('--scan', 'Scan for opportunities', false)
-  .option('--suggest-migrations', 'Include migration suggestions', false)
-  .option('--risk-assess', 'Include risk assessment', false)
-  .option('--type <types>', 'Config types to check (comma-separated)')
-  .option('--project <path>', 'Project path', '.')
-  .action(async (options: any) => {
-    try {
-      logger.info('Scanning for centralization opportunities...');
       
-      const results = await centralizationDetector?.scanProject({
-        projectPath: options.project,
-        configTypes: options.type ? options.type?.split(',') : undefined,
-        includeMigrationPlan: options.suggestMigrations,
-        includeRiskAssessment: options.riskAssess
-      });
-
-      console?.log('\n🎯 Centralization Opportunities:');
-      console?.log('─'.repeat(50));
-      
-      results.opportunities?.forEach((opp, i) => {
-        console?.log(`\n${i + 1}. ${opp.configType} (${opp.scatteredLocations?.length} locations)`);
-        console?.log(`   Benefit score: ${opp.benefitScore?.toFixed(2)}`);
-        console?.log(`   Complexity: ${opp.complexityScore?.toFixed(2)}`);
-        console?.log(`   Locations: ${opp.scatteredLocations?.map(l => l.file).join(', ')}`);
-        
-        if (opp.migrationPlan && options.suggestMigrations) {
-          console?.log(`   📋 Migration: ${opp.migrationPlan.approach}`);
-          console?.log(`   ⏱️  Estimated effort: ${opp.migrationPlan.estimatedEffort}`);
-        }
-      });
-
-    } catch (error) {
-      logger.error('Failed to detect centralization opportunities', error as Error);
-      process?.exit(1);
-    }
-  });
-
-// Git integration commands
-program
-  .command('git')
-  .description('Git integration and auto-commit management')
-  .addCommand(
-    new Command('status')
-      .description('Show Git integration status and recent commits')
-      .option('--project <path>', 'Project path', '.')
-      .action(async (options: any) => {
-        try {
-          const status = await gitIntegration?.getIntegrationStatus(options.project);
-          
-          console?.log('\n📊 Git Integration Status:');
-          console?.log('─'.repeat(50));
-          console?.log(`Repository: ${status.isRepository ? '✅ Valid' : '❌ Not a git repo'}`);
-          console?.log(`Auto-commit: ${status.autoCommitEnabled ? '✅ Enabled' : '❌ Disabled'}`);
-          console?.log(`Tracking: ${status.isTracking ? '🔍 Active' : '⏸️  Paused'}`);
-          
-          if (status.recentCommits?.length > 0) {
-            console?.log('\n📝 Recent Commits:');
-            status.recentCommits?.forEach(commit => {
-              console?.log(`  ${commit.hash?.substring(0, 8)} - ${commit.message} (${commit.timestamp?.toLocaleDateString()})`);
-            });
+      // Show detailed results if found
+      if (result.primaryResults.length > 0) {
+        console.log(`\n${cliLogger.highlight('📋 Primary Results:')}`);
+        result.primaryResults.forEach((item: any, index: number) => {
+          console.log(`\n${index + 1}. ${cliLogger.bold(item.name)} ${cliLogger.dim(`(${item.type})`)}`);
+          if (item.path) {
+            console.log(`   ${cliLogger.dim('Path:')} ${cliLogger.path(item.path)}`);
           }
-
-        } catch (error) {
-          logger.error('Failed to get Git status', error as Error);
-          process?.exit(1);
-        }
-      })
-  )
-  .addCommand(
-    new Command('analyze')
-      .description('Analyze changes between commits')
-      .option('--from <hash>', 'From commit hash', 'HEAD~1')
-      .option('--to <hash>', 'To commit hash', 'HEAD')
-      .option('--project <path>', 'Project path', '.')
-      .action(async (options: any) => {
-        try {
-          logger.info(`Analyzing changes from ${options.from} to ${options.to}...`);
-          
-          const analysis = await gitIntegration?.analyzeCommitRange(
-            options.project,
-            options.from,
-            options.to
-          );
-          
-          console?.log('\n🔍 Change Analysis:');
-          console?.log('─'.repeat(50));
-          console?.log(`Significance Score: ${analysis.significanceScore?.toFixed(2)}/5.0`);
-          console?.log(`Files Changed: ${analysis.filesChanged}`);
-          console?.log(`Lines Added: +${analysis.linesAdded}`);
-          console?.log(`Lines Deleted: -${analysis.linesDeleted}`);
-          
-          if (analysis.newFeatures?.length > 0) {
-            console?.log(`\n✨ New Features Detected:`);
-            analysis.newFeatures?.forEach(feature => {
-              console?.log(`  • ${feature}`);
-            });
+          if (item.description) {
+            console.log(`   ${cliLogger.dim('Description:')} ${item.description}`);
           }
-
-        } catch (error) {
-          logger.error('Failed to analyze commits', error as Error);
-          process?.exit(1);
-        }
-      })
-  )
-  .addCommand(
-    new Command('enable-autocommit')
-      .description('Enable automatic commits for significant changes')
-      .option('--min-score <value>', 'Minimum significance score for auto-commit', '2.0')
-      .option('--check-compilation', 'Only commit if code compiles', true)
-      .option('--project <path>', 'Project path', '.')
-      .action(async (options: any) => {
-        try {
-          logger.info('Enabling auto-commit system...');
-          
-          const rules = {
-            enabled: true,
-            minSignificanceScore: parseFloat(options.minScore),
-            requiresCompilation: options.checkCompilation,
-            watchPatterns: ['src/**/*', 'test/**/*', 'tests/**/*']
-          };
-
-          await gitIntegration?.configureAutoCommit(options.project, rules);
-          await gitIntegration?.startAutoCommitWatcher();
-          
-          console?.log('\n✅ Auto-commit system enabled');
-          console?.log(`• Minimum score: ${rules.minSignificanceScore}`);
-          console?.log(`• Compilation check: ${rules.requiresCompilation ? 'Yes' : 'No'}`);
-          console?.log('• File watcher started');
-
-        } catch (error) {
-          logger.error('Failed to enable auto-commit', error as Error);
-          process?.exit(1);
-        }
-      })
-  )
-  .addCommand(
-    new Command('disable-autocommit')
-      .description('Disable automatic commits')
-      .option('--project <path>', 'Project path', '.')
-      .action(async (options: any) => {
-        try {
-          await gitIntegration?.configureAutoCommit(options.project, { enabled: false });
-          await gitIntegration?.stopAutoCommitWatcher();
-          
-          console?.log('✅ Auto-commit system disabled');
-
-        } catch (error) {
-          logger.error('Failed to disable auto-commit', error as Error);
-          process?.exit(1);
-        }
-      })
-  );
-
-// Knowledge Graph commands
-program
-  .command('knowledge')
-  .description('Knowledge graph operations for semantic code analysis')
-  .addCommand(
-    new Command('analyze')
-      .description('Build semantic knowledge graph from codebase')
-      .option('--project <path>', 'Project path', '.')
-      .option('--include-tests', 'Include test files in analysis', false)
-      .option('--min-confidence <value>', 'Minimum confidence threshold', '0.6')
-      .action(async (options: any) => {
-        try {
-          logger.info('🧠 Building semantic knowledge graph...');
-          
-          const { knowledgeGraph, semanticAnalyzer } = initializeKnowledgeGraph(options.project);
-          
-          const result = await semanticAnalyzer?.analyzeProject();
-          
-          console?.log('\n🧠 Semantic Knowledge Graph Analysis:');
-          console?.log('─'.repeat(50));
-          console?.log(`Nodes extracted: ${result.nodesExtracted}`);
-          console?.log(`Triads created: ${result.triadsCreated}`);
-          console?.log(`Patterns detected: ${result.patterns?.length}`);
-          
-          if (result.patterns?.length > 0) {
-            console?.log('\n📋 Detected Patterns:');
-            result.patterns?.forEach((pattern, i) => {
-              console?.log(`${i + 1}. ${pattern.name} (${pattern.type}) - ${(pattern?.confidence * 100).toFixed(1)}% confidence`);
-              console?.log(`   Description: ${pattern.description}`);
-              console?.log(`   Affected nodes: ${pattern.nodes?.length}`);
-            });
+          if (item.relevance) {
+            console.log(`   ${cliLogger.dim('Relevance:')} ${cliLogger.highlight((item.relevance * 100).toFixed(1) + '%')}`);
           }
-          
-          if (result.insights?.length > 0) {
-            console?.log('\n💡 Analysis Insights:');
-            result.insights?.forEach((insight, i) => {
-              console?.log(`${i + 1}. ${insight}`);
-            });
-          }
-
-        } catch (error) {
-          logger.error('Failed to analyze knowledge graph', error as Error);
-          process?.exit(1);
-        }
-      })
-  )
-  .addCommand(
-    new Command('query')
-      .description('Query the knowledge graph')
-      .argument('<query>', 'Query to execute')
-      .option('--type <type>', 'Query type: cypher, semantic, pattern', 'semantic')
-      .option('--limit <number>', 'Limit results', '10')
-      .option('--project <path>', 'Project path', '.')
-      .action(async (query: string, options: any) => {
-        try {
-          logger.info(`🔍 Executing ${options.type} query...`);
-          
-          const { queryEngine } = initializeKnowledgeGraph(options.project);
-          let result: any;
-
-          switch (options.type) {
-            case 'cypher':
-              result = await queryEngine?.executeCypher({ query });
-              break;
-            case 'semantic':
-              result = await queryEngine?.semanticSearch(query, 'both', parseInt(options.limit));
-              break;
-            case 'pattern':
-              // For pattern queries, we'd need to parse the query into a pattern structure
-              console?.log('Pattern queries not yet implemented. Use semantic or cypher queries.');
-              return;
-            default:
-              throw new Error(`Unknown query type: ${options.type}`);
-          }
-
-          console?.log('\n🔍 Query Results:');
-          console?.log('─'.repeat(50));
-          console?.log(`Found ${result.data?.length} results in ${result.metadata.executionTime}ms`);
-          console?.log(`Nodes traversed: ${result.metadata.nodesTraversed}`);
-          console?.log(`Triads examined: ${result.metadata.triadsExamined}`);
-          
-          if (options?.type === 'semantic') {
-            result.data?.forEach((item: any, i: number) => {
-              console?.log(`\n${i + 1}. ${item.item.name || item.item.id} (${(item?.similarity * 100).toFixed(1)}% similarity)`);
-              if (item.item.type) {
-                console?.log(`   Type: ${item.item.type}`);
-              }
-              if (item.item.sourceLocation) {
-                console?.log(`   Location: ${item.item.sourceLocation.filePath}:${item.item.sourceLocation.startLine}`);
-              }
-              if (item.item.metadata?.description) {
-                console?.log(`   Description: ${item.item.metadata.description}`);
-              }
-            });
-          } else {
-            result.data?.slice(0, parseInt(options.limit))?.forEach((item: any, i: number) => {
-              console?.log(`${i + 1}. ${JSON.stringify(item, null, 2)}`);
-            });
-          }
-
-        } catch (error) {
-          logger.error('Failed to execute query', error as Error);
-          process?.exit(1);
-        }
-      })
-  )
-  .addCommand(
-    new Command('path')
-      .description('Find paths between nodes in the knowledge graph')
-      .argument('<from>', 'Source node name or ID')
-      .argument('<to>', 'Target node name or ID')
-      .option('--relations <types>', 'Relationship types to traverse (comma-separated)')
-      .option('--max-depth <number>', 'Maximum path depth', '5')
-      .option('--all-paths', 'Find all paths (not just shortest)', false)
-      .option('--project <path>', 'Project path', '.')
-      .action(async (from: string, to: string, options: any) => {
-        try {
-          logger.info(`🛤️  Finding paths from ${from} to ${to}...`);
-          
-          const { queryEngine } = initializeKnowledgeGraph(options.project);
-          
-          // Find nodes by name first
-          const fromResult = await queryEngine?.semanticSearch(from, 'nodes', 1);
-          const toResult = await queryEngine?.semanticSearch(to, 'nodes', 1);
-          
-          if (fromResult.data?.length === 0) {
-            console?.log(`❌ Source node '${from}' not found`);
-            return;
-          }
-          
-          if (toResult.data?.length === 0) {
-            console?.log(`❌ Target node '${to}' not found`);
-            return;
-          }
-
-          const fromNodeId = (fromResult.data?.[0].item as any).id;
-          const toNodeId = (toResult.data?.[0].item as any).id;
-          const relationTypes = options.relations ? options.relations?.split(',') : undefined;
-          const maxDepth = parseInt(options.maxDepth);
-
-          const result = options.allPaths 
-            ? await queryEngine?.findAllPaths(fromNodeId, toNodeId, relationTypes, maxDepth, 10)
-            : await queryEngine?.findShortestPath(fromNodeId, toNodeId, relationTypes, maxDepth);
-
-          console?.log('\n🛤️  Path Analysis:');
-          console?.log('─'.repeat(50));
-          
-          if (options.allPaths) {
-            const paths = Array.isArray(result.data) ? result.data : [result.data];
-            console?.log(`Found ${paths.length} paths`);
-            paths.forEach((path: any, i: number) => {
-              console?.log(`\nPath ${i + 1} (confidence: ${(path?.confidence * 100).toFixed(1)}%):`);
-              path.path?.forEach((node: any, nodeIndex: number) => {
-                console?.log(`  ${nodeIndex + 1}. ${node.name} (${node.type})`);
-                if (nodeIndex < path.relationships?.length) {
-                  const rel = path.relationships[nodeIndex];
-                  console?.log(`     --[${rel.predicate}]-->`);
-                }
-              });
-            });
-          } else if (result.data) {
-            const pathData = Array.isArray(result.data) ? result.data[0] : result.data;
-            if (pathData) {
-              console?.log(`Shortest path found (confidence: ${((pathData.confidence || 0) * 100).toFixed(1)}%):`);
-              if (pathData.path) {
-                pathData.path.forEach((node: any, i: number) => {
-                  console?.log(`${i + 1}. ${node.name} (${node.type})`);
-                  if (i < pathData.relationships?.length) {
-                    const rel = pathData.relationships[i];
-                    console?.log(`   --[${rel.predicate}]-->`);
-                  }
-                });
-              }
-              console?.log(`\nTotal weight: ${(pathData.totalWeight || 0).toFixed(2)}`);
-            }
-          } else {
-            console?.log('❌ No path found between the specified nodes');
-          }
-          
-          console?.log(`\nQuery took ${result.metadata.executionTime}ms`);
-
-        } catch (error) {
-          logger.error('Failed to find paths', error as Error);
-          process?.exit(1);
-        }
-      })
-  )
-  .addCommand(
-    new Command('insights')
-      .description('Get architectural insights from the knowledge graph')
-      .option('--type <types>', 'Insight types: patterns, communities, centrality', 'patterns')
-      .option('--project <path>', 'Project path', '.')
-      .action(async (options: any) => {
-        try {
-          logger.info('🔬 Analyzing knowledge graph for insights...');
-          
-          const { knowledgeGraph, queryEngine } = initializeKnowledgeGraph(options.project);
-          
-          console?.log('\n🔬 Knowledge Graph Insights:');
-          console?.log('─'.repeat(50));
-
-          const insightTypes = options.type?.split(',');
-
-          if (insightTypes?.includes('patterns')) {
-            const insights = await knowledgeGraph?.detectArchitecturalInsights();
-            
-            console?.log('\n📐 Architectural Insights:');
-            insights?.forEach((insight, i) => {
-              console?.log(`${i + 1}. ${insight.description} (${(insight?.confidence * 100).toFixed(1)}% confidence)`);
-              console?.log(`   Type: ${insight.type}`);
-              console?.log(`   Affected nodes: ${insight.affectedNodes?.length}`);
-              if (insight.recommendations?.length > 0) {
-                console?.log(`   Recommendations:`);
-                insight.recommendations?.forEach(rec => {
-                  console?.log(`   - ${rec}`);
-                });
-              }
-            });
-          }
-
-          if (insightTypes?.includes('communities')) {
-            const communities = await queryEngine?.findCommunities();
-            
-            console?.log('\n🏘️  Semantic Communities:');
-            communities.data?.forEach((community, i) => {
-              console?.log(`${i + 1}. ${community.name} (${community.nodes?.length} nodes)`);
-              console?.log(`   Coherence: ${(community?.coherenceScore * 100).toFixed(1)}%`);
-              console?.log(`   Representative triads: ${community.representativeTriads?.length}`);
-              if (community.description) {
-                console?.log(`   Description: ${community.description}`);
-              }
-            });
-          }
-
-          if (insightTypes?.includes('centrality')) {
-            // Analyze centrality for most important nodes
-            const allNodes = await knowledgeGraph?.queryNodes({ limit: 10 });
-            
-            console?.log('\n📊 Node Centrality Analysis:');
-            for (const node of allNodes) {
-              const centrality = await queryEngine?.analyzeNodeCentrality(node.id);
-              console?.log(`\n${node.name} (${node.type}):`);
-              console?.log(`  Betweenness: ${(centrality.data?.betweennessCentrality * 100).toFixed(1)}%`);
-              console?.log(`  Closeness: ${(centrality.data?.closenessCentrality * 100).toFixed(1)}%`);
-              console?.log(`  Degree: ${(centrality.data?.degreeCentrality * 100).toFixed(1)}%`);
-              console?.log(`  Eigenvector: ${(centrality.data?.eigenvectorCentrality * 100).toFixed(1)}%`);
-            }
-          }
-
-        } catch (error) {
-          logger.error('Failed to analyze insights', error as Error);
-          process?.exit(1);
-        }
-      })
-  )
-  .addCommand(
-    new Command('export')
-      .description('Export knowledge graph data')
-      .option('--format <format>', 'Export format: json, graphml, cypher', 'json')
-      .option('--output <file>', 'Output file path')
-      .option('--project <path>', 'Project path', '.')
-      .action(async (options: any) => {
-        try {
-          logger.info(`📤 Exporting knowledge graph in ${options.format} format...`);
-          
-          const { knowledgeGraph } = initializeKnowledgeGraph(options.project);
-          
-          const graphData = await knowledgeGraph?.exportGraph();
-          
-          let exportData: string;
-          let defaultFilename: string;
-
-          switch (options.format) {
-            case 'json':
-              exportData = JSON.stringify(graphData, null, 2);
-              defaultFilename = 'knowledge-graph.json';
-              break;
-            case 'graphml':
-              const convertToGraphMLFn = (this as any).convertToGraphML;
-              if (convertToGraphMLFn && graphData) {
-                const result = await convertToGraphMLFn(graphData);
-                exportData = result ?? '';
-              } else {
-                exportData = '';
-              }
-              defaultFilename = 'knowledge-graph.graphml';
-              break;
-            case 'cypher':
-              const convertToCypherFn = (this as any).convertToCypher;
-              if (convertToCypherFn && graphData) {
-                const result = await convertToCypherFn(graphData);
-                exportData = result ?? '';
-              } else {
-                exportData = '';
-              }
-              defaultFilename = 'knowledge-graph.cypher';
-              break;
-            default:
-              throw new Error(`Unsupported export format: ${options.format}`);
-          }
-
-          const outputPath = options.output || defaultFilename;
-          await fs.promises.writeFile(outputPath, exportData, 'utf-8');
-          
-          console?.log(`✅ Knowledge graph exported to ${outputPath}`);
-          console?.log(`   Nodes: ${graphData.nodes?.length}`);
-          console?.log(`   Triads: ${graphData.triads?.length}`);
-          console?.log(`   Size: ${(exportData?.length / 1024).toFixed(2)} KB`);
-
-        } catch (error) {
-          logger.error('Failed to export knowledge graph', error as Error);
-          process?.exit(1);
-        }
-      })
-  );
-
-// Self-improvement commands
-program
-  .command('self-improve')
-  .description('Run self-improvement analysis on CodeMind codebase')
-  .option('--apply', 'Apply identified improvements', false)
-  .option('--report', 'Generate detailed report', true)
-  .option('--project <path>', 'CodeMind project path', '.')
-  .action(async (options: any) => {
-    try {
-      logger.info('🔄 Running self-improvement analysis...');
-      
-      const engine = new SelfImprovementEngine(options.project);
-      const report = await engine?.runSelfImprovement();
-      
-      console?.log('\n🎯 Self-Improvement Report:');
-      console?.log('─'.repeat(50));
-      console?.log(`Analysis Date: ${report.timestamp?.toISOString()}`);
-      console?.log(`Total Improvements: ${report.improvements?.length}`);
-      
-      // Group by type
-      const byType = report.improvements?.reduce((acc, imp) => {
-        acc[imp.type] = (acc[imp.type] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      
-      console?.log('\n📊 Improvement Categories:');
-      for (const [type, count] of Object.entries(byType)) {
-        console?.log(`  ${type?.replace('_', ' ')}: ${count}`);
-      }
-      
-      // High priority items
-      const highPriority = report.improvements?.filter(i => i.benefit > 7);
-      if (highPriority?.length > 0) {
-        console?.log('\n🔥 High Priority Improvements:');
-        highPriority?.forEach((imp, i) => {
-          console?.log(`${i + 1}. ${imp.description} (benefit: ${imp.benefit})`);
-          console?.log(`   Target: ${imp.target}`);
-          console?.log(`   Suggestion: ${imp.suggestion}`);
         });
       }
       
-      // Recommendations
-      if (report.recommendations?.length > 0) {
-        console?.log('\n💡 Recommendations:');
-        report.recommendations?.forEach((rec, i) => {
-          console?.log(`${i + 1}. ${rec}`);
-        });
+      // Show related concepts
+      if (result.relatedConcepts.length > 0) {
+        cliLogger.conceptsList(result.relatedConcepts);
       }
       
-      // Metrics comparison
-      console?.log('\n📈 Impact Metrics:');
-      console?.log(`Before: ${report.metrics.before.totalDuplications || 0} duplications, ${report.metrics.before.circularDependencies || 0} circular deps`);
-      console?.log(`After:  ${report.metrics.after.totalDuplications || 0} duplications, ${report.metrics.after.circularDependencies || 0} circular deps`);
-      
-      if (options.apply) {
-        console?.log('\n🚀 Applying improvements...');
-        // In a real scenario, you'd selectively apply improvements
-        // For now, just mark them as ready for manual application
-        console?.log('Manual application required. Review suggestions above.');
+      // Show recommendations
+      if (result.recommendations.length > 0) {
+        cliLogger.recommendationsList(result.recommendations);
       }
       
-      engine?.close();
+      await semanticOrchestrator.close();
+      cliLogger.success('Semantic search completed');
+      
+      // Assessment handled by local workflow when needed
       
     } catch (error) {
-      logger.error('Self-improvement failed', error as Error);
-      process?.exit(1);
+      cliLogger.error('Semantic search failed', error instanceof Error ? error.message : 'Unknown error');
+      cliLogger.semanticFallback('Neo4j connection failed');
+      console.log(`\n${cliLogger.dim('💡 Start services: docker-compose -f docker-compose.semantic-graph.yml up -d')}`);
     }
   });
 
+// Context optimization command
 program
-  .command('dogfood')
-  .alias('df')
-  .description('Use CodeMind tools on CodeMind itself (dogfooding)')
-  .option('--feature <feature>', 'Specific feature to dogfood: duplicates|tree|search|centralize', 'all')
-  .option('--project <path>', 'CodeMind project path', '.')
-  .action(async (options: any) => {
+  .command('context')
+  .description('Optimize context for Claude Code using semantic intelligence')
+  .argument('<query>', 'Query for context optimization')
+  .argument('<projectPath>', 'Path to project directory')
+  .option('--tokens <n>', 'Token budget', '8000')
+  .option('--strategy <strategy>', 'Optimization strategy (minimal, smart, full)', 'smart')
+  .option('--focus <area>', 'Focus area for analysis')
+  .action(async (query, projectPath, options) => {
     try {
-      const projectPath = options.project;
+      cliLogger.commandHeader('CONTEXT OPTIMIZATION', 'Intelligent file prioritization for Claude Code');
       
-      switch (options.feature) {
-        case 'duplicates':
-        case 'all':
-          console?.log('🔍 Finding duplicates in CodeMind codebase...');
-          const duplicates = await duplicationDetector?.findDuplicates({
-            projectPath,
-            includeSemantic: true,
-            similarityThreshold: 0.8,
-            includeRefactoringSuggestions: true,
-            filePatterns: ['src/**/*.ts'],
-            excludePatterns: ['**/node_modules/**', '**/dist/**']
-          });
-          console?.log(`Found ${duplicates.duplicates?.length} duplication groups`);
-          
-          if (options?.feature !== 'all') break;
-          
-        case 'tree':
-          console?.log('🌳 Analyzing CodeMind dependency tree...');
-          const tree = await treeNavigator?.buildDependencyTree(projectPath);
-          console?.log(`Tree has ${tree.nodes.size} nodes and ${tree.circularDependencies?.length} circular dependencies`);
-          
-          if (options?.feature !== 'all') break;
-          
-        case 'search':
-          console?.log('🔎 Testing semantic search on CodeMind...');
-          const searchResults = await vectorSearch?.search({
-            query: 'AST analysis',
-            projectPath,
-            limit: 5,
-            crossProject: false,
-            useSemanticSearch: true
-          });
-          console?.log(`Found ${searchResults.matches?.length} semantic matches`);
-          
-          if (options?.feature !== 'all') break;
-          
-        case 'centralize':
-          console?.log('🎯 Finding centralization opportunities in CodeMind...');
-          const centralization = await centralizationDetector?.scanProject({
-            projectPath,
-            includeMigrationPlan: true,
-            includeRiskAssessment: true
-          });
-          console?.log(`Found ${centralization.opportunities?.length} centralization opportunities`);
-          break;
-          
-        default:
-          console?.log('❌ Unknown feature. Use: duplicates, tree, search, centralize, or all');
-          return;
+      // Provide enhanced context before processing
+      // Enhanced context provided via local workflow
+      
+      const contextOptimizer = new ContextOptimizer();
+      let semanticEnabled = false;
+      
+      try {
+        // Check if semantic graph is available
+        await contextOptimizer['semanticOrchestrator'].initialize();
+        semanticEnabled = true;
+      } catch (error) {
+        // Semantic graph not available, will use fallback
       }
       
-      console?.log('✅ Dogfooding complete. CodeMind has been analyzed by CodeMind!');
+      cliLogger.contextOptimizing(query, parseInt(options.tokens), semanticEnabled);
+      
+      if (!semanticEnabled) {
+        cliLogger.semanticFallback('Neo4j not available');
+      }
+      
+      const result = await contextOptimizer.optimizeContext({
+        query,
+        projectPath,
+        tokenBudget: parseInt(options.tokens),
+        strategy: options.strategy,
+        focusArea: options.focus
+      });
+      
+      // Count semantic boosts
+      const semanticBoosts = result.priorityFiles.filter((file: any) => file.semanticBoost).length;
+      
+      cliLogger.contextResults({
+        strategy: result.strategy || options.strategy,
+        estimatedTokens: result.estimatedTokens,
+        tokenBudget: result.tokenBudget,
+        priorityFiles: result.priorityFiles.length,
+        semanticBoosts: semanticEnabled ? semanticBoosts : undefined
+      });
+      
+      // Format files with semantic boost indicators
+      const formattedFiles = result.priorityFiles.slice(0, 10).map((file: any) => ({
+        path: file.path,
+        score: file.score,
+        importance: file.importance,
+        language: file.language,
+        semanticBoost: semanticEnabled && file.score > 10, // Heuristic for semantic boost
+        summary: file.summary
+      }));
+      
+      cliLogger.fileList(formattedFiles);
+      cliLogger.success('Context optimization completed');
+      
+      // Assessment handled by local workflow when needed
       
     } catch (error) {
-      logger.error('Dogfooding failed', error as Error);
-      process?.exit(1);
+      cliLogger.error('Context optimization failed', error instanceof Error ? error.message : 'Unknown error');
     }
   });
 
-// Add the auto-fix command
-program.addCommand(createAutoFixCommand());
+// Reconciliation command
+program
+  .command('reconcile [project-path]')
+  .description('Reconcile database with current codebase state')
+  .option('-p, --project-id <id>', 'Project ID (will attempt to auto-detect if not provided)')
+  .option('-s, --scope <scope>', 'Reconciliation scope: full, incremental, selective', 'incremental')
+  .option('-t, --tools <tools>', 'Comma-separated list of specific tools (for selective scope)')
+  .option('-h, --hours <hours>', 'Hours to look back for incremental reconciliation', '24')
+  .option('-d, --dry-run', 'Preview changes without applying them', false)
+  .option('-v, --verbose', 'Verbose output', false)
+  .action(async (projectPathArg: string = process.cwd(), options) => {
+    try {
+      logger.info('🔄 Starting database reconciliation...');
+      
+      const { createReconcileCommand } = await import('./commands/reconcile');
+      const reconcileCommand = createReconcileCommand();
+      
+      // Execute the reconcile command with the provided arguments
+      const args = [projectPathArg];
+      if (options.projectId) args.push('--project-id', options.projectId);
+      if (options.scope) args.push('--scope', options.scope);
+      if (options.tools) args.push('--tools', options.tools);
+      if (options.hours) args.push('--hours', options.hours);
+      if (options.dryRun) args.push('--dry-run');
+      if (options.verbose) args.push('--verbose');
+      
+      await reconcileCommand.parseAsync(args, { from: 'user' });
+      
+    } catch (error) {
+      logger.error('Reconciliation failed:', error);
+      process.exit(1);
+    }
+  });
 
-// Global options
-program?.option('-v, --verbose', 'Verbose logging', false);
-program?.option('--debug', 'Debug mode', false);
 
-program?.hook('preAction', (thisCommand) => {
-  const options = thisCommand?.opts();
-  if (options.verbose) {
-    logger.setLevel('info');
-  }
-  if (options.debug) {
-    logger.setLevel('debug');
-  }
-});
+program.parse();
 
-// Parse CLI arguments
-program?.parse();
-
-export { program };
+export default program;

@@ -67,11 +67,23 @@ export class RedisMessagingService extends EventEmitter {
         HEARTBEAT: 'codemind:heartbeat'
     };
 
+    private static buildRedisUrl(): string {
+        const host = process.env.REDIS_HOST || 'localhost';
+        const port = process.env.REDIS_PORT || '6379';
+        return `redis://${host}:${port}`;
+    }
+
     constructor(
-        private redisUrl: string = process.env.REDIS_URL || 'redis://localhost:6379',
+        private redisUrl: string = process.env.REDIS_URL || RedisMessagingService.buildRedisUrl(),
         private instanceId: string = `codemind-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     ) {
         super();
+        // Build Redis URL with password if provided
+        if (process.env.REDIS_PASSWORD && !this.redisUrl.includes('@')) {
+            const url = new URL(this.redisUrl);
+            url.password = process.env.REDIS_PASSWORD;
+            this.redisUrl = url.toString();
+        }
         this.setupRedisClients();
     }
 

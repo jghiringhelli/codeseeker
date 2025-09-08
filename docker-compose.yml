@@ -1,7 +1,14 @@
+# CodeMind Docker Compose - Unified Configuration
+# Core services: PostgreSQL, Redis, Neo4j, API
+# Optional services: Dashboard, Orchestrator (use --profile dev)
+
 services:
-  # PostgreSQL Database
-  codemind-db:
-    image: postgres:15-alpine
+  # PostgreSQL Database with pgvector
+  database:
+    build:
+      context: .
+      dockerfile: docker/postgres-vector.Dockerfile
+    image: codemind-postgres-vector:latest
     container_name: codemind-database
     restart: unless-stopped
     environment:
@@ -10,9 +17,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-codemind123}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
     volumes:
-      - codemind_db_data:/var/lib/postgresql/data
-      - ./src/database/schema.postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./docker/scripts/db-init.sh:/docker-entrypoint-initdb.d/02-init.sh:ro
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "${DB_PORT:-5432}:5432"
     networks:
@@ -24,16 +29,14 @@ services:
       retries: 5
       start_period: 10s
 
-  # Redis Message Queue for Sequential Workflows
-  codemind-redis:
+  # Redis Cache & Message Queue
+  redis:
     image: redis:7-alpine
     container_name: codemind-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
-    environment:
-      REDIS_PASSWORD: ""
     volumes:
-      - codemind_redis_data:/data
+      - redis_data:/data
     ports:
       - "${REDIS_PORT:-6379}:6379"
     networks:
@@ -43,171 +46,192 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 5s
 
-  # CodeMind API Service
-  codemind-api:
+  # Neo4j Graph Database
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: codemind-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-codemind123}
+      NEO4J_dbms_memory_heap_initial__size: 512m
+      NEO4J_dbms_memory_heap_max__size: 1G
+      NEO4J_dbms_memory_pagecache_size: 256m
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"  # Browser
+      - "${NEO4J_BOLT_PORT:-7687}:7687"  # Bolt protocol
+    networks:
+      - codemind-network
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "${NEO4J_PASSWORD:-codemind123}", "RETURN 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # MongoDB Document Database
+  mongodb:
+    image: mongo:7.0
+    container_name: codemind-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-codemind}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-codemind123}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-codemind}
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    networks:
+      - codemind-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # CodeMind API
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
+      target: ${BUILD_TARGET:-production}
+    image: codemind-api:latest
     container_name: codemind-api
     restart: unless-stopped
     depends_on:
-      codemind-db:
+      database:
         condition: service_healthy
-      codemind-redis:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3004
-      DB_HOST: codemind-db
+      DB_HOST: database
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-codemind}
       DB_USER: ${DB_USER:-codemind}
       DB_PASSWORD: ${DB_PASSWORD:-codemind123}
-      REDIS_HOST: codemind-redis
+      REDIS_HOST: redis
       REDIS_PORT: 6379
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-codemind123}
+      MONGO_URI: mongodb://${MONGO_USER:-codemind}:${MONGO_PASSWORD:-codemind123}@mongodb:27017/${MONGO_DB:-codemind}?authSource=admin
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      TZ: ${TZ:-UTC}
     ports:
       - "${API_PORT:-3004}:3004"
     volumes:
-      - codemind_api_logs:/app/logs
-      - C:/workspace:/workspace:ro
+      - ./logs:/app/logs
+      - ${WORKSPACE_PATH:-C:/workspace}:/workspace:ro
     networks:
       - codemind-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3004/api/dashboard/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
 
-  # CodeMind Dashboard
-  codemind-dashboard:
+  # Dashboard (Development/Optional)
+  dashboard:
     build:
       context: .
       dockerfile: docker/dashboard.Dockerfile
-      target: production
+      target: ${BUILD_TARGET:-production}
+    image: codemind-dashboard:latest
     container_name: codemind-dashboard
     restart: unless-stopped
     depends_on:
-      codemind-db:
+      database:
         condition: service_healthy
-      codemind-redis:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       DASHBOARD_PORT: 3005
-      DB_HOST: codemind-db
+      DB_HOST: database
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-codemind}
       DB_USER: ${DB_USER:-codemind}
       DB_PASSWORD: ${DB_PASSWORD:-codemind123}
-      REDIS_HOST: codemind-redis
+      REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-codemind123}
+      MONGO_URI: mongodb://${MONGO_USER:-codemind}:${MONGO_PASSWORD:-codemind123}@mongodb:27017/${MONGO_DB:-codemind}?authSource=admin
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      TZ: ${TZ:-UTC}
     ports:
       - "${DASHBOARD_PORT:-3005}:3005"
     volumes:
-      - codemind_dashboard_logs:/app/logs
-      - C:/workspace:/workspace:ro
+      - ./logs:/app/logs
+      - ${WORKSPACE_PATH:-C:/workspace}:/workspace:ro
     networks:
       - codemind-network
-    healthcheck:
-      test: ["CMD", "/app/healthcheck.sh"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+    profiles:
+      - dev
+      - full
 
-  # Sequential Workflow Orchestrator Service
-  codemind-orchestrator:
+  # Orchestrator (Development/Optional)
+  orchestrator:
     build:
       context: .
       dockerfile: docker/orchestrator.Dockerfile
-      target: production
+      target: ${BUILD_TARGET:-production}
+    image: codemind-orchestrator:latest
     container_name: codemind-orchestrator
     restart: unless-stopped
     depends_on:
-      codemind-db:
+      database:
         condition: service_healthy
-      codemind-redis:
+      redis:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       ORCHESTRATOR_PORT: 3006
-      DB_HOST: codemind-db
+      DB_HOST: database
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-codemind}
       DB_USER: ${DB_USER:-codemind}
       DB_PASSWORD: ${DB_PASSWORD:-codemind123}
-      REDIS_HOST: codemind-redis
+      REDIS_HOST: redis
       REDIS_PORT: 6379
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      TZ: ${TZ:-UTC}
     ports:
       - "${ORCHESTRATOR_PORT:-3006}:3006"
     volumes:
-      - codemind_orchestrator_logs:/app/logs
-      - C:/workspace:/workspace:ro
+      - ./logs:/app/logs
+      - ${WORKSPACE_PATH:-C:/workspace}:/workspace:ro
     networks:
       - codemind-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3006/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # Role Terminal Workers (scalable)
-  codemind-role-terminal:
-    build:
-      context: .
-      dockerfile: docker/role-terminal.Dockerfile
-      target: production
-    restart: unless-stopped
-    depends_on:
-      codemind-db:
-        condition: service_healthy
-      codemind-redis:
-        condition: service_healthy
-      codemind-orchestrator:
-        condition: service_healthy
-    environment:
-      NODE_ENV: production
-      DB_HOST: codemind-db
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-codemind}
-      DB_USER: ${DB_USER:-codemind}
-      DB_PASSWORD: ${DB_PASSWORD:-codemind123}
-      REDIS_HOST: codemind-redis
-      REDIS_PORT: 6379
-      ROLE_TERMINAL_CONCURRENCY: 3
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      TZ: ${TZ:-UTC}
-    volumes:
-      - codemind_role_terminal_logs:/app/logs
-      - C:/workspace:/workspace:ro
-    networks:
-      - codemind-network
-    deploy:
-      replicas: 5  # Multiple terminal workers for parallel role processing
+    profiles:
+      - dev
+      - full
 
 volumes:
-  codemind_db_data:
+  postgres_data:
     driver: local
-  codemind_redis_data:
+  redis_data:
     driver: local
-  codemind_api_logs:
+  neo4j_data:
     driver: local
-  codemind_dashboard_logs:
+  neo4j_logs:
     driver: local
-  codemind_orchestrator_logs:
-    driver: local
-  codemind_role_terminal_logs:
+  mongodb_data:
     driver: local
 
 networks:

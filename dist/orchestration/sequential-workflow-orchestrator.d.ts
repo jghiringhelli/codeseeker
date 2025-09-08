@@ -55,7 +55,6 @@ export interface OrchestrationResult {
 }
 export declare class SequentialWorkflowOrchestrator {
     private redis;
-    private toolSelector;
     private db;
     private logger;
     private activeOrchestrations;

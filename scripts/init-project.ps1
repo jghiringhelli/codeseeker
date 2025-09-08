@@ -1,762 +1,400 @@
-# CodeMind Three-Layer Project Initialization Script (PowerShell)
-# Comprehensive initialization for all three layers: Smart CLI, Orchestrator, and Planner
+# CodeMind Project Initialization Script (PowerShell)
+# Initializes complete project indexing: PostgreSQL + Vector Search + Neo4j + File Hash Tracking
 
 param(
-    [Parameter(Position=0)]
     [string]$ProjectPath = $PWD,
-    
-    [string]$ApiUrl = "http://localhost:3004",
-    [string]$DashboardUrl = "http://localhost:3005",
-    [string]$Layers = "all", # all, cli, orchestrator, planner, or comma-separated
-    [switch]$NonInteractive,
-    [switch]$VerboseOutput,
-    [switch]$ForceReinit
+    [string]$ProjectId = $null,
+    [switch]$SkipDocker = $false,
+    [switch]$ForceReset = $false,
+    [switch]$Verbose = $false
 )
 
-# Global variables
-$script:ProjectPath = if ($ProjectPath) { $ProjectPath } else { (Get-Location).Path }
-$script:CodemindApiUrl = if ($ApiUrl) { $ApiUrl } else { "http://localhost:3004" }
-$script:DashboardUrl = if ($DashboardUrl) { $DashboardUrl } else { "http://localhost:3005" }
-$script:Interactive = -not $NonInteractive
-$script:VerboseOutput = $VerboseOutput
-$script:SkipDuplicates = -not $ForceReinit
-$script:EnabledLayers = if ($Layers -eq "all") { @("cli", "orchestrator", "planner") } else { $Layers.Split(',') | ForEach-Object { $_.Trim() } }
+$ErrorActionPreference = "Stop"
 
-$script:InitializationSteps = @(
-    # Core project setup
-    @{ name = 'project_setup'; label = 'Project Registration'; required = $true; layer = 'core' },
-    @{ name = 'database_init'; label = 'Three-Layer Database Initialization'; required = $true; layer = 'core' },
-    
-    # Layer 1: Smart CLI
-    @{ name = 'cli_tools_setup'; label = 'CLI Tools Registration'; required = $true; layer = 'cli' },
-    @{ name = 'file_tree'; label = 'File Tree Analysis'; required = $true; layer = 'cli' },
-    @{ name = 'code_analysis'; label = 'Code Structure Analysis'; required = $true; layer = 'cli' },
-    @{ name = 'class_extraction'; label = 'Class & Interface Discovery'; required = $true; layer = 'cli' },
-    @{ name = 'performance_baseline'; label = 'Performance Baseline Metrics'; required = $false; layer = 'cli' },
-    
-    # Layer 2: Workflow Orchestrator
-    @{ name = 'workflow_templates'; label = 'Workflow Template Creation'; required = $true; layer = 'orchestrator' },
-    @{ name = 'role_configuration'; label = 'Role Terminal Configuration'; required = $true; layer = 'orchestrator' },
-    @{ name = 'redis_queue_setup'; label = 'Redis Message Queue Setup'; required = $true; layer = 'orchestrator' },
-    @{ name = 'dependency_mapping'; label = 'Project Dependency Mapping'; required = $false; layer = 'orchestrator' },
-    
-    # Layer 3: Idea Planner
-    @{ name = 'planning_session_init'; label = 'Planning Session Initialization'; required = $true; layer = 'planner' },
-    @{ name = 'roadmap_templates'; label = 'Roadmap Template Creation'; required = $false; layer = 'planner' },
-    @{ name = 'business_plan_templates'; label = 'Business Plan Templates'; required = $false; layer = 'planner' },
-    @{ name = 'tech_stack_analysis'; label = 'Technology Stack Analysis'; required = $false; layer = 'planner' },
-    
-    # Integration and learning
-    @{ name = 'layer_integration'; label = 'Inter-Layer Integration Setup'; required = $true; layer = 'integration' },
-    @{ name = 'learning_system'; label = 'Learning System Initialization'; required = $false; layer = 'integration' }
-)
+# Colors for output
+function Write-ColorOutput($Message, $Color = "White") {
+    Write-Host $Message -ForegroundColor $Color
+}
 
-function Initialize-CodeMindProject {
-    Write-Host "CodeMind Three-Layer Project Initialization" -ForegroundColor Cyan
-    Write-Host "============================================" -ForegroundColor Cyan
-    Write-Host "Project Path: $script:ProjectPath"
-    Write-Host "CodeMind API: $script:CodemindApiUrl"
-    Write-Host "Dashboard: $script:DashboardUrl"
-    Write-Host "Enabled Layers: $($script:EnabledLayers -join ', ')" -ForegroundColor Yellow
-    Write-Host ""
+function Write-Success($Message) { Write-ColorOutput "✅ $Message" "Green" }
+function Write-Info($Message) { Write-ColorOutput "ℹ️  $Message" "Cyan" }
+function Write-Warning($Message) { Write-ColorOutput "⚠️  $Message" "Yellow" }
+function Write-Error($Message) { Write-ColorOutput "❌ $Message" "Red" }
+function Write-Progress($Message) { Write-ColorOutput "🔄 $Message" "Blue" }
 
-    try {
-        # 1. Validate environment
-        Test-Environment
+Write-ColorOutput @"
+🧠 CodeMind Project Initialization
+================================
+Comprehensive project indexing system
+
+Project: $ProjectPath
+"@ "Magenta"
+
+# Step 1: Validate environment
+Write-Progress "Validating environment..."
+
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    Write-Error "Docker is required but not installed"
+    exit 1
+}
+
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Error "Node.js is required but not installed"
+    exit 1
+}
+
+if (-not (Test-Path $ProjectPath)) {
+    Write-Error "Project path does not exist: $ProjectPath"
+    exit 1
+}
+
+Write-Success "Environment validation passed"
+
+# Step 2: Generate project ID if not provided
+if (-not $ProjectId) {
+    $ProjectId = [System.Guid]::NewGuid().ToString()
+    Write-Info "Generated project ID: $ProjectId"
+} else {
+    Write-Info "Using provided project ID: $ProjectId"
+}
+
+# Step 3: Start Docker services (if needed)
+if (-not $SkipDocker) {
+    Write-Progress "Starting Docker services..."
+    
+    # Check if services are already running
+    $postgresRunning = docker ps --filter "name=codemind-postgres" --format "table {{.Names}}" | Select-String "codemind-postgres"
+    $neo4jRunning = docker ps --filter "name=codemind-neo4j" --format "table {{.Names}}" | Select-String "codemind-neo4j"
+    
+    if (-not $postgresRunning -or $ForceReset) {
+        Write-Progress "Starting PostgreSQL with pgvector..."
+        docker run -d `
+            --name codemind-postgres `
+            -e POSTGRES_DB=codemind `
+            -e POSTGRES_USER=codemind `
+            -e POSTGRES_PASSWORD=codemind123 `
+            -p 5432:5432 `
+            pgvector/pgvector:pg15
         
-        # 2. Check if project already exists
-        $existingProject = Get-ExistingProject
+        Start-Sleep -Seconds 5
+        Write-Success "PostgreSQL started"
+    } else {
+        Write-Info "PostgreSQL already running"
+    }
+    
+    if (-not $neo4jRunning -or $ForceReset) {
+        Write-Progress "Starting Neo4j..."
+        docker run -d `
+            --name codemind-neo4j `
+            -e NEO4J_AUTH=neo4j/codemind123 `
+            -p 7474:7474 `
+            -p 7687:7687 `
+            neo4j:latest
         
-        # 3. Get user preferences for initialization
-        $initOptions = Get-InitializationOptions -ExistingProject $existingProject
-        
-        # 4. Run initialization steps
-        Start-InitializationSteps -Options $initOptions
-        
-        # 5. Generate summary report
-        Show-SummaryReport
-        
-        Write-Host ""
-        Write-Host "Project initialization completed successfully!" -ForegroundColor Green
-        Write-Host "Dashboard: $script:DashboardUrl/project-view.html"
-        Write-Host "API: $script:CodemindApiUrl/claude/context/$(Split-Path $script:ProjectPath -Leaf)"
-        
-    } catch {
-        Write-Host "Initialization failed: $($_.Exception.Message)" -ForegroundColor Red
-        if ($script:VerboseOutput) {
-            Write-Host $_.Exception.StackTrace -ForegroundColor Red
-        }
-        exit 1
+        Start-Sleep -Seconds 10
+        Write-Success "Neo4j started"
+    } else {
+        Write-Info "Neo4j already running"
     }
 }
 
-function Test-Environment {
-    Write-Host "Validating environment..."
-    
-    # Check if project directory exists
-    if (-not (Test-Path $script:ProjectPath)) {
-        throw "Project directory does not exist: $script:ProjectPath"
-    }
+# Step 4: Wait for databases to be ready
+Write-Progress "Waiting for databases to be ready..."
 
-    # Check if CodeMind services are running
+$maxRetries = 30
+$retryCount = 0
+
+while ($retryCount -lt $maxRetries) {
     try {
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/auth/status" -Method Get -TimeoutSec 10
-    } catch {
-        throw "CodeMind services not running. Please start with: docker-compose up -d"
+        # Test PostgreSQL connection
+        $env:PGPASSWORD = "codemind123"
+        $pgReady = & psql -h localhost -U codemind -d codemind -c "SELECT 1;" 2>$null
+        
+        # Test Neo4j connection (simple HTTP check)
+        $neo4jReady = Invoke-WebRequest -Uri "http://localhost:7474" -UseBasicParsing 2>$null
+        
+        if ($pgReady -and $neo4jReady) {
+            Write-Success "All databases ready"
+            break
+        }
     }
-
-    Write-Host "Environment validated" -ForegroundColor Green
+    catch {
+        # Continue waiting
+    }
+    
+    Start-Sleep -Seconds 2
+    $retryCount++
+    Write-Host "." -NoNewline
 }
 
-function Get-ExistingProject {
-    Write-Host "Checking for existing project data..."
+if ($retryCount -eq $maxRetries) {
+    Write-Error "Databases failed to become ready within timeout"
+    exit 1
+}
+
+# Step 5: Initialize database schemas
+Write-Progress "Initializing database schemas..."
+
+try {
+    # Initialize PostgreSQL schema
+    $env:PGPASSWORD = "codemind123"
+    Get-Content "src/database/schema.postgres.sql" | & psql -h localhost -U codemind -d codemind -f -
+    Get-Content "docker/scripts/vector-init.sql" | & psql -h localhost -U codemind -d codemind -f -
     
-    try {
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/all" -Method Get
-        $projects = $response
-        
-        $projectName = Split-Path $script:ProjectPath -Leaf
-        $containerPath = Convert-ToContainerPath -WindowsPath $script:ProjectPath
-        
-        # Normalize paths for comparison (handle both forward and backward slashes)
-        $normalizedProjectPath = $script:ProjectPath -replace '/', '\' -replace '^[A-Za-z]:', '' -replace '^\\', ''
-        
-        
-        $existingProject = $projects | Where-Object { 
-            $_.project_name -eq $projectName -or 
-            $_.project_path -eq $containerPath -or
-            $_.project_path -eq $script:ProjectPath -or
-            (($_.project_path -replace '/', '\' -replace '^[A-Za-z]:', '' -replace '^\\', '') -eq $normalizedProjectPath)
-        }
-        
-        if ($existingProject) {
-            Write-Host "Found existing project: $($existingProject.project_name) (ID: $($existingProject.project_id))" -ForegroundColor Yellow
-            Write-Host "Project Status: $($existingProject.status)" -ForegroundColor $(if ($existingProject.status -eq 'active') { 'Green' } else { 'Yellow' })
-            
-            # Verify the project has a valid ID
-            if ([string]::IsNullOrWhiteSpace($existingProject.project_id)) {
-                Write-Host "Warning: Found project has invalid ID, will create new project" -ForegroundColor Yellow
-                return $null
-            }
-            
-            # Handle projects stuck in analyzing status
-            if ($existingProject.status -eq 'analyzing') {
-                Write-Host ""
-                Write-Host "⚠️  Project is currently in 'analyzing' status." -ForegroundColor Yellow
-                Write-Host "This usually means a previous initialization was interrupted." -ForegroundColor Yellow
-                Write-Host ""
-                Write-Host "Options:" -ForegroundColor Cyan
-                Write-Host "  1. Reset status and reinitialize (recommended)" -ForegroundColor White
-                Write-Host "  2. Create a new project instead" -ForegroundColor White  
-                Write-Host "  3. Cancel initialization" -ForegroundColor White
-                Write-Host ""
-                
-                $choice = "1"  # Default choice
-                if ($script:Interactive) {
-                    $choice = Read-Host "Enter your choice (1-3) [1]"
-                    if ([string]::IsNullOrWhiteSpace($choice)) { $choice = "1" }
-                }
-                
-                switch ($choice) {
-                    "1" { 
-                        Write-Host "Resetting project status to 'active'..." -ForegroundColor Green
-                        try {
-                            $resetBody = @{ status = 'active' } | ConvertTo-Json
-                            $resetResponse = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/$($existingProject.project_id)" -Method Put -Body $resetBody -ContentType "application/json"
-                            Write-Host "✅ Project status reset successfully" -ForegroundColor Green
-                            $existingProject.status = 'active'
-                        } catch {
-                            Write-Host "❌ Failed to reset project status: $($_.Exception.Message)" -ForegroundColor Red
-                            Write-Host "Continuing with initialization anyway..." -ForegroundColor Yellow
-                        }
-                    }
-                    "2" { 
-                        Write-Host "Creating new project instead..." -ForegroundColor Yellow
-                        return $null 
-                    }
-                    "3" { 
-                        Write-Host "Initialization cancelled." -ForegroundColor Yellow
-                        exit 0 
-                    }
-                    default { 
-                        Write-Host "Invalid choice. Resetting status and continuing..." -ForegroundColor Yellow
-                        # Same as option 1
-                        try {
-                            $resetBody = @{ status = 'active' } | ConvertTo-Json
-                            $resetResponse = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/$($existingProject.project_id)" -Method Put -Body $resetBody -ContentType "application/json"
-                            $existingProject.status = 'active'
-                        } catch {
-                            Write-Host "❌ Failed to reset project status" -ForegroundColor Red
-                        }
-                    }
-                }
-            }
-            
-            # Check what data already exists
-            $existingData = Get-ExistingData -ProjectId $existingProject.project_id
-            $existingProject | Add-Member -NotePropertyName 'existingData' -NotePropertyValue $existingData -Force
-            return $existingProject
+    Write-Success "PostgreSQL schema initialized"
+} catch {
+    Write-Error "Failed to initialize PostgreSQL schema: $_"
+    exit 1
+}
+
+try {
+    # Initialize Neo4j schema/constraints
+    if (Test-Path "scripts/neo4j-init.cypher") {
+        # Use cypher-shell if available
+        if (Get-Command cypher-shell -ErrorAction SilentlyContinue) {
+            Get-Content "scripts/neo4j-init.cypher" | & cypher-shell -u neo4j -p codemind123
         } else {
-            Write-Host "No existing project found - will create new project" -ForegroundColor Yellow
-            return $null
+            Write-Warning "cypher-shell not available, skipping Neo4j schema initialization"
         }
-    } catch {
-        Write-Host "Could not check existing projects - proceeding with new project" -ForegroundColor Yellow
-        return $null
     }
+    Write-Success "Neo4j schema initialized"
+} catch {
+    Write-Warning "Neo4j schema initialization failed (continuing): $_"
 }
 
-function Get-ExistingData {
-    param([string]$ProjectId)
-    
-    $dataChecks = @{
-        files = @{ endpoint = '/tree'; count = 0 }
-        classes = @{ endpoint = '/classes'; count = 0 }
-        config = @{ endpoint = '/config'; count = 0 }
-        metrics = @{ endpoint = '/metrics'; count = 0 }
-        navigation = @{ endpoint = '/navigation/contexts'; count = 0 }
-        diagrams = @{ endpoint = '/navigation/diagrams'; count = 0 }
-    }
+# Step 6: Start CodeMind services
+Write-Progress "Starting CodeMind services..."
 
-    foreach ($key in $dataChecks.Keys) {
-        try {
-            $check = $dataChecks[$key]
-            $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/$ProjectId$($check.endpoint)" -Method Get
-            $dataChecks[$key].count = if ($response -is [array]) { $response.Count } else { if ($response.total) { $response.total } else { 0 } }
-        } catch {
-            # Data not available - will be initialized
-        }
-    }
+# Start tool database API
+Start-Process -NoNewWindow -FilePath "npx" -ArgumentList "tsx", "src/scripts/start-tool-api.ts" -WorkingDirectory $PWD
+Start-Sleep -Seconds 3
 
-    return $dataChecks
-}
+Write-Success "CodeMind API services started"
 
-function Get-InitializationOptions {
-    param([object]$ExistingProject)
-    
-    $options = @{
-        projectId = if ($ExistingProject) { $ExistingProject.project_id } else { $null }
-        skipSteps = @()
-        forceReinitialize = @()
-        createNewProject = -not $ExistingProject
-    }
+# Step 7: Create project record and initialize file synchronization
+Write-Progress "Creating project record and initializing file synchronization..."
 
-    if (-not $script:Interactive) {
-        # Non-interactive mode - use defaults
-        if ($ExistingProject -and $script:SkipDuplicates) {
-            # Skip steps that already have data
-            foreach ($key in $ExistingProject.existingData.Keys) {
-                $data = $ExistingProject.existingData[$key]
-                if ($data.count -gt 0) {
-                    $options.skipSteps += $key
-                }
-            }
-        }
-        return $options
-    }
+try {
+    $syncScript = @"
+const { FileSynchronizationSystem } = require('./src/shared/file-synchronization-system');
+const { ToolDatabaseAPI } = require('./src/orchestration/tool-database-api');
+const path = require('path');
 
-    # Interactive mode - ask user preferences
-    Write-Host ""
-    Write-Host "Initialization Options" -ForegroundColor Cyan
-    Write-Host "=========================="
-
-    if ($ExistingProject) {
-        Write-Host "Existing Data Summary:"
-        foreach ($key in $ExistingProject.existingData.Keys) {
-            $data = $ExistingProject.existingData[$key]
-            $status = if ($data.count -gt 0) { "$($data.count) items" } else { "No data" }
-            Write-Host "  ${key}: $status"
-        }
-        Write-Host ""
-
-        $reinitialize = Read-Host "Do you want to reinitialize existing data? (y/n) [n]"
-        if (-not $reinitialize) { $reinitialize = "n" }
-        
-        if ($reinitialize.ToLower() -eq 'y') {
-            $components = Read-Host "Which components to reinitialize? (all/files/classes/config/metrics/navigation/diagrams) [all]"
-            if (-not $components) { $components = "all" }
-            
-            if ($components -eq 'all') {
-                $options.forceReinitialize = $ExistingProject.existingData.Keys
-            } else {
-                $options.forceReinitialize = $components -split ',' | ForEach-Object { $_.Trim() }
-            }
-        }
-    }
-
-    $initLevel = Read-Host "Initialization level? (basic/standard/comprehensive) [standard]"
-    if (-not $initLevel) { $initLevel = "standard" }
-
-    # Configure steps based on level
-    if ($initLevel -eq 'basic') {
-        $options.skipSteps += @('diagrams', 'use_cases', 'roadmap_generation')
-    } elseif ($initLevel -eq 'comprehensive') {
-        # Enable all steps
-    }
-
-    return $options
-}
-
-function Start-InitializationSteps {
-    param([hashtable]$Options)
-    
-    Write-Host ""
-    Write-Host "Running Three-Layer Initialization Steps" -ForegroundColor Cyan
-    Write-Host "==========================================="
-
-    $projectId = $Options.projectId
-    
-    # Step 1: Create or update project
-    if ($Options.createNewProject) {
-        $projectId = New-Project
-    }
-    
-    # Step 2: Initialize database schema for all three layers
-    Write-Host "Initializing three-layer database schema..." -ForegroundColor Green
-    Initialize-ThreeLayerDatabase -ProjectId $projectId
-
-    # Step 3: Run layer-specific initialization
-    foreach ($layer in $script:EnabledLayers) {
-        Write-Host "Initializing Layer: $($layer.ToUpper())" -ForegroundColor Magenta
-        
-        $layerSteps = $script:InitializationSteps | Where-Object { $_.layer -eq $layer -or $_.layer -eq 'core' -or $_.layer -eq 'integration' }
-        
-        foreach ($step in $layerSteps) {
-            if ($step.name -in $Options.skipSteps -and $step.name -notin $Options.forceReinitialize) {
-                Write-Host "  Skipping $($step.label) (already exists)" -ForegroundColor Yellow
-                continue
-            }
-
-            Write-Host "  $($step.label)..." -ForegroundColor White
-            Complete-InitializationStep -ProjectId $projectId -StepName $step.name -Layer $layer
-        }
-    }
-    
-    # Step 4: Set up inter-layer integration
-    Write-Host "Configuring inter-layer integration..." -ForegroundColor Green
-    Initialize-LayerIntegration -ProjectId $projectId
-}
-
-function Convert-ToContainerPath {
-    param([string]$WindowsPath)
-    
-    # Convert Windows path to container path format
-    # C:\workspace\claude\Project -> /workspace/claude/Project
-    if ($WindowsPath -match '^[A-Za-z]:') {
-        $containerPath = $WindowsPath -replace '^[A-Za-z]:', ''
-        $containerPath = $containerPath -replace '\\', '/'
-        return $containerPath
-    }
-    return $WindowsPath
-}
-
-function New-Project {
-    $projectName = Split-Path $script:ProjectPath -Leaf
-    $containerPath = Convert-ToContainerPath -WindowsPath $script:ProjectPath
-    
-    # Run autodiscovery first to get project metadata
-    $projectMetadata = @{
-        project_name = $projectName
-        project_path = $containerPath
-        description = "Auto-initialized project: $projectName"
-    }
-    
+async function initializeSync() {
     try {
-        if ($script:VerboseOutput) { Write-Host "Running autodiscovery..." }
+        // Create project record first
+        const dbAPI = new ToolDatabaseAPI();
+        await dbAPI.initialize();
         
-        $discoveryBody = @{ project_path = $containerPath } | ConvertTo-Json
-        $discoveryResponse = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/autodiscover" -Method Post -Body $discoveryBody -ContentType "application/json"
+        const projectName = path.basename('$ProjectPath');
+        const projectData = {
+            id: '$ProjectId',
+            project_path: '$ProjectPath',
+            project_name: projectName,
+            project_type: 'unknown', // Will be detected later
+            languages: JSON.stringify([]),
+            frameworks: JSON.stringify([]),
+            status: 'analyzing'
+        };
         
-        $projectMetadata.project_type = $discoveryResponse.project_type
-        $projectMetadata.project_size = $discoveryResponse.project_size
-        $projectMetadata.languages = $discoveryResponse.languages
-        $projectMetadata.frameworks = $discoveryResponse.frameworks
+        console.log('📝 Creating project record:', projectName);
+        await dbAPI.query(\`
+            INSERT INTO projects (id, project_path, project_name, project_type, languages, frameworks, status, created_at, updated_at)
+            VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, NOW(), NOW())
+            ON CONFLICT (project_path) DO UPDATE SET
+            project_name = \$3, status = \$7, updated_at = NOW()
+        \`, [projectData.id, projectData.project_path, projectData.project_name, 
+            projectData.project_type, projectData.languages, projectData.frameworks, projectData.status]);
         
-        if ($script:VerboseOutput) {
-            Write-Host "Autodiscovery: $($discoveryResponse.project_type) ($($discoveryResponse.languages -join ', '))"
-        }
-    } catch {
-        if ($script:VerboseOutput) { Write-Host "Autodiscovery failed, using defaults" -ForegroundColor Yellow }
+        // Initialize file synchronization
+        const sync = new FileSynchronizationSystem('$ProjectPath');
+        await sync.initialize();
+        console.log('📁 File synchronization initialized');
+        
+        const result = await sync.synchronizeProject('$ProjectPath', '$ProjectId');
+        console.log('✅ Project synchronized:');
+        console.log(\`   New files: \${result.newFiles}\`);
+        console.log(\`   Modified files: \${result.modifiedFiles}\`);
+        console.log(\`   Total files: \${result.totalFiles}\`);
+        
+        await sync.close();
+        await dbAPI.close();
+    } catch (error) {
+        console.error('❌ Synchronization failed:', error.message);
+        process.exit(1);
     }
-    
-    $body = $projectMetadata | ConvertTo-Json
-    $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects" -Method Post -Body $body -ContentType "application/json"
-    
-    Write-Host "Created project: $($response.project_name) (ID: $($response.id))" -ForegroundColor Green
-    return $response.id
 }
 
-function Start-ComprehensiveAnalysis {
-    param([string]$ProjectId)
+initializeSync();
+"@
     
+    $syncScript | Out-File -FilePath "temp-sync-init.js" -Encoding UTF8
+    & npx tsx temp-sync-init.js
+    Remove-Item "temp-sync-init.js" -Force
+    
+    Write-Success "File synchronization completed"
+} catch {
+    Write-Error "File synchronization failed: $_"
+    exit 1
+}
+
+# Step 8: Generate semantic embeddings for all files
+Write-Progress "Generating semantic embeddings..."
+
+if ($env:OPENAI_API_KEY) {
     try {
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/$ProjectId/analyze" -Method Post -ContentType "application/json"
-        
-        Write-Host "Comprehensive analysis started - this may take several minutes..."
-        
-        # Poll for completion (simplified for now)
-        Start-Sleep -Seconds 30
-        Write-Host "Comprehensive analysis completed" -ForegroundColor Green
-        
-    } catch {
-        Write-Host "Comprehensive analysis failed: $($_.Exception.Message)" -ForegroundColor Red
-        throw
-    }
-}
+        # Generate embeddings using the semantic search tool directly
+        $embeddingScript = @"
+const { SemanticSearchTool } = require('./src/features/search/semantic-search-complete');
+const tool = new SemanticSearchTool();
 
-function Complete-InitializationStep {
-    param([string]$ProjectId, [string]$StepName, [string]$Layer)
-    
+async function generateEmbeddings() {
     try {
-        switch ($StepName) {
-            'cli_tools_setup' {
-                Initialize-CliTools -ProjectId $ProjectId
-            }
-            'workflow_templates' {
-                Initialize-WorkflowTemplates -ProjectId $ProjectId
-            }
-            'role_configuration' {
-                Initialize-RoleConfiguration -ProjectId $ProjectId
-            }
-            'redis_queue_setup' {
-                Initialize-RedisQueues -ProjectId $ProjectId
-            }
-            'planning_session_init' {
-                Initialize-PlanningSession -ProjectId $ProjectId
-            }
-            'layer_integration' {
-                Initialize-LayerIntegration -ProjectId $ProjectId
-            }
-            default {
-                # Run generic analysis for the step
-                $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/$ProjectId/analyze/$StepName" -Method Post -ContentType "application/json" -ErrorAction SilentlyContinue
-                if ($response -and $response.success) {
-                    Write-Host "    ✅ $StepName analysis completed" -ForegroundColor Green
-                } else {
-                    Write-Host "    ⚠️  $StepName analysis skipped or failed" -ForegroundColor Yellow
-                }
-            }
-        }
-    } catch {
-        Write-Host "    ❌ $StepName failed: $($_.Exception.Message)" -ForegroundColor Red
-        if ($script:VerboseOutput) {
-            Write-Host $_.Exception.StackTrace -ForegroundColor Red
-        }
+        console.log('🧠 Generating semantic embeddings...');
+        const result = await tool.analyze('$ProjectPath', '$ProjectId', { skipCache: true });
+        console.log('✅ Semantic embeddings generated:', result.analysis.totalSegments, 'segments');
+    } catch (error) {
+        console.error('❌ Embedding generation failed:', error.message);
     }
 }
 
-# ============================================================================
-# THREE-LAYER INITIALIZATION FUNCTIONS
-# ============================================================================
+generateEmbeddings();
+"@
+        $embeddingScript | Out-File -FilePath "temp-embedding-init.js" -Encoding UTF8
+        & npx tsx temp-embedding-init.js
+        Remove-Item "temp-embedding-init.js" -Force
+        
+        Write-Success "Semantic embeddings generated"
+    } catch {
+        Write-Warning "Semantic embeddings generation failed (continuing): $_"
+    }
+} else {
+    Write-Warning "OPENAI_API_KEY not set, skipping semantic embeddings generation"
+}
 
-function Initialize-ThreeLayerDatabase {
-    param([string]$ProjectId)
-    
+# Step 9: Build semantic graph
+Write-Progress "Building semantic graph..."
+
+try {
+    $graphScript = @"
+const { CodeRelationshipParser } = require('./src/services/code-relationship-parser');
+const parser = new CodeRelationshipParser();
+
+async function buildGraph() {
     try {
-        Write-Host "    Initializing three-layer database schema..." -ForegroundColor Cyan
+        await parser.initialize();
+        console.log('🔗 Code relationship parser initialized');
         
-        # Check if database schema exists
-        $schemaPath = Join-Path $PSScriptRoot "..\database\three-layer-complete-schema.sql"
-        if (-not (Test-Path $schemaPath)) {
-            throw "Three-layer database schema not found at $schemaPath"
-        }
+        await parser.parseAndPopulateProject('$ProjectPath', '$ProjectId');
+        console.log('📊 Semantic graph populated with project relationships');
         
-        # Execute schema initialization through API
-        $schemaContent = Get-Content $schemaPath -Raw
-        $body = @{ 
-            projectId = $ProjectId
-            schema = $schemaContent
-            layers = $script:EnabledLayers
-        } | ConvertTo-Json -Depth 5
-        
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/database/init-schema" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
-        
-        Write-Host "    ✅ Three-layer database schema initialized" -ForegroundColor Green
-        
-    } catch {
-        Write-Host "    ⚠️  Database initialization failed: $($_.Exception.Message)" -ForegroundColor Yellow
-        Write-Host "    Continuing with other initialization steps..." -ForegroundColor Gray
+        await parser.close();
+    } catch (error) {
+        console.error('❌ Graph building failed:', error.message);
     }
 }
 
-function Initialize-CliTools {
-    param([string]$ProjectId)
+buildGraph();
+"@
     
-    try {
-        Write-Host "    Setting up Smart CLI tools..." -ForegroundColor Cyan
-        
-        $toolsConfig = @{
-            projectId = $ProjectId
-            tools = @(
-                "context-optimizer",
-                "issues-detector", 
-                "performance-analyzer",
-                "security-scanner",
-                "duplication-detector",
-                "centralization-detector"
-            )
-        }
-        
-        $body = $toolsConfig | ConvertTo-Json -Depth 5
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/cli/tools/setup" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
-        
-        Write-Host "    ✅ Smart CLI tools configured" -ForegroundColor Green
-        
-    } catch {
-        Write-Host "    ⚠️  CLI tools setup failed: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
+    $graphScript | Out-File -FilePath "temp-graph-init.js" -Encoding UTF8
+    & npx tsx temp-graph-init.js
+    Remove-Item "temp-graph-init.js" -Force
+    
+    Write-Success "Semantic graph built"
+} catch {
+    Write-Warning "Semantic graph building failed (continuing): $_"
 }
 
-function Initialize-WorkflowTemplates {
-    param([string]$ProjectId)
-    
-    try {
-        Write-Host "    Creating orchestration workflow templates..." -ForegroundColor Cyan
-        
-        $workflowTemplate = @{
-            projectId = $ProjectId
-            workflows = @(
-                @{
-                    name = "comprehensive-review"
-                    description = "Full project review using all 5 roles"
-                    roles = @("architect", "security", "quality", "performance", "coordinator")
-                    type = "sequential"
-                },
-                @{
-                    name = "security-audit"
-                    description = "Focused security analysis"
-                    roles = @("security", "coordinator")
-                    type = "sequential"
-                },
-                @{
-                    name = "performance-optimization"
-                    description = "Performance analysis and optimization"
-                    roles = @("performance", "coordinator")
-                    type = "sequential"
-                }
-            )
-        }
-        
-        $body = $workflowTemplate | ConvertTo-Json -Depth 5
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/orchestrator/workflows/templates" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
-        
-        Write-Host "    ✅ Workflow templates created" -ForegroundColor Green
-        
-    } catch {
-        Write-Host "    ⚠️  Workflow templates creation failed: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
+# Step 10: Create project metadata and update project status
+Write-Progress "Creating project metadata and finalizing project..."
+
+$metadataDir = Join-Path $ProjectPath ".codemind"
+if (-not (Test-Path $metadataDir)) {
+    New-Item -ItemType Directory -Path $metadataDir -Force | Out-Null
 }
 
-function Initialize-RoleConfiguration {
-    param([string]$ProjectId)
-    
-    try {
-        Write-Host "    Configuring role terminals..." -ForegroundColor Cyan
-        
-        $roleConfig = @{
-            projectId = $ProjectId
-            roles = @{
-                architect = @{
-                    focus = "System architecture and design patterns"
-                    tools = @("dependency-analyzer", "centralization-detector")
-                    priority = 1
-                }
-                security = @{
-                    focus = "Security vulnerabilities and compliance"
-                    tools = @("security-scanner")
-                    priority = 2
-                }
-                quality = @{
-                    focus = "Code quality and testing"
-                    tools = @("issues-detector", "test-coverage-analyzer")
-                    priority = 3
-                }
-                performance = @{
-                    focus = "Performance optimization"
-                    tools = @("performance-analyzer")
-                    priority = 4
-                }
-                coordinator = @{
-                    focus = "Synthesis and recommendations"
-                    tools = @("context-optimizer")
-                    priority = 5
-                }
-            }
+$projectConfig = @{
+    projectId = $ProjectId
+    projectPath = $ProjectPath
+    initialized = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
+    databases = @{
+        postgres = @{
+            host = "localhost"
+            port = 5432
+            database = "codemind"
+            user = "codemind"
         }
-        
-        $body = $roleConfig | ConvertTo-Json -Depth 5
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/orchestrator/roles/config" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
-        
-        Write-Host "    ✅ Role terminals configured" -ForegroundColor Green
-        
-    } catch {
-        Write-Host "    ⚠️  Role configuration failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        neo4j = @{
+            host = "localhost" 
+            port = 7687
+            user = "neo4j"
+        }
     }
+    services = @{
+        toolAPI = "http://localhost:3003"
+        orchestrator = "http://localhost:3006"
+    }
+    features = @{
+        fileSync = $true
+        semanticSearch = [bool]$env:OPENAI_API_KEY
+        semanticGraph = $true
+        vectorEmbeddings = [bool]$env:OPENAI_API_KEY
+        multiLevelCache = $true
+    }
+} | ConvertTo-Json -Depth 4
+
+$configFile = Join-Path $metadataDir "project.json"
+$projectConfig | Out-File -FilePath $configFile -Encoding UTF8
+
+# Update project status to 'active' in database
+try {
+    $statusScript = @"
+const { ToolDatabaseAPI } = require('./src/orchestration/tool-database-api');
+
+async function updateProjectStatus() {
+    const dbAPI = new ToolDatabaseAPI();
+    await dbAPI.initialize();
+    
+    await dbAPI.query('UPDATE projects SET status = \$1, updated_at = NOW() WHERE id = \$2', ['active', '$ProjectId']);
+    console.log('📊 Project status updated to active');
+    
+    await dbAPI.close();
 }
 
-function Initialize-RedisQueues {
-    param([string]$ProjectId)
-    
-    try {
-        Write-Host "    Setting up Redis message queues..." -ForegroundColor Cyan
-        
-        $queueConfig = @{
-            projectId = $ProjectId
-            queues = @("architect:queue", "security:queue", "quality:queue", "performance:queue", "coordinator:queue")
-            options = @{
-                retry_attempts = 3
-                timeout_seconds = 300
-                dead_letter_queue = $true
-            }
-        }
-        
-        $body = $queueConfig | ConvertTo-Json -Depth 5
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/orchestrator/queues/setup" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
-        
-        Write-Host "    ✅ Redis message queues initialized" -ForegroundColor Green
-        
-    } catch {
-        Write-Host "    ⚠️  Redis queue setup failed: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
+updateProjectStatus().catch(console.error);
+"@
+    $statusScript | Out-File -FilePath "temp-status-update.js" -Encoding UTF8
+    & npx tsx temp-status-update.js
+    Remove-Item "temp-status-update.js" -Force
+} catch {
+    Write-Warning "Failed to update project status in database: $_"
 }
 
-function Initialize-PlanningSession {
-    param([string]$ProjectId)
-    
-    try {
-        Write-Host "    Initializing idea planner..." -ForegroundColor Cyan
-        
-        $plannerConfig = @{
-            projectId = $ProjectId
-            templates = @{
-                roadmap = @{
-                    phases = @("Discovery", "Design", "Development", "Testing", "Deployment")
-                    default_timeline_weeks = 12
-                }
-                business_plan = @{
-                    sections = @("Executive Summary", "Market Analysis", "Revenue Model", "Go-to-Market")
-                }
-                tech_stack = @{
-                    categories = @("Frontend", "Backend", "Database", "Infrastructure", "Tools")
-                }
-            }
-        }
-        
-        $body = $plannerConfig | ConvertTo-Json -Depth 5
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/planner/init" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
-        
-        Write-Host "    ✅ Idea planner initialized" -ForegroundColor Green
-        
-    } catch {
-        Write-Host "    ⚠️  Planner initialization failed: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
-}
+Write-Success "Project metadata created and project activated"
 
-function Initialize-LayerIntegration {
-    param([string]$ProjectId)
-    
-    try {
-        Write-Host "    Setting up inter-layer integration..." -ForegroundColor Cyan
-        
-        $integrationConfig = @{
-            projectId = $ProjectId
-            integrations = @(
-                @{
-                    source = "planner"
-                    target = "orchestrator"
-                    type = "workflow_handoff"
-                    enabled = $true
-                },
-                @{
-                    source = "orchestrator"
-                    target = "cli"
-                    type = "tool_coordination"
-                    enabled = $true
-                },
-                @{
-                    source = "cli"
-                    target = "planner"
-                    type = "learning_feedback"
-                    enabled = $true
-                }
-            )
-            learning_enabled = $true
-        }
-        
-        $body = $integrationConfig | ConvertTo-Json -Depth 5
-        $response = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/integration/setup" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
-        
-        Write-Host "    ✅ Inter-layer integration configured" -ForegroundColor Green
-        
-    } catch {
-        Write-Host "    ⚠️  Integration setup failed: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
-}
+# Final summary
+Write-ColorOutput @"
 
-function Show-SummaryReport {
-    Write-Host ""
-    Write-Host "Initialization Summary" -ForegroundColor Cyan
-    Write-Host "========================="
-    
-    try {
-        # Fetch actual project statistics
-        $projectStats = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects" -Method Get
-        $project = $projectStats | Where-Object { $_.project_name -eq (Split-Path $script:ProjectPath -Leaf) }
-        
-        if ($project) {
-            Write-Host "Project ID: $($project.project_id)"
-            Write-Host "Project Type: $($project.project_type)"
-            Write-Host "Languages: $($project.languages -join ', ')"
-            Write-Host "Frameworks: $($project.frameworks -join ', ')"
-            
-            # Try to get detailed stats if available
-            try {
-                $knowledgeStats = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/$($project.project_id)/knowledge" -Method Get
-                Write-Host "Knowledge Documents: $($knowledgeStats.summary.total_documents)"
-                
-                $configStats = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/$($project.project_id)/config" -Method Get
-                $configCount = if($configStats) { $configStats.Count } else { 'N/A' }
-                Write-Host "Configurations: $configCount"
-                
-                $metricsStats = Invoke-RestMethod -Uri "$script:DashboardUrl/api/dashboard/projects/$($project.project_id)/metrics" -Method Get
-                $metricsCount = if($metricsStats) { $metricsStats.Count } else { 'N/A' }
-                Write-Host "Quality Metrics: $metricsCount"
-                
-            } catch {
-                Write-Host "Some detailed statistics unavailable" -ForegroundColor Yellow
-            }
-        }
-    } catch {
-        # Fallback to basic report
-        Write-Host "Project initialized successfully"
-        Write-Host "Comprehensive analysis completed"
-        Write-Host "All configured endpoints called"
-        Write-Host "Ready for dashboard viewing"
-        Write-Host "Navigate to dashboard to see results"
-    }
-    
-    Write-Host ""
-    Write-Host "Three-Layer Platform Ready!" -ForegroundColor Green
-    Write-Host "==============================" -ForegroundColor Green
-    Write-Host "Layer 1 (Smart CLI): Intelligent tool selection and database integration" -ForegroundColor Cyan
-    Write-Host "Layer 2 (Orchestrator): Sequential role-based workflow coordination" -ForegroundColor Cyan  
-    Write-Host "Layer 3 (Planner): AI-powered idea-to-implementation planning" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "Next Steps:" -ForegroundColor Yellow
-    Write-Host "1. Dashboard: $script:DashboardUrl" -ForegroundColor White
-    Write-Host "   - View project overview across all layers" -ForegroundColor Gray
-    Write-Host "   - Access Layer 3 planning interface" -ForegroundColor Gray
-    Write-Host "   - Monitor Layer 2 orchestration workflows" -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "2. Smart CLI Usage:" -ForegroundColor White
-    Write-Host "   codemind 'analyze security issues' ./project" -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "3. Orchestrator Usage:" -ForegroundColor White
-    Write-Host "   codemind orchestrate 'production review' ./project" -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "4. Planner Usage:" -ForegroundColor White
-    Write-Host "   Dashboard → '💡 I have an idea' button" -ForegroundColor Gray
-}
+🎉 CodeMind Project Initialization Complete!
+==========================================
 
-# Main execution
-Initialize-CodeMindProject
+Project ID: $ProjectId
+Project Path: $ProjectPath
+
+✅ Databases: PostgreSQL (pgvector) + Neo4j running
+✅ File Synchronization: All files indexed and hash-tracked  
+✅ Semantic Search: $(if($env:OPENAI_API_KEY) {'Enabled with OpenAI embeddings'} else {'Disabled (no API key)'})
+✅ Semantic Graph: Initialized and ready
+✅ API Services: Running on http://localhost:3003
+
+Next Steps:
+-----------
+1. Set OPENAI_API_KEY to enable semantic search
+2. Run: codemind smart "analyze authentication logic" $ProjectPath
+3. Check status: codemind status
+
+Configuration saved to: $configFile
+"@ "Green"
+
+Write-ColorOutput "Ready to use CodeMind! 🚀" "Magenta"

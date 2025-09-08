@@ -50,6 +50,7 @@ export declare class RedisMessagingService extends EventEmitter {
     private maxReconnectAttempts;
     private reconnectDelay;
     private readonly CHANNELS;
+    private static buildRedisUrl;
     constructor(redisUrl?: string, instanceId?: string);
     private setupRedisClients;
     private setupEventHandlers;

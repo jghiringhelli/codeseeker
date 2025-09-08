@@ -1,361 +1,357 @@
 "use strict";
+/**
+ * Enhanced Tool Selector for CodeMind CLI
+ * Integrates with Tool Bundle System for intelligent tool selection
+ */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EnhancedToolSelector = void 0;
-const tool_bundle_system_1 = require("./tool-bundle-system");
 const logger_1 = require("../utils/logger");
+const tool_bundle_system_1 = require("./tool-bundle-system");
 class EnhancedToolSelector {
     logger = logger_1.Logger.getInstance();
     bundleSystem;
-    db;
-    performanceMonitor;
-    selectionCache = new Map();
-    cacheTTL = 5 * 60 * 1000; // 5 minutes
-    constructor(database, performanceMonitor) {
-        this.db = database;
-        this.performanceMonitor = performanceMonitor;
-        this.bundleSystem = new tool_bundle_system_1.ToolBundleSystem(database);
-    }
-    async initialize() {
-        await this.bundleSystem.initialize();
-        this.logger.info('Enhanced Tool Selector initialized');
+    availableTools = new Map();
+    constructor() {
+        this.bundleSystem = new tool_bundle_system_1.ToolBundleSystem();
+        this.initializeAvailableTools();
     }
     /**
-     * Main selection method that intelligently chooses between bundles, tools, or Claude direct
+     * Initialize available tools registry
      */
-    async selectOptimalApproach(context) {
-        const startTime = Date.now();
-        try {
-            // Check cache first
-            const cacheKey = this.generateCacheKey(context);
-            const cached = this.getFromCache(cacheKey);
-            if (cached) {
-                this.logger.debug('Using cached selection result');
-                return cached;
-            }
-            // Determine selection strategy
-            const strategy = this.determineSelectionStrategy(context);
-            let result;
-            switch (strategy) {
-                case 'bundle-first':
-                    result = await this.bundleFirstSelection(context);
-                    break;
-                case 'tool-first':
-                    result = await this.toolFirstSelection(context);
-                    break;
-                case 'hybrid':
-                    result = await this.hybridSelection(context);
-                    break;
-                case 'claude-direct':
-                    result = await this.claudeDirectSelection(context);
-                    break;
-                default:
-                    result = await this.hybridSelection(context);
-            }
-            // Add metadata
-            result.selectionStrategy = strategy;
-            result.confidence = this.calculateConfidence(result, context);
-            result.recommendations = this.generateRecommendations(result, context);
-            // Cache the result
-            this.cacheResult(cacheKey, result);
-            // Record metrics
-            await this.recordSelectionMetrics(context, result, Date.now() - startTime);
-            return result;
-        }
-        catch (error) {
-            this.logger.error('Error in enhanced tool selection:', error);
-            return this.getFallbackSelection(context);
-        }
-    }
-    determineSelectionStrategy(context) {
-        const task = context.task.toLowerCase();
-        // Claude direct for non-project queries
-        if (this.isExternalQuery(task)) {
-            return 'claude-direct';
-        }
-        // Bundle-first for complex, multi-step tasks
-        if (this.isComplexTask(task, context)) {
-            return 'bundle-first';
-        }
-        // Tool-first for specific, single-purpose tasks
-        if (this.isSpecificTask(task)) {
-            return 'tool-first';
-        }
-        // Default to hybrid approach
-        return 'hybrid';
-    }
-    isExternalQuery(task) {
-        const externalIndicators = [
-            'what is', 'how to', 'explain', 'define', 'when was', 'who is',
-            'latest news', 'current', 'recent updates', 'documentation for',
-            'tutorial', 'example of', 'best practices for'
-        ];
-        return externalIndicators.some(indicator => task.includes(indicator));
-    }
-    isComplexTask(task, context) {
-        const complexIndicators = [
-            'refactor', 'restructure', 'analyze entire', 'full audit',
-            'comprehensive', 'complete overhaul', 'migration', 'upgrade',
-            'architecture review', 'end-to-end'
-        ];
-        const hasComplexIndicators = complexIndicators.some(indicator => task.includes(indicator));
-        const isLargeCodebase = context.codebaseContext?.size && context.codebaseContext.size > 10000;
-        const isHighComplexity = context.codebaseContext?.complexity === 'high';
-        return hasComplexIndicators || isLargeCodebase || isHighComplexity;
-    }
-    isSpecificTask(task) {
-        const specificIndicators = [
-            'add function', 'fix bug', 'update config', 'modify component',
-            'create test', 'format code', 'lint', 'single file',
-            'one method', 'specific class'
-        ];
-        return specificIndicators.some(indicator => task.includes(indicator));
-    }
-    async bundleFirstSelection(context) {
-        this.logger.debug('Using bundle-first selection strategy');
-        const bundleResult = await this.bundleSystem.selectBundlesAndTools(context);
-        return {
-            ...bundleResult,
-            fallbackToIndividual: false,
-            selectionStrategy: 'bundle-first',
-            confidence: 0.85,
-            recommendations: []
-        };
-    }
-    async toolFirstSelection(context) {
-        this.logger.debug('Using tool-first selection strategy');
-        // Use existing individual tool selection logic
-        const individualTools = await this.selectIndividualTools(context);
-        // Check if any bundles could complement these tools
-        const complementaryBundles = await this.findComplementaryBundles(individualTools, context);
-        const executionPlan = this.bundleSystem['createExecutionPlan'](complementaryBundles, individualTools);
-        return {
-            selectedBundles: complementaryBundles,
-            selectedTools: individualTools,
-            executionPlan,
-            reasoning: `Selected ${individualTools.length} individual tools with ${complementaryBundles.length} complementary bundles`,
-            totalTokenCost: this.bundleSystem['calculateTokenCost'](complementaryBundles, individualTools),
-            estimatedTime: this.bundleSystem['estimateExecutionTime'](executionPlan),
-            fallbackToIndividual: true,
-            selectionStrategy: 'tool-first',
-            confidence: 0.75,
-            recommendations: []
-        };
-    }
-    async hybridSelection(context) {
-        this.logger.debug('Using hybrid selection strategy');
-        // Get both bundle and individual tool recommendations
-        const bundleResult = await this.bundleSystem.selectBundlesAndTools(context);
-        const individualTools = await this.selectIndividualTools(context);
-        // Merge and optimize the selection
-        const optimizedResult = await this.optimizeHybridSelection(bundleResult, individualTools, context);
-        return {
-            ...optimizedResult,
-            fallbackToIndividual: false,
-            selectionStrategy: 'hybrid',
-            confidence: 0.90,
-            recommendations: []
-        };
-    }
-    async claudeDirectSelection(context) {
-        this.logger.debug('Using Claude direct strategy - no tools needed');
-        return {
-            selectedBundles: [],
-            selectedTools: [],
-            executionPlan: [],
-            reasoning: 'Query determined to be best handled directly by Claude without tools',
-            totalTokenCost: 0,
-            estimatedTime: 5,
-            fallbackToIndividual: false,
-            selectionStrategy: 'claude-direct',
-            confidence: 0.95,
-            recommendations: ['This query can be answered directly without using project-specific tools']
-        };
-    }
-    async selectIndividualTools(context) {
-        // This would integrate with the existing intelligent tool selector
-        // For now, return a mock implementation
-        const mockTools = [
+    initializeAvailableTools() {
+        const tools = [
             {
-                name: 'file-reader',
-                description: 'Reads and analyzes file contents',
-                capabilities: ['file-analysis', 'content-extraction'],
-                tokenCost: 'low',
-                executionTime: 'fast',
-                dependencies: [],
-                parallelizable: true,
-                reliability: 0.95,
-                execute: async (params) => ({ success: true, data: params })
+                id: 'semantic-graph',
+                name: 'Semantic Graph Analyzer',
+                description: 'Builds knowledge graph of code relationships and dependencies',
+                category: 'analysis',
+                parameters: { depth: 2, includeTypes: true },
+                confidence: 0.95,
+                estimatedTokens: 800
+            },
+            {
+                id: 'centralization-detector',
+                name: 'Centralization Detector',
+                description: 'Identifies architectural patterns and centralization opportunities',
+                category: 'architecture',
+                parameters: { analysisDepth: 3 },
+                confidence: 0.90,
+                estimatedTokens: 600
+            },
+            {
+                id: 'duplication-detector',
+                name: 'Code Duplication Detector',
+                description: 'Finds duplicate code blocks and suggests refactoring',
+                category: 'quality',
+                parameters: { minSimilarity: 0.8 },
+                confidence: 0.88,
+                estimatedTokens: 500
+            },
+            {
+                id: 'tree-navigator',
+                name: 'Tree Navigator',
+                description: 'Provides intelligent code navigation and exploration paths',
+                category: 'navigation',
+                parameters: { maxDepth: 4 },
+                confidence: 0.85,
+                estimatedTokens: 400
+            },
+            {
+                id: 'semantic-search',
+                name: 'Semantic Search',
+                description: 'Find similar code patterns using AI-powered semantic search',
+                category: 'search',
+                parameters: { threshold: 0.7, limit: 10 },
+                confidence: 0.95,
+                estimatedTokens: 600
+            },
+            {
+                id: 'security-analyzer',
+                name: 'Security Analyzer',
+                description: 'Scans for security vulnerabilities and best practices',
+                category: 'security',
+                parameters: { includeRecommendations: true },
+                confidence: 0.92,
+                estimatedTokens: 700
+            },
+            {
+                id: 'performance-analyzer',
+                name: 'Performance Analyzer',
+                description: 'Identifies performance bottlenecks and optimization opportunities',
+                category: 'performance',
+                parameters: { includeMetrics: true },
+                confidence: 0.87,
+                estimatedTokens: 650
+            },
+            {
+                id: 'test-coverage-analyzer',
+                name: 'Test Coverage Analyzer',
+                description: 'Analyzes test coverage and suggests testing improvements',
+                category: 'testing',
+                parameters: { includeRecommendations: true },
+                confidence: 0.90,
+                estimatedTokens: 550
+            },
+            {
+                id: 'documentation-analyzer',
+                name: 'Documentation Analyzer',
+                description: 'Evaluates documentation quality and suggests improvements',
+                category: 'documentation',
+                parameters: { includeGaps: true },
+                confidence: 0.83,
+                estimatedTokens: 450
+            },
+            {
+                id: 'dependency-analyzer',
+                name: 'Dependency Analyzer',
+                description: 'Analyzes project dependencies and identifies issues',
+                category: 'dependencies',
+                parameters: { checkVersions: true },
+                confidence: 0.89,
+                estimatedTokens: 500
+            },
+            {
+                id: 'solid-principles-analyzer',
+                name: 'SOLID Principles Analyzer',
+                description: 'Evaluates code against SOLID design principles',
+                category: 'architecture',
+                parameters: { detailedAnalysis: true },
+                confidence: 0.86,
+                estimatedTokens: 600
+            },
+            {
+                id: 'code-complexity-analyzer',
+                name: 'Code Complexity Analyzer',
+                description: 'Measures code complexity and suggests simplifications',
+                category: 'quality',
+                parameters: { includeMetrics: true },
+                confidence: 0.84,
+                estimatedTokens: 450
+            },
+            {
+                id: 'use-case-analyzer',
+                name: 'Use Case Analyzer',
+                description: 'Identifies and documents use cases and user flows',
+                category: 'analysis',
+                parameters: { includeFlows: true },
+                confidence: 0.80,
+                estimatedTokens: 500
+            },
+            {
+                id: 'test-mapping-analyzer',
+                name: 'Test Mapping Analyzer',
+                description: 'Maps tests to code and identifies testing gaps',
+                category: 'testing',
+                parameters: { includeGaps: true },
+                confidence: 0.85,
+                estimatedTokens: 500
+            },
+            {
+                id: 'code-pattern-analyzer',
+                name: 'Code Pattern Analyzer',
+                description: 'Identifies and analyzes code patterns and anti-patterns',
+                category: 'architecture',
+                parameters: { includeAntiPatterns: true },
+                confidence: 0.87,
+                estimatedTokens: 550
             }
         ];
-        return mockTools.filter(tool => this.isToolRelevant(tool, context));
+        tools.forEach(tool => {
+            this.availableTools.set(tool.id, tool);
+        });
+        this.logger.info(`Initialized ${tools.length} available tools`);
     }
-    isToolRelevant(tool, context) {
-        const taskLower = context.task.toLowerCase();
-        return tool.capabilities.some(capability => taskLower.includes(capability.toLowerCase())) || tool.description.toLowerCase().includes(taskLower);
-    }
-    async findComplementaryBundles(tools, context) {
-        // Find bundles that would work well with the selected individual tools
-        const allBundles = this.bundleSystem.getAllBundles();
-        const complementary = [];
-        for (const bundle of allBundles) {
-            if (!bundle.isActive)
-                continue;
-            // Check if bundle adds value without too much overlap
-            const toolOverlap = this.calculateToolOverlap(bundle.tools, tools.map(t => t.name));
-            if (toolOverlap < 0.5) { // Less than 50% overlap
-                complementary.push(bundle);
+    /**
+     * Select tools based on context, with bundle system integration
+     */
+    selectTools(context) {
+        const { userQuery, preferBundles = true, maxTokens = 2000 } = context;
+        this.logger.info(`Selecting tools for query: "${userQuery}"`);
+        let selectedTools = [];
+        let selectedBundles = [];
+        let reasoning = '';
+        let executionStrategy = 'sequential';
+        // First, try bundle-based selection if preferred
+        if (preferBundles) {
+            const bundleContext = {
+                userQuery: context.userQuery,
+                projectType: context.projectType,
+                intent: context.intent,
+                codebaseSize: context.codebaseSize,
+                previousBundles: [] // Could track this in the future
+            };
+            selectedBundles = this.bundleSystem.selectBundles(bundleContext);
+            if (selectedBundles.length > 0) {
+                // Use the best bundle's tools
+                const bestBundle = selectedBundles[0];
+                selectedTools = bestBundle.tools
+                    .map(toolId => this.availableTools.get(toolId))
+                    .filter((tool) => tool !== undefined);
+                reasoning = `Selected bundle "${bestBundle.name}" with ${selectedTools.length} tools: ${selectedTools.map(t => t.name).join(', ')}`;
+                executionStrategy = selectedTools.length > 3 ? 'hybrid' : 'sequential';
             }
         }
-        return complementary.slice(0, 2); // Limit to 2 complementary bundles
-    }
-    calculateToolOverlap(bundleTools, selectedTools) {
-        const overlap = bundleTools.filter(tool => selectedTools.includes(tool)).length;
-        return overlap / Math.max(bundleTools.length, selectedTools.length);
-    }
-    async optimizeHybridSelection(bundleResult, individualTools, context) {
-        // Remove duplicate tools between bundles and individual selection
-        const bundleToolIds = new Set();
-        bundleResult.selectedBundles.forEach(bundle => {
-            bundle.tools.forEach(toolId => bundleToolIds.add(toolId));
-        });
-        const uniqueIndividualTools = individualTools.filter(tool => !bundleToolIds.has(tool.name));
-        // Combine and re-plan execution
-        const allTools = [...bundleResult.selectedTools, ...uniqueIndividualTools];
-        const executionPlan = this.bundleSystem['createExecutionPlan'](bundleResult.selectedBundles, allTools);
-        return {
-            ...bundleResult,
-            selectedTools: allTools,
-            executionPlan,
-            reasoning: `Hybrid selection: ${bundleResult.selectedBundles.length} bundles + ${uniqueIndividualTools.length} individual tools`
+        // If no bundles selected or bundle selection disabled, use individual tool selection
+        if (selectedTools.length === 0) {
+            selectedTools = this.selectIndividualTools(context);
+            reasoning = `Individual tool selection: ${selectedTools.map(t => t.name).join(', ')}`;
+            executionStrategy = 'sequential';
+        }
+        // Apply token budget constraints
+        const totalTokens = selectedTools.reduce((sum, tool) => sum + tool.estimatedTokens, 0);
+        if (totalTokens > maxTokens) {
+            selectedTools = this.optimizeForTokenBudget(selectedTools, maxTokens);
+            reasoning += ` (optimized for ${maxTokens} token budget)`;
+        }
+        // Calculate overall confidence
+        const avgConfidence = selectedTools.length > 0
+            ? selectedTools.reduce((sum, tool) => sum + tool.confidence, 0) / selectedTools.length
+            : 0;
+        const result = {
+            selectedTools,
+            selectedBundles,
+            confidence: avgConfidence,
+            reasoning,
+            estimatedTokens: selectedTools.reduce((sum, tool) => sum + tool.estimatedTokens, 0),
+            executionStrategy
         };
+        this.logger.info(`Selected ${selectedTools.length} tools (${result.estimatedTokens} estimated tokens)`);
+        return result;
     }
-    calculateConfidence(result, context) {
-        let confidence = 0.5; // Base confidence
-        // Increase confidence based on selection completeness
-        if (result.selectedBundles.length > 0 || result.selectedTools.length > 0) {
-            confidence += 0.2;
-        }
-        // Increase confidence for clear task matches
-        if (result.reasoning.includes('auto-trigger')) {
-            confidence += 0.15;
-        }
-        // Adjust based on strategy certainty
-        switch (result.selectionStrategy) {
-            case 'claude-direct':
-                confidence += 0.3;
-                break;
-            case 'bundle-first':
-                confidence += 0.25;
-                break;
-            case 'hybrid':
-                confidence += 0.2;
-                break;
-            case 'tool-first':
-                confidence += 0.15;
-                break;
-        }
-        return Math.min(confidence, 1.0);
-    }
-    generateRecommendations(result, context) {
-        const recommendations = [];
-        if (result.selectedBundles.length === 0 && result.selectedTools.length === 0) {
-            recommendations.push('Consider providing more specific context about your project structure');
-        }
-        if (result.totalTokenCost > 10) {
-            recommendations.push('This selection may be token-intensive. Consider breaking down the task into smaller parts');
-        }
-        if (result.estimatedTime > 60) {
-            recommendations.push('This operation may take over a minute. Consider running it in the background');
-        }
-        if (result.selectionStrategy === 'tool-first' && result.selectedBundles.length === 0) {
-            recommendations.push('Your task might benefit from using tool bundles for more comprehensive results');
-        }
-        return recommendations;
-    }
-    getFallbackSelection(context) {
-        return {
-            selectedBundles: [],
-            selectedTools: [],
-            executionPlan: [],
-            reasoning: 'Fallback selection due to error in primary selection logic',
-            totalTokenCost: 1,
-            estimatedTime: 10,
-            fallbackToIndividual: true,
-            selectionStrategy: 'claude-direct',
-            confidence: 0.3,
-            recommendations: ['An error occurred during tool selection. The query will be handled directly by Claude.']
-        };
-    }
-    generateCacheKey(context) {
-        const key = JSON.stringify({
-            task: context.task,
-            projectPath: context.projectPath,
-            codebaseSize: context.codebaseContext?.size,
-            languages: context.codebaseContext?.primaryLanguages,
-            optimization: context.optimization
-        });
-        return Buffer.from(key).toString('base64').substring(0, 50);
-    }
-    getFromCache(key) {
-        const cached = this.selectionCache.get(key);
-        if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-            return cached.result;
-        }
-        return null;
-    }
-    cacheResult(key, result) {
-        this.selectionCache.set(key, {
-            result,
-            timestamp: Date.now()
-        });
-        // Clean old entries
-        if (this.selectionCache.size > 100) {
-            const entries = Array.from(this.selectionCache.entries());
-            entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
-            // Remove oldest 20 entries
-            for (let i = 0; i < 20; i++) {
-                this.selectionCache.delete(entries[i][0]);
+    /**
+     * Select individual tools based on context
+     */
+    selectIndividualTools(context) {
+        const { userQuery, intent, codebaseSize } = context;
+        const queryLower = userQuery.toLowerCase();
+        const candidates = [];
+        for (const tool of this.availableTools.values()) {
+            let score = 0;
+            // Keyword matching in query
+            const nameWords = tool.name.toLowerCase().split(' ');
+            const descWords = tool.description.toLowerCase().split(' ');
+            nameWords.forEach(word => {
+                if (queryLower.includes(word) && word.length > 3) {
+                    score += 3;
+                }
+            });
+            descWords.forEach(word => {
+                if (queryLower.includes(word) && word.length > 4) {
+                    score += 1;
+                }
+            });
+            // Intent-based scoring
+            if (intent) {
+                const intentToolMapping = {
+                    'overview': ['semantic-graph', 'tree-navigator', 'centralization-detector'],
+                    'refactor': ['duplication-detector', 'solid-principles-analyzer', 'centralization-detector'],
+                    'debug': ['semantic-graph', 'dependency-analyzer', 'test-coverage-analyzer'],
+                    'optimize': ['performance-analyzer', 'code-complexity-analyzer', 'dependency-analyzer'],
+                    'analyze': ['semantic-graph', 'centralization-detector', 'use-case-analyzer'],
+                    'quality': ['duplication-detector', 'test-coverage-analyzer', 'code-complexity-analyzer'],
+                    'security': ['security-analyzer', 'dependency-analyzer', 'code-pattern-analyzer']
+                };
+                if (intentToolMapping[intent]?.includes(tool.id)) {
+                    score += 5;
+                }
+            }
+            // Category-based scoring
+            const categoryKeywords = {
+                'analysis': ['analyze', 'analysis', 'understand', 'overview'],
+                'quality': ['quality', 'clean', 'improve', 'fix', 'refactor'],
+                'architecture': ['architecture', 'design', 'structure', 'patterns'],
+                'performance': ['performance', 'optimize', 'speed', 'bottleneck'],
+                'security': ['security', 'vulnerability', 'secure', 'audit'],
+                'testing': ['test', 'testing', 'coverage', 'unit test'],
+                'documentation': ['document', 'docs', 'comment', 'readme']
+            };
+            const categoryWords = categoryKeywords[tool.category] || [];
+            categoryWords.forEach(keyword => {
+                if (queryLower.includes(keyword)) {
+                    score += 2;
+                }
+            });
+            // Base confidence boost
+            score += tool.confidence * 2;
+            // Codebase size consideration
+            if (codebaseSize === 'large' && ['semantic-graph', 'centralization-detector', 'dependency-analyzer'].includes(tool.id)) {
+                score += 1;
+            }
+            else if (codebaseSize === 'small' && ['tree-navigator', 'use-case-analyzer'].includes(tool.id)) {
+                score += 1;
+            }
+            // Avoid recently used tools (slight penalty)
+            if (context.previousTools?.includes(tool.id)) {
+                score -= 0.5;
+            }
+            if (score > 0) {
+                candidates.push({ tool, score });
             }
         }
+        // Sort by score and return top tools
+        candidates.sort((a, b) => b.score - a.score);
+        // Return top 2-4 tools based on complexity
+        const maxTools = codebaseSize === 'large' ? 4 : 3;
+        return candidates.slice(0, maxTools).map(c => c.tool);
     }
-    async recordSelectionMetrics(context, result, selectionTime) {
-        const metrics = {
-            selectionTime,
-            totalTools: result.selectedTools.length,
-            totalBundles: result.selectedBundles.length,
-            averageToolRelevance: 0.8, // Would be calculated based on actual relevance
-            executionComplexity: result.executionPlan.length,
-            expectedTokenSavings: this.calculateExpectedTokenSavings(result)
-        };
-        this.performanceMonitor.recordMetric('tool_selection_time', metrics.selectionTime, 'ms');
-        this.performanceMonitor.recordMetric('tool_selection_confidence', result.confidence, 'score');
-        this.logger.debug('Selection metrics recorded', metrics);
+    /**
+     * Optimize tool selection for token budget
+     */
+    optimizeForTokenBudget(tools, maxTokens) {
+        // Sort by efficiency (confidence per token)
+        const sorted = tools
+            .map(tool => ({
+            tool,
+            efficiency: tool.confidence / tool.estimatedTokens
+        }))
+            .sort((a, b) => b.efficiency - a.efficiency);
+        const optimized = [];
+        let totalTokens = 0;
+        for (const { tool } of sorted) {
+            if (totalTokens + tool.estimatedTokens <= maxTokens) {
+                optimized.push(tool);
+                totalTokens += tool.estimatedTokens;
+            }
+        }
+        return optimized;
     }
-    calculateExpectedTokenSavings(result) {
-        // Estimate token savings compared to not using tools
-        const baseTokenCost = 1000; // Estimated cost without tools
-        const toolBasedCost = result.totalTokenCost * 50; // Convert to actual token estimate
-        return Math.max(0, baseTokenCost - toolBasedCost);
+    /**
+     * Get all available tools
+     */
+    getAvailableTools() {
+        return Array.from(this.availableTools.values());
     }
-    // Public methods for dashboard integration
-    async getBundleSystem() {
-        return this.bundleSystem;
+    /**
+     * Get tool by ID
+     */
+    getTool(id) {
+        return this.availableTools.get(id);
     }
-    async getSelectionStats() {
-        const allBundles = this.bundleSystem.getAllBundles();
-        const activeBundles = allBundles.filter(b => b.isActive);
-        return {
-            totalBundles: allBundles.length,
-            activeBundles: activeBundles.length,
-            cacheSize: this.selectionCache.size,
-            categories: [...new Set(allBundles.map(b => b.category))],
-            averageToolsPerBundle: activeBundles.reduce((sum, b) => sum + b.tools.length, 0) / activeBundles.length
-        };
+    /**
+     * Get available bundles
+     */
+    getAvailableBundles() {
+        return this.bundleSystem.getBundles();
     }
-    clearCache() {
-        this.selectionCache.clear();
-        this.logger.info('Selection cache cleared');
+    /**
+     * Create a custom tool bundle
+     */
+    createToolBundle(bundle) {
+        return this.bundleSystem.createBundle(bundle);
+    }
+    /**
+     * Update bundle statistics after execution
+     */
+    updateBundleStats(bundleId, success) {
+        this.bundleSystem.updateBundleStats(bundleId, success);
+    }
+    /**
+     * Get bundle usage statistics
+     */
+    getBundleStats() {
+        return this.bundleSystem.getBundleStats();
     }
 }
 exports.EnhancedToolSelector = EnhancedToolSelector;
+exports.default = EnhancedToolSelector;
 //# sourceMappingURL=enhanced-tool-selector.js.map

@@ -1,4 +1,8 @@
 "use strict";
+/**
+ * UI Navigation Analyzer - Simplified Frontend Flow Understanding
+ * Analyzes UI components, navigation flows, and user journeys for Claude Code context enhancement
+ */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -35,42 +39,49 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UINavigationAnalyzer = void 0;
 const logger_1 = require("../../utils/logger");
-const colored_logger_1 = require("../../utils/colored-logger");
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
-const glob_1 = require("glob");
+const fast_glob_1 = require("fast-glob");
 class UINavigationAnalyzer {
     logger = logger_1.Logger.getInstance();
     async analyzeUI(params) {
         const startTime = Date.now();
-        colored_logger_1.cliLogger.toolExecution('ui-navigation-analyzer', 'started');
         try {
-            // Detect UI framework
-            const framework = await this.detectFramework(params.projectPath);
-            // Find UI components and pages
+            this.logger.info('🎨 Starting UI navigation analysis...');
+            // 1. Detect UI framework
+            const framework = params.framework || await this.detectFramework(params.projectPath);
+            // 2. Find UI components and pages
             const components = await this.findUIComponents(params.projectPath, framework);
-            // Analyze navigation flows
+            // 3. Analyze navigation flows
             const navigationFlows = await this.analyzeNavigationFlows(components, params.projectPath);
-            // Extract screens and routes
+            // 4. Extract screens and routes
             const screens = await this.extractScreens(components);
             const routes = await this.extractRoutes(params.projectPath, framework);
-            // Find shared components
+            // 5. Identify shared components
             const sharedComponents = this.identifySharedComponents(components);
-            // Build dependency map
-            const dependencies = await this.buildDependencyMap(components);
-            // Generate recommendations
-            const recommendations = this.generateRecommendations(components, navigationFlows);
+            // 6. Assess architecture health
+            const architectureHealth = this.assessArchitectureHealth(components, navigationFlows);
+            // 7. Generate recommendations
+            const recommendations = this.generateRecommendations(components, navigationFlows, architectureHealth);
+            // 8. Generate Mermaid diagrams
+            const mermaidDiagrams = {
+                componentGraph: this.generateComponentMermaid(components, sharedComponents),
+                navigationFlow: this.generateNavigationMermaid(navigationFlows),
+                screenFlow: this.generateScreenFlowMermaid(screens, routes)
+            };
             const result = {
+                framework,
                 components,
                 navigationFlows,
                 screens,
                 routes,
                 sharedComponents,
-                dependencies,
-                recommendations
+                recommendations,
+                architectureHealth,
+                mermaidDiagrams
             };
             const duration = Date.now() - startTime;
-            colored_logger_1.cliLogger.toolExecution('ui-navigation-analyzer', 'completed', duration, {
+            this.logger.info(`✅ UI navigation analysis completed in ${duration}ms`, {
                 componentsFound: components.length,
                 screensFound: screens.length,
                 navigationFlows: navigationFlows.length,
@@ -79,303 +90,515 @@ class UINavigationAnalyzer {
             return result;
         }
         catch (error) {
-            colored_logger_1.cliLogger.toolExecution('ui-navigation-analyzer', 'failed', Date.now() - startTime, error);
+            this.logger.error('❌ UI navigation analysis failed:', error);
             throw error;
         }
     }
     async detectFramework(projectPath) {
         try {
-            const packageJson = JSON.parse(await fs.readFile(path.join(projectPath, 'package.json'), 'utf-8'));
+            const packageJsonPath = path.join(projectPath, 'package.json');
+            const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
             const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
-            if (deps.react || deps['@types/react'])
+            // Check for popular frontend frameworks
+            if (deps['react'] || deps['@types/react'])
                 return 'react';
-            if (deps.vue || deps['@vue/cli'])
+            if (deps['vue'] || deps['@vue/cli'])
                 return 'vue';
             if (deps['@angular/core'])
                 return 'angular';
-            if (deps.svelte)
+            if (deps['svelte'])
                 return 'svelte';
+            if (deps['next'])
+                return 'nextjs';
+            if (deps['nuxt'])
+                return 'nuxtjs';
+            if (deps['gatsby'])
+                return 'gatsby';
             return 'vanilla';
         }
         catch {
-            return 'vanilla';
+            return 'unknown';
         }
     }
     async findUIComponents(projectPath, framework) {
         const components = [];
-        // Define search patterns based on framework
-        const patterns = this.getComponentPatterns(framework);
-        for (const pattern of patterns) {
-            const files = await (0, glob_1.glob)(pattern, { cwd: projectPath });
-            for (const file of files) {
-                const fullPath = path.join(projectPath, file);
-                const component = await this.analyzeComponentFile(fullPath, framework);
+        try {
+            // Framework-specific component patterns
+            const patterns = this.getComponentPatterns(framework);
+            const files = await (0, fast_glob_1.glob)(patterns, {
+                cwd: projectPath,
+                ignore: ['node_modules/**', 'dist/**', 'build/**', '**/*.test.*', '**/*.spec.*']
+            });
+            for (const file of files.slice(0, 50)) { // Reasonable limit
+                const component = await this.analyzeComponent(path.join(projectPath, file), framework);
                 if (component) {
                     components.push(component);
                 }
             }
+        }
+        catch (error) {
+            this.logger.warn('Could not find UI components:', error);
         }
         return components;
     }
     getComponentPatterns(framework) {
         switch (framework) {
             case 'react':
+            case 'nextjs':
+            case 'gatsby':
                 return [
-                    'src/components/**/*.{tsx,jsx,ts,js}',
-                    'src/pages/**/*.{tsx,jsx,ts,js}',
-                    'src/screens/**/*.{tsx,jsx,ts,js}',
-                    'src/views/**/*.{tsx,jsx,ts,js}'
+                    'src/**/*.{jsx,tsx}',
+                    'pages/**/*.{js,ts,jsx,tsx}',
+                    'components/**/*.{js,ts,jsx,tsx}',
+                    'app/**/*.{js,ts,jsx,tsx}'
                 ];
             case 'vue':
+            case 'nuxtjs':
                 return [
-                    'src/components/**/*.vue',
-                    'src/pages/**/*.vue',
-                    'src/views/**/*.vue'
+                    'src/**/*.vue',
+                    'pages/**/*.vue',
+                    'components/**/*.vue',
+                    'layouts/**/*.vue'
                 ];
             case 'angular':
                 return [
-                    'src/app/**/*.component.ts',
-                    'src/app/**/*.page.ts'
+                    'src/**/*.component.ts',
+                    'src/**/*.page.ts',
+                    'src/**/*.module.ts'
                 ];
             case 'svelte':
                 return [
-                    'src/components/**/*.svelte',
+                    'src/**/*.svelte',
                     'src/routes/**/*.svelte'
                 ];
             default:
                 return [
-                    'src/**/*.{html,js,ts}',
-                    'public/**/*.html'
+                    'src/**/*.{js,ts,jsx,tsx,vue}',
+                    'components/**/*.{js,ts,jsx,tsx,vue}',
+                    'pages/**/*.{js,ts,jsx,tsx,vue}'
                 ];
         }
     }
-    async analyzeComponentFile(filePath, framework) {
+    async analyzeComponent(filePath, framework) {
         try {
             const content = await fs.readFile(filePath, 'utf-8');
-            const fileName = path.basename(filePath, path.extname(filePath));
-            // Determine component type
-            const type = this.determineComponentType(filePath, content);
-            // Extract dependencies (imports)
-            const dependencies = this.extractDependencies(content);
-            // Extract props (React/Vue specific)
-            const props = this.extractProps(content, framework);
-            // Extract state
-            const state = this.extractState(content, framework);
-            // Extract routes (if applicable)
-            const routes = this.extractComponentRoutes(content);
-            // Extract navigation targets
-            const navigationTargets = this.extractNavigationTargets(content);
+            const name = path.basename(filePath, path.extname(filePath));
             return {
-                name: fileName,
                 path: filePath,
-                type,
-                framework: framework,
-                dependencies,
-                props,
-                state,
-                routes,
-                navigationTargets
+                name,
+                type: this.determineComponentType(content, filePath),
+                framework,
+                dependencies: this.extractDependencies(content),
+                exports: this.extractExports(content),
+                props: this.extractProps(content, framework),
+                routes: this.extractComponentRoutes(content),
+                isShared: this.isSharedComponent(content, filePath),
+                complexity: this.calculateComponentComplexity(content)
             };
         }
         catch (error) {
-            this.logger.warn(`Failed to analyze component ${filePath}:`, error);
+            this.logger.warn(`Could not analyze component ${filePath}:`, error);
             return null;
         }
     }
-    determineComponentType(filePath, content) {
+    determineComponentType(content, filePath) {
         const pathLower = filePath.toLowerCase();
-        if (pathLower.includes('/pages/') || pathLower.includes('/screens/')) {
+        const contentLower = content.toLowerCase();
+        if (pathLower.includes('page') || pathLower.includes('route'))
             return 'page';
-        }
-        if (pathLower.includes('/layouts/')) {
+        if (pathLower.includes('layout') || contentLower.includes('layout'))
             return 'layout';
-        }
-        if (content.includes('modal') || content.includes('Modal')) {
-            return 'modal';
-        }
-        if (content.includes('form') || content.includes('Form') ||
-            content.includes('input') || content.includes('Input')) {
-            return 'form';
-        }
+        if (pathLower.includes('hook') || contentLower.includes('usehook') || contentLower.includes('use'))
+            return 'hook';
+        if (pathLower.includes('service') || contentLower.includes('service'))
+            return 'service';
         return 'component';
     }
     extractDependencies(content) {
-        const dependencies = [];
+        const dependencies = new Set();
         // Extract import statements
-        const importRegex = /import.*from\s+['"`]([^'"`]+)['"`]/g;
-        let match;
-        while ((match = importRegex.exec(content)) !== null) {
-            const importPath = match[1];
-            if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
-                dependencies.push(importPath);
+        const importMatches = content.matchAll(/import\s+.*?\s+from\s+['"`]([^'"`]+)['"`]/g);
+        for (const match of importMatches) {
+            if (match[1] && !match[1].startsWith('.') && !match[1].includes('node_modules')) {
+                dependencies.add(match[1]);
             }
         }
-        return [...new Set(dependencies)];
+        return Array.from(dependencies).slice(0, 10);
+    }
+    extractExports(content) {
+        const exports = new Set();
+        // Extract export statements
+        const exportMatches = content.matchAll(/export\s+(?:default\s+)?(?:function|const|class|interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g);
+        for (const match of exportMatches) {
+            if (match[1]) {
+                exports.add(match[1]);
+            }
+        }
+        return Array.from(exports);
     }
     extractProps(content, framework) {
         const props = [];
         if (framework === 'react') {
-            // Extract TypeScript interface props
-            const interfaceRegex = /interface\s+\w*Props[^{]*\{([^}]+)\}/g;
-            const match = interfaceRegex.exec(content);
-            if (match) {
-                const propsContent = match[1];
-                const propRegex = /(\w+)\s*[?:]?\s*:/g;
-                let propMatch;
-                while ((propMatch = propRegex.exec(propsContent)) !== null) {
-                    props.push(propMatch[1]);
+            // React props interface pattern
+            const propsInterfaceMatch = content.match(/interface\s+\w*Props\s*\{([^}]+)\}/);
+            if (propsInterfaceMatch) {
+                const propsContent = propsInterfaceMatch[1];
+                const propMatches = propsContent.matchAll(/(\w+)\??\s*:\s*([^;,\n]+)/g);
+                for (const match of propMatches) {
+                    if (match[1] && match[2]) {
+                        props.push({
+                            name: match[1],
+                            type: match[2].trim(),
+                            required: !propsContent.includes(`${match[1]}?`)
+                        });
+                    }
                 }
             }
         }
-        return props;
-    }
-    extractState(content, framework) {
-        const state = [];
-        if (framework === 'react') {
-            // Extract useState hooks
-            const useStateRegex = /const\s+\[(\w+),\s*set\w+\]\s*=\s*useState/g;
-            let match;
-            while ((match = useStateRegex.exec(content)) !== null) {
-                state.push(match[1]);
-            }
-        }
-        return state;
+        return props.slice(0, 10);
     }
     extractComponentRoutes(content) {
         const routes = [];
-        // Extract route paths
-        const routeRegex = /(?:path|route)['"`]\s*:\s*['"`]([^'"`]+)['"`]/g;
-        let match;
-        while ((match = routeRegex.exec(content)) !== null) {
-            routes.push(match[1]);
-        }
-        return routes;
-    }
-    extractNavigationTargets(content) {
-        const targets = [];
-        // Extract navigation calls (navigate, push, etc.)
-        const navigationRegex = /(?:navigate|push|replace|href)\s*\(\s*['"`]([^'"`]+)['"`]/g;
-        let match;
-        while ((match = navigationRegex.exec(content)) !== null) {
-            targets.push(match[1]);
-        }
-        return targets;
-    }
-    async analyzeNavigationFlows(components, projectPath) {
-        const flows = [];
-        for (const component of components) {
-            if (component.navigationTargets && component.navigationTargets.length > 0) {
-                for (const target of component.navigationTargets) {
-                    flows.push({
-                        from: component.name,
-                        to: target,
-                        trigger: 'user_action'
+        // Look for route definitions
+        const routePatterns = [
+            /Route\s+path=['"`]([^'"`]+)['"`]/g,
+            /router\.(?:get|post|put|delete)\s*\(['"`]([^'"`]+)['"`]/g,
+            /@Route\s*\(['"`]([^'"`]+)['"`]/g
+        ];
+        for (const pattern of routePatterns) {
+            const matches = content.matchAll(pattern);
+            for (const match of matches) {
+                if (match[1]) {
+                    routes.push({
+                        path: match[1],
+                        component: path.basename(content, '.tsx')
                     });
                 }
             }
         }
+        return routes;
+    }
+    isSharedComponent(content, filePath) {
+        const pathLower = filePath.toLowerCase();
+        return pathLower.includes('shared') ||
+            pathLower.includes('common') ||
+            pathLower.includes('ui') ||
+            pathLower.includes('components');
+    }
+    calculateComponentComplexity(content) {
+        // Simple complexity calculation
+        const lines = content.split('\n').length;
+        const functions = (content.match(/function|=>/g) || []).length;
+        const conditions = (content.match(/if|else|switch|case|\?/g) || []).length;
+        const loops = (content.match(/for|while|map|filter|forEach/g) || []).length;
+        return Math.round((lines / 10) + functions + (conditions * 1.5) + (loops * 1.2));
+    }
+    async analyzeNavigationFlows(components, projectPath) {
+        const flows = [];
+        try {
+            // Simple heuristic-based flow detection
+            const pageComponents = components.filter(c => c.type === 'page');
+            // Create basic flows based on common patterns
+            if (pageComponents.some(p => p.name.toLowerCase().includes('login'))) {
+                flows.push(this.createAuthenticationFlow(pageComponents));
+            }
+            if (pageComponents.some(p => p.name.toLowerCase().includes('dashboard'))) {
+                flows.push(this.createDashboardFlow(pageComponents));
+            }
+            if (pageComponents.some(p => p.name.toLowerCase().includes('profile'))) {
+                flows.push(this.createProfileFlow(pageComponents));
+            }
+        }
+        catch (error) {
+            this.logger.warn('Could not analyze navigation flows:', error);
+        }
         return flows;
     }
+    createAuthenticationFlow(components) {
+        const loginComponent = components.find(c => c.name.toLowerCase().includes('login'));
+        const dashboardComponent = components.find(c => c.name.toLowerCase().includes('dashboard'));
+        return {
+            id: 'authentication_flow',
+            name: 'User Authentication Flow',
+            steps: [
+                {
+                    component: 'LoginPage',
+                    action: 'Enter credentials',
+                    trigger: 'form_submit',
+                    nextComponent: dashboardComponent?.name || 'Dashboard'
+                },
+                {
+                    component: dashboardComponent?.name || 'Dashboard',
+                    action: 'View authenticated content',
+                    trigger: 'successful_auth'
+                }
+            ],
+            entryPoints: [loginComponent?.name || 'LoginPage'],
+            exitPoints: [dashboardComponent?.name || 'Dashboard'],
+            userType: 'anonymous',
+            businessValue: 'high'
+        };
+    }
+    createDashboardFlow(components) {
+        return {
+            id: 'dashboard_flow',
+            name: 'Dashboard Navigation Flow',
+            steps: [
+                {
+                    component: 'Dashboard',
+                    action: 'View overview',
+                    trigger: 'page_load'
+                }
+            ],
+            entryPoints: ['Dashboard'],
+            exitPoints: [],
+            userType: 'authenticated',
+            businessValue: 'high'
+        };
+    }
+    createProfileFlow(components) {
+        return {
+            id: 'profile_flow',
+            name: 'User Profile Management Flow',
+            steps: [
+                {
+                    component: 'ProfilePage',
+                    action: 'View profile',
+                    trigger: 'navigation',
+                    nextComponent: 'EditProfile'
+                },
+                {
+                    component: 'EditProfile',
+                    action: 'Edit profile information',
+                    trigger: 'edit_button'
+                }
+            ],
+            entryPoints: ['ProfilePage'],
+            exitPoints: ['EditProfile'],
+            userType: 'authenticated',
+            businessValue: 'medium'
+        };
+    }
     async extractScreens(components) {
-        return components
-            .filter(c => c.type === 'page')
-            .map(c => c.name);
+        const screens = [];
+        const pageComponents = components.filter(c => c.type === 'page');
+        for (const component of pageComponents) {
+            screens.push({
+                id: `screen_${component.name.toLowerCase()}`,
+                name: component.name,
+                route: component.routes[0]?.path || `/${component.name.toLowerCase()}`,
+                component: component.name,
+                type: 'page',
+                dependencies: component.dependencies,
+                dataRequirements: this.extractDataRequirements(component)
+            });
+        }
+        return screens;
+    }
+    extractDataRequirements(component) {
+        const requirements = new Set();
+        // Look for common data patterns in component dependencies
+        component.dependencies.forEach(dep => {
+            if (dep.includes('api') || dep.includes('service')) {
+                requirements.add('api_data');
+            }
+            if (dep.includes('auth')) {
+                requirements.add('user_auth');
+            }
+            if (dep.includes('store') || dep.includes('state')) {
+                requirements.add('global_state');
+            }
+        });
+        return Array.from(requirements);
     }
     async extractRoutes(projectPath, framework) {
         const routes = [];
         try {
-            // Look for routing configuration files
-            const routeFiles = await this.findRouteFiles(projectPath, framework);
-            for (const routeFile of routeFiles) {
-                const content = await fs.readFile(routeFile, 'utf-8');
-                const fileRoutes = this.extractRoutesFromFile(content);
+            // Framework-specific route file patterns
+            const routePatterns = this.getRoutePatterns(framework);
+            const routeFiles = await (0, fast_glob_1.glob)(routePatterns, {
+                cwd: projectPath,
+                ignore: ['node_modules/**', 'dist/**']
+            });
+            for (const file of routeFiles.slice(0, 10)) {
+                const fileRoutes = await this.extractRoutesFromFile(path.join(projectPath, file));
                 routes.push(...fileRoutes);
             }
         }
         catch (error) {
-            this.logger.warn('Failed to extract routes:', error);
+            this.logger.warn('Could not extract routes:', error);
         }
-        return [...new Set(routes)];
+        return routes;
     }
-    async findRouteFiles(projectPath, framework) {
-        const patterns = [];
+    getRoutePatterns(framework) {
         switch (framework) {
-            case 'react':
-                patterns.push('src/**/*{router,route,routing}*.{ts,tsx,js,jsx}');
-                break;
-            case 'vue':
-                patterns.push('src/router/**/*.{ts,js}');
-                break;
+            case 'nextjs':
+                return ['pages/**/*.{js,ts,jsx,tsx}', 'app/**/*.{js,ts,jsx,tsx}'];
+            case 'nuxtjs':
+                return ['pages/**/*.vue'];
             case 'angular':
-                patterns.push('src/app/**/*routing*.ts');
-                break;
+                return ['**/*-routing.module.ts', '**/app.routes.ts'];
+            default:
+                return ['**/*route*.{js,ts}', '**/router.{js,ts}'];
         }
-        const files = [];
-        for (const pattern of patterns) {
-            const matches = await (0, glob_1.glob)(pattern, { cwd: projectPath });
-            files.push(...matches.map(m => path.join(projectPath, m)));
-        }
-        return files;
     }
-    extractRoutesFromFile(content) {
+    async extractRoutesFromFile(filePath) {
         const routes = [];
-        // Extract various route patterns
-        const routePatterns = [
-            /path\s*:\s*['"`]([^'"`]+)['"`]/g,
-            /route\s*\(\s*['"`]([^'"`]+)['"`]/g,
-            /'([^']+)':\s*\w+/g
-        ];
-        for (const pattern of routePatterns) {
-            let match;
-            while ((match = pattern.exec(content)) !== null) {
-                routes.push(match[1]);
+        try {
+            const content = await fs.readFile(filePath, 'utf-8');
+            // Extract route definitions
+            const routeMatches = content.matchAll(/(?:path|route):\s*['"`]([^'"`]+)['"`]/g);
+            for (const match of routeMatches) {
+                if (match[1]) {
+                    routes.push({
+                        path: match[1],
+                        component: path.basename(filePath, path.extname(filePath))
+                    });
+                }
             }
+        }
+        catch (error) {
+            this.logger.warn(`Could not extract routes from ${filePath}:`, error);
         }
         return routes;
     }
     identifySharedComponents(components) {
-        const componentUsage = new Map();
-        // Count how many times each component is imported
-        for (const component of components) {
-            for (const dep of component.dependencies) {
-                if (dep.startsWith('.') || dep.startsWith('/')) {
-                    // Local component import
-                    const count = componentUsage.get(dep) || 0;
-                    componentUsage.set(dep, count + 1);
-                }
-            }
-        }
-        // Return components used in multiple places
-        return Array.from(componentUsage.entries())
-            .filter(([, count]) => count > 1)
-            .map(([component]) => component);
+        return components
+            .filter(component => component.isShared)
+            .map(component => component.name);
     }
-    async buildDependencyMap(components) {
-        const dependencyMap = {};
-        for (const component of components) {
-            dependencyMap[component.name] = component.dependencies;
+    assessArchitectureHealth(components, flows) {
+        const issues = [];
+        const strengths = [];
+        // Component reusability analysis
+        const sharedCount = components.filter(c => c.isShared).length;
+        const componentReusability = components.length > 0 ? sharedCount / components.length : 0;
+        if (componentReusability < 0.2) {
+            issues.push('Low component reusability - consider creating more shared components');
         }
-        return dependencyMap;
+        else if (componentReusability > 0.4) {
+            strengths.push('Good component reusability with shared components');
+        }
+        // Navigation complexity analysis  
+        const avgFlowSteps = flows.length > 0 ? flows.reduce((sum, f) => sum + f.steps.length, 0) / flows.length : 0;
+        const navigationComplexity = Math.min(avgFlowSteps / 5, 1); // Normalize to 0-1
+        if (avgFlowSteps > 8) {
+            issues.push('Complex navigation flows may confuse users');
+        }
+        else if (avgFlowSteps > 0 && avgFlowSteps <= 4) {
+            strengths.push('Simple, intuitive navigation flows');
+        }
+        // Component complexity analysis
+        const highComplexityComponents = components.filter(c => c.complexity > 20).length;
+        if (highComplexityComponents > components.length * 0.2) {
+            issues.push('Many components have high complexity - consider refactoring');
+        }
+        const score = Math.max(0, 1 - (issues.length * 0.2));
+        return {
+            score,
+            componentReusability,
+            navigationComplexity,
+            issues,
+            strengths
+        };
     }
-    generateRecommendations(components, navigationFlows) {
+    generateRecommendations(components, flows, health) {
         const recommendations = [];
-        // Check for components with no navigation
-        const isolatedComponents = components.filter(c => c.type === 'page' &&
-            !navigationFlows.some(f => f.from === c.name || f.to === c.name));
-        if (isolatedComponents.length > 0) {
-            recommendations.push(`Found ${isolatedComponents.length} isolated pages that may need navigation links`);
+        if (health.componentReusability < 0.3) {
+            recommendations.push('Create more reusable shared components to improve maintainability');
         }
-        // Check for deeply nested components
-        const deepComponents = components.filter(c => c.path.split('/').length > 6);
-        if (deepComponents.length > 0) {
-            recommendations.push(`Consider flattening component structure for ${deepComponents.length} deeply nested components`);
+        if (health.navigationComplexity > 0.7) {
+            recommendations.push('Simplify navigation flows to improve user experience');
         }
-        // Check for missing prop validation
-        const unvalidatedComponents = components.filter(c => c.props && c.props.length > 0 && !c.dependencies.includes('prop-types'));
-        if (unvalidatedComponents.length > 0) {
-            recommendations.push(`Add prop validation to ${unvalidatedComponents.length} components for better type safety`);
+        const highComplexityComponents = components.filter(c => c.complexity > 20);
+        if (highComplexityComponents.length > 0) {
+            recommendations.push(`${highComplexityComponents.length} components have high complexity and should be refactored`);
+        }
+        if (flows.length === 0) {
+            recommendations.push('Define clear user navigation flows to improve UX planning');
+        }
+        if (recommendations.length === 0) {
+            recommendations.push('UI architecture appears well-structured');
         }
         return recommendations;
+    }
+    // Mermaid Diagram Generation Methods
+    generateComponentMermaid(components, sharedComponents) {
+        const lines = ['graph TD'];
+        // Add component nodes
+        components.forEach(comp => {
+            const shape = sharedComponents.includes(comp.name) ? '((' : '[';
+            const endShape = sharedComponents.includes(comp.name) ? '))' : ']';
+            const label = `${comp.name}\\n<${comp.type}>`;
+            lines.push(`    ${comp.name}${shape}${label}${endShape}`);
+        });
+        // Add dependencies as edges
+        components.forEach(comp => {
+            comp.dependencies.forEach(dep => {
+                const depComponent = components.find(c => c.path.includes(dep));
+                if (depComponent) {
+                    lines.push(`    ${comp.name} --> ${depComponent.name}`);
+                }
+            });
+        });
+        // Add styling
+        lines.push('    classDef shared fill:#f9f,stroke:#333,stroke-width:2px');
+        sharedComponents.forEach(name => {
+            lines.push(`    class ${name} shared`);
+        });
+        return lines.join('\n');
+    }
+    generateNavigationMermaid(flows) {
+        const lines = ['stateDiagram-v2'];
+        flows.forEach(flow => {
+            lines.push(`    state "${flow.name}" as ${flow.id} {`);
+            // Add entry points
+            flow.entryPoints.forEach(entry => {
+                lines.push(`        [*] --> ${entry}`);
+            });
+            // Add navigation steps
+            flow.steps.forEach(step => {
+                if (step.nextComponent) {
+                    const condition = step.conditions?.length > 0
+                        ? `: ${step.conditions[0]}`
+                        : `: ${step.action}`;
+                    lines.push(`        ${step.component} --> ${step.nextComponent}${condition}`);
+                }
+            });
+            // Add exit points
+            flow.exitPoints.forEach(exit => {
+                lines.push(`        ${exit} --> [*]`);
+            });
+            lines.push(`    }`);
+        });
+        return lines.join('\n');
+    }
+    generateScreenFlowMermaid(screens, routes) {
+        const lines = ['journey'];
+        lines.push('    title User Navigation Journey');
+        lines.push('    section Main Flow');
+        // Group screens by type
+        const pageScreens = screens.filter(s => s.type === 'page');
+        const modalScreens = screens.filter(s => s.type === 'modal');
+        // Add page navigation
+        pageScreens.forEach((screen, index) => {
+            const route = routes.find(r => r.component === screen.component);
+            const method = route?.method || 'Navigate';
+            lines.push(`        ${method} to ${screen.name}: 5: User`);
+            // Add data requirements as tasks
+            if (screen.dataRequirements.length > 0) {
+                lines.push(`        Load ${screen.dataRequirements[0]}: 3: System`);
+            }
+        });
+        // Add modal interactions
+        if (modalScreens.length > 0) {
+            lines.push('    section Modals & Overlays');
+            modalScreens.forEach(screen => {
+                lines.push(`        Open ${screen.name}: 4: User`);
+                lines.push(`        Complete action: 3: User`);
+            });
+        }
+        return lines.join('\n');
     }
 }
 exports.UINavigationAnalyzer = UINavigationAnalyzer;

@@ -39,10 +39,25 @@ const path = __importStar(require("path"));
 const fast_glob_1 = require("fast-glob");
 const logger_1 = require("../utils/logger");
 const analyzer_1 = require("../shared/ast/analyzer");
+const semantic_orchestrator_1 = require("../orchestration/semantic-orchestrator");
 class ContextOptimizer {
     logger = logger_1.Logger.getInstance();
     astAnalyzer = new analyzer_1.ASTAnalyzer();
     cache = new Map();
+    semanticOrchestrator;
+    constructor() {
+        this.semanticOrchestrator = new semantic_orchestrator_1.SemanticOrchestrator();
+        this.initializeSemanticGraph();
+    }
+    async initializeSemanticGraph() {
+        try {
+            await this.semanticOrchestrator.initialize();
+            this.logger.info('🧠 Context Optimizer: Semantic graph initialized');
+        }
+        catch (error) {
+            this.logger.warn('⚠️ Context Optimizer: Could not initialize semantic graph:', error);
+        }
+    }
     async optimizeContext(request) {
         const cacheKey = this.getCacheKey(request);
         if (this.cache.has(cacheKey)) {
@@ -237,15 +252,45 @@ class ContextOptimizer {
     async selectPriorityFiles(projectPath, query, focusArea, strategy, tokenBudget) {
         const allFiles = await this.getAllProjectFiles(projectPath);
         const scoredFiles = [];
-        // Score files based on various factors
+        // Get semantic context if query provided
+        let semanticContext = null;
+        if (query) {
+            try {
+                const semanticRequest = {
+                    query,
+                    projectPath,
+                    intent: focusArea || 'overview',
+                    maxResults: 20,
+                    includeRelated: true
+                };
+                semanticContext = await this.semanticOrchestrator.analyzeWithSemanticContext(semanticRequest);
+                this.logger.info(`🧠 Found ${semanticContext.primaryResults.length} semantic matches for "${query}"`);
+            }
+            catch (error) {
+                this.logger.debug('Could not get semantic context:', error);
+            }
+        }
+        // Score files based on various factors + semantic relevance
         for (const file of allFiles) {
-            const score = await this.scoreFile(projectPath, file, query, focusArea);
+            const baseScore = await this.scoreFile(projectPath, file, query, focusArea);
+            let finalScore = baseScore;
+            let hasSemanticBoost = false;
+            // Boost score for semantically relevant files
+            if (semanticContext) {
+                const semanticBoost = this.getSemanticRelevanceScore(file, semanticContext);
+                if (semanticBoost > 0) {
+                    finalScore *= (1 + semanticBoost);
+                    hasSemanticBoost = true;
+                }
+            }
             const language = this.getLanguageFromExtension(path.extname(file));
             scoredFiles.push({
                 path: file,
-                score,
+                score: finalScore,
+                baseScore: baseScore,
                 language,
-                importance: this.getImportanceLevel(score)
+                importance: this.getImportanceLevel(finalScore),
+                semanticBoost: hasSemanticBoost
             });
         }
         // Sort by score and apply strategy-specific filtering
@@ -494,6 +539,37 @@ class ContextOptimizer {
     }
     getCacheKey(request) {
         return `${request.projectPath}:${request.query || ''}:${request.contextType}:${request.focusArea || ''}:${request.tokenBudget}`;
+    }
+    getSemanticRelevanceScore(filePath, semanticContext) {
+        if (!semanticContext || !semanticContext.primaryResults)
+            return 0;
+        let relevanceScore = 0;
+        const fileName = path.basename(filePath);
+        // Check if file matches semantic search results
+        for (const result of semanticContext.primaryResults) {
+            if (result.type === 'code_context' && result.path) {
+                if (result.path.includes(fileName) || filePath.includes(result.path)) {
+                    relevanceScore += result.relevance || 0.5;
+                }
+            }
+        }
+        // Boost score for files related to cross-domain insights
+        if (semanticContext.crossDomainInsights) {
+            for (const insight of semanticContext.crossDomainInsights) {
+                if (filePath.toLowerCase().includes(insight.concept.toLowerCase())) {
+                    relevanceScore += 0.3;
+                }
+            }
+        }
+        // Boost score for files in related concepts
+        if (semanticContext.relatedConcepts) {
+            for (const concept of semanticContext.relatedConcepts) {
+                if (filePath.toLowerCase().includes(concept.name.toLowerCase())) {
+                    relevanceScore += 0.2 * concept.strength;
+                }
+            }
+        }
+        return Math.min(relevanceScore, 1.0); // Cap at 100% boost
     }
     clearCache() {
         this.cache.clear();

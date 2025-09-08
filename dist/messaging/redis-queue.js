@@ -20,12 +20,14 @@ class RedisQueue {
         this.redis = new ioredis_1.default({
             host: process.env.REDIS_HOST || 'localhost',
             port: parseInt(process.env.REDIS_PORT || '6379'),
+            password: process.env.REDIS_PASSWORD,
             maxRetriesPerRequest: 3,
             lazyConnect: true
         });
         this.subscriber = new ioredis_1.default({
             host: process.env.REDIS_HOST || 'localhost',
             port: parseInt(process.env.REDIS_PORT || '6379'),
+            password: process.env.REDIS_PASSWORD,
             lazyConnect: true
         });
         this.setupEventHandlers();

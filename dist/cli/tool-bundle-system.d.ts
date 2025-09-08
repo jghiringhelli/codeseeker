@@ -1,95 +1,93 @@
-import { Tool, ToolSelectionContext } from './intelligent-tool-selector';
-import { Database } from '../database/database';
+/**
+ * Tool Bundle System for CodeMind CLI
+ * Defines sets of tools for common scenarios to improve tool selection
+ */
 export interface ToolBundle {
     id: string;
     name: string;
     description: string;
-    category: string;
+    category: 'analysis' | 'quality' | 'architecture' | 'performance' | 'security' | 'development';
     tools: string[];
-    dependencies: string[];
-    conditions: BundleCondition[];
-    executionOrder?: 'parallel' | 'sequential' | 'dependency-based';
+    parameters?: Record<string, any>;
+    confidence: number;
+    useCases: string[];
     priority: number;
-    tokenCost: 'low' | 'medium' | 'high';
-    estimatedTime: 'fast' | 'medium' | 'slow';
-    scenarios: string[];
-    autoTrigger?: string[];
-    version: string;
-    created: Date;
-    lastModified: Date;
-    isDefault: boolean;
-    isActive: boolean;
 }
-export interface BundleCondition {
-    type: 'codebase_size' | 'language' | 'framework' | 'task_type' | 'context' | 'custom';
-    operator: 'equals' | 'contains' | 'greater_than' | 'less_than' | 'matches_regex';
-    value: string | number;
-    weight: number;
+export interface BundleExecutionResult {
+    bundleId: string;
+    success: boolean;
+    results: Record<string, any>;
+    tokensUsed: number;
+    executionTime: number;
+    errors?: string[];
 }
-export interface BundleSelectionResult {
-    selectedBundles: ToolBundle[];
-    selectedTools: Tool[];
-    executionPlan: ExecutionStep[];
-    reasoning: string;
-    totalTokenCost: number;
-    estimatedTime: number;
-}
-export interface ExecutionStep {
-    type: 'tool' | 'bundle';
-    id: string;
-    name: string;
-    dependsOn: string[];
-    canRunInParallel: boolean;
-    order: number;
-}
-export interface ConfigurableDescription {
-    id: string;
-    type: 'tool' | 'bundle';
-    name: string;
-    description: string;
-    defaultDescription: string;
-    lastModified: Date;
-    modifiedBy: string;
-    isCustom: boolean;
+export interface BundleSelectionContext {
+    userQuery: string;
+    projectType?: string;
+    intent?: string;
+    codebaseSize?: 'small' | 'medium' | 'large';
+    previousBundles?: string[];
 }
 export declare class ToolBundleSystem {
     private logger;
-    private db;
-    private configPath;
     private bundles;
-    private tools;
-    private descriptions;
-    constructor(database: Database, configPath?: string);
-    initialize(): Promise<void>;
-    createBundle(bundle: Omit<ToolBundle, 'id' | 'created' | 'lastModified'>): Promise<string>;
-    updateBundle(id: string, updates: Partial<ToolBundle>): Promise<void>;
-    deleteBundle(id: string): Promise<void>;
-    selectBundlesAndTools(context: ToolSelectionContext): Promise<BundleSelectionResult>;
-    private evaluateBundles;
-    private evaluateCondition;
-    private compareValue;
-    private matchScenario;
-    private evaluateIndividualTools;
-    private optimizeSelection;
-    private createExecutionPlan;
-    private resolveDependencies;
-    private generateSelectionReasoning;
-    private calculateTokenCost;
-    private estimateExecutionTime;
-    updateToolDescription(toolId: string, description: string, modifiedBy?: string): Promise<void>;
-    updateBundleDescription(bundleId: string, description: string, modifiedBy?: string): Promise<void>;
-    resetToDefault(id: string): Promise<void>;
-    getAllBundles(): ToolBundle[];
-    getBundle(id: string): ToolBundle | undefined;
-    getAllDescriptions(): ConfigurableDescription[];
-    getDescription(id: string): ConfigurableDescription | undefined;
-    private loadDefaultBundles;
+    private bundleUsageStats;
+    constructor();
+    /**
+     * Initialize default tool bundles for common scenarios
+     */
+    private initializeDefaultBundles;
+    /**
+     * Load custom bundles from configuration files
+     */
     private loadCustomBundles;
-    private loadDescriptionsFromDatabase;
-    private syncWithFileSystem;
-    private syncConfigFile;
-    private saveBundleToDatabase;
-    private deleteBundleFromDatabase;
-    private saveDescriptionToDatabase;
+    /**
+     * Select appropriate tool bundles based on context
+     */
+    selectBundles(context: BundleSelectionContext): ToolBundle[];
+    /**
+     * Get category-specific keywords for matching
+     */
+    private getCategoryKeywords;
+    /**
+     * Execute a tool bundle (placeholder - actual execution handled by CLI)
+     */
+    executeBundle(bundleId: string, projectPath: string): Promise<BundleExecutionResult>;
+    /**
+     * Create a custom tool bundle
+     */
+    createBundle(bundle: Omit<ToolBundle, 'id'>): string;
+    /**
+     * Get all available bundles
+     */
+    getBundles(): ToolBundle[];
+    /**
+     * Get bundle by ID
+     */
+    getBundle(id: string): ToolBundle | undefined;
+    /**
+     * Update bundle success rate based on execution results
+     */
+    updateBundleStats(bundleId: string, success: boolean): void;
+    /**
+     * Get bundle usage statistics
+     */
+    getBundleStats(): Record<string, {
+        uses: number;
+        successRate: number;
+    }>;
+    /**
+     * Generate a unique bundle ID from name
+     */
+    private generateBundleId;
+    /**
+     * Export bundle configuration for persistence
+     */
+    exportBundles(): ToolBundle[];
+    /**
+     * Save custom bundles to configuration file
+     */
+    saveCustomBundles(): void;
 }
+export default ToolBundleSystem;
 //# sourceMappingURL=tool-bundle-system.d.ts.map

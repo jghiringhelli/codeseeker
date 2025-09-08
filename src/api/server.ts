@@ -915,7 +915,17 @@ class APIServer {
   private async handleGetProject(req: Request, res: Response): Promise<void> {
     try {
       const { projectId } = req.params;
+      const acceptHeader = req.get('Accept') || '';
       
+      // Check if this is a browser request for HTML (not an API request)
+      if (acceptHeader.includes('text/html')) {
+        // Serve the project view HTML page
+        const path = require('path');
+        const projectViewPath = path.join(__dirname, '..', 'dashboard', 'project-view.html');
+        return res.sendFile(projectViewPath);
+      }
+      
+      // Handle API request for JSON data
       if (typeof (this.dbManager as any).getProjectById === 'function') {
         const project = await (this.dbManager as any).getProjectById(projectId);
         if (project) {

@@ -13,18 +13,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SequentialWorkflowOrchestrator = void 0;
 const uuid_1 = require("uuid");
 const redis_queue_1 = __importDefault(require("../messaging/redis-queue"));
-const intelligent_tool_selector_1 = require("../cli/intelligent-tool-selector");
+// Removed IntelligentToolSelector dependency during cleanup
 const database_1 = require("../database/database");
 const logger_1 = require("../utils/logger");
 class SequentialWorkflowOrchestrator {
     redis;
-    toolSelector;
     db;
     logger = logger_1.Logger.getInstance();
     activeOrchestrations = new Map();
     constructor() {
         this.redis = new redis_queue_1.default();
-        this.toolSelector = new intelligent_tool_selector_1.IntelligentToolSelector();
         this.db = new database_1.Database();
     }
     async initialize() {
@@ -179,7 +177,7 @@ class SequentialWorkflowOrchestrator {
      * Build workflow graph based on query analysis
      */
     async buildWorkflowGraph(request) {
-        // Use tool selector to analyze complexity and determine roles needed
+        // Analyze complexity and determine roles needed (simplified after cleanup)
         const complexity = await this.analyzeQueryComplexity(request.query);
         const workflowGraph = {
             id: (0, uuid_1.v4)(),

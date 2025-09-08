@@ -1,6 +1,6 @@
 # Role Terminal Worker Dockerfile
 
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install system dependencies including tsx for TypeScript execution
 RUN apk add --no-cache \
@@ -8,8 +8,10 @@ RUN apk add --no-cache \
     git \
     bash \
     python3 \
+    python3-dev \
     make \
-    g++
+    g++ \
+    py3-setuptools
 
 # Set working directory
 WORKDIR /app

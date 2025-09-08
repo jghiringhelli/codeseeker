@@ -26,6 +26,8 @@ export interface PriorityFile {
     summary?: string;
     relevantSections?: CodeSection[];
     importance: 'critical' | 'high' | 'medium' | 'low';
+    semanticBoost?: boolean;
+    baseScore?: number;
 }
 export interface CodeSection {
     startLine: number;
@@ -62,6 +64,9 @@ export declare class ContextOptimizer {
     private logger;
     private astAnalyzer;
     private cache;
+    private semanticOrchestrator;
+    constructor();
+    private initializeSemanticGraph;
     optimizeContext(request: ContextOptimizationRequest): Promise<ContextOptimization>;
     analyzeProject(request: ProjectAnalysisRequest): Promise<ProjectInfo>;
     private getAllProjectFiles;
@@ -85,6 +90,7 @@ export declare class ContextOptimizer {
     private detectPatterns;
     private generateRecommendations;
     private getCacheKey;
+    private getSemanticRelevanceScore;
     clearCache(): void;
 }
 export default ContextOptimizer;

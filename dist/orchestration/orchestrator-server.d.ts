@@ -11,6 +11,8 @@ export declare class OrchestratorServer {
     private redis;
     private db;
     private toolManager;
+    private semanticOrchestrator;
+    private toolManagementAPI;
     private logger;
     private port;
     private server?;
@@ -74,6 +76,30 @@ export declare class OrchestratorServer {
      * Shutdown the orchestrator server
      */
     shutdown(): Promise<void>;
+    private semanticSearch;
+    private getSemanticContext;
+    private getImpactAnalysis;
+    private ensureSemanticInitialized;
+    /**
+     * Register external project in PostgreSQL database
+     */
+    private registerExternalProject;
+    /**
+     * Initialize internal tools for project
+     */
+    private initializeInternalTools;
+    /**
+     * Autodiscover and initialize all internal tools for a project
+     */
+    private autodiscoverAndInitializeTools;
+    /**
+     * Analyze project with all applicable tools
+     */
+    private analyzeProjectWithAllTools;
+    /**
+     * Update tools after CLI request
+     */
+    private updateToolsAfterRequest;
 }
 export default OrchestratorServer;
 //# sourceMappingURL=orchestrator-server.d.ts.map

@@ -1,56 +1,69 @@
-export interface CompilationError {
-    file: string;
-    line: number;
-    column: number;
-    severity: 'error' | 'warning' | 'info';
-    code: string;
-    message: string;
-    suggestion?: string;
-    relatedFiles?: string[];
-}
-export interface CompilationResult {
-    success: boolean;
-    errors: CompilationError[];
-    warnings: CompilationError[];
-    duration: number;
-    command: string;
-    framework: 'typescript' | 'javascript' | 'babel' | 'webpack' | 'vite' | 'unknown';
-    outputSize?: number;
-    sourceMapGenerated: boolean;
-    affectedFiles: string[];
-    recommendations: string[];
-}
-export interface BuildConfiguration {
+/**
+ * Compilation Verifier - Simplified Build Safety Verification
+ * Ensures that code changes don't break compilation before Claude Code suggests them
+ */
+export interface CompilationVerificationConfig {
     projectPath: string;
     buildCommand?: string;
     typeCheckCommand?: string;
     lintCommand?: string;
     testCommand?: string;
-    framework?: string;
-    skipTests?: boolean;
     skipLinting?: boolean;
+    skipTests?: boolean;
     maxDuration?: number;
+}
+export interface CompilationResult {
+    success: boolean;
+    framework: string;
+    buildCommand: string;
+    duration: number;
+    stages: {
+        typeCheck: StageResult;
+        compilation: StageResult;
+        linting?: StageResult;
+        testing?: StageResult;
+    };
+    errors: CompilationError[];
+    warnings: CompilationWarning[];
+    recommendations: string[];
+}
+export interface StageResult {
+    name: string;
+    success: boolean;
+    duration: number;
+    output: string;
+    errorCount: number;
+    warningCount: number;
+}
+export interface CompilationError {
+    stage: string;
+    file?: string;
+    line?: number;
+    column?: number;
+    message: string;
+    severity: 'error' | 'warning';
+    code?: string;
+}
+export interface CompilationWarning {
+    stage: string;
+    message: string;
+    suggestion?: string;
 }
 export declare class CompilationVerifier {
     private logger;
-    verifyCompilation(config: BuildConfiguration): Promise<CompilationResult>;
+    verifyCompilation(config: CompilationVerificationConfig): Promise<CompilationResult>;
     private detectBuildFramework;
     private determineBuildCommand;
     private runTypeCheck;
     private runCompilation;
     private runLinting;
     private runQuickTests;
-    private parseTypeScriptErrors;
-    private parseBuildErrors;
-    private parseLintErrors;
-    private parseTestErrors;
-    private getTypeScriptSuggestion;
-    private getBuildErrorSuggestion;
-    private getLintSuggestion;
-    private analyzeBuildOutput;
-    private getDirectorySize;
     private combineResults;
-    private generateCompilationRecommendations;
+    private extractIssues;
+    private generateRecommendations;
+    private countErrors;
+    private countWarnings;
+    private countTestFailures;
 }
 export default CompilationVerifier;
 //# sourceMappingURL=verifier.d.ts.map

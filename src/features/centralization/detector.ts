@@ -626,7 +626,7 @@ export class CentralizationDetector {
   }
 
   private extractVariableNames(context: string): string[] {
-    const matches = context.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g) || [];
+    const matches: string[] = context.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g) || [];
     return matches.filter(match => match.length > 2);
   }
 

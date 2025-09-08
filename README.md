@@ -1,380 +1,366 @@
-# CodeMind - Three-Layer AI Development Platform
+# 🧠 CodeMind - Context Enhancement for Claude Code
 
-**Revolutionary platform that transforms ideas into implemented code through intelligent planning, orchestration, and execution**
+**Version**: 3.0.0  
+**Core Purpose**: Intelligent Context Optimization for Claude Code Requests
 
-## What is CodeMind?
+CodeMind is NOT just another tool - it IS the context enhancement mechanism that makes Claude Code more intelligent by providing rich, relevant context for every request.
 
-CodeMind is a three-layer AI development platform that takes you from idea to implementation using Claude AI at every level. It combines intelligent tool selection, workflow orchestration, and automated planning to create a complete development ecosystem.
+## 🎯 What CodeMind Really Is
 
-## 🏗️ **Three-Layer Architecture**
+**CodeMind CLI = The Context Optimizer**
 
-### **Layer 1: Smart CLI** 🧠 
-**Intelligent single-perspective analysis** for daily development tasks
-- Claude AI selects optimal tools from database-backed auxiliary services
-- 75-90% token cost reduction through smart tool selection
-- Real-time context enhancement and database updates
+Every request to Claude Code goes through this enhancement flow:
+1. **User makes request** → 
+2. **Claude analyzes and selects tools** → 
+3. **Tools provide context** → 
+4. **Enhanced request sent to Claude Code** → 
+5. **ALL tools learn from results**
 
-### **Layer 2: Workflow Orchestrator** 🎭
-**Sequential multi-role workflow coordination** for complex implementation
-- Redis-based messaging system coordinates specialized role terminals
-- Dependency graphs organize complex workflows into manageable steps
-- Role-based terminals (Architect, Security, Quality, Performance, Coordinator)
+## 🔄 The Complete Flow
 
-### **Layer 3: Idea Planner** 🚀
-**AI-powered idea-to-implementation planning** for complete project development
-- Interactive ideation and validation through Claude Code conversations
-- Automated generation of roadmaps, business plans, tech stacks, architectures
-- Seamless handoff to Orchestrator for full implementation
-
-## Layer 1: Smart CLI 🧠
-
-**Database-backed intelligent tool selection for daily development**
-
-The Smart CLI uses Claude AI as its brain to select optimal auxiliary tools from a database-backed API system:
-
-### Intelligent Tool Selection
-- **Claude AI analysis**: Determines which database-backed tools are most relevant
-- **API-driven auxiliary services**: Tools are data services that enhance Claude Code context
-- **Real-time database updates**: Tool responses update databases and indexes automatically
-- **75-90% token reduction**: Only uses 2-3 relevant tools instead of loading everything
-
-### Database Integration
-- **Context enhancement**: Tools pull relevant data from project databases
-- **Automatic indexing**: Claude responses update code knowledge indexes
-- **Performance tracking**: Tool effectiveness metrics stored and analyzed
-- **Learning optimization**: Database insights improve future tool selection
-
-### Usage Examples
-```bash
-# Single-perspective smart analysis
-codemind "find authentication issues in my React app"
-# → Claude selects: context-optimizer + issues-detector + security-scanner
-# → Updates security_issues and code_quality tables
-
-codemind "optimize database queries" ./backend  
-# → Claude selects: performance-analyzer + query-optimizer
-# → Updates performance_metrics and optimization_suggestions tables
+```
+User: "optimize authentication flow"
+         ↓
+Claude: "I'll use semantic-graph, security-analyzer, and duplication-detector"
+         ↓
+Tools: Generate 3000 tokens of rich context
+         ↓
+Claude Code: Executes with full understanding
+         ↓
+Assessment: ALL tools updated, even unused ones
+         ↓
+Summary: "Improved auth flow by 40%, 3 vulnerabilities fixed"
 ```
 
-## Layer 2: Workflow Orchestrator 🎭
+## 📚 Documentation
 
-**Redis-based sequential role coordination for complex implementations**
+For comprehensive documentation, see the [docs](./docs/) directory:
+- [Setup Guide](./docs/guides/setup-guide.md) - Complete setup instructions
+- [CLI Usage Guide](./docs/guides/cli-usage-guide.md) - How to use the CLI
+- [Architecture Overview](./docs/architecture/codemind-architecture-overview.md) - System design
+- [API Reference](./docs/api-reference/) - API documentation
 
-The Orchestrator uses dependency graphs and messaging to coordinate specialized role terminals:
+## 🚀 Quick Start
 
-### Sequential Role Pipeline
-- **🏗️ Architect**: System design, dependencies → enriches architectural context
-- **🔒 Security**: Vulnerability assessment → adds security analysis  
-- **✅ Quality**: Code quality, testing → enriches with quality metrics
-- **⚡ Performance**: Bottleneck identification → adds performance insights
-- **🎯 Coordinator**: Synthesizes insights → actionable recommendations
+### Prerequisites
+- Node.js 18+
+- Docker & Docker Compose  
+- PostgreSQL, MongoDB, Neo4j, Redis, DuckDB (via Docker)
 
-### Workflow Coordination
-- **Dependency graphs**: Complex requests broken into manageable workflow steps
-- **Redis messaging**: Roles communicate through robust queue system with retry logic
-- **Context enrichment**: Each role builds on previous role's analysis
-- **Terminal nodes**: Each role runs in specialized terminal with focused tools
+### Installation
 
-### Usage Examples
-```bash
-# Complex multi-role implementation
-codemind orchestrate "production readiness review" ./my-service
-# → Creates workflow graph with all 5 roles in sequence
-# → Each role processes and hands off enriched context
+1. **Clone and Install**
+   ```bash
+   git clone <repository-url> codemind
+   cd codemind
+   npm install
+   ```
 
-codemind orchestrate "migrate to microservices architecture" ./monolith
-# → Builds complex dependency graph for migration steps
-# → Coordinates multiple workflows for different service boundaries
+2. **Start Infrastructure**
+   ```bash
+   # Start all services (PostgreSQL, MongoDB, Neo4j, Redis)
+   docker-compose up -d
+   
+   # Initialize all databases
+   npm run init-databases
+   ```
+
+3. **Initialize Project**
+   ```powershell
+   # Run from your project directory
+   .\scripts\init-project.ps1 -ProjectPath "." -VerboseOutput
+   ```
+
+4. **Use CodeMind**
+   ```bash
+   # Simple request
+   codemind "optimize database queries"
+   
+   # With intent
+   codemind "refactor authentication" --intent refactor
+   
+   # With project type
+   codemind "improve performance" --project-type api
+   ```
+
+## 🏗️ Composite Three-Layer Architecture
+
+CodeMind uses a **composite architecture** with three higher-level layers that each utilize the CodeMind CLI, which itself contains its own internal three-layer intelligence system.
+
+### 🏛️ Higher-Level Layers (Use CodeMind CLI)
+
+#### **Layer 1: CodeMind CLI** (Core Intelligence Engine)
+- **Direct user interaction** with Claude Code-like interface
+- **Complete three-layer internal pipeline** (detailed below)
+- **Individual query processing** with full semantic analysis
+- **Interactive prompts** and immediate responses
+
+#### **Layer 2: Orchestrator** (Multi-Step Workflows)  
+- **Uses CodeMind CLI** for each step in complex workflows
+- **Role-based task distribution** across different AI agents
+- **Sequential workflow execution** with context passing
+- **Cross-step learning** and result aggregation
+
+#### **Layer 3: Planner** (Long-Term Planning)
+- **Uses CodeMind CLI** via Orchestrator for implementation steps
+- **Milestone tracking** and project-level planning
+- **Multi-phase project execution** with dependency management
+- **Strategic decision-making** and resource allocation
+
+### 🧠 CodeMind CLI Internal Architecture
+
+Each time any higher layer uses CodeMind CLI, it runs this complete three-layer intelligence pipeline:
+
+#### **🔍 Internal Layer 1: Semantic Search**
+- **Query analysis** and intent detection
+- **Vector-based semantic search** across codebase  
+- **Relevance scoring** and preliminary context gathering
+- **Smart keyword extraction** and concept identification
+
+#### **🌐 Internal Layer 2: Semantic Graph Expansion**
+- **Neo4j graph traversal** from semantic search results
+- **Relationship mapping** (imports, dependencies, inheritance)
+- **Cross-domain insights** and architectural patterns
+- **Context enrichment** with related code structures
+
+#### **🌳 Internal Layer 3: Tree Navigation**
+- **AST-based code traversal** from graph-identified areas
+- **Function/class relationship mapping**
+- **Call graph analysis** and dependency tracing
+- **File importance scoring** with semantic boosting
+
+#### **🔧 Tool Selection & Execution**
+- **Claude-driven tool selection** using enriched context
+- **Parallel/sequential execution** based on dependencies
+- **Context-aware analysis** using all three internal layers
+- **Claude Code outcome analysis** for intelligent DB updates
+
+#### **💾 Universal Learning & Database Update**
+- **All tools learn** from every request (not just selected ones)
+- **Class rehashing** when code changes detected
+- **Multi-database updates**: PostgreSQL, MongoDB, Neo4j, Redis, DuckDB
+- **Pattern recognition** improves across entire system
+
+### 🔄 Composite Flow Examples
+
+#### **Simple Query (CLI Direct)**
+```
+User: "fix authentication bug"
+         ↓
+CodeMind CLI → [3 internal layers] → Tools → Result
 ```
 
-## Layer 3: Idea Planner 🚀
-
-**Interactive idea-to-implementation planning through AI conversation**
-
-The Planner transforms ideas into complete implementation plans through Claude Code conversations:
-
-### Interactive Ideation Process
-1. **"💡 I have an idea" button** in dashboard starts conversation mode
-2. **Philosophy & validation** through interactive Claude Code discussion
-3. **Detail expansion** with AI-guided questioning and refinement
-4. **Automated documentation** generation from conversation context
-
-### Generated Planning Outputs
-- **📋 Roadmaps**: Step-by-step implementation plans with timelines
-- **💼 Business plans**: Market analysis, revenue models, competitive landscape  
-- **🔧 Tech stacks**: Optimal technology choices based on requirements
-- **🏗️ System architectures**: Complete system design with component interactions
-- **⚙️ Workflow specifications**: Detailed orchestration plans for implementation
-
-### Database Tables Populated
-```sql
--- Automatically populated from conversation
-roadmaps (milestones, timelines, dependencies)
-business_plans (market_analysis, revenue_models, competitors)
-tech_stacks (technologies, justifications, alternatives)
-system_architectures (components, interfaces, data_flows)
-workflow_specifications (orchestration_steps, role_assignments)
+#### **Complex Workflow (Orchestrator)**
+```
+User: "refactor entire auth system"
+         ↓
+Orchestrator → CodeMind CLI → [3 internal layers] → Tools → Step 1 Result
+         ↓
+Orchestrator → CodeMind CLI → [3 internal layers] → Tools → Step 2 Result  
+         ↓
+Orchestrator → CodeMind CLI → [3 internal layers] → Tools → Step 3 Result
+         ↓
+Orchestrator → Aggregate Results → Final Workflow Result
 ```
 
-### Seamless Implementation Flow
-```mermaid
-💡 Idea → 🗣️ AI Discussion → 📊 Generated Plans → 🎭 Orchestrator → ✅ Implementation
+#### **Long-Term Planning (Planner)**
+```
+User: "modernize legacy system"
+         ↓
+Planner → Create multi-phase plan
+         ↓
+Planner → Phase 1 → Orchestrator → Multiple CodeMind CLI calls
+         ↓  
+Planner → Phase 2 → Orchestrator → Multiple CodeMind CLI calls
+         ↓
+Planner → Phase 3 → Orchestrator → Multiple CodeMind CLI calls
+         ↓
+Planner → Project completion with milestone tracking
 ```
 
-### Usage Flow
-1. Click "💡 I have an idea" in dashboard
-2. Discuss and refine idea through Claude Code conversation
-3. AI automatically populates planning tables from conversation insights
-4. Generate Orchestrator workflow specifications from plans
-5. Execute full implementation through coordinated role-based terminals
+### 🎯 Key Architectural Principles
 
-## Why Use CodeMind's Three-Layer System?
+#### **Composition Over Inheritance**
+- Higher layers **use** CodeMind CLI, don't extend it
+- Each layer maintains its own responsibilities
+- Clean separation of concerns
 
-### Traditional Development Approach
+#### **Intelligence Reuse** 
+- Every CodeMind CLI call gets full three-layer analysis
+- No intelligence bypassing - always semantic → graph → tree
+- Consistent context quality regardless of calling layer
+
+#### **Universal Learning**
+- All database updates happen at CLI level
+- Every tool learns from every request across all layers
+- Pattern recognition improves system-wide
+
+#### **Scalable Complexity**
+- **Simple tasks**: Direct CLI usage
+- **Multi-step tasks**: Orchestrator coordination
+- **Complex projects**: Planner with milestone management
+
+This composite architecture ensures that whether you're making a simple query, running a complex workflow, or executing a long-term plan, every step benefits from the full intelligence of CodeMind's three-layer semantic analysis system.
+
+## 📊 What You See (Three-Layer Flow)
+
 ```
-❌ Manual tool selection and high token costs
-❌ No coordination between different analysis perspectives  
-❌ Ideas remain abstract without implementation plans
-❌ Complex projects require manual coordination
+🧠 CODEMIND INTELLIGENT CLI v3.0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 User Request: "optimize authentication flow"
+📂 Project: /my-project
 
-Result: Expensive, fragmented, manual development process
-```
+🔍 LAYER 1: SEMANTIC SEARCH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏳ Analyzing query for semantic concepts...
+✅ Identified concepts: [authentication, session, security, performance]
+🔍 Semantic search: "authentication flow optimization" [security]
+📋 Primary results: 12 files
+🔗 Related concepts: 8 (JWT, OAuth, middleware, validation)
+🌐 Cross-domain insights: 3 (performance patterns, security practices)
 
-### CodeMind Three-Layer Approach
-```
-✅ Layer 1 (CLI): AI selects optimal tools, 75-90% cost reduction
-✅ Layer 2 (Orchestrator): Coordinated multi-role implementation  
-✅ Layer 3 (Planner): Ideas → Plans → Implementation pipeline
-✅ Seamless flow from concept to working code
+🌐 LAYER 2: SEMANTIC GRAPH EXPANSION  
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧠 Expanding through Neo4j relationships...
+📊 Graph traversal: depth 3, focus: auth module
+🔗 Found dependencies: 15 related files
+🏗️ Architecture patterns: middleware chain, decorator pattern
+📈 Context enrichment: 847 → 2,340 relevant tokens
 
-Result: Intelligent, coordinated, end-to-end development platform
-```
+🌳 LAYER 3: TREE NAVIGATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌳 AST traversal from semantic results...
+🔍 Call graph analysis: 23 function calls mapped
+📁 File importance scoring with semantic boosts:
+1. src/auth/middleware.ts [CRITICAL] 🧠 (0.945)
+2. src/auth/jwt-handler.ts [HIGH] 🧠 (0.887)
+3. src/security/validator.ts [HIGH] (0.824)
 
-### Complete Development Pipeline Example
-```bash
-# Layer 3: Start with an idea
-Dashboard → "💡 I have an idea" → AI conversation about e-commerce platform
-# → Generates: roadmap, business plan, tech stack, architecture
-# → Populates: planning database tables
+🔧 LAYER 4: INTELLIGENT TOOL SELECTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Claude analyzing enriched context...
+🔧 Selected "security-analyzer" (confidence: 92%) - Security implications critical for auth
+🔧 Selected "performance-analyzer" (confidence: 89%) - Auth performance bottlenecks detected  
+🔧 Selected "duplication-detector" (confidence: 81%) - Multiple auth validation patterns found
+🔧 Selected "solid-principles-analyzer" (confidence: 76%) - Complex auth dependencies need review
 
-# Layer 2: Convert plans to implementation
-AI generates orchestrator workflow from plans
-# → Creates: dependency graphs, role assignments, implementation steps
-# → Coordinates: specialized terminals for different aspects
+⚡ Parallel execution: security + performance analyzers
+⚡ Sequential execution: duplication → solid (dependency chain)
+✅ Context-aware analysis complete (2,847 tokens processed)
 
-# Layer 1: Execute implementation tasks  
-Each role uses smart CLI with optimal tool selection
-# → Updates: code databases and indexes in real-time
-# → Tracks: progress and performance metrics
-```
+💾 LAYER 5: COMPREHENSIVE DATABASE UPDATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💾 Updating PostgreSQL: tool execution metrics
+💾 Updating MongoDB: analysis results and project intelligence  
+💾 Updating Neo4j: new semantic relationships discovered
+💾 Updating Redis: caching optimized query patterns
+💾 Updating DuckDB: performance analytics data
+🧠 ALL 12 tools learned from this request (not just the 4 selected)
 
-## 🚀 Quick Start: Three-Layer Platform
+📊 INTELLIGENT ANALYSIS COMPLETE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 Semantic Understanding: 94% accuracy (authentication domain)
+⚡ Context Optimization: 67% token efficiency gain
+🔧 Tool Intelligence: 4 tools selected from semantic insights
+🧠 Universal Learning: 12 tools updated with new patterns
 
-### 1. Install CodeMind Platform
-```bash
-git clone https://github.com/yourusername/CodeMind.git
-cd CodeMind
-npm install
-npm run build
-```
-
-### 2. Start All Services
-```bash
-# Start complete platform
-docker-compose up -d
-
-# Or start individually:
-docker-compose up redis -d        # Required for Orchestrator
-npm run orchestrator              # Layer 2: Workflow coordination  
-npm run role-terminal            # Role-based terminals
-npm run dashboard               # Layer 3: Planning interface + monitoring
-```
-
-### 3. Layer 1: Smart CLI Usage 🧠
-```bash
-# Database-backed intelligent tool selection
-codemind "find authentication vulnerabilities" ./my-app
-# → Claude AI selects optimal tools from database
-# → Updates security_issues and code_quality tables
-# → 75-90% token cost reduction
-
-codemind "optimize React performance" ./frontend
-# → Selects performance-specific tools
-# → Updates performance_metrics database
-```
-
-### 4. Layer 2: Workflow Orchestrator 🎭  
-```bash
-# Multi-role coordinated implementation
-codemind orchestrate "migrate to microservices" ./monolith
-# → Creates dependency graph workflow
-# → 5 specialized roles process sequentially
-# → Redis messaging coordinates terminals
-
-# Access orchestration dashboard
-# → http://localhost:3005 → "🎭 Sequential Workflows" tab
+✅ Fixed JWT token validation performance (3x faster)
+✅ Eliminated 5 duplicate auth middleware checks  
+✅ Identified SOLID violations in auth service coupling
+💡 Recommendation: Implement auth caching layer for 40% performance gain
 ```
 
-### 5. Layer 3: Idea Planner 🚀
-```bash
-# Visit dashboard for idea-to-implementation
-# → http://localhost:3005 → "💡 I have an idea" button
+## 🎛️ Dashboard & Management
 
-# Interactive AI conversation:
-# → Discuss and validate your idea
-# → AI generates roadmaps, business plans, tech stacks
-# → Automatically populates planning database tables
-# → Creates Orchestrator workflow for implementation
+### Tool Management Dashboard
+```
+http://localhost:3003/tool-management-page.html
+```
+- Edit tool descriptions (Claude reads these!)
+- Configure tool bundles
+- View usage analytics
+- Test tool selection
+
+### Main Dashboard
+```
+http://localhost:3005
+```
+- Monitor all operations
+- View real-time updates
+- Track tool effectiveness
+
+## 🔧 Configuration
+
+### Environment Variables
+```env
+CLAUDE_API_URL=http://localhost:3007/api/claude
+NEO4J_URL=bolt://localhost:7687
+ORCHESTRATOR_URL=http://localhost:3006
+DB_HOST=localhost
+REDIS_HOST=localhost
 ```
 
-### Complete Flow Example
-```
-💡 Idea → 🗣️ AI Discussion → 📊 Generated Plans → 🎭 Workflow → ✅ Code
-```
+### Tool Bundles (Predefined Combinations)
+- **Architecture Analysis** - For design decisions
+- **Code Quality Audit** - For comprehensive reviews
+- **Performance Optimization** - For speed improvements
+- **Security Assessment** - For vulnerability checks
+- **Developer Experience** - For code navigation
 
-## 🏗️ Platform Architecture
+## 📈 Higher-Level Abstractions
 
-### Database-Driven Intelligence
-- **PostgreSQL backend**: Stores project knowledge, performance metrics, planning data
-- **Real-time indexing**: Code insights automatically update database indexes  
-- **Learning optimization**: Historical data improves future tool selection
-- **Planning storage**: Roadmaps, business plans, architectures stored and tracked
+### Orchestrator (Layer 2)
+- Multi-step workflows
+- Role-based distribution
+- **Uses context-enhanced requests**
 
-### Service Architecture  
-- **Redis messaging**: Orchestrator coordination and role communication
-- **Role terminals**: Specialized workers for different expertise areas
-- **Dashboard interface**: Web-based planning, monitoring, and idea development
-- **API services**: RESTful interfaces for all platform layers
+### Planner (Layer 3)  
+- Long-term planning
+- Milestone tracking
+- **Built on context enhancement**
 
-### Three-Layer Integration
-```
-Layer 3 (Planner)     → Database tables → Layer 2 (Orchestrator)
-Layer 2 (Orchestrator) → Redis queues  → Role terminals  
-Role terminals         → Smart CLI     → Database updates
-```
+**Important**: These are utilities that USE the core context enhancement, not separate systems.
 
-### Key Benefits
-- **Cost efficiency**: 75-90% token reduction through intelligent selection
-- **End-to-end flow**: Ideas → Plans → Implementation seamlessly  
-- **Coordinated execution**: Multi-role workflows with dependency management
-- **Continuous learning**: Platform improves through usage analytics
+## 🔮 Why This Architecture?
 
-## 📖 Documentation
+### Traditional Problems
+- ❌ Static tool selection
+- ❌ Limited context
+- ❌ No cross-tool learning
+- ❌ Opaque processes
 
-### Platform Guides
-- **[Sequential Workflow Architecture](docs/architecture/sequential-workflows.md)** - Technical architecture details
-- **[Migration Guide](docs/guides/migration-to-sequential-workflows.md)** - Upgrading from legacy system
-- **[Installation Guide](docs/guides/installation-guide.md)** - Platform setup and configuration
+### CodeMind Solutions
+- ✅ Claude picks tools dynamically
+- ✅ Rich multi-tool context
+- ✅ All tools learn from all requests
+- ✅ Transparent colored output
+- ✅ Continuous improvement
 
-### Layer-Specific Documentation
-- **Layer 1 (CLI)**: Database-backed intelligent tool selection
-- **Layer 2 (Orchestrator)**: Redis-based workflow coordination  
-- **Layer 3 (Planner)**: AI-powered idea-to-implementation planning
+## 📚 Documentation
 
-## 🎯 Three-Layer Features
-
-### Layer 1: Smart CLI 🧠
-- **AI Tool Selection**: 75-90% token cost reduction through Claude-powered tool selection
-- **Database Integration**: Real-time updates to project knowledge and performance metrics
-- **Learning Optimization**: Historical data improves future tool selection accuracy
-- **Context Enhancement**: Tools provide focused data that enhances Claude Code sessions
-
-### Layer 2: Workflow Orchestrator 🎭  
-- **Sequential Role Pipeline**: 5 specialized roles process in coordinated sequence
-- **Redis Messaging**: Robust queue system with retry logic and fault tolerance
-- **Dependency Graphs**: Complex workflows broken into manageable, coordinated steps
-- **Context Enrichment**: Each role builds on previous analysis for comprehensive results
-
-### Layer 3: Idea Planner 🚀
-- **Interactive AI Conversations**: Discuss and validate ideas through Claude Code interface
-- **Automated Planning**: Generate roadmaps, business plans, tech stacks, architectures
-- **Database Population**: Planning insights automatically stored in structured tables
-- **Seamless Handoff**: Plans convert directly into Orchestrator workflow specifications
-
-## 🎯 Complete Development Pipeline
-
-### The Three-Layer Flow
-```
-💡 Idea Discussion → AI generates plans → Orchestrator creates workflow → Roles implement code
-
-Layer 3: Planner      Layer 2: Orchestrator    Layer 1: Smart CLI
-     ↓                      ↓                        ↓
-Planning Tables      →   Redis Workflows    →   Database Updates
-Business Plans           Role Terminals          Tool Selection
-Roadmaps                Context Enrichment      Cost Optimization
-Architectures           Sequential Processing   Learning Insights
-```
-
-### Technology Foundation
-- **Database**: PostgreSQL for knowledge storage, planning data, performance metrics
-- **Messaging**: Redis for workflow coordination and role communication
-- **AI Integration**: Claude Code enhanced with intelligent tool selection
-- **Web Interface**: Dashboard for planning, monitoring, and control
-
-### Next Steps
-1. **Start with Layer 1**: Use smart CLI for daily development with cost savings
-2. **Scale to Layer 2**: Orchestrate complex workflows for comprehensive analysis
-3. **Innovate with Layer 3**: Transform ideas into implementation through AI planning
-
----
-
-**CodeMind: The complete AI-powered development platform**  
-*From ideas to implementation in three intelligent layers* 🚀
-
-## 🚦 Three-Layer Platform Status
-
-### ✅ Layer 1: Smart CLI - Complete
-- Database-backed intelligent tool selection with 75-90% cost reduction
-- Real-time context enhancement and database updates
-- Learning optimization through historical data analysis
-
-### ✅ Layer 2: Workflow Orchestrator - Complete  
-- Redis-based sequential role coordination system
-- 5-role pipeline (Architect, Security, Quality, Performance, Coordinator)
-- Dependency graph workflow management with fault tolerance
-
-### 🚧 Layer 3: Idea Planner - In Development
-- Interactive AI conversation interface for idea development
-- Automated generation of roadmaps, business plans, architectures
-- Database population from conversation insights
-- Seamless handoff to Orchestrator workflow generation
-
-### 📅 Future Enhancements
-- **Enhanced Planning**: Advanced business analysis and market research
-- **Multi-model Support**: Integration with additional AI models
-- **Enterprise Features**: Team collaboration and advanced analytics
+- [`docs/CODEMIND-ARCHITECTURE.md`](docs/CODEMIND-ARCHITECTURE.md) - Complete architecture
+- [`docs/CLI_USAGE_GUIDE.md`](docs/CLI_USAGE_GUIDE.md) - CLI commands
+- [`INTELLIGENT-TOOL-SYSTEM.md`](INTELLIGENT-TOOL-SYSTEM.md) - Tool system details
+- [`CLAUDE.md`](CLAUDE.md) - Project-specific configuration
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+CodeMind is about making Claude Code smarter through context. Contributions should:
+- Enhance context quality
+- Improve tool selection
+- Add new context providers
+- Optimize token usage
+- Increase transparency
 
-### Development Setup
-```bash
-# Clone repository
-git clone https://github.com/yourusername/CodeMind.git
-cd CodeMind
+## 📝 Key Takeaways
 
-# Install dependencies
-npm install
-
-# Run locally
-npm run dev
-
-# Run tests
-npm test
-```
-
-## 📝 License
-
-MIT License - See [LICENSE](LICENSE) for details.
-
-## 🆘 Support
-
-- **Documentation**: [Full docs](SETUP.md)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/CodeMind/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/CodeMind/discussions)
+1. **CodeMind CLI = Context Optimizer** (not a separate tool)
+2. **Claude drives everything** (selection, parameters, assessment)
+3. **All tools learn** (comprehensive updates)
+4. **Semantic graph is core** (used almost always)
+5. **Transparency throughout** (colored output)
+6. **Higher layers are utilities** (use core enhancement)
 
 ---
 
-**Ready to transform your development workflow?**  
-[Get started with the three-layer platform →](#-quick-start-three-layer-platform)
+*CodeMind: Making Claude Code understand your code as well as you do.*

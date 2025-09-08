@@ -3,6 +3,9 @@
   "version": "2.0.0",
   "description": "Smart Claude Code CLI with intelligent tool selection, token optimization, and real-time quality monitoring",
   "main": "dist/index.js",
+  "bin": {
+    "codemind": "./bin/codemind.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
@@ -26,28 +29,35 @@
     "dogfood": "tsx src/cli/codemind.ts dogfood",
     "analyze": "tsx src/cli/analyze.ts",
     "init": "tsx src/cli/init.ts",
-    "codemind": "tsx src/cli/codemind.ts",
+    "codemind": "node dist/cli/codemind-unified.js",
+    "codemind:dev": "npm run build && node dist/cli/codemind-unified.js",
+    "codemind:cycle": "tsx src/cli/codemind-cycle-simple.ts",
+    "codemind:cycle:build": "npm run build && node dist/cli/codemind-cycle-simple.js",
+    "codemind:orchestrated": "tsx src/cli/codemind-orchestrated.ts",
+    "codemind:preview": "tsx src/cli/codemind-orchestrated.ts preview",
+    "codemind:branches": "tsx src/cli/codemind-orchestrated.ts branches",
+    "codemind:old": "tsx src/cli/codemind.ts",
+    "codemind:enhance": "node dist/cli/codemind-context-enhancer.js",
+    "codemind:enhance:dev": "npm run build && node dist/cli/codemind-context-enhancer.js",
     "codemind-enhanced": "tsx src/cli/codemind-enhanced-v2.ts",
     "multi-llm": "tsx src/cli/multi-llm-cli.ts",
     "marketplace": "tsx src/cli/marketplace.ts",
     "start": "npm run build && node dist/api/server.js",
     "start:dev": "npm run build && node dist/api/server.js --dev",
     "start:postgres": "DB_TYPE=postgresql npm run start:dev",
-    "dashboard": "node src/dashboard/server.js",
-    "dashboard:dev": "node src/dashboard/server.js --dev",
+    "dashboard": "echo \"⚠️  Dashboard should run in Docker. Use: docker-compose --profile dev up dashboard\" && echo \"Or run: .\\scripts\\start-dashboard-docker.ps1\"",
+    "dashboard:dev": "echo \"⚠️  Dashboard should run in Docker. Use: docker-compose --profile dev up dashboard\" && echo \"Or run: .\\scripts\\start-dashboard-docker.ps1\"",
+    "dashboard:local": "node src/dashboard/server.js --dev",
     "orchestrator": "tsx src/orchestration/orchestrator-server.ts",
     "orchestrator:dev": "tsx src/orchestration/orchestrator-server.ts --dev",
     "role-terminal": "tsx src/orchestration/role-terminal-worker.ts",
     "role-terminal:dev": "tsx src/orchestration/role-terminal-worker.ts --dev",
     "init-project": "node scripts/init-project.js",
+    "init-databases": "node scripts/initialize-all-databases.js",
+    "init-master": "node scripts/master-database-init.js",
     "codemind-cli": "tsx src/cli/codemind-cli.ts",
     "setup:test-db": "tsx tests/setup-test-database.ts",
     "test:setup": "npm run setup:test-db"
-  },
-  "bin": {
-    "codemind": "./dist/cli/codemind.js",
-    "codemind-enhanced": "./dist/cli/codemind-enhanced-v2.js",
-    "codemind-marketplace": "./dist/cli/marketplace.js"
   },
   "keywords": [
     "claude-code",
@@ -76,10 +86,13 @@
     "@types/react": "^19.1.12",
     "@types/redis": "^4.0.11",
     "better-sqlite3": "^12.2.0",
+    "chalk": "^4.1.2",
     "chokidar": "^4.0.3",
     "commander": "^11.1.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "duckdb": "^1.1.3",
     "express": "^4.18.2",
     "express-session": "^1.18.1",
     "fast-glob": "^3.3.2",
@@ -87,6 +100,8 @@
     "ioredis": "^5.3.2",
     "lucide-react": "^0.542.0",
     "lz-string": "^1.5.0",
+    "mongodb": "^6.3.0",
+    "neo4j-driver": "^5.28.1",
     "node-cron": "^4.2.1",
     "ora": "^7.0.1",
     "pg": "^8.11.3",
@@ -137,37 +152,5 @@
   "bugs": {
     "url": "https://github.com/your-org/codemind-enhanced-cli/issues"
   },
-  "homepage": "https://github.com/your-org/codemind-enhanced-cli#readme",
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "node",
-    "roots": [
-      "<rootDir>/tests"
-    ],
-    "testMatch": [
-      "**/__tests__/**/*.ts",
-      "**/?(*.)+(spec|test).ts"
-    ],
-    "transform": {
-      "^.+\\.ts$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "src/**/*.ts",
-      "!src/**/*.d.ts",
-      "!src/**/index.ts"
-    ],
-    "coverageDirectory": "coverage",
-    "coverageReporters": [
-      "text",
-      "lcov",
-      "html"
-    ],
-    "setupFilesAfterEnv": [
-      "<rootDir>/tests/setup.ts"
-    ],
-    "testTimeout": 30000,
-    "moduleNameMapping": {
-      "^@/(.*)$": "<rootDir>/src/$1"
-    }
-  }
+  "homepage": "https://github.com/your-org/codemind-enhanced-cli#readme"
 }

@@ -1,107 +1,60 @@
-export interface BusinessUseCase {
+/**
+ * Use Cases Analyzer - Simplified Business Logic Understanding
+ * Maps business requirements to code implementation for Claude Code context enhancement
+ */
+export interface UseCasesAnalysisRequest {
+    projectPath: string;
+    businessDocsPath?: string;
+    excludePatterns?: string[];
+}
+export interface UseCase {
     id: string;
     name: string;
     description: string;
-    actors: string[];
-    preconditions: string[];
-    postconditions: string[];
-    mainFlow: string[];
-    alternateFlows?: string[];
-    exceptions?: string[];
-    businessValue: 'low' | 'medium' | 'high' | 'critical';
-    complexity: 'simple' | 'medium' | 'complex';
-    implementationFiles: string[];
-    missingImplementations: string[];
+    source: 'documentation' | 'code' | 'api';
+    files: string[];
+    endpoints?: string[];
+    businessValue: 'high' | 'medium' | 'low';
+    implementationStatus: 'complete' | 'partial' | 'missing';
 }
-export interface ResponsibilityMapping {
-    useCase: string;
-    component: string;
-    file: string;
-    responsibilities: string[];
-    separationScore: number;
-    violations: string[];
-    suggestions: string[];
-}
-export interface BusinessLogicAnalysis {
-    file: string;
-    businessRules: string[];
-    dataValidations: string[];
-    businessEntities: string[];
-    workflows: string[];
-    integrations: string[];
-    complexity: number;
-    maintainability: number;
-}
-export interface UseCaseGap {
-    type: 'missing_implementation' | 'orphaned_code' | 'responsibility_violation' | 'missing_validation';
-    severity: 'low' | 'medium' | 'high' | 'critical';
-    description: string;
-    affectedFiles: string[];
+export interface BusinessLogicFile {
+    path: string;
+    type: 'service' | 'controller' | 'model' | 'business' | 'other';
     useCases: string[];
-    suggestion: string;
-    businessImpact: string;
+    complexity: number;
+    businessMethods: string[];
 }
-export interface UseCaseAnalysisResult {
-    useCases: BusinessUseCase[];
-    responsibilityMappings: ResponsibilityMapping[];
-    businessLogicAnalysis: BusinessLogicAnalysis[];
-    gaps: UseCaseGap[];
-    separationScore: number;
+export interface UseCasesAnalysisResult {
+    useCases: UseCase[];
+    businessLogicFiles: BusinessLogicFile[];
     businessCoverage: number;
+    separationScore: number;
     recommendations: string[];
     architectureHealth: {
-        layerSeparation: number;
-        businessLogicIsolation: number;
-        dependencyDirection: number;
-        testability: number;
+        score: number;
+        issues: string[];
+        strengths: string[];
     };
 }
 export declare class UseCasesAnalyzer {
     private logger;
-    analyzeUseCases(params: {
-        projectPath: string;
-        businessDocsPath?: string;
-        includeTests?: boolean;
-        frameworks?: string[];
-        businessDomain?: string;
-    }): Promise<UseCaseAnalysisResult>;
+    analyzeUseCases(params: UseCasesAnalysisRequest): Promise<UseCasesAnalysisResult>;
     private discoverUseCases;
     private parseDocumentationUseCases;
-    private extractUseCasesFromText;
-    private extractDescription;
-    private extractActors;
-    private inferBusinessValue;
-    private inferComplexity;
-    private inferUseCasesFromCode;
-    private extractUseCasesFromServiceFile;
-    private camelCaseToTitle;
     private inferUseCasesFromAPI;
-    private extractUseCasesFromAPIFile;
-    private endpointToUseCase;
-    private deduplicateUseCases;
+    private inferUseCasesFromCode;
     private analyzeBusinessLogic;
-    private analyzeBusinessLogicFile;
-    private extractBusinessRules;
-    private extractDataValidations;
-    private extractBusinessEntities;
-    private extractWorkflows;
-    private extractIntegrations;
-    private calculateFileComplexity;
-    private calculateMaintainability;
-    private mapResponsibilities;
-    private findRelatedFiles;
-    private extractKeywordsFromUseCase;
-    private createResponsibilityMapping;
-    private calculateFileSeparationScore;
-    private identifyResponsibilityViolations;
-    private generateResponsibilitySuggestions;
-    private identifyGaps;
-    private calculateSeparationScore;
+    private extractUseCasesFromText;
+    private extractBusinessMethods;
+    private deduplicateUseCases;
     private calculateBusinessCoverage;
+    private calculateSeparationScore;
     private assessArchitectureHealth;
-    private assessDependencyDirection;
-    private assessTestability;
     private generateRecommendations;
+    private endpointToUseCaseName;
+    private methodToUseCaseName;
+    private determineFileType;
+    private calculateFileComplexity;
 }
 export default UseCasesAnalyzer;
 //# sourceMappingURL=analyzer.d.ts.map

@@ -48,6 +48,52 @@ CREATE TABLE IF NOT EXISTS claude_decisions (
   duration_ms INTEGER
 );
 
+-- Multi-level cache entries table
+CREATE TABLE IF NOT EXISTS cache_entries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  cache_key TEXT UNIQUE NOT NULL,
+  data JSONB NOT NULL,
+  content_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  access_count INTEGER DEFAULT 1,
+  last_accessed TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  cache_type TEXT DEFAULT 'general',
+  size_bytes INTEGER
+);
+
+-- Index for cache performance
+CREATE INDEX IF NOT EXISTS idx_cache_entries_key ON cache_entries(cache_key);
+CREATE INDEX IF NOT EXISTS idx_cache_entries_expires ON cache_entries(expires_at);
+CREATE INDEX IF NOT EXISTS idx_cache_entries_content_hash ON cache_entries(content_hash);
+CREATE INDEX IF NOT EXISTS idx_cache_entries_type ON cache_entries(cache_type);
+
+-- Semantic search embeddings table
+CREATE TABLE IF NOT EXISTS semantic_search_embeddings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  file_path TEXT NOT NULL,
+  content_type TEXT DEFAULT 'code',
+  content_text TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  embedding VECTOR(1536), -- OpenAI text-embedding-ada-002 dimensions
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for semantic search performance
+CREATE INDEX IF NOT EXISTS idx_semantic_embeddings_project ON semantic_search_embeddings(project_id);
+CREATE INDEX IF NOT EXISTS idx_semantic_embeddings_file_path ON semantic_search_embeddings(file_path);
+CREATE INDEX IF NOT EXISTS idx_semantic_embeddings_content_hash ON semantic_search_embeddings(content_hash);
+CREATE INDEX IF NOT EXISTS idx_semantic_embeddings_content_type ON semantic_search_embeddings(content_type);
+
+-- Vector similarity search index (HNSW)
+CREATE INDEX IF NOT EXISTS idx_semantic_embeddings_vector 
+ON semantic_search_embeddings USING hnsw (embedding vector_cosine_ops);
+
 -- ============================================
 -- INITIALIZATION AND PROGRESS TRACKING
 -- ============================================
@@ -279,7 +325,7 @@ BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 -- Auto-update triggers
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
@@ -308,7 +354,83 @@ BEGIN
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
     RETURN deleted_count;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
+
+-- ============================================
+-- DATABASE ANALYSIS STORAGE
+-- ============================================
+
+-- Database analysis results for each project
+CREATE TABLE IF NOT EXISTS database_analysis (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  connection_info JSONB NOT NULL, -- Database connections discovered
+  schema_data JSONB NOT NULL, -- Full schema information
+  relationships JSONB NOT NULL DEFAULT '[]'::jsonb, -- Table relationships
+  query_patterns JSONB NOT NULL DEFAULT '[]'::jsonb, -- Common query patterns
+  performance_metrics JSONB NOT NULL DEFAULT '{}'::jsonb, -- Performance analysis
+  documentation JSONB NOT NULL DEFAULT '{}'::jsonb, -- Human-readable docs
+  last_analyzed TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Database schema summary for quick reference
+CREATE TABLE IF NOT EXISTS database_schema_summary (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  database_name TEXT NOT NULL,
+  database_type TEXT NOT NULL CHECK (database_type IN ('postgresql', 'mysql', 'sqlite', 'mongodb')),
+  table_count INTEGER DEFAULT 0,
+  relationship_count INTEGER DEFAULT 0,
+  estimated_size BIGINT DEFAULT 0, -- in bytes
+  complexity_score DECIMAL(4,2) DEFAULT 0.0, -- 0-100 complexity rating
+  optimization_opportunities JSONB DEFAULT '[]'::jsonb,
+  critical_tables JSONB DEFAULT '[]'::jsonb, -- Most important tables
+  last_analyzed TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Query performance tracking
+CREATE TABLE IF NOT EXISTS query_performance_log (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  query_pattern TEXT NOT NULL,
+  query_type TEXT CHECK (query_type IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'UNKNOWN')),
+  tables_involved TEXT[] DEFAULT '{}',
+  avg_duration_ms DECIMAL(10,3),
+  execution_count INTEGER DEFAULT 1,
+  optimization_suggestion TEXT,
+  first_seen TIMESTAMPTZ DEFAULT NOW(),
+  last_seen TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Database relationship mapping for visual representation
+CREATE TABLE IF NOT EXISTS database_relationships (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  from_table TEXT NOT NULL,
+  from_column TEXT NOT NULL,
+  to_table TEXT NOT NULL,
+  to_column TEXT NOT NULL,
+  relationship_type TEXT CHECK (relationship_type IN ('one-to-one', 'one-to-many', 'many-to-many')),
+  cardinality_from INTEGER DEFAULT 1,
+  cardinality_to INTEGER DEFAULT 1,
+  constraint_name TEXT,
+  is_enforced BOOLEAN DEFAULT true,
+  business_description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for database analysis tables
+CREATE INDEX IF NOT EXISTS idx_database_analysis_project_id ON database_analysis(project_id);
+CREATE INDEX IF NOT EXISTS idx_database_analysis_last_analyzed ON database_analysis(last_analyzed);
+CREATE INDEX IF NOT EXISTS idx_database_schema_summary_project_id ON database_schema_summary(project_id);
+CREATE INDEX IF NOT EXISTS idx_query_performance_project_id ON query_performance_log(project_id);
+CREATE INDEX IF NOT EXISTS idx_query_performance_pattern ON query_performance_log(query_pattern);
+CREATE INDEX IF NOT EXISTS idx_database_relationships_project_id ON database_relationships(project_id);
+CREATE INDEX IF NOT EXISTS idx_database_relationships_tables ON database_relationships(from_table, to_table);
 
 -- ============================================
 -- VIEWS FOR COMMON QUERIES

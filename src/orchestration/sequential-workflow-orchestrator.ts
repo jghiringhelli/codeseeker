@@ -8,7 +8,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import RedisQueue, { WorkflowMessage, WorkflowCompletion } from '../messaging/redis-queue';
-import { IntelligentToolSelector } from '../cli/intelligent-tool-selector';
+// Removed IntelligentToolSelector dependency during cleanup
 import { Database } from '../database/database';
 import { Logger } from '../utils/logger';
 
@@ -68,14 +68,12 @@ export interface OrchestrationResult {
 
 export class SequentialWorkflowOrchestrator {
   private redis: RedisQueue;
-  private toolSelector: IntelligentToolSelector;
   private db: Database;
   private logger = Logger.getInstance();
   private activeOrchestrations = new Map<string, OrchestrationResult>();
 
   constructor() {
     this.redis = new RedisQueue();
-    this.toolSelector = new IntelligentToolSelector();
     this.db = new Database();
   }
 
@@ -269,7 +267,7 @@ export class SequentialWorkflowOrchestrator {
    * Build workflow graph based on query analysis
    */
   private async buildWorkflowGraph(request: OrchestrationRequest): Promise<WorkflowGraph> {
-    // Use tool selector to analyze complexity and determine roles needed
+    // Analyze complexity and determine roles needed (simplified after cleanup)
     const complexity = await this.analyzeQueryComplexity(request.query);
     
     const workflowGraph: WorkflowGraph = {

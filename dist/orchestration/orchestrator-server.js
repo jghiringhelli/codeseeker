@@ -6,11 +6,47 @@
  * Provides REST endpoints for starting, monitoring, and controlling
  * multi-role analysis workflows with Redis-based message queuing.
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrchestratorServer = void 0;
+// Load environment variables from .env file
+const dotenv = __importStar(require("dotenv"));
+dotenv.config();
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const sequential_workflow_orchestrator_1 = __importDefault(require("./sequential-workflow-orchestrator"));
@@ -18,12 +54,16 @@ const redis_queue_1 = __importDefault(require("../messaging/redis-queue"));
 const postgresql_1 = require("../database/adapters/postgresql");
 const logger_1 = require("../utils/logger");
 const external_tool_manager_1 = require("./external-tool-manager");
+const semantic_orchestrator_1 = require("./semantic-orchestrator");
+const tool_management_api_1 = require("./tool-management-api");
 class OrchestratorServer {
     app;
     orchestrator;
     redis;
     db;
     toolManager;
+    semanticOrchestrator;
+    toolManagementAPI;
     logger = logger_1.Logger.getInstance();
     port;
     server;
@@ -41,6 +81,8 @@ class OrchestratorServer {
             ssl: false
         }, this.logger);
         this.toolManager = new external_tool_manager_1.ExternalToolManager(this.db);
+        this.semanticOrchestrator = new semantic_orchestrator_1.SemanticOrchestrator();
+        this.toolManagementAPI = new tool_management_api_1.ToolManagementAPI();
         this.port = parseInt(process.env.ORCHESTRATOR_PORT || '3006');
         this.setupMiddleware();
         this.setupRoutes();
@@ -96,6 +138,18 @@ class OrchestratorServer {
         api.get('/tools/available', this.getAvailableTools.bind(this));
         api.post('/tools/install', this.installTool.bind(this));
         api.get('/tools/status/:projectPath', this.getToolsStatus.bind(this));
+        // Semantic graph integration
+        api.get('/semantic/search/:projectPath', this.semanticSearch.bind(this));
+        api.get('/semantic/context/:projectPath', this.getSemanticContext.bind(this));
+        api.get('/semantic/impact/:projectPath/:nodeId', this.getImpactAnalysis.bind(this));
+        // Project management for external projects
+        api.post('/projects/register', this.registerExternalProject.bind(this));
+        api.post('/tools/initialize', this.initializeInternalTools.bind(this));
+        api.post('/tools/autodiscover', this.autodiscoverAndInitializeTools.bind(this));
+        api.post('/tools/analyze/:projectId', this.analyzeProjectWithAllTools.bind(this));
+        api.post('/tools/update/:projectId', this.updateToolsAfterRequest.bind(this));
+        // Tool Management API routes
+        this.app.use('/api', this.toolManagementAPI.getRouter());
         this.app.use('/api', api);
     }
     setupErrorHandling() {
@@ -511,6 +565,319 @@ class OrchestratorServer {
         catch (error) {
             this.logger.error('❌ Error during shutdown:', error);
             process.exit(1);
+        }
+    }
+    // Semantic graph endpoints
+    async semanticSearch(req, res) {
+        try {
+            const { projectPath } = req.params;
+            const { query, intent = 'overview', maxResults = 10 } = req.query;
+            if (!query) {
+                res.status(400).json({ error: 'Query parameter is required' });
+                return;
+            }
+            await this.ensureSemanticInitialized();
+            const result = await this.semanticOrchestrator.analyzeWithSemanticContext({
+                query: query,
+                projectPath: decodeURIComponent(projectPath),
+                intent: intent,
+                maxResults: parseInt(maxResults),
+                includeRelated: true
+            });
+            res.json(result);
+        }
+        catch (error) {
+            this.logger.error('❌ Semantic search failed:', error);
+            res.status(500).json({
+                error: 'Semantic search failed',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    async getSemanticContext(req, res) {
+        try {
+            const { projectPath } = req.params;
+            const { intent = 'overview', maxTokens = 800, includeCode = 'true' } = req.query;
+            await this.ensureSemanticInitialized();
+            // This is the main endpoint for Claude Code context enhancement
+            const result = await this.semanticOrchestrator.analyzeWithSemanticContext({
+                query: `project overview with ${intent} focus`,
+                projectPath: decodeURIComponent(projectPath),
+                intent: intent,
+                maxResults: Math.min(parseInt(maxTokens) / 40, 20), // Estimate ~40 tokens per result
+                includeRelated: includeCode === 'true'
+            });
+            // Format for Claude Code consumption
+            const claudeContext = {
+                intent,
+                totalNodes: result.graphContext.totalNodes,
+                totalRelationships: result.graphContext.totalRelationships,
+                relevantConcepts: result.relatedConcepts.slice(0, 5).map(c => ({
+                    name: c.name,
+                    domain: c.domain,
+                    strength: c.strength
+                })),
+                codeInsights: result.primaryResults.filter(r => r.type === 'code_context').slice(0, 3),
+                architectureInsights: result.primaryResults.filter(r => r.type === 'architecture_overview').slice(0, 2),
+                recommendations: result.recommendations.slice(0, 3),
+                semanticDiagram: result.mermaidDiagram
+            };
+            res.json(claudeContext);
+        }
+        catch (error) {
+            this.logger.error('❌ Get semantic context failed:', error);
+            res.status(500).json({
+                error: 'Get semantic context failed',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    async getImpactAnalysis(req, res) {
+        try {
+            const { projectPath, nodeId } = req.params;
+            const { maxDepth = 3 } = req.query;
+            await this.ensureSemanticInitialized();
+            // Use the semantic graph service directly for impact analysis
+            const impact = await this.semanticOrchestrator['semanticGraph'].analyzeImpact(nodeId, parseInt(maxDepth));
+            res.json(impact);
+        }
+        catch (error) {
+            this.logger.error('❌ Impact analysis failed:', error);
+            res.status(500).json({
+                error: 'Impact analysis failed',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    async ensureSemanticInitialized() {
+        try {
+            await this.semanticOrchestrator.initialize();
+        }
+        catch (error) {
+            this.logger.warn('⚠️ Could not initialize semantic graph:', error);
+            throw new Error('Semantic graph not available - ensure Neo4j is running');
+        }
+    }
+    /**
+     * Register external project in PostgreSQL database
+     */
+    async registerExternalProject(req, res) {
+        try {
+            const { project_name, project_path, project_type, description, languages, frameworks, metadata, status = 'active' } = req.body;
+            // Validate required fields
+            if (!project_name || !project_path) {
+                res.status(400).json({
+                    error: 'project_name and project_path are required'
+                });
+                return;
+            }
+            this.logger.info(`🗄️ Registering external project: ${project_name}`);
+            // For now, simulate database insertion and return a mock ID
+            // In a real implementation, this would insert into PostgreSQL
+            const projectId = `ext_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const response = {
+                project_id: projectId,
+                project_name,
+                project_path,
+                project_type,
+                description,
+                languages,
+                frameworks,
+                metadata,
+                status,
+                created_at: new Date().toISOString(),
+                message: 'External project registered successfully'
+            };
+            this.logger.info(`✅ External project registered with ID: ${projectId}`);
+            res.status(201).json(response);
+        }
+        catch (error) {
+            this.logger.error('❌ Failed to register external project:', error);
+            res.status(500).json({
+                error: 'Failed to register external project',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    /**
+     * Initialize internal tools for project
+     */
+    async initializeInternalTools(req, res) {
+        try {
+            const { project_id, tools } = req.body;
+            if (!project_id || !Array.isArray(tools)) {
+                res.status(400).json({
+                    error: 'project_id and tools array are required'
+                });
+                return;
+            }
+            this.logger.info(`🔧 Initializing ${tools.length} internal tools for project: ${project_id}`);
+            // Simulate tool initialization 
+            // In a real implementation, this would insert into PostgreSQL external_tools table
+            const initializedTools = tools.map((tool, index) => ({
+                ...tool,
+                tool_id: `tool_${Date.now()}_${index}`,
+                project_id,
+                installed_at: new Date().toISOString(),
+                initialization_status: 'completed'
+            }));
+            const response = {
+                project_id,
+                tools_initialized: initializedTools.length,
+                tools: initializedTools,
+                message: 'Internal tools initialized successfully'
+            };
+            this.logger.info(`✅ Initialized ${initializedTools.length} internal tools`);
+            res.status(200).json(response);
+        }
+        catch (error) {
+            this.logger.error('❌ Failed to initialize internal tools:', error);
+            res.status(500).json({
+                error: 'Failed to initialize internal tools',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    /**
+     * Autodiscover and initialize all internal tools for a project
+     */
+    async autodiscoverAndInitializeTools(req, res) {
+        try {
+            const { project_path, project_id } = req.body;
+            if (!project_path || !project_id) {
+                res.status(400).json({
+                    error: 'project_path and project_id are required'
+                });
+                return;
+            }
+            this.logger.info(`🔧 Autodiscovering tools for project: ${project_id}`);
+            // Import and use autodiscovery service
+            const { ToolAutodiscoveryService } = require('../shared/tool-autodiscovery');
+            const toolService = new ToolAutodiscoveryService();
+            await toolService.initializeTools();
+            // Get all tools for registration
+            const toolsForRegistration = toolService.getToolsForRegistration();
+            // Initialize all tools for the project
+            const initResult = await toolService.initializeProjectForAllTools(project_path, project_id);
+            const response = {
+                project_id,
+                tools_discovered: toolsForRegistration.length,
+                tools_initialized: Array.from(initResult.results.keys()).length,
+                success_rate: Array.from(initResult.results.values()).filter((r) => r.success).length / initResult.results.size,
+                tables_created: initResult.totalTablesCreated,
+                records_inserted: initResult.totalRecordsInserted,
+                tools: toolsForRegistration,
+                initialization_results: Array.from(initResult.results.entries()).map(([name, result]) => ({
+                    tool_name: name,
+                    success: result.success,
+                    records_inserted: result.recordsInserted || 0,
+                    error: result.error
+                })),
+                message: 'Tools autodiscovered and initialized successfully'
+            };
+            this.logger.info(`✅ Autodiscovered and initialized ${toolsForRegistration.length} tools`);
+            res.status(200).json(response);
+        }
+        catch (error) {
+            this.logger.error('❌ Failed to autodiscover tools:', error);
+            res.status(500).json({
+                error: 'Failed to autodiscover tools',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    /**
+     * Analyze project with all applicable tools
+     */
+    async analyzeProjectWithAllTools(req, res) {
+        try {
+            const { projectId } = req.params;
+            const { project_path } = req.body;
+            if (!project_path) {
+                res.status(400).json({
+                    error: 'project_path is required'
+                });
+                return;
+            }
+            this.logger.info(`🧠 Analyzing project with all tools: ${projectId}`);
+            // Import and use autodiscovery service
+            const { ToolAutodiscoveryService } = require('../shared/tool-autodiscovery');
+            const toolService = new ToolAutodiscoveryService();
+            await toolService.initializeTools();
+            // Run analysis with all tools
+            const analysisResult = await toolService.analyzeProjectWithAllTools(project_path, projectId);
+            const response = {
+                project_id: projectId,
+                analysis_success: analysisResult.success,
+                execution_time_ms: analysisResult.totalExecutionTime,
+                tools_analyzed: analysisResult.results.size,
+                results: Array.from(analysisResult.results.entries()).map(([name, result]) => ({
+                    tool_name: name,
+                    execution_time: result.metrics?.executionTime || 0,
+                    confidence: result.metrics?.confidence || 0,
+                    recommendations_count: result.recommendations?.length || 0,
+                    has_errors: (result.errors?.length || 0) > 0
+                })),
+                all_recommendations: Array.from(analysisResult.results.values())
+                    .filter((r) => r.recommendations && r.recommendations.length > 0)
+                    .flatMap((r) => r.recommendations),
+                message: 'Project analysis completed successfully'
+            };
+            this.logger.info(`✅ Project analysis completed in ${analysisResult.totalExecutionTime}ms`);
+            res.status(200).json(response);
+        }
+        catch (error) {
+            this.logger.error('❌ Failed to analyze project:', error);
+            res.status(500).json({
+                error: 'Failed to analyze project',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    /**
+     * Update tools after CLI request
+     */
+    async updateToolsAfterRequest(req, res) {
+        try {
+            const { projectId } = req.params;
+            const { project_path, cli_command, cli_result } = req.body;
+            if (!project_path || !cli_command) {
+                res.status(400).json({
+                    error: 'project_path and cli_command are required'
+                });
+                return;
+            }
+            this.logger.info(`🔄 Updating tools after CLI request: ${cli_command}`);
+            // Import and use autodiscovery service
+            const { ToolAutodiscoveryService } = require('../shared/tool-autodiscovery');
+            const toolService = new ToolAutodiscoveryService();
+            await toolService.initializeTools();
+            // Update all tools based on CLI result
+            const updateResult = await toolService.updateToolsAfterCliRequest(project_path, projectId, cli_command, cli_result);
+            const response = {
+                project_id: projectId,
+                update_success: updateResult.success,
+                tools_updated: updateResult.results.size,
+                results: Array.from(updateResult.results.entries()).map(([name, result]) => ({
+                    tool_name: name,
+                    success: result.success,
+                    records_modified: result.recordsModified || 0,
+                    new_insights_count: result.newInsights?.length || 0,
+                    error: result.error
+                })),
+                total_records_modified: Array.from(updateResult.results.values())
+                    .reduce((sum, r) => sum + (r.recordsModified || 0), 0),
+                message: 'Tools updated successfully after CLI request'
+            };
+            this.logger.info(`✅ Updated ${updateResult.results.size} tools after CLI request`);
+            res.status(200).json(response);
+        }
+        catch (error) {
+            this.logger.error('❌ Failed to update tools:', error);
+            res.status(500).json({
+                error: 'Failed to update tools',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
         }
     }
 }

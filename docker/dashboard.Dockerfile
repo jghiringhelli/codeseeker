@@ -46,14 +46,17 @@ FROM base AS builder
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --omit=dev && npm cache clean --force
+# Install all dependencies (needed for TypeScript compilation)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build any assets if needed
-RUN if [ -f "src/dashboard/build.js" ]; then node src/dashboard/build.js; fi
+# Build TypeScript
+RUN npm run build
+
+# Remove dev dependencies after build
+RUN npm prune --production
 
 # Production stage
 FROM node:20-slim AS production
@@ -75,6 +78,7 @@ WORKDIR /app
 # Copy built application from builder stage
 COPY --from=builder --chown=codemind:codemind /app/node_modules ./node_modules
 COPY --from=builder --chown=codemind:codemind /app/src ./src
+COPY --from=builder --chown=codemind:codemind /app/dist ./dist
 COPY --from=builder --chown=codemind:codemind /app/package*.json ./
 
 # Create logs directory

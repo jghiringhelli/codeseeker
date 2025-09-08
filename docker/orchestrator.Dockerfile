@@ -24,13 +24,16 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies
-RUN npm ci --omit=dev && npm cache clean --force
+# Don't install here - do it in development stage
 
 FROM base AS development
+# Install all dependencies including dev
 RUN npm ci
 COPY . .
+# Build TypeScript
 RUN npm run build
+# Prune dev dependencies after build
+RUN npm prune --production
 
 FROM base AS production
 
@@ -38,6 +41,7 @@ FROM base AS production
 COPY --from=development /app/dist ./dist
 COPY --from=development /app/src ./src
 COPY --from=development /app/package*.json ./
+COPY --from=development /app/node_modules ./node_modules
 
 # Create non-root user (Debian syntax)
 RUN groupadd -g 1001 codemind && \
