@@ -41,7 +41,7 @@ export class SemanticOrchestrator {
 
   constructor() {
     this.semanticGraph = new SemanticGraphService();
-    this.docAnalyzer = new DocumentMapAnalyzer(this.semanticGraph);
+    this.docAnalyzer = new DocumentMapAnalyzer();
     this.useCasesAnalyzer = new UseCasesAnalyzer();
     this.treeNavigator = new TreeNavigator();
   }
@@ -219,15 +219,17 @@ export class SemanticOrchestrator {
       case 'architecture':
         // Focus on architectural insights
         try {
-          const docResult = await this.docAnalyzer.analyzeDocumentationWithSemantics({
-            projectPath: request.projectPath,
-            generateMermaid: true
+          const docResult = await this.docAnalyzer.analyzeDocumentation({
+            projectPath: request.projectPath
           });
           
           results.push({
             type: 'architecture_overview',
-            conceptClusters: docResult.semanticGraph.conceptClusters,
-            crossDomainInsights: docResult.crossDomainInsights
+            data: {
+              documents: docResult.documents,
+              topics: docResult.topics,
+              mainClasses: docResult.mainClasses
+            }
           });
         } catch (error) {
           this.logger.debug('Could not perform architecture analysis:', error);

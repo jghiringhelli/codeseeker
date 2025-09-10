@@ -309,21 +309,24 @@ class AnalysisTool {
 exports.AnalysisTool = AnalysisTool;
 // Base class for internal tools (backwards compatibility)
 class InternalTool {
+    // Flexible initialization method that tools can override with more parameters
+    initializeForProject(projectPath, projectId) {
+        return this.initialize(projectId);
+    }
     // Additional methods that some tools expect
     analyzeProject(projectPath, projectId, parameters) {
         return this.analyze(projectPath, projectId, parameters);
     }
-    updateAfterCliRequest(projectId, data) {
+    updateAfterCliRequest(projectPath, projectId, cliCommand, cliResult) {
         // Default implementation - tools can override
+        this.update(projectId, { command: cliCommand, result: cliResult });
+        return Promise.resolve({ success: true, updated: 0 });
     }
-    getStatus() {
+    getStatus(projectId) {
         return { status: 'active', name: this.getMetadata().name };
     }
     canAnalyzeProject(projectPath) {
-        return true; // Default: all tools can analyze
-    }
-    initializeForProject(projectId) {
-        return this.initialize();
+        return Promise.resolve(true); // Default: all tools can analyze
     }
 }
 exports.InternalTool = InternalTool;

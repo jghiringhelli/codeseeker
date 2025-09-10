@@ -18,7 +18,7 @@ class SemanticOrchestrator {
     logger = logger_1.Logger.getInstance();
     constructor() {
         this.semanticGraph = new semantic_graph_1.SemanticGraphService();
-        this.docAnalyzer = new map_analyzer_1.DocumentMapAnalyzer(this.semanticGraph);
+        this.docAnalyzer = new map_analyzer_1.DocumentMapAnalyzer();
         this.useCasesAnalyzer = new analyzer_1.UseCasesAnalyzer();
         this.treeNavigator = new navigator_1.TreeNavigator();
     }
@@ -164,14 +164,16 @@ class SemanticOrchestrator {
             case 'architecture':
                 // Focus on architectural insights
                 try {
-                    const docResult = await this.docAnalyzer.analyzeDocumentationWithSemantics({
-                        projectPath: request.projectPath,
-                        generateMermaid: true
+                    const docResult = await this.docAnalyzer.analyzeDocumentation({
+                        projectPath: request.projectPath
                     });
                     results.push({
                         type: 'architecture_overview',
-                        conceptClusters: docResult.semanticGraph.conceptClusters,
-                        crossDomainInsights: docResult.crossDomainInsights
+                        data: {
+                            documents: docResult.documents,
+                            topics: docResult.topics,
+                            mainClasses: docResult.mainClasses
+                        }
                     });
                 }
                 catch (error) {

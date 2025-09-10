@@ -124,7 +124,7 @@ export class ToolRegistryInitializer {
       }
 
       const adaptedTool = new ToolAdapter(toolInstance);
-      ToolRegistry.registerTool(adaptedTool);
+      ToolRegistry.registerTool(config.name, adaptedTool);
 
       this.logger.info(`✅ Registered tool: ${config.name} from ${loadedPath}`);
 

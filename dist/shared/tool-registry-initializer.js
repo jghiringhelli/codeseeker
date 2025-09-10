@@ -110,7 +110,7 @@ class ToolRegistryInitializer {
                 throw new Error(`Tool ${config.name} does not implement AnalysisTool interface`);
             }
             const adaptedTool = new tool_adapter_1.ToolAdapter(toolInstance);
-            tool_interface_1.ToolRegistry.registerTool(adaptedTool);
+            tool_interface_1.ToolRegistry.registerTool(config.name, adaptedTool);
             this.logger.info(`✅ Registered tool: ${config.name} from ${loadedPath}`);
         }
         catch (error) {

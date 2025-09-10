@@ -8,7 +8,7 @@ import { Logger } from './logger';
 
 // Import all internal tools for registration
 import { SemanticGraphTool } from '../features/semantic-graph/semantic-graph-tool';
-import { SemanticSearchTool } from '../features/search/semantic-search-tool';
+// import { SemanticSearchTool } from '../features/search/semantic-search-tool'; // TODO: Implement this tool
 // Note: Context optimization is the core CLI mechanism, not a separate tool
 // TODO: Add remaining tool imports as they are implemented:
 // import { CentralizationDetectorTool } from '../features/centralization/centralization-detector-tool';
@@ -39,8 +39,8 @@ export class ToolAutodiscoveryService {
     try {
       // Register all tools
       const tools = [
-        new SemanticGraphTool(), // Core tool - always available
-        new SemanticSearchTool()
+        new SemanticGraphTool() // Core tool - always available
+        // new SemanticSearchTool() // TODO: Implement this tool
         // Note: Context optimization is built into the CLI itself
         // TODO: Add remaining tool instances as they are implemented:
         // new CentralizationDetectorTool(),
@@ -54,8 +54,8 @@ export class ToolAutodiscoveryService {
       ];
 
       for (const tool of tools) {
-        ToolRegistry.registerTool(tool);
         const metadata = tool.getMetadata();
+        ToolRegistry.registerTool(metadata.name, tool);
         this.logger.info(`  ✅ Registered: ${metadata.name} (${metadata.category}, trust: ${metadata.trustLevel})`);
       }
 
@@ -141,9 +141,8 @@ export class ToolAutodiscoveryService {
         results.set(metadata.name, result);
 
         if (result.success) {
-          totalTablesCreated += result.tablesCreated?.length || 0;
-          totalRecordsInserted += result.recordsInserted || 0;
-          this.logger.info(`  ✅ ${metadata.name}: ${result.recordsInserted || 0} records created`);
+          totalTablesCreated += result.tablesCreated || 0;
+          this.logger.info(`  ✅ ${metadata.name}: ${result.tablesCreated || 0} tables created`);
         } else {
           allSuccess = false;
           this.logger.error(`  ❌ ${metadata.name}: ${result.error}`);
@@ -153,7 +152,8 @@ export class ToolAutodiscoveryService {
         allSuccess = false;
         const errorResult: ToolInitResult = { 
           success: false, 
-          error: error instanceof Error ? error.message : 'Unknown error' 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          metadata: metadata
         };
         results.set(metadata.name, errorResult);
         this.logger.error(`  💥 ${metadata.name} initialization failed:`, error);
@@ -254,8 +254,9 @@ export class ToolAutodiscoveryService {
         const result = await tool.updateAfterCliRequest(projectPath, projectId, cliCommand, cliResult);
         results.set(metadata.name, result);
 
-        if (result.success && (result.recordsModified || 0) > 0) {
-          this.logger.info(`  ✅ ${metadata.name}: updated ${result.recordsModified} records`);
+        if (result.success && result.updated) {
+          const updateCount = typeof result.updated === 'number' ? result.updated : 1;
+          this.logger.info(`  ✅ ${metadata.name}: updated ${updateCount} items`);
         }
 
       } catch (error) {

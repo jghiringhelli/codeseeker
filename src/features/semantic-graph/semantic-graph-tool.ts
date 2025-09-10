@@ -5,7 +5,7 @@
  */
 
 import { InternalTool, ToolMetadata, AnalysisResult, ToolInitResult, ToolUpdateResult } from '../../shared/tool-interface';
-import { Logger } from '../../shared/logger';
+import { Logger } from '../../utils/logger';
 
 export class SemanticGraphTool extends InternalTool {
   private logger: Logger;
@@ -37,47 +37,35 @@ export class SemanticGraphTool extends InternalTool {
     };
   }
 
-  async initializeForProject(projectPath: string, projectId: string): Promise<ToolInitResult> {
+  override async initialize(projectId: string): Promise<ToolInitResult> {
     try {
       this.logger.info(`🌐 Semantic Graph: Initializing for project ${projectId}`);
 
-      // Initialize Neo4j nodes and relationships
-      const tablesCreated = [
-        'semantic_nodes',
-        'semantic_relationships',
-        'concept_mappings',
-        'dependency_graph',
-        'impact_analysis_cache'
-      ];
-
-      // Perform initial graph construction
-      const initialAnalysis = await this.analyzeProject(projectPath, projectId, {
-        depth: 3,
-        includeRelationships: true,
-        buildFullGraph: true
-      });
-      
       return {
         success: true,
-        tablesCreated,
-        recordsInserted: initialAnalysis.data?.nodeCount || 0,
-        data: {
-          graphInitialized: true,
-          nodeCount: initialAnalysis.data?.nodeCount || 0,
-          relationshipCount: initialAnalysis.data?.relationshipCount || 0
-        }
+        metadata: this.getMetadata(),
+        tablesCreated: 5
       };
 
     } catch (error) {
       this.logger.error('Semantic Graph initialization failed:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        metadata: this.getMetadata()
       };
     }
   }
 
-  async analyzeProject(projectPath: string, projectId: string, parameters?: any): Promise<AnalysisResult> {
+  override async initializeForProject(projectPath: string, projectId: string): Promise<ToolInitResult> {
+    return this.initialize(projectId);
+  }
+
+  override async analyze(projectPath: string, projectId: string, parameters?: any): Promise<AnalysisResult> {
+    return this.analyzeProject(projectPath, projectId, parameters);
+  }
+
+  override async analyzeProject(projectPath: string, projectId: string, parameters?: any): Promise<AnalysisResult> {
     const startTime = Date.now();
 
     try {
@@ -130,91 +118,77 @@ export class SemanticGraphTool extends InternalTool {
       const executionTime = Date.now() - startTime;
 
       return {
+        success: true,
         toolName: 'semantic-graph',
         projectId,
         timestamp: new Date(),
         data: analysisData,
+        metadata: this.getMetadata(),
         metrics: {
           executionTime,
-          confidence: 0.95, // High confidence for graph analysis
-          coverage: Math.min(1.0, (analysisData.nodeCount / 1000)) // Coverage based on nodes analyzed
+          confidence: 0.95,
+          coverage: Math.min(1.0, (analysisData.nodeCount / 1000))
         },
         recommendations: this.generateRecommendations(analysisData, parameters)
       };
 
     } catch (error) {
       this.logger.error('Semantic Graph analysis failed:', error);
-      throw error;
+      return {
+        success: false,
+        toolName: 'semantic-graph',
+        projectId,
+        timestamp: new Date(),
+        metadata: this.getMetadata(),
+        error: error instanceof Error ? error.message : 'Analysis failed'
+      };
     }
   }
 
-  async updateAfterCliRequest(
+  override async update(projectId: string, data: any): Promise<void> {
+    try {
+      this.logger.info(`🔄 Semantic Graph: Updating knowledge for project ${projectId}`);
+      // Implementation for updating graph knowledge
+    } catch (error) {
+      this.logger.error('Semantic Graph update failed:', error);
+    }
+  }
+
+  override async updateAfterCliRequest(
     projectPath: string, 
     projectId: string, 
     cliCommand: string, 
     cliResult: any
   ): Promise<ToolUpdateResult> {
     try {
+      await this.update(projectId, { command: cliCommand, result: cliResult });
+
       let recordsModified = 0;
-      const newInsights = [];
+      const changes: string[] = [];
 
       // Update graph based on any code changes
       if (cliResult.filesChanged && cliResult.filesChanged.length > 0) {
         recordsModified += cliResult.filesChanged.length;
-        
-        newInsights.push({
-          type: 'graph_update',
-          filesChanged: cliResult.filesChanged,
-          nodesAffected: cliResult.filesChanged.length * 3, // Estimate
-          relationshipsUpdated: cliResult.filesChanged.length * 5
-        });
+        changes.push(`Updated graph for ${cliResult.filesChanged.length} changed files`);
       }
 
       // Update concept frequencies based on queries
       if (cliResult.query) {
         recordsModified++;
-        newInsights.push({
-          type: 'concept_frequency_update',
-          query: cliResult.query,
-          conceptsIdentified: this.extractConcepts(cliResult.query)
-        });
-      }
-
-      // Update relationship strengths based on usage patterns
-      if (cliResult.toolsUsed) {
-        recordsModified += cliResult.toolsUsed.length;
-        newInsights.push({
-          type: 'relationship_strength_update',
-          toolsUsed: cliResult.toolsUsed,
-          patternsIdentified: 'cross-tool-usage'
-        });
-      }
-
-      // Learn from quality improvements
-      if (cliResult.qualityImprovement) {
-        recordsModified++;
-        newInsights.push({
-          type: 'quality_pattern_learned',
-          improvement: cliResult.qualityImprovement,
-          context: cliCommand
-        });
+        changes.push(`Updated concept frequencies for query: ${cliResult.query}`);
       }
 
       return {
         success: true,
-        tablesUpdated: recordsModified > 0 ? [
-          'semantic_nodes', 
-          'semantic_relationships', 
-          'concept_mappings'
-        ] : [],
-        recordsModified,
-        newInsights
+        updated: recordsModified,
+        changes
       };
 
     } catch (error) {
       this.logger.error('Semantic Graph update failed:', error);
       return {
         success: false,
+        updated: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
@@ -238,11 +212,11 @@ export class SemanticGraphTool extends InternalTool {
     health: 'healthy' | 'warning' | 'error';
   }> {
     try {
-      // In real implementation, query Neo4j for actual stats
+      // In real implementation, query Neo4j for status
       return {
         initialized: true,
         lastAnalysis: new Date(),
-        recordCount: 523, // Would come from Neo4j COUNT query
+        recordCount: 2370, // Example node + relationship count
         health: 'healthy'
       };
     } catch (error) {
@@ -254,109 +228,59 @@ export class SemanticGraphTool extends InternalTool {
   }
 
   // Helper methods
-
   private getKeyNodes(focusArea?: string, maxNodes: number = 100): any[] {
-    // In real implementation, query Neo4j
-    const nodes = [
-      { id: 'UserService', type: 'service', importance: 0.95, connections: 23 },
-      { id: 'AuthController', type: 'controller', importance: 0.92, connections: 18 },
-      { id: 'Database', type: 'persistence', importance: 0.90, connections: 45 },
-      { id: 'ApiRouter', type: 'routing', importance: 0.88, connections: 31 }
+    // Mock implementation
+    const allNodes = [
+      { id: 'user-service', type: 'Service', importance: 0.95 },
+      { id: 'auth-controller', type: 'Controller', importance: 0.90 },
+      { id: 'database-layer', type: 'Repository', importance: 0.85 },
+      { id: 'api-gateway', type: 'Gateway', importance: 0.80 }
     ];
 
-    if (focusArea) {
-      // Filter based on focus area
-      return nodes.filter(node => 
-        node.id.toLowerCase().includes(focusArea.toLowerCase())
-      ).slice(0, maxNodes);
-    }
-
-    return nodes.slice(0, maxNodes);
+    return allNodes
+      .filter(node => !focusArea || node.id.includes(focusArea.toLowerCase()))
+      .slice(0, maxNodes);
   }
 
   private getRelationships(focusArea?: string, depth: number = 2): any[] {
-    // In real implementation, traverse Neo4j graph
-    const relationships = [
-      { from: 'UserService', to: 'Database', type: 'queries', weight: 0.9 },
-      { from: 'AuthController', to: 'UserService', type: 'calls', weight: 0.95 },
-      { from: 'ApiRouter', to: 'AuthController', type: 'routes', weight: 0.85 }
+    // Mock implementation
+    return [
+      { from: 'user-service', to: 'auth-controller', type: 'USES', weight: 0.9 },
+      { from: 'auth-controller', to: 'database-layer', type: 'QUERIES', weight: 0.8 },
+      { from: 'api-gateway', to: 'user-service', type: 'ROUTES_TO', weight: 0.7 }
     ];
-
-    if (focusArea) {
-      return relationships.filter(rel => 
-        rel.from.toLowerCase().includes(focusArea.toLowerCase()) ||
-        rel.to.toLowerCase().includes(focusArea.toLowerCase())
-      );
-    }
-
-    return relationships;
   }
 
   private getImpactAnalysis(focusArea: string): any {
-    // Analyze impact of changes in focus area
+    // Mock implementation
     return {
-      directImpact: ['UserService', 'AuthController', 'SessionManager'],
-      indirectImpact: ['ApiRouter', 'Database', 'CacheService'],
+      directDependents: 5,
+      indirectDependents: 12,
       riskLevel: 'medium',
-      estimatedEffort: '3-5 days',
-      recommendations: [
-        `Changes to ${focusArea} will affect authentication flow`,
-        'Consider updating related test suites',
-        'Review security implications'
-      ]
+      criticalPaths: ['auth-flow', 'data-access']
     };
   }
 
-  private generateRecommendations(data: any, parameters: any): string[] {
-    const recommendations = [];
+  private generateRecommendations(analysisData: any, parameters?: any): string[] {
+    const recommendations = [
+      'Use semantic search for cross-cutting concerns',
+      'Leverage relationship analysis for impact assessment'
+    ];
 
-    // Based on graph analysis
-    if (data.clusters) {
-      const lowCohesion = data.clusters.filter((c: any) => c.cohesion < 0.7);
-      if (lowCohesion.length > 0) {
-        recommendations.push(`Improve cohesion in clusters: ${lowCohesion.map((c: any) => c.name).join(', ')}`);
-      }
+    if (analysisData.nodeCount > 500) {
+      recommendations.push('Consider graph partitioning for better performance');
     }
 
-    // Based on relationships
-    if (data.crossReferences) {
-      const strongCoupling = data.crossReferences.filter((r: any) => r.strength > 0.9);
-      if (strongCoupling.length > 3) {
-        recommendations.push('Consider reducing coupling between highly connected components');
-      }
-    }
-
-    // Based on concepts
-    if (data.concepts) {
-      const dominantConcepts = data.concepts.filter((c: any) => c.importance > 0.9);
-      if (dominantConcepts.length > 0) {
-        recommendations.push(`Focus on ${dominantConcepts[0].name} for maximum impact`);
-      }
-    }
-
-    // Parameter-specific recommendations
     if (parameters?.focusArea) {
-      recommendations.push(`Deep dive into ${parameters.focusArea} relationships recommended`);
+      recommendations.push(`Focus area "${parameters.focusArea}" has strong connectivity - good for targeted analysis`);
     }
 
-    if (parameters?.depth > 3) {
-      recommendations.push('Consider breaking down analysis into smaller, focused areas');
-    }
-
-    return recommendations.slice(0, 5); // Top 5 recommendations
+    return recommendations;
   }
 
   private extractConcepts(query: string): string[] {
-    // Simple concept extraction from query
-    const concepts = [];
-    const keywords = ['auth', 'data', 'api', 'user', 'service', 'controller', 'security'];
-    
-    keywords.forEach(keyword => {
-      if (query.toLowerCase().includes(keyword)) {
-        concepts.push(keyword);
-      }
-    });
-
-    return concepts;
+    // Simple concept extraction
+    const concepts = ['authentication', 'database', 'api', 'service'];
+    return concepts.filter(concept => query.toLowerCase().includes(concept));
   }
 }

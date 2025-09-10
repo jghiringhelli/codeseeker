@@ -9,7 +9,7 @@ const tool_interface_1 = require("./tool-interface");
 const logger_1 = require("./logger");
 // Import all internal tools for registration
 const semantic_graph_tool_1 = require("../features/semantic-graph/semantic-graph-tool");
-const semantic_search_tool_1 = require("../features/search/semantic-search-tool");
+// import { SemanticSearchTool } from '../features/search/semantic-search-tool'; // TODO: Implement this tool
 // Note: Context optimization is the core CLI mechanism, not a separate tool
 // TODO: Add remaining tool imports as they are implemented:
 // import { CentralizationDetectorTool } from '../features/centralization/centralization-detector-tool';
@@ -36,8 +36,8 @@ class ToolAutodiscoveryService {
         try {
             // Register all tools
             const tools = [
-                new semantic_graph_tool_1.SemanticGraphTool(), // Core tool - always available
-                new semantic_search_tool_1.SemanticSearchTool()
+                new semantic_graph_tool_1.SemanticGraphTool() // Core tool - always available
+                // new SemanticSearchTool() // TODO: Implement this tool
                 // Note: Context optimization is built into the CLI itself
                 // TODO: Add remaining tool instances as they are implemented:
                 // new CentralizationDetectorTool(),
@@ -50,8 +50,8 @@ class ToolAutodiscoveryService {
                 // new UseCasesAnalyzerTool()
             ];
             for (const tool of tools) {
-                tool_interface_1.ToolRegistry.registerTool(tool);
                 const metadata = tool.getMetadata();
+                tool_interface_1.ToolRegistry.registerTool(metadata.name, tool);
                 this.logger.info(`  ✅ Registered: ${metadata.name} (${metadata.category}, trust: ${metadata.trustLevel})`);
             }
             this.initialized = true;
@@ -114,9 +114,8 @@ class ToolAutodiscoveryService {
                 const result = await tool.initializeForProject(projectPath, projectId);
                 results.set(metadata.name, result);
                 if (result.success) {
-                    totalTablesCreated += result.tablesCreated?.length || 0;
-                    totalRecordsInserted += result.recordsInserted || 0;
-                    this.logger.info(`  ✅ ${metadata.name}: ${result.recordsInserted || 0} records created`);
+                    totalTablesCreated += result.tablesCreated || 0;
+                    this.logger.info(`  ✅ ${metadata.name}: ${result.tablesCreated || 0} tables created`);
                 }
                 else {
                     allSuccess = false;
@@ -127,7 +126,8 @@ class ToolAutodiscoveryService {
                 allSuccess = false;
                 const errorResult = {
                     success: false,
-                    error: error instanceof Error ? error.message : 'Unknown error'
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    metadata: metadata
                 };
                 results.set(metadata.name, errorResult);
                 this.logger.error(`  💥 ${metadata.name} initialization failed:`, error);
@@ -197,8 +197,9 @@ class ToolAutodiscoveryService {
             try {
                 const result = await tool.updateAfterCliRequest(projectPath, projectId, cliCommand, cliResult);
                 results.set(metadata.name, result);
-                if (result.success && (result.recordsModified || 0) > 0) {
-                    this.logger.info(`  ✅ ${metadata.name}: updated ${result.recordsModified} records`);
+                if (result.success && result.updated) {
+                    const updateCount = typeof result.updated === 'number' ? result.updated : 1;
+                    this.logger.info(`  ✅ ${metadata.name}: updated ${updateCount} items`);
                 }
             }
             catch (error) {

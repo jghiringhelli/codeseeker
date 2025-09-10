@@ -482,6 +482,7 @@ export interface AnalysisResult {
   timestamp: Date;
   metadata: ToolMetadata;
   toolName?: string;
+  projectId?: string;
   metrics?: any;
   recommendations?: string[];
 }
@@ -495,7 +496,7 @@ export interface ToolInitResult {
 
 export interface ToolUpdateResult {
   success: boolean;
-  updated: boolean;
+  updated: boolean | number;
   error?: string;
   changes?: string[];
   tablesUpdated?: number;
@@ -505,28 +506,31 @@ export interface ToolUpdateResult {
 export abstract class InternalTool {
   abstract getMetadata(): ToolMetadata;
   abstract analyze(projectPath: string, projectId: string, parameters?: any): Promise<AnalysisResult>;
-  abstract initialize(): Promise<ToolInitResult>;
-  abstract update?(data: any): Promise<ToolUpdateResult>;
+  abstract initialize(projectId: string): Promise<ToolInitResult>;
+  abstract update(projectId: string, data: any): Promise<void>;
+
+  // Flexible initialization method that tools can override with more parameters
+  initializeForProject?(projectPath: string, projectId: string): Promise<ToolInitResult> {
+    return this.initialize(projectId);
+  }
 
   // Additional methods that some tools expect
   analyzeProject?(projectPath: string, projectId: string, parameters?: any): Promise<AnalysisResult> {
     return this.analyze(projectPath, projectId, parameters);
   }
 
-  updateAfterCliRequest?(projectId: string, data: any): Promise<void> {
+  updateAfterCliRequest?(projectPath: string, projectId: string, cliCommand: string, cliResult: any): Promise<ToolUpdateResult> {
     // Default implementation - tools can override
+    this.update(projectId, { command: cliCommand, result: cliResult });
+    return Promise.resolve({ success: true, updated: 0 });
   }
 
-  getStatus?(): any {
+  getStatus?(projectId?: string): any {
     return { status: 'active', name: this.getMetadata().name };
   }
 
-  canAnalyzeProject?(projectPath: string): boolean {
-    return true; // Default: all tools can analyze
-  }
-
-  initializeForProject?(projectId: string): Promise<ToolInitResult> {
-    return this.initialize();
+  canAnalyzeProject?(projectPath: string): Promise<boolean> {
+    return Promise.resolve(true); // Default: all tools can analyze
   }
 }
 

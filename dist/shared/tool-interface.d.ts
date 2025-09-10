@@ -179,6 +179,7 @@ export interface AnalysisResult {
     timestamp: Date;
     metadata: ToolMetadata;
     toolName?: string;
+    projectId?: string;
     metrics?: any;
     recommendations?: string[];
 }
@@ -190,7 +191,7 @@ export interface ToolInitResult {
 }
 export interface ToolUpdateResult {
     success: boolean;
-    updated: boolean;
+    updated: boolean | number;
     error?: string;
     changes?: string[];
     tablesUpdated?: number;
@@ -198,13 +199,13 @@ export interface ToolUpdateResult {
 export declare abstract class InternalTool {
     abstract getMetadata(): ToolMetadata;
     abstract analyze(projectPath: string, projectId: string, parameters?: any): Promise<AnalysisResult>;
-    abstract initialize(): Promise<ToolInitResult>;
-    abstract update?(data: any): Promise<ToolUpdateResult>;
+    abstract initialize(projectId: string): Promise<ToolInitResult>;
+    abstract update(projectId: string, data: any): Promise<void>;
+    initializeForProject?(projectPath: string, projectId: string): Promise<ToolInitResult>;
     analyzeProject?(projectPath: string, projectId: string, parameters?: any): Promise<AnalysisResult>;
-    updateAfterCliRequest?(projectId: string, data: any): Promise<void>;
-    getStatus?(): any;
-    canAnalyzeProject?(projectPath: string): boolean;
-    initializeForProject?(projectId: string): Promise<ToolInitResult>;
+    updateAfterCliRequest?(projectPath: string, projectId: string, cliCommand: string, cliResult: any): Promise<ToolUpdateResult>;
+    getStatus?(projectId?: string): any;
+    canAnalyzeProject?(projectPath: string): Promise<boolean>;
 }
 export declare class ToolRegistry {
     private static tools;

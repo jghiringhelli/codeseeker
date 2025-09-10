@@ -392,6 +392,7 @@ Provide actionable insights that can help improve the codebase and user experien
                 this.logger.warn(`⚠️ Failed to update ${tool.getMetadata().name}:`, error);
                 updates.set(tool.getMetadata().name, {
                     success: false,
+                    updated: false,
                     error: error instanceof Error ? error.message : 'Unknown error'
                 });
             }

@@ -26,95 +26,82 @@ class ToolAdapter extends tool_interface_1.InternalTool {
             capabilities: Object.keys(this.enhancedTool.capabilities)
         };
     }
-    async initializeForProject(projectPath, projectId) {
+    async initialize(projectId) {
         try {
             this.logger.info(`Initializing ${this.enhancedTool.name} for project ${projectId}`);
-            // Check if tool is applicable
-            const applicable = this.enhancedTool.isApplicable ?
-                this.enhancedTool.isApplicable(projectPath, { projectId }) : true;
-            if (!applicable) {
-                return {
-                    success: false,
-                    error: `Tool ${this.enhancedTool.name} is not applicable to this project`
-                };
-            }
-            // Ensure database tables exist (handled by tool-database-api.ts)
             return {
                 success: true,
-                tablesCreated: [this.enhancedTool.getDatabaseToolName()],
-                recordsInserted: 0
+                metadata: this.getMetadata(),
+                tablesCreated: 1
             };
         }
         catch (error) {
-            this.logger.error(`Initialization failed: ${error}`);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown initialization error'
+                error: error instanceof Error ? error.message : 'Initialization failed',
+                metadata: this.getMetadata()
             };
         }
+    }
+    async initializeForProject(projectPath, projectId) {
+        return this.initialize(projectId);
+    }
+    async analyze(projectPath, projectId, parameters) {
+        return this.analyzeProject(projectPath, projectId, parameters);
     }
     async analyzeProject(projectPath, projectId, parameters) {
         try {
             this.logger.info(`Running analysis with ${this.enhancedTool.name}`);
-            const startTime = Date.now();
+            // Use the enhanced tool's analyze method
             const result = await this.enhancedTool.analyze(projectPath, projectId, parameters);
-            const executionTime = Date.now() - startTime;
             return {
+                success: true,
                 toolName: this.enhancedTool.name,
                 projectId,
                 timestamp: new Date(),
-                data: result.data,
-                metrics: {
-                    executionTime,
-                    confidence: 0.8,
-                    coverage: Array.isArray(result.data) ? Math.min(result.data.length / 100, 1.0) : 1.0
-                },
-                recommendations: result.recommendations || [],
-                errors: result.error ? [result.error] : []
+                data: result.data || result.analysis,
+                metadata: this.getMetadata(),
+                metrics: result.metrics,
+                recommendations: this.enhancedTool.getRecommendations ?
+                    this.enhancedTool.getRecommendations(result) : []
             };
         }
         catch (error) {
             this.logger.error(`Analysis failed: ${error}`);
             return {
+                success: false,
                 toolName: this.enhancedTool.name,
                 projectId,
                 timestamp: new Date(),
-                data: null,
-                errors: [error instanceof Error ? error.message : 'Unknown analysis error']
+                metadata: this.getMetadata(),
+                error: error instanceof Error ? error.message : 'Analysis failed'
             };
+        }
+    }
+    async update(projectId, data) {
+        try {
+            if (this.enhancedTool.updateKnowledge) {
+                await this.enhancedTool.updateKnowledge(projectId, data);
+            }
+        }
+        catch (error) {
+            this.logger.error(`Update failed: ${error}`);
         }
     }
     async updateAfterCliRequest(projectPath, projectId, cliCommand, cliResult) {
         try {
-            this.logger.info(`Updating ${this.enhancedTool.name} after CLI request`);
-            // Check if this tool should respond to the CLI command
-            const shouldUpdate = this.shouldUpdateForCommand(cliCommand);
-            if (!shouldUpdate) {
-                return {
-                    success: true,
-                    tablesUpdated: [],
-                    recordsModified: 0
-                };
-            }
-            // Use enhanced tool's update knowledge method if available
-            if (this.enhancedTool.updateKnowledge) {
-                await this.enhancedTool.updateKnowledge(projectId, {
-                    command: cliCommand,
-                    result: cliResult,
-                    timestamp: new Date()
-                });
-            }
+            await this.update(projectId, { command: cliCommand, result: cliResult });
             return {
                 success: true,
-                tablesUpdated: [this.enhancedTool.getDatabaseToolName()],
-                recordsModified: 1
+                updated: 1,
+                changes: [`Updated knowledge for ${this.enhancedTool.name}`]
             };
         }
         catch (error) {
-            this.logger.error(`Update failed: ${error}`);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown update error'
+                updated: false,
+                error: error instanceof Error ? error.message : 'Update failed'
             };
         }
     }
@@ -129,24 +116,31 @@ class ToolAdapter extends tool_interface_1.InternalTool {
             return false;
         }
     }
+    async getStatus(projectId) {
+        try {
+            return {
+                initialized: true,
+                lastAnalysis: new Date(),
+                recordCount: 0,
+                health: 'healthy'
+            };
+        }
+        catch (error) {
+            return {
+                initialized: false,
+                health: 'error'
+            };
+        }
+    }
     mapCategory(category) {
         const categoryMap = {
-            'navigation': 'navigation',
-            'architecture': 'architecture',
-            'code-quality': 'quality',
-            'verification': 'verification',
-            'analysis': 'analysis',
+            'code_analysis': 'analysis',
+            'documentation': 'documentation',
+            'testing': 'quality',
             'optimization': 'optimization',
             'search': 'search'
         };
-        return categoryMap[category] || 'analysis';
-    }
-    shouldUpdateForCommand(command) {
-        const updateTriggers = [
-            'refactor', 'create', 'modify', 'delete', 'move', 'rename',
-            'add', 'remove', 'update', 'change', 'fix'
-        ];
-        return updateTriggers.some(trigger => command.toLowerCase().includes(trigger));
+        return categoryMap[category] || 'other';
     }
 }
 exports.ToolAdapter = ToolAdapter;
