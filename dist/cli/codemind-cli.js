@@ -57,6 +57,10 @@ const database_config_1 = require("../config/database-config");
 // Professional Color System Integration
 const colored_logger_1 = require("../utils/colored-logger");
 const cli_logger_1 = __importDefault(require("../utils/cli-logger"));
+// SOLID Architecture Components
+const welcome_display_1 = require("./ui/welcome-display");
+const theme_1 = require("./ui/theme");
+const cli_orchestrator_1 = require("./orchestration/cli-orchestrator");
 // Three-Layer Architecture Services
 const semantic_orchestrator_1 = require("../orchestration/semantic-orchestrator");
 const navigator_1 = require("../features/tree-navigation/navigator");
@@ -77,36 +81,15 @@ const uuid_1 = require("uuid");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
 // Professional CLI Logger Instance
 const cliLoggerInstance = cli_logger_1.default.getInstance();
-// Color theme and branding
-const theme = {
-    primary: chalk_1.default.cyan,
-    secondary: chalk_1.default.magenta,
-    success: chalk_1.default.green,
-    warning: chalk_1.default.yellow,
-    error: chalk_1.default.red,
-    info: chalk_1.default.blue,
-    muted: chalk_1.default.gray,
-    prompt: chalk_1.default.yellow,
-    result: chalk_1.default.white,
-    border: chalk_1.default.gray,
-    command: chalk_1.default.cyan
-};
-const LOGO = chalk_1.default.cyan.bold(`
- ██████╗  ██████╗ ██████╗ ███████╗███╗   ███╗██╗███╗   ██╗██████╗ 
-██╔════╝ ██╔═══██╗██╔══██╗██╔════╝████╗ ████║██║████╗  ██║██╔══██╗
-██║      ██║   ██║██║  ██║█████╗  ██╔████╔██║██║██╔██╗ ██║██║  ██║
-██║      ██║   ██║██║  ██║██╔══╝  ██║╚██╔╝██║██║██║╚██╗██║██║  ██║
-╚██████╗ ╚██████╔╝██████╔╝███████╗██║ ╚═╝ ██║██║██║ ╚████║██████╔╝
- ╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═════╝ 
-                    Intelligent Code Assistant
-`);
 // Remove old interface - using ThreeLayerSession above
 class CodeMindCLI {
     rl;
     session;
     logger;
     localCache;
-    // Three-Layer Architecture Services
+    // SOLID Architecture Components
+    orchestrator;
+    // Three-Layer Architecture Services (delegated to orchestrator)
     semanticOrchestrator;
     treeNavigator;
     toolSelector;
@@ -118,7 +101,9 @@ class CodeMindCLI {
     inInteractiveSession = false; // Prevent workflow triggering during prompts
     constructor() {
         this.logger = new logger_1.Logger(logger_1.LogLevel.INFO, 'CodeMindCLI');
-        // Initialize Three-Layer Services
+        // Initialize SOLID Architecture Components
+        this.orchestrator = new cli_orchestrator_1.CLIOrchestrator();
+        // Initialize Three-Layer Services (legacy - will be delegated to orchestrator)
         this.semanticOrchestrator = new semantic_orchestrator_1.SemanticOrchestrator();
         this.treeNavigator = new navigator_1.TreeNavigator();
         this.toolSelector = new tool_selector_1.ToolSelector();
@@ -222,11 +207,8 @@ class CodeMindCLI {
         this.session.projectPath = projectPath;
     }
     async start() {
-        // Display logo
-        console.clear();
-        console.log(LOGO);
-        console.log(theme.info('\n🚀 Welcome to CodeMind Interactive CLI'));
-        console.log(theme.muted('Type "help" for commands, "exit" to quit\n'));
+        // Display welcome using SOLID architecture
+        welcome_display_1.WelcomeDisplay.displayWelcome();
         // Initialize system
         await this.initialize();
         // Check for project
@@ -234,10 +216,10 @@ class CodeMindCLI {
         // Display initial status
         await this.displayStatus();
         // Show ready message
-        console.log(theme.success('\n🎯 CodeMind CLI is ready! You can now:'));
-        console.log(theme.muted('   • Type /help to see available commands'));
-        console.log(theme.muted('   • Ask natural language questions directly'));
-        console.log(theme.muted('   • Use /init to initialize a new project\n'));
+        console.log(theme_1.Theme.colors.success('\n🎯 CodeMind CLI is ready! You can now:'));
+        console.log(theme_1.Theme.colors.muted('   • Type /help to see available commands'));
+        console.log(theme_1.Theme.colors.muted('   • Ask natural language questions directly'));
+        console.log(theme_1.Theme.colors.muted('   • Use /init to initialize a new project\n'));
         // Start interactive prompt
         this.rl.prompt();
     }
@@ -256,8 +238,8 @@ class CodeMindCLI {
             }
             // Connect to MongoDB asynchronously (non-blocking)
             mongodb_client_1.mongoClient.connect().catch(error => {
-                console.log(theme.warning('\n⚠ MongoDB connection failed - some features may be limited'));
-                console.log(theme.muted(`  Error: ${error instanceof Error ? error.message : 'Connection timeout'}`));
+                console.log(theme_1.Theme.colors.warning('\n⚠ MongoDB connection failed - some features may be limited'));
+                console.log(theme_1.Theme.colors.muted(`  Error: ${error instanceof Error ? error.message : 'Connection timeout'}`));
             });
             // Systems are initialized in their constructors
             // No separate initialization needed
@@ -266,7 +248,7 @@ class CodeMindCLI {
         }
         catch (error) {
             this.stopSpinner(false, 'Initialization failed');
-            console.error(theme.error(`\n❌ Failed to initialize: ${error}`));
+            console.error(theme_1.Theme.colors.error(`\n❌ Failed to initialize: ${error}`));
             process.exit(1);
         }
     }
@@ -275,7 +257,7 @@ class CodeMindCLI {
         const cachedProject = this.localCache.getProject();
         if (cachedProject && cachedProject.id) {
             this.session.projectId = cachedProject.id;
-            console.log(theme.success(`✓ Project loaded from cache: ${cachedProject.name} (${cachedProject.id.substring(0, 8)}...)`));
+            console.log(theme_1.Theme.colors.success(`✓ Project loaded from cache: ${cachedProject.name} (${cachedProject.id.substring(0, 8)}...)`));
             return;
         }
         // Fallback to file system check
@@ -293,15 +275,15 @@ class CodeMindCLI {
                     languages: projectConfig.languages || [],
                     frameworks: projectConfig.frameworks || []
                 });
-                console.log(theme.success(`✓ Project loaded: ${projectConfig.projectId}`));
+                console.log(theme_1.Theme.colors.success(`✓ Project loaded: ${projectConfig.projectId}`));
             }
             catch (error) {
-                console.log(theme.warning('⚠ Project config exists but could not be loaded'));
+                console.log(theme_1.Theme.colors.warning('⚠ Project config exists but could not be loaded'));
             }
         }
         else {
-            console.log(theme.warning('\n⚠ No CodeMind project found in current directory'));
-            console.log(theme.muted('Run "/init" to initialize this directory as a CodeMind project\n'));
+            console.log(theme_1.Theme.colors.warning('\n⚠ No CodeMind project found in current directory'));
+            console.log(theme_1.Theme.colors.muted('Run "/init" to initialize this directory as a CodeMind project\n'));
         }
     }
     async processCommand(input) {
@@ -369,8 +351,7 @@ class CodeMindCLI {
                 this.displayHistory();
                 break;
             case 'clear':
-                console.clear();
-                console.log(LOGO);
+                welcome_display_1.WelcomeDisplay.displayWelcome();
                 break;
             case 'help':
             case '?':
@@ -385,8 +366,8 @@ class CodeMindCLI {
                 await this.handleExit();
                 break;
             default:
-                console.log(theme.error(`\n❌ Unknown command: /${command}`));
-                console.log(theme.muted('Type /help to see available commands\n'));
+                console.log(theme_1.Theme.colors.error(`\n❌ Unknown command: /${command}`));
+                console.log(theme_1.Theme.colors.muted('Type /help to see available commands\n'));
         }
     }
     /**
@@ -577,13 +558,13 @@ class CodeMindCLI {
                 {
                     type: 'input',
                     name: 'query',
-                    message: theme.prompt('Search query:'),
+                    message: theme_1.Theme.colors.prompt('Search query:'),
                     validate: (input) => input.trim().length > 0
                 },
                 {
                     type: 'list',
                     name: 'type',
-                    message: theme.prompt('Search type:'),
+                    message: theme_1.Theme.colors.prompt('Search type:'),
                     choices: ['Code', 'Documentation', 'Analysis Results', 'All']
                 }
             ]);
@@ -598,39 +579,39 @@ class CodeMindCLI {
             ]);
             this.stopSpinner(true, 'Search complete');
             // Display results
-            console.log(theme.secondary('\n📝 Search Results:\n'));
+            console.log(theme_1.Theme.colors.secondary('\n📝 Search Results:\n'));
             if (results[0].length > 0) {
                 results[0].forEach((result, i) => {
-                    console.log(theme.primary(`  ${i + 1}. `) + theme.result(result.summary || 'No summary'));
-                    console.log(theme.muted(`     Tool: ${result.toolName}, Date: ${new Date(result.timestamp).toLocaleDateString()}`));
+                    console.log(theme_1.Theme.colors.primary(`  ${i + 1}. `) + theme_1.Theme.colors.result(result.summary || 'No summary'));
+                    console.log(theme_1.Theme.colors.muted(`     Tool: ${result.toolName}, Date: ${new Date(result.timestamp).toLocaleDateString()}`));
                 });
             }
             else {
-                console.log(theme.muted('  No results found'));
+                console.log(theme_1.Theme.colors.muted('  No results found'));
             }
         }
         catch (error) {
             this.stopSpinner(false, 'Search failed');
-            console.error(theme.error(`\n❌ Search error: ${error}`));
+            console.error(theme_1.Theme.colors.error(`\n❌ Search error: ${error}`));
         }
     }
     async handleRefactor(target) {
         if (!this.session.projectId) {
-            console.log(theme.error('\n❌ No project initialized. Run "init" first.\n'));
+            console.log(theme_1.Theme.colors.error('\n❌ No project initialized. Run "init" first.\n'));
             return;
         }
         const answers = await inquirer_1.default.prompt([
             {
                 type: 'input',
                 name: 'target',
-                message: theme.prompt('What would you like to refactor?'),
+                message: theme_1.Theme.colors.prompt('What would you like to refactor?'),
                 default: target,
                 when: !target
             },
             {
                 type: 'list',
                 name: 'type',
-                message: theme.prompt('Refactoring type:'),
+                message: theme_1.Theme.colors.prompt('Refactoring type:'),
                 choices: [
                     'Extract Method',
                     'Rename Variable',
@@ -644,13 +625,13 @@ class CodeMindCLI {
             {
                 type: 'confirm',
                 name: 'preview',
-                message: theme.prompt('Preview changes before applying?'),
+                message: theme_1.Theme.colors.prompt('Preview changes before applying?'),
                 default: true
             }
         ]);
-        console.log(theme.info('\n🔨 Refactoring analysis started...'));
+        console.log(theme_1.Theme.colors.info('\n🔨 Refactoring analysis started...'));
         // Implementation would go here
-        console.log(theme.success('✓ Refactoring suggestions generated'));
+        console.log(theme_1.Theme.colors.success('✓ Refactoring suggestions generated'));
     }
     async handleOptimize(target) {
         const optimizations = [
@@ -664,7 +645,7 @@ class CodeMindCLI {
             {
                 type: 'checkbox',
                 name: 'types',
-                message: theme.prompt('Select optimization targets:'),
+                message: theme_1.Theme.colors.prompt('Select optimization targets:'),
                 choices: optimizations,
                 validate: (input) => input.length > 0
             }
@@ -673,10 +654,10 @@ class CodeMindCLI {
         // Simulate optimization
         await new Promise(resolve => setTimeout(resolve, 2000));
         this.stopSpinner(true, 'Optimization complete');
-        console.log(theme.success('\n✅ Optimization Report:'));
-        console.log(theme.result('  • Found 3 performance bottlenecks'));
-        console.log(theme.result('  • Identified 5 memory leak risks'));
-        console.log(theme.result('  • Suggested 12 code improvements'));
+        console.log(theme_1.Theme.colors.success('\n✅ Optimization Report:'));
+        console.log(theme_1.Theme.colors.result('  • Found 3 performance bottlenecks'));
+        console.log(theme_1.Theme.colors.result('  • Identified 5 memory leak risks'));
+        console.log(theme_1.Theme.colors.result('  • Suggested 12 code improvements'));
     }
     async handleTest(args) {
         const testOptions = [
@@ -690,24 +671,24 @@ class CodeMindCLI {
             {
                 type: 'list',
                 name: 'action',
-                message: theme.prompt('Test action:'),
+                message: theme_1.Theme.colors.prompt('Test action:'),
                 choices: testOptions
             }
         ]);
         if (answers.action === 'generate') {
-            console.log(theme.info('\n🧪 Analyzing code for test generation...'));
-            console.log(theme.success('✓ Generated 15 test cases'));
+            console.log(theme_1.Theme.colors.info('\n🧪 Analyzing code for test generation...'));
+            console.log(theme_1.Theme.colors.success('✓ Generated 15 test cases'));
         }
         else {
             this.showSpinner('Running tests...');
             try {
                 const { stdout } = await execAsync('npm test');
                 this.stopSpinner(true, 'Tests complete');
-                console.log(theme.result(stdout));
+                console.log(theme_1.Theme.colors.result(stdout));
             }
             catch (error) {
                 this.stopSpinner(false, 'Tests failed');
-                console.error(theme.error(error));
+                console.error(theme_1.Theme.colors.error(error));
             }
         }
     }
@@ -722,33 +703,33 @@ class CodeMindCLI {
             {
                 type: 'list',
                 name: 'type',
-                message: theme.prompt('Documentation type:'),
+                message: theme_1.Theme.colors.prompt('Documentation type:'),
                 choices: docOptions
             }
         ]);
-        console.log(theme.info(`\n📚 Generating ${answers.type} documentation...`));
-        console.log(theme.success('✓ Documentation generated successfully'));
+        console.log(theme_1.Theme.colors.info(`\n📚 Generating ${answers.type} documentation...`));
+        console.log(theme_1.Theme.colors.success('✓ Documentation generated successfully'));
     }
     async handleSetup(args) {
-        console.log(theme.info('\n🚀 CodeMind Infrastructure Setup'));
-        console.log(theme.muted('This will create all database structures needed for CodeMind to work.\n'));
+        console.log(theme_1.Theme.colors.info('\n🚀 CodeMind Infrastructure Setup'));
+        console.log(theme_1.Theme.colors.muted('This will create all database structures needed for CodeMind to work.\n'));
         const answers = await inquirer_1.default.prompt([
             {
                 type: 'confirm',
                 name: 'confirmSetup',
-                message: theme.prompt('Start Docker services and create all database schemas?'),
+                message: theme_1.Theme.colors.prompt('Start Docker services and create all database schemas?'),
                 default: true
             },
             {
                 type: 'confirm',
                 name: 'resetExisting',
-                message: theme.prompt('Reset existing databases (WARNING: This will delete all data)?'),
+                message: theme_1.Theme.colors.prompt('Reset existing databases (WARNING: This will delete all data)?'),
                 default: false,
                 when: (answers) => answers.confirmSetup
             }
         ]);
         if (!answers.confirmSetup) {
-            console.log(theme.info('Setup cancelled.'));
+            console.log(theme_1.Theme.colors.info('Setup cancelled.'));
             return;
         }
         this.showSpinner('Setting up CodeMind infrastructure...');
@@ -760,33 +741,33 @@ class CodeMindCLI {
                 `bash "${path.join(__dirname, '../../scripts/setup-infrastructure.sh')}"`;
             await execAsync(script);
             this.stopSpinner(true, 'Infrastructure setup complete');
-            console.log(theme.success('\n✅ CodeMind infrastructure is ready!'));
-            console.log(theme.info('   • All database schemas created'));
-            console.log(theme.info('   • Docker services running'));
-            console.log(theme.info('   • System configuration loaded'));
-            console.log(theme.muted('\nNext: Use "/init" to initialize projects\n'));
+            console.log(theme_1.Theme.colors.success('\n✅ CodeMind infrastructure is ready!'));
+            console.log(theme_1.Theme.colors.info('   • All database schemas created'));
+            console.log(theme_1.Theme.colors.info('   • Docker services running'));
+            console.log(theme_1.Theme.colors.info('   • System configuration loaded'));
+            console.log(theme_1.Theme.colors.muted('\nNext: Use "/init" to initialize projects\n'));
         }
         catch (error) {
             this.stopSpinner(false, 'Infrastructure setup failed');
-            console.error(theme.error(`\n❌ Setup error: ${error}`));
+            console.error(theme_1.Theme.colors.error(`\n❌ Setup error: ${error}`));
         }
     }
     async handleInit(projectPath) {
         const targetPath = projectPath || this.session.projectPath;
-        console.log(theme.info(`\n📝 Initializing project in CodeMind`));
-        console.log(theme.muted(`Path: ${targetPath}`));
-        console.log(theme.muted('\nNote: Run "/setup" first if this is your first time using CodeMind\n'));
+        console.log(theme_1.Theme.colors.info(`\n📝 Initializing project in CodeMind`));
+        console.log(theme_1.Theme.colors.muted(`Path: ${targetPath}`));
+        console.log(theme_1.Theme.colors.muted('\nNote: Run "/setup" first if this is your first time using CodeMind\n'));
         // Check if infrastructure is ready
         try {
             // Quick database connectivity check
             const dbCheck = await this.checkDatabaseConnectivity();
             if (!dbCheck.postgresql || !dbCheck.neo4j) {
-                console.log(theme.warning('⚠️  Database services not detected. Run "/setup" first to initialize infrastructure.'));
+                console.log(theme_1.Theme.colors.warning('⚠️  Database services not detected. Run "/setup" first to initialize infrastructure.'));
                 return;
             }
         }
         catch (error) {
-            console.log(theme.warning('⚠️  Cannot connect to databases. Run "/setup" first.'));
+            console.log(theme_1.Theme.colors.warning('⚠️  Cannot connect to databases. Run "/setup" first.'));
             return;
         }
         // Set flag to prevent workflow triggering during prompts
@@ -795,13 +776,13 @@ class CodeMindCLI {
             {
                 type: 'input',
                 name: 'projectName',
-                message: theme.prompt('Project name:'),
+                message: theme_1.Theme.colors.prompt('Project name:'),
                 default: path.basename(targetPath)
             },
             {
                 type: 'list',
                 name: 'projectType',
-                message: theme.prompt('Project type:'),
+                message: theme_1.Theme.colors.prompt('Project type:'),
                 choices: [
                     'web_application',
                     'api_service',
@@ -815,7 +796,7 @@ class CodeMindCLI {
             {
                 type: 'checkbox',
                 name: 'features',
-                message: theme.prompt('Enable analysis features:'),
+                message: theme_1.Theme.colors.prompt('Enable analysis features:'),
                 choices: [
                     { name: 'Semantic Search & Embeddings', value: 'semantic', checked: true },
                     { name: 'Code Relationship Graph', value: 'graph', checked: true },
@@ -849,17 +830,17 @@ class CodeMindCLI {
                 await this.runDuplicationDetection(targetPath);
             }
             this.stopSpinner(true, 'Project initialized');
-            console.log(theme.success('\n✅ Project registered in CodeMind!'));
-            console.log(theme.info(`   Project: ${answers.projectName}`));
-            console.log(theme.info(`   Type: ${answers.projectType}`));
-            console.log(theme.info(`   Languages: ${projectAnalysis.languages?.join(', ') || 'Detecting...'}`));
-            console.log(theme.info(`   Features: ${answers.features.join(', ')}`));
-            console.log(theme.muted('\nUse "/status" to see analysis results\n'));
+            console.log(theme_1.Theme.colors.success('\n✅ Project registered in CodeMind!'));
+            console.log(theme_1.Theme.colors.info(`   Project: ${answers.projectName}`));
+            console.log(theme_1.Theme.colors.info(`   Type: ${answers.projectType}`));
+            console.log(theme_1.Theme.colors.info(`   Languages: ${projectAnalysis.languages?.join(', ') || 'Detecting...'}`));
+            console.log(theme_1.Theme.colors.info(`   Features: ${answers.features.join(', ')}`));
+            console.log(theme_1.Theme.colors.muted('\nUse "/status" to see analysis results\n'));
         }
         catch (error) {
             this.inInteractiveSession = false; // Reset flag on error
             this.stopSpinner(false, 'Project initialization failed');
-            console.error(theme.error(`\n❌ Error: ${error}`));
+            console.error(theme_1.Theme.colors.error(`\n❌ Error: ${error}`));
         }
     }
     async checkDatabaseConnectivity() {
@@ -1384,7 +1365,7 @@ If you suggest changes, list the specific files that would need to be updated.
     }
     async processWithClaude(prompt, context) {
         // Simulate Claude Code processing (in real implementation, this would call Claude API)
-        console.log(theme.muted(`Sending ${Math.round(prompt.length / 1000)}KB prompt to Claude...`));
+        console.log(theme_1.Theme.colors.muted(`Sending ${Math.round(prompt.length / 1000)}KB prompt to Claude...`));
         // Simulate processing time based on context size
         await new Promise(resolve => setTimeout(resolve, Math.min(3000, context.contextSize / 10)));
         const modifiedFiles = [];
@@ -1423,7 +1404,7 @@ If you suggest changes, list the specific files that would need to be updated.
     }
     async handleConfig(args) {
         if (!this.session.projectId) {
-            console.log(theme.error('\n❌ No project initialized. Run "init" first.\n'));
+            console.log(theme_1.Theme.colors.error('\n❌ No project initialized. Run "init" first.\n'));
             return;
         }
         const configOptions = [
@@ -1436,7 +1417,7 @@ If you suggest changes, list the specific files that would need to be updated.
             {
                 type: 'list',
                 name: 'action',
-                message: theme.prompt('Configuration action:'),
+                message: theme_1.Theme.colors.prompt('Configuration action:'),
                 choices: configOptions
             }
         ]);
@@ -1444,19 +1425,19 @@ If you suggest changes, list the specific files that would need to be updated.
             // Try cache first
             const cachedConfigs = this.localCache.getAllToolConfigs();
             if (Object.keys(cachedConfigs).length > 0) {
-                console.log(theme.secondary('\n📋 Current Configuration (from cache):\n'));
+                console.log(theme_1.Theme.colors.secondary('\n📋 Current Configuration (from cache):\n'));
                 Object.entries(cachedConfigs).forEach(([toolName, config]) => {
-                    console.log(theme.primary(`  ${toolName}:`));
-                    console.log(theme.muted(JSON.stringify(config, null, 2).split('\n').map(l => '    ' + l).join('\n')));
+                    console.log(theme_1.Theme.colors.primary(`  ${toolName}:`));
+                    console.log(theme_1.Theme.colors.muted(JSON.stringify(config, null, 2).split('\n').map(l => '    ' + l).join('\n')));
                 });
             }
             else {
                 // Fallback to database
                 const configs = await tool_config_repository_1.toolConfigRepo.getProjectConfigs(this.session.projectId);
-                console.log(theme.secondary('\n📋 Current Configuration:\n'));
+                console.log(theme_1.Theme.colors.secondary('\n📋 Current Configuration:\n'));
                 configs.forEach(config => {
-                    console.log(theme.primary(`  ${config.toolName}:`));
-                    console.log(theme.muted(JSON.stringify(config.config, null, 2).split('\n').map(l => '    ' + l).join('\n')));
+                    console.log(theme_1.Theme.colors.primary(`  ${config.toolName}:`));
+                    console.log(theme_1.Theme.colors.muted(JSON.stringify(config.config, null, 2).split('\n').map(l => '    ' + l).join('\n')));
                     // Cache the config for next time
                     this.localCache.setToolConfig(config.toolName, config.config);
                 });
@@ -1468,38 +1449,38 @@ If you suggest changes, list the specific files that would need to be updated.
                 {
                     type: 'list',
                     name: 'tool',
-                    message: theme.prompt('Select tool to configure:'),
+                    message: theme_1.Theme.colors.prompt('Select tool to configure:'),
                     choices: tools
                 }
             ]);
             // Get current config
             const currentConfig = await tool_config_repository_1.toolConfigRepo.getToolConfig(this.session.projectId, toolAnswer.tool);
             // Interactive config editor would go here
-            console.log(theme.info(`\nEditing configuration for ${toolAnswer.tool}...`));
-            console.log(theme.success('✓ Configuration saved'));
+            console.log(theme_1.Theme.colors.info(`\nEditing configuration for ${toolAnswer.tool}...`));
+            console.log(theme_1.Theme.colors.success('✓ Configuration saved'));
         }
     }
     async handleTools(args) {
         const subCommand = args.split(' ')[0];
         if (subCommand === 'list') {
             const tools = await this.getAvailableTools();
-            console.log(theme.secondary('\n🔧 Available Tools:\n'));
+            console.log(theme_1.Theme.colors.secondary('\n🔧 Available Tools:\n'));
             tools.forEach((tool, i) => {
-                console.log(theme.primary(`  ${i + 1}. ${tool}`));
+                console.log(theme_1.Theme.colors.primary(`  ${i + 1}. ${tool}`));
             });
         }
         else if (subCommand === 'info') {
             const toolName = args.split(' ')[1];
             if (toolName) {
                 // Display tool information
-                console.log(theme.secondary(`\n📊 Tool Information: ${toolName}\n`));
-                console.log(theme.result('  Version: 1.0.0'));
-                console.log(theme.result('  Category: Analysis'));
-                console.log(theme.result('  Token Usage: Medium'));
+                console.log(theme_1.Theme.colors.secondary(`\n📊 Tool Information: ${toolName}\n`));
+                console.log(theme_1.Theme.colors.result('  Version: 1.0.0'));
+                console.log(theme_1.Theme.colors.result('  Category: Analysis'));
+                console.log(theme_1.Theme.colors.result('  Token Usage: Medium'));
             }
         }
         else {
-            console.log(theme.muted('\nUsage: tools [list|info <tool-name>]'));
+            console.log(theme_1.Theme.colors.muted('\nUsage: tools [list|info <tool-name>]'));
         }
     }
     async handleBundles(args) {
@@ -1508,29 +1489,29 @@ If you suggest changes, list the specific files that would need to be updated.
             {
                 type: 'list',
                 name: 'bundle',
-                message: theme.prompt('Select bundle to execute:'),
+                message: theme_1.Theme.colors.prompt('Select bundle to execute:'),
                 choices: bundles.map(b => ({ name: b.name, value: b.id }))
             },
             {
                 type: 'confirm',
                 name: 'preview',
-                message: theme.prompt('Preview bundle actions?'),
+                message: theme_1.Theme.colors.prompt('Preview bundle actions?'),
                 default: true
             }
         ]);
         if (answers.preview) {
             const bundle = bundles.find(b => b.id === answers.bundle);
-            console.log(theme.secondary('\n📦 Bundle: ' + bundle?.name));
-            console.log(theme.muted('\nTools in bundle:'));
+            console.log(theme_1.Theme.colors.secondary('\n📦 Bundle: ' + bundle?.name));
+            console.log(theme_1.Theme.colors.muted('\nTools in bundle:'));
             bundle?.tools.forEach(tool => {
-                console.log(theme.result(`  • ${tool}`));
+                console.log(theme_1.Theme.colors.result(`  • ${tool}`));
             });
         }
         const confirm = await inquirer_1.default.prompt([
             {
                 type: 'confirm',
                 name: 'execute',
-                message: theme.prompt('Execute bundle?'),
+                message: theme_1.Theme.colors.prompt('Execute bundle?'),
                 default: true
             }
         ]);
@@ -1570,7 +1551,7 @@ If you suggest changes, list the specific files that would need to be updated.
         // Temporarily simplified for compilation
         const answers = { colorOutput: true, verboseMode: false, autoSuggest: true, maxTokens: 2000 };
         this.session.settings = { ...this.session.settings, ...answers };
-        console.log(theme.success('\n✓ Settings updated'));
+        console.log(theme_1.Theme.colors.success('\n✓ Settings updated'));
     }
     async handleCache(args) {
         if (!args) {
@@ -1578,42 +1559,42 @@ If you suggest changes, list the specific files that would need to be updated.
             const stats = this.localCache.getCacheStats();
             const cachedProject = this.localCache.getProject();
             const cachedContext = this.localCache.getContext();
-            console.log(theme.secondary('\n💾 Local Cache Status:\n'));
-            console.log(theme.primary('Cache Performance:'));
-            console.log(theme.result(`  • Cache Hits: ${stats.hits}`));
-            console.log(theme.result(`  • Cache Misses: ${stats.misses}`));
-            console.log(theme.result(`  • Hit Ratio: ${Math.round(stats.hitRatio * 100)}%`));
-            console.log(theme.primary('\nCached Data:'));
-            console.log(theme.result(`  • Project: ${cachedProject?.name || 'None'}`));
-            console.log(theme.result(`  • Context: ${cachedContext ? 'Cached' : 'None'}`));
-            console.log(theme.result(`  • Tool Configs: ${Object.keys(this.localCache.getAllToolConfigs()).length}`));
-            console.log(theme.result(`  • Recent Analyses: ${this.localCache.getRecentAnalyses().length}`));
-            console.log(theme.muted('\nCommands: cache clear, cache refresh, cache generate-md\n'));
+            console.log(theme_1.Theme.colors.secondary('\n💾 Local Cache Status:\n'));
+            console.log(theme_1.Theme.colors.primary('Cache Performance:'));
+            console.log(theme_1.Theme.colors.result(`  • Cache Hits: ${stats.hits}`));
+            console.log(theme_1.Theme.colors.result(`  • Cache Misses: ${stats.misses}`));
+            console.log(theme_1.Theme.colors.result(`  • Hit Ratio: ${Math.round(stats.hitRatio * 100)}%`));
+            console.log(theme_1.Theme.colors.primary('\nCached Data:'));
+            console.log(theme_1.Theme.colors.result(`  • Project: ${cachedProject?.name || 'None'}`));
+            console.log(theme_1.Theme.colors.result(`  • Context: ${cachedContext ? 'Cached' : 'None'}`));
+            console.log(theme_1.Theme.colors.result(`  • Tool Configs: ${Object.keys(this.localCache.getAllToolConfigs()).length}`));
+            console.log(theme_1.Theme.colors.result(`  • Recent Analyses: ${this.localCache.getRecentAnalyses().length}`));
+            console.log(theme_1.Theme.colors.muted('\nCommands: cache clear, cache refresh, cache generate-md\n'));
             return;
         }
         const subCommand = args.toLowerCase().trim();
         switch (subCommand) {
             case 'clear':
                 this.localCache.clearExpiredCache();
-                console.log(theme.success('✓ Expired cache entries cleared'));
+                console.log(theme_1.Theme.colors.success('✓ Expired cache entries cleared'));
                 break;
             case 'refresh':
                 // Clear cache and force refresh on next access
                 this.localCache.clearExpiredCache();
-                console.log(theme.success('✓ Cache refreshed - next access will reload from database'));
+                console.log(theme_1.Theme.colors.success('✓ Cache refreshed - next access will reload from database'));
                 break;
             case 'generate-md':
             case 'md':
                 await this.localCache.generateCodeMindMd();
                 await this.localCache.saveCache();
-                console.log(theme.success('✓ Generated .codemind/codemind.md'));
+                console.log(theme_1.Theme.colors.success('✓ Generated .codemind/codemind.md'));
                 break;
             case 'save':
                 await this.localCache.saveCache();
-                console.log(theme.success('✓ Cache saved to disk'));
+                console.log(theme_1.Theme.colors.success('✓ Cache saved to disk'));
                 break;
             default:
-                console.log(theme.error('❌ Unknown cache command. Use: clear, refresh, generate-md, save'));
+                console.log(theme_1.Theme.colors.error('❌ Unknown cache command. Use: clear, refresh, generate-md, save'));
         }
     }
     async handleProject(args) {
@@ -1622,7 +1603,7 @@ If you suggest changes, list the specific files that would need to be updated.
                 {
                     type: 'input',
                     name: 'path',
-                    message: theme.prompt('Project path:'),
+                    message: theme_1.Theme.colors.prompt('Project path:'),
                     default: process.cwd()
                 }
             ]);
@@ -1631,7 +1612,7 @@ If you suggest changes, list the specific files that would need to be updated.
         }
         else if (args === 'info') {
             if (!this.session.projectId) {
-                console.log(theme.error('\n❌ No project loaded\n'));
+                console.log(theme_1.Theme.colors.error('\n❌ No project loaded\n'));
                 return;
             }
             // Try cache first for context
@@ -1661,24 +1642,24 @@ If you suggest changes, list the specific files that would need to be updated.
                 // Use cached insights
                 insights = context.insights;
             }
-            console.log(theme.secondary('\n📊 Project Information:\n'));
-            console.log(theme.primary('  ID: ') + theme.result(this.session.projectId));
-            console.log(theme.primary('  Path: ') + theme.result(this.session.projectPath));
+            console.log(theme_1.Theme.colors.secondary('\n📊 Project Information:\n'));
+            console.log(theme_1.Theme.colors.primary('  ID: ') + theme_1.Theme.colors.result(this.session.projectId));
+            console.log(theme_1.Theme.colors.primary('  Path: ') + theme_1.Theme.colors.result(this.session.projectPath));
             if (context) {
-                console.log(theme.primary('  Type: ') + theme.result(context.projectType));
-                console.log(theme.primary('  Languages: ') + theme.result(context.languages.join(', ')));
-                console.log(theme.primary('  Frameworks: ') + theme.result(context.frameworks.join(', ')));
-                console.log(theme.primary('  Architecture: ') + theme.result(context.architecture));
+                console.log(theme_1.Theme.colors.primary('  Type: ') + theme_1.Theme.colors.result(context.projectType));
+                console.log(theme_1.Theme.colors.primary('  Languages: ') + theme_1.Theme.colors.result(context.languages.join(', ')));
+                console.log(theme_1.Theme.colors.primary('  Frameworks: ') + theme_1.Theme.colors.result(context.frameworks.join(', ')));
+                console.log(theme_1.Theme.colors.primary('  Architecture: ') + theme_1.Theme.colors.result(context.architecture));
                 if (insights.length > 0) {
-                    console.log(theme.secondary('\n💡 Insights:'));
+                    console.log(theme_1.Theme.colors.secondary('\n💡 Insights:'));
                     insights.forEach(insight => {
-                        console.log(theme.muted('  • ' + insight));
+                        console.log(theme_1.Theme.colors.muted('  • ' + insight));
                     });
                 }
             }
         }
         else {
-            console.log(theme.muted('\nUsage: project [switch|info]'));
+            console.log(theme_1.Theme.colors.muted('\nUsage: project [switch|info]'));
         }
     }
     async handleNaturalQuery(query) {
@@ -1686,8 +1667,8 @@ If you suggest changes, list the specific files that would need to be updated.
         if (this.inInteractiveSession) {
             return;
         }
-        console.log(theme.info('\n🎯 CodeMind Feature Implementation Workflow'));
-        console.log(theme.muted(`Request: "${query}"`));
+        console.log(theme_1.Theme.colors.info('\n🎯 CodeMind Feature Implementation Workflow'));
+        console.log(theme_1.Theme.colors.muted(`Request: "${query}"`));
         try {
             // Use the complete CodeMind workflow orchestrator
             const CodeMindWorkflowOrchestrator = require('../core/codemind-workflow-orchestrator').CodeMindWorkflowOrchestrator;
@@ -1702,28 +1683,28 @@ If you suggest changes, list the specific files that would need to be updated.
             const result = await orchestrator.executeFeatureRequest(featureRequest);
             this.stopSpinner(result.success, result.success ? 'Workflow completed' : 'Workflow failed');
             // Display comprehensive results
-            console.log(result.success ? theme.success('\n✅ Feature implementation successful!') : theme.error('\n❌ Feature implementation failed'));
-            console.log(theme.result(result.summary));
+            console.log(result.success ? theme_1.Theme.colors.success('\n✅ Feature implementation successful!') : theme_1.Theme.colors.error('\n❌ Feature implementation failed'));
+            console.log(theme_1.Theme.colors.result(result.summary));
             if (result.success) {
-                console.log(theme.info(`\n📊 Implementation Stats:`));
-                console.log(theme.muted(`  • Files modified: ${result.filesModified.length}`));
-                console.log(theme.muted(`  • Quality score: ${result.qualityScore}%`));
-                console.log(theme.muted(`  • Git branch: ${result.gitBranch}`));
-                console.log(theme.muted(`  • Neo4j: ${result.databases.neo4j.nodesCreated} nodes, ${result.databases.neo4j.relationshipsCreated} relationships`));
-                console.log(theme.muted(`  • Redis: ${result.databases.redis.filesUpdated} files updated`));
-                console.log(theme.muted(`  • PostgreSQL: ${result.databases.postgres.recordsUpdated} records updated`));
-                console.log(theme.muted(`  • MongoDB: ${result.databases.mongodb.documentsUpdated} documents updated`));
+                console.log(theme_1.Theme.colors.info(`\n📊 Implementation Stats:`));
+                console.log(theme_1.Theme.colors.muted(`  • Files modified: ${result.filesModified.length}`));
+                console.log(theme_1.Theme.colors.muted(`  • Quality score: ${result.qualityScore}%`));
+                console.log(theme_1.Theme.colors.muted(`  • Git branch: ${result.gitBranch}`));
+                console.log(theme_1.Theme.colors.muted(`  • Neo4j: ${result.databases.neo4j.nodesCreated} nodes, ${result.databases.neo4j.relationshipsCreated} relationships`));
+                console.log(theme_1.Theme.colors.muted(`  • Redis: ${result.databases.redis.filesUpdated} files updated`));
+                console.log(theme_1.Theme.colors.muted(`  • PostgreSQL: ${result.databases.postgres.recordsUpdated} records updated`));
+                console.log(theme_1.Theme.colors.muted(`  • MongoDB: ${result.databases.mongodb.documentsUpdated} documents updated`));
             }
             else {
-                console.log(theme.warning(`\n⚠️  Quality score too low: ${result.qualityScore}%`));
-                console.log(theme.muted('Changes have been rolled back for safety'));
+                console.log(theme_1.Theme.colors.warning(`\n⚠️  Quality score too low: ${result.qualityScore}%`));
+                console.log(theme_1.Theme.colors.muted('Changes have been rolled back for safety'));
             }
         }
         catch (error) {
             this.stopSpinner(false, 'Workflow failed');
-            console.error(theme.error(`❌ Workflow orchestration failed: ${error.message}`));
+            console.error(theme_1.Theme.colors.error(`❌ Workflow orchestration failed: ${error.message}`));
             // Fallback to basic semantic enhancement  
-            console.log(theme.muted('\nFalling back to basic semantic processing...'));
+            console.log(theme_1.Theme.colors.muted('\nFalling back to basic semantic processing...'));
             await this.executeBasicSemanticProcessing(query);
         }
     }
@@ -1733,13 +1714,13 @@ If you suggest changes, list the specific files that would need to be updated.
             const SemanticEnhancementEngine = require('../shared/semantic-enhancement-engine').SemanticEnhancementEngine;
             const enhancementEngine = new SemanticEnhancementEngine();
             const context = await enhancementEngine.enhanceQuery(query);
-            console.log(theme.success(`📊 Context: ${context.totalFiles} files, ${Math.round(context.cacheHitRate * 100)}% cache hit`));
+            console.log(theme_1.Theme.colors.success(`📊 Context: ${context.totalFiles} files, ${Math.round(context.cacheHitRate * 100)}% cache hit`));
             const enhancedPrompt = this.buildEnhancedPrompt(query, context);
             const response = await this.processWithClaude(enhancedPrompt, context);
-            console.log(theme.result(response.summary));
+            console.log(theme_1.Theme.colors.result(response.summary));
         }
         catch (fallbackError) {
-            console.error(theme.error(`Fallback also failed: ${fallbackError.message}`));
+            console.error(theme_1.Theme.colors.error(`Fallback also failed: ${fallbackError.message}`));
         }
     }
     determineIntent(query) {
@@ -1762,18 +1743,18 @@ If you suggest changes, list the specific files that would need to be updated.
         return 'analyze';
     }
     async displayStatus() {
-        console.log(theme.secondary('\n📊 CodeMind Status\n'));
-        console.log(theme.border('═'.repeat(50)));
+        console.log(theme_1.Theme.colors.secondary('\n📊 CodeMind Status\n'));
+        console.log(theme_1.Theme.colors.border('═'.repeat(50)));
         // System status
-        console.log(theme.primary('\nSystem:'));
-        console.log(theme.result(`  • MongoDB: ${await mongodb_client_1.mongoClient.ping() ? theme.success('Connected') : theme.error('Disconnected')}`));
-        console.log(theme.result(`  • Tools Loaded: ${(await this.getAvailableTools()).length}`));
-        console.log(theme.result(`  • Bundles Available: ${this.bundleSystem.getBundles().length}`));
+        console.log(theme_1.Theme.colors.primary('\nSystem:'));
+        console.log(theme_1.Theme.colors.result(`  • MongoDB: ${await mongodb_client_1.mongoClient.ping() ? theme_1.Theme.colors.success('Connected') : theme_1.Theme.colors.error('Disconnected')}`));
+        console.log(theme_1.Theme.colors.result(`  • Tools Loaded: ${(await this.getAvailableTools()).length}`));
+        console.log(theme_1.Theme.colors.result(`  • Bundles Available: ${this.bundleSystem.getBundles().length}`));
         // Project status
         if (this.session.projectId) {
-            console.log(theme.primary('\nProject:'));
-            console.log(theme.result(`  • ID: ${this.session.projectId}`));
-            console.log(theme.result(`  • Path: ${this.session.projectPath}`));
+            console.log(theme_1.Theme.colors.primary('\nProject:'));
+            console.log(theme_1.Theme.colors.result(`  • ID: ${this.session.projectId}`));
+            console.log(theme_1.Theme.colors.result(`  • Path: ${this.session.projectPath}`));
             // Use cached context if available
             let context = this.localCache.getContext();
             if (!context) {
@@ -1794,8 +1775,8 @@ If you suggest changes, list the specific files that would need to be updated.
                 }
             }
             if (context) {
-                console.log(theme.result(`  • Type: ${context.projectType}`));
-                console.log(theme.result(`  • Architecture: ${context.architecture || 'unknown'}`));
+                console.log(theme_1.Theme.colors.result(`  • Type: ${context.projectType}`));
+                console.log(theme_1.Theme.colors.result(`  • Architecture: ${context.architecture || 'unknown'}`));
             }
             // Recent analysis - try cache first
             let recentAnalyses = this.localCache.getRecentAnalyses(3);
@@ -1810,26 +1791,26 @@ If you suggest changes, list the specific files that would need to be updated.
                 }));
             }
             if (recentAnalyses.length > 0) {
-                console.log(theme.primary('\nRecent Analyses:'));
+                console.log(theme_1.Theme.colors.primary('\nRecent Analyses:'));
                 recentAnalyses.forEach(analysis => {
                     const date = new Date(analysis.timestamp);
-                    console.log(theme.muted(`  • ${analysis.type} - ${date.toLocaleString()}`));
+                    console.log(theme_1.Theme.colors.muted(`  • ${analysis.type} - ${date.toLocaleString()}`));
                 });
             }
         }
         else {
-            console.log(theme.warning('\n⚠ No project loaded'));
+            console.log(theme_1.Theme.colors.warning('\n⚠ No project loaded'));
         }
-        console.log(theme.border('\n' + '═'.repeat(50)));
+        console.log(theme_1.Theme.colors.border('\n' + '═'.repeat(50)));
     }
     displayHistory() {
-        console.log(theme.secondary('\n📜 Command History:\n'));
+        console.log(theme_1.Theme.colors.secondary('\n📜 Command History:\n'));
         const recent = this.session.history.slice(-10);
         recent.forEach((cmd, i) => {
-            console.log(theme.muted(`  ${i + 1}. `) + theme.result(cmd));
+            console.log(theme_1.Theme.colors.muted(`  ${i + 1}. `) + theme_1.Theme.colors.result(cmd));
         });
         if (this.session.history.length > 10) {
-            console.log(theme.muted(`\n  ... and ${this.session.history.length - 10} more`));
+            console.log(theme_1.Theme.colors.muted(`\n  ... and ${this.session.history.length - 10} more`));
         }
     }
     displayHelp(topic) {
@@ -1837,9 +1818,9 @@ If you suggest changes, list the specific files that would need to be updated.
             this.displayDetailedHelp(topic);
             return;
         }
-        console.log(theme.secondary('\n📚 CodeMind Commands\n'));
-        console.log(theme.border('═'.repeat(60)));
-        console.log(theme.info('🔧 Built-in Commands (use / prefix):'));
+        console.log(theme_1.Theme.colors.secondary('\n📚 CodeMind Commands\n'));
+        console.log(theme_1.Theme.colors.border('═'.repeat(60)));
+        console.log(theme_1.Theme.colors.info('🔧 Built-in Commands (use / prefix):'));
         const commands = [
             { cmd: '/analyze <query>', desc: 'Analyze code with intelligent tool selection' },
             { cmd: '/search <query>', desc: 'Search across code and documentation' },
@@ -1862,87 +1843,87 @@ If you suggest changes, list the specific files that would need to be updated.
             { cmd: '/exit', desc: 'Exit CodeMind CLI' }
         ];
         commands.forEach(({ cmd, desc }) => {
-            console.log(theme.command(`  ${cmd.padEnd(25)}`) + theme.muted(desc));
+            console.log(theme_1.Theme.colors.command(`  ${cmd.padEnd(25)}`) + theme_1.Theme.colors.muted(desc));
         });
-        console.log(theme.border('\n' + '═'.repeat(60)));
-        console.log(theme.info('\n💡 Usage:'));
-        console.log(theme.muted('  • Commands: Use / prefix (e.g., /help, /init, /status)'));
-        console.log(theme.muted('  • Natural Language: Just type your question (no prefix)'));
-        console.log(theme.muted('  • Examples: "/init" vs "analyze my code structure"'));
-        console.log(theme.info('\n🎯 Tips:'));
-        console.log(theme.muted('  • Use Tab for command completion'));
-        console.log(theme.muted('  • Use ↑/↓ arrows to navigate history'));
-        console.log(theme.muted('  • Type "/help <command>" for detailed help'));
+        console.log(theme_1.Theme.colors.border('\n' + '═'.repeat(60)));
+        console.log(theme_1.Theme.colors.info('\n💡 Usage:'));
+        console.log(theme_1.Theme.colors.muted('  • Commands: Use / prefix (e.g., /help, /init, /status)'));
+        console.log(theme_1.Theme.colors.muted('  • Natural Language: Just type your question (no prefix)'));
+        console.log(theme_1.Theme.colors.muted('  • Examples: "/init" vs "analyze my code structure"'));
+        console.log(theme_1.Theme.colors.info('\n🎯 Tips:'));
+        console.log(theme_1.Theme.colors.muted('  • Use Tab for command completion'));
+        console.log(theme_1.Theme.colors.muted('  • Use ↑/↓ arrows to navigate history'));
+        console.log(theme_1.Theme.colors.muted('  • Type "/help <command>" for detailed help'));
     }
     displayDetailedHelp(command) {
         const helpTexts = {
             analyze: `
-${theme.secondary('📖 ANALYZE Command')}
+${theme_1.Theme.colors.secondary('📖 ANALYZE Command')}
 
 Analyzes code using intelligent tool selection based on your query.
 
-${theme.primary('Usage:')}
+${theme_1.Theme.colors.primary('Usage:')}
   analyze <query>    Analyze with natural language query
   analyze           Interactive mode with prompts
 
-${theme.primary('Examples:')}
+${theme_1.Theme.colors.primary('Examples:')}
   analyze authentication flow
   analyze "find security vulnerabilities"
   analyze performance bottlenecks in database queries
 
-${theme.primary('Options:')}
+${theme_1.Theme.colors.primary('Options:')}
   The analyze command automatically selects the most appropriate tools
   based on your query intent and project context.
 `,
             search: `
-${theme.secondary('📖 SEARCH Command')}
+${theme_1.Theme.colors.secondary('📖 SEARCH Command')}
 
 Search across code, documentation, and analysis results.
 
-${theme.primary('Usage:')}
+${theme_1.Theme.colors.primary('Usage:')}
   search <query>    Search for specific terms
   search           Interactive search with filters
 
-${theme.primary('Examples:')}
+${theme_1.Theme.colors.primary('Examples:')}
   search authentication
   search "user login"
   search TODO
 
-${theme.primary('Search Scope:')}
+${theme_1.Theme.colors.primary('Search Scope:')}
   • Code files
   • Documentation
   • Previous analysis results
   • Configuration files
 `
         };
-        console.log(helpTexts[command] || theme.muted(`\nNo detailed help available for "${command}"`));
+        console.log(helpTexts[command] || theme_1.Theme.colors.muted(`\nNo detailed help available for "${command}"`));
     }
     displayAnalysisResults(context) {
-        console.log(theme.secondary('\n📋 Analysis Results\n'));
-        console.log(theme.border('─'.repeat(60)));
+        console.log(theme_1.Theme.colors.secondary('\n📋 Analysis Results\n'));
+        console.log(theme_1.Theme.colors.border('─'.repeat(60)));
         if (context.summary) {
-            console.log(theme.primary('Summary:'));
-            console.log(theme.result('  ' + context.summary));
+            console.log(theme_1.Theme.colors.primary('Summary:'));
+            console.log(theme_1.Theme.colors.result('  ' + context.summary));
         }
         if (context.insights && context.insights.length > 0) {
-            console.log(theme.primary('\nInsights:'));
+            console.log(theme_1.Theme.colors.primary('\nInsights:'));
             context.insights.forEach((insight, i) => {
-                console.log(theme.result(`  ${i + 1}. ${insight}`));
+                console.log(theme_1.Theme.colors.result(`  ${i + 1}. ${insight}`));
             });
         }
         if (context.recommendations && context.recommendations.length > 0) {
-            console.log(theme.primary('\nRecommendations:'));
+            console.log(theme_1.Theme.colors.primary('\nRecommendations:'));
             context.recommendations.forEach((rec, i) => {
-                console.log(theme.warning(`  • ${rec}`));
+                console.log(theme_1.Theme.colors.warning(`  • ${rec}`));
             });
         }
         if (context.metrics) {
-            console.log(theme.primary('\nMetrics:'));
+            console.log(theme_1.Theme.colors.primary('\nMetrics:'));
             Object.entries(context.metrics).forEach(([key, value]) => {
-                console.log(theme.muted(`  ${key}: `) + theme.result(String(value)));
+                console.log(theme_1.Theme.colors.muted(`  ${key}: `) + theme_1.Theme.colors.result(String(value)));
             });
         }
-        console.log(theme.border('─'.repeat(60)));
+        console.log(theme_1.Theme.colors.border('─'.repeat(60)));
     }
     async getAvailableTools() {
         // This would fetch from the actual tool registry
@@ -1980,19 +1961,19 @@ ${theme.primary('Search Scope:')}
     }
     showSpinner(text) {
         // Spinner temporarily disabled
-        console.log(theme.info(`🔄 ${text}`));
+        console.log(theme_1.Theme.colors.info(`🔄 ${text}`));
     }
     stopSpinner(success, message) {
         // Spinner temporarily disabled
         if (success) {
-            console.log(theme.success(`✅ ${message || 'Done'}`));
+            console.log(theme_1.Theme.colors.success(`✅ ${message || 'Done'}`));
         }
         else {
-            console.log(theme.error(`❌ ${message || 'Failed'}`));
+            console.log(theme_1.Theme.colors.error(`❌ ${message || 'Failed'}`));
         }
     }
     async handleExit() {
-        console.log(theme.info('\n👋 Goodbye! Thank you for using CodeMind.\n'));
+        console.log(theme_1.Theme.colors.info('\n👋 Goodbye! Thank you for using CodeMind.\n'));
         // Save history
         this.saveHistory();
         // Save session data, generate codemind.md, and save cache
@@ -2453,17 +2434,17 @@ Examples:
 }
 // Handle uncaught errors
 process.on('uncaughtException', (error) => {
-    console.error(theme.error(`\n❌ Fatal error: ${error.message}`));
+    console.error(theme_1.Theme.colors.error(`\n❌ Fatal error: ${error.message}`));
     process.exit(1);
 });
 process.on('unhandledRejection', (error) => {
-    console.error(theme.error(`\n❌ Unhandled rejection: ${error}`));
+    console.error(theme_1.Theme.colors.error(`\n❌ Unhandled rejection: ${error}`));
     process.exit(1);
 });
 // Start the CLI
 if (require.main === module) {
     main().catch((error) => {
-        console.error(theme.error(`\n❌ Failed to start CodeMind CLI: ${error.message}`));
+        console.error(theme_1.Theme.colors.error(`\n❌ Failed to start CodeMind CLI: ${error.message}`));
         process.exit(1);
     });
 }

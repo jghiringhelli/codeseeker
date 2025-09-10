@@ -8,6 +8,7 @@ declare class CodeMindCLI {
     private session;
     private logger;
     private localCache;
+    private orchestrator;
     private semanticOrchestrator;
     private treeNavigator;
     private toolSelector;

@@ -309,6 +309,22 @@ class AnalysisTool {
 exports.AnalysisTool = AnalysisTool;
 // Base class for internal tools (backwards compatibility)
 class InternalTool {
+    // Additional methods that some tools expect
+    analyzeProject(projectPath, projectId, parameters) {
+        return this.analyze(projectPath, projectId, parameters);
+    }
+    updateAfterCliRequest(projectId, data) {
+        // Default implementation - tools can override
+    }
+    getStatus() {
+        return { status: 'active', name: this.getMetadata().name };
+    }
+    canAnalyzeProject(projectPath) {
+        return true; // Default: all tools can analyze
+    }
+    initializeForProject(projectId) {
+        return this.initialize();
+    }
 }
 exports.InternalTool = InternalTool;
 // Tool registry for managing registered tools
@@ -319,6 +335,9 @@ class ToolRegistry {
     }
     static getTool(name) {
         return this.tools.get(name);
+    }
+    static getToolById(id) {
+        return this.tools.get(id);
     }
     static getAllTools() {
         return Array.from(this.tools.values());
