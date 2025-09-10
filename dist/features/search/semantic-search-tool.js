@@ -7,9 +7,9 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SemanticSearchTool = void 0;
-const enhanced_tool_interface_1 = require("../../shared/enhanced-tool-interface");
+const tool_interface_1 = require("../../shared/tool-interface");
 const logger_1 = require("../../utils/logger");
-class SemanticSearchTool extends enhanced_tool_interface_1.EnhancedAnalysisTool {
+class SemanticSearchTool extends tool_interface_1.AnalysisTool {
     // Tool metadata
     id = 'semantic-search';
     name = 'Semantic Search';

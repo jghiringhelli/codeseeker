@@ -1,0 +1,16 @@
+{
+  "projectId": "e8f5b4e7-10b2-4265-9007-1d279e1adc8f",
+  "projectName": "CodeMind Test",
+  "projectPath": "C:\\workspace\\claude\\CodeMind",
+  "projectType": "cli_tool",
+  "languages": [
+    "JavaScript",
+    "TypeScript"
+  ],
+  "frameworks": [
+    "Node.js"
+  ],
+  "features": [],
+  "createdAt": "2025-09-09T18:27:13.017Z",
+  "lastUpdated": "2025-09-09T18:27:13.017Z"
+}

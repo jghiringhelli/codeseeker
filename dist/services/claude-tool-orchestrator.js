@@ -6,7 +6,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClaudeToolOrchestrator = void 0;
 const tool_interface_1 = require("../shared/tool-interface");
-const enhanced_tool_interface_1 = require("../shared/enhanced-tool-interface");
+const tool_interface_2 = require("../shared/tool-interface");
 class ClaudeToolOrchestrator {
     availableTools = new Map();
     toolBundles = new Map();
@@ -19,7 +19,7 @@ class ClaudeToolOrchestrator {
     async initializeTools() {
         const registeredTools = tool_interface_1.ToolRegistry.getAllTools();
         for (const tool of registeredTools) {
-            if (tool instanceof enhanced_tool_interface_1.EnhancedAnalysisTool) {
+            if (tool instanceof tool_interface_2.AnalysisTool) {
                 this.availableTools.set(tool.id, tool);
             }
         }

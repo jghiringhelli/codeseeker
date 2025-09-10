@@ -1,12 +1,12 @@
 // Try to load real implementations, fallback to mocks
-let EnhancedToolSelector, ToolBundleSystem;
+let ToolSelector, ToolBundleSystem;
 
 try {
   // Try to load from compiled TypeScript
-  const toolSelector = require('../../dist/cli/enhanced-tool-selector');
+  const toolSelector = require('../../dist/cli/tool-selector');
   const bundleSystem = require('../../dist/cli/tool-bundle-system');
   
-  EnhancedToolSelector = toolSelector.EnhancedToolSelector || toolSelector.default;
+  ToolSelector = toolSelector.ToolSelector || toolSelector.default;
   ToolBundleSystem = bundleSystem.ToolBundleSystem || bundleSystem.default;
   
   console.log('✅ Loaded real tool implementations');
@@ -14,7 +14,7 @@ try {
   console.warn('⚠️ Using mock tool implementations:', e.message);
   
   // Mock implementations
-  class MockEnhancedToolSelector {
+  class MockToolSelector {
     constructor() {}
     selectTools() { 
       return {
@@ -51,7 +51,7 @@ try {
     selectBundles() { return this.getBundles().slice(0, 2); }
   }
 
-  EnhancedToolSelector = MockEnhancedToolSelector;
+  ToolSelector = MockToolSelector;
   ToolBundleSystem = MockToolBundleSystem;
 }
 
@@ -59,13 +59,13 @@ class ToolBundleAPI {
     constructor(database, performanceMonitor) {
         this.db = database;
         this.performanceMonitor = performanceMonitor;
-        this.enhancedSelector = new EnhancedToolSelector(database, performanceMonitor);
+        this.toolSelector = new ToolSelector(database, performanceMonitor);
         this.bundleSystem = null; // Will be initialized
     }
 
     async initialize() {
         // Enhanced selector is initialized in constructor
-        this.bundleSystem = this.enhancedSelector.getBundleSystem ? await this.enhancedSelector.getBundleSystem() : null;
+        this.bundleSystem = this.toolSelector.getBundleSystem ? await this.toolSelector.getBundleSystem() : null;
         console.log('✅ Tool Bundle API initialized');
     }
 
@@ -73,7 +73,7 @@ class ToolBundleAPI {
     async getAllBundles(req, res) {
         try {
             const bundles = this.bundleSystem.getAllBundles();
-            const stats = await this.enhancedSelector.getSelectionStats();
+            const stats = await this.toolSelector.getSelectionStats();
             
             res.json({
                 success: true,
@@ -345,7 +345,7 @@ class ToolBundleAPI {
                 optimization
             };
 
-            const result = await this.enhancedSelector.selectOptimalApproach(context);
+            const result = await this.toolSelector.selectOptimalApproach(context);
             
             res.json({
                 success: true,
@@ -444,7 +444,7 @@ class ToolBundleAPI {
     // Cache Management
     async clearSelectionCache(req, res) {
         try {
-            this.enhancedSelector.clearCache();
+            this.toolSelector.clearCache();
             
             res.json({
                 success: true,

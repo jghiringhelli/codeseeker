@@ -4,7 +4,7 @@
  */
 
 import { ToolRegistry } from '../shared/tool-interface';
-import { EnhancedAnalysisTool, ToolBundle } from '../shared/enhanced-tool-interface';
+import { AnalysisTool, ToolBundle } from '../shared/tool-interface';
 
 export interface ClaudeToolSelection {
   selectedTools: ToolSelectionResult[];
@@ -61,7 +61,7 @@ export interface ContextEnhancementRequest {
 }
 
 export class ClaudeToolOrchestrator {
-  private availableTools: Map<string, EnhancedAnalysisTool> = new Map();
+  private availableTools: Map<string, AnalysisTool> = new Map();
   private toolBundles: Map<string, ToolBundle> = new Map();
 
   constructor() {
@@ -75,7 +75,7 @@ export class ClaudeToolOrchestrator {
     const registeredTools = ToolRegistry.getAllTools();
     
     for (const tool of registeredTools) {
-      if (tool instanceof EnhancedAnalysisTool) {
+      if (tool instanceof AnalysisTool) {
         this.availableTools.set(tool.id, tool);
       }
     }
@@ -352,7 +352,7 @@ export class ClaudeToolOrchestrator {
   /**
    * Simulate Claude parameter determination
    */
-  private async simulateClaudeParameterDetermination(request: ContextEnhancementRequest, tool: EnhancedAnalysisTool, toolSelection: ToolSelectionResult): Promise<Record<string, any>> {
+  private async simulateClaudeParameterDetermination(request: ContextEnhancementRequest, tool: AnalysisTool, toolSelection: ToolSelectionResult): Promise<Record<string, any>> {
     const parameters: Record<string, any> = {};
     
     // Common parameters
@@ -564,7 +564,7 @@ Select 3-6 tools that best address the user's needs, considering:
 - Execution efficiency`;
   }
 
-  private buildParameterPrompt(request: ContextEnhancementRequest, tool: EnhancedAnalysisTool, toolSelection: ToolSelectionResult): string {
+  private buildParameterPrompt(request: ContextEnhancementRequest, tool: AnalysisTool, toolSelection: ToolSelectionResult): string {
     return `Determine optimal parameters for the ${tool.name} tool:
 
 Tool Capabilities: ${JSON.stringify(tool.capabilities)}

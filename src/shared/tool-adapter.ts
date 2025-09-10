@@ -4,14 +4,14 @@
  */
 
 import { InternalTool, ToolMetadata, AnalysisResult, ToolInitResult, ToolUpdateResult } from './tool-interface';
-import { EnhancedAnalysisTool } from './enhanced-tool-interface';
+import { AnalysisTool } from './tool-interface';
 import { Logger, LogLevel } from '../utils/logger';
 
 export class ToolAdapter extends InternalTool {
-  private enhancedTool: EnhancedAnalysisTool;
+  private enhancedTool: AnalysisTool;
   private logger: Logger;
 
-  constructor(enhancedTool: EnhancedAnalysisTool) {
+  constructor(enhancedTool: AnalysisTool) {
     super();
     this.enhancedTool = enhancedTool;
     this.logger = new Logger(LogLevel.INFO, enhancedTool.name);

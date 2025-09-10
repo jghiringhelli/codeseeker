@@ -2,59 +2,76 @@
 // Creates the base schema and constraints for semantic analysis
 
 // ============================================
-// CONSTRAINTS AND INDEXES
+// CONSTRAINTS AND INDEXES FOR COMPLETE CODEBASE GRAPH
 // ============================================
 
-// Unique constraints
-CREATE CONSTRAINT code_path_unique IF NOT EXISTS FOR (c:Code) REQUIRE c.path IS UNIQUE;
+// File-level unique constraints
+CREATE CONSTRAINT file_path_unique IF NOT EXISTS FOR (f:File) REQUIRE f.path IS UNIQUE;
+CREATE CONSTRAINT module_path_unique IF NOT EXISTS FOR (m:Module) REQUIRE m.path IS UNIQUE;
+CREATE CONSTRAINT class_signature_unique IF NOT EXISTS FOR (c:Class) REQUIRE (c.name, c.file_path) IS UNIQUE;
+CREATE CONSTRAINT function_signature_unique IF NOT EXISTS FOR (fn:Function) REQUIRE (fn.name, fn.file_path, fn.line_start) IS UNIQUE;
+CREATE CONSTRAINT variable_signature_unique IF NOT EXISTS FOR (v:Variable) REQUIRE (v.name, v.file_path, v.scope) IS UNIQUE;
+
+// Configuration and pattern constraints  
+CREATE CONSTRAINT config_path_unique IF NOT EXISTS FOR (cfg:Configuration) REQUIRE cfg.path IS UNIQUE;
+CREATE CONSTRAINT pattern_signature_unique IF NOT EXISTS FOR (p:Pattern) REQUIRE (p.type, p.name, p.file_path) IS UNIQUE;
+
+// Documentation and test constraints
 CREATE CONSTRAINT doc_path_unique IF NOT EXISTS FOR (d:Documentation) REQUIRE d.path IS UNIQUE;
-CREATE CONSTRAINT concept_name_unique IF NOT EXISTS FOR (bc:BusinessConcept) REQUIRE (bc.name, bc.domain) IS UNIQUE;
-CREATE CONSTRAINT ui_name_unique IF NOT EXISTS FOR (ui:UIComponent) REQUIRE (ui.name, ui.path) IS UNIQUE;
-CREATE CONSTRAINT test_name_unique IF NOT EXISTS FOR (t:TestCase) REQUIRE (t.name, t.path) IS UNIQUE;
+CREATE CONSTRAINT test_signature_unique IF NOT EXISTS FOR (t:Test) REQUIRE (t.name, t.file_path) IS UNIQUE;
 
-// Performance indexes
-CREATE INDEX code_type_index IF NOT EXISTS FOR (c:Code) ON (c.type);
-CREATE INDEX code_language_index IF NOT EXISTS FOR (c:Code) ON (c.language);
-CREATE INDEX doc_type_index IF NOT EXISTS FOR (d:Documentation) ON (d.type);
-CREATE INDEX concept_domain_index IF NOT EXISTS FOR (bc:BusinessConcept) ON (bc.domain);
-CREATE INDEX ui_type_index IF NOT EXISTS FOR (ui:UIComponent) ON (ui.type);
+// Performance indexes for file analysis
+CREATE INDEX file_language_index IF NOT EXISTS FOR (f:File) ON (f.language);
+CREATE INDEX file_type_index IF NOT EXISTS FOR (f:File) ON (f.type);
+CREATE INDEX file_size_index IF NOT EXISTS FOR (f:File) ON (f.size);
+CREATE INDEX module_namespace_index IF NOT EXISTS FOR (m:Module) ON (m.namespace);
+CREATE INDEX class_type_index IF NOT EXISTS FOR (c:Class) ON (c.type);
+CREATE INDEX function_complexity_index IF NOT EXISTS FOR (fn:Function) ON (fn.complexity);
+CREATE INDEX pattern_category_index IF NOT EXISTS FOR (p:Pattern) ON (p.category);
 
-// Full-text search indexes for semantic search
-CALL db.index.fulltext.createNodeIndex('codeSearch', ['Code'], ['name', 'description', 'content']);
-CALL db.index.fulltext.createNodeIndex('docSearch', ['Documentation'], ['title', 'summary', 'content']);
-CALL db.index.fulltext.createNodeIndex('conceptSearch', ['BusinessConcept'], ['name', 'description', 'keywords']);
+// Full-text search indexes for complete codebase search
+CALL db.index.fulltext.createNodeIndex('fileSearch', ['File', 'Module'], ['name', 'content', 'description']);
+CALL db.index.fulltext.createNodeIndex('codeSearch', ['Class', 'Function', 'Variable'], ['name', 'description', 'signature']);
+CALL db.index.fulltext.createNodeIndex('patternSearch', ['Pattern', 'Configuration'], ['name', 'description', 'content']);
+CALL db.index.fulltext.createNodeIndex('docSearch', ['Documentation', 'Test'], ['name', 'description', 'content']);
 
 // ============================================
-// SAMPLE DATA STRUCTURE
+// RELATIONSHIP TYPES FOR COMPLETE GRAPH
 // ============================================
 
-// Create sample business concepts
-CREATE (:BusinessConcept {
-  name: "user-authentication", 
-  domain: "security",
-  description: "User login, logout, and session management",
-  keywords: ["auth", "login", "session", "security", "jwt"],
-  importance: "high",
-  created_at: datetime()
-});
+// Core file relationships
+// DEPENDS_ON: File A depends on File B (imports, includes, requires)
+// IMPLEMENTS: File A implements interface/contract in File B  
+// EXTENDS: Class A extends Class B
+// USES: Function/Class A uses Function/Class B
+// CALLS: Function A calls Function B
+// INSTANTIATES: Code A creates instance of Class B
 
-CREATE (:BusinessConcept {
-  name: "data-processing", 
-  domain: "core",
-  description: "Data transformation, validation, and storage",
-  keywords: ["data", "validation", "transformation", "storage"],
-  importance: "high", 
-  created_at: datetime()
-});
+// Configuration relationships  
+// CONFIGURES: Config file configures Module/Service
+// CONFIGURED_BY: Module is configured by Config file
+// OVERRIDES: Config A overrides Config B
 
-CREATE (:BusinessConcept {
-  name: "user-interface", 
-  domain: "frontend",
-  description: "User experience, navigation, and interaction",
-  keywords: ["ui", "ux", "navigation", "interaction", "components"],
-  importance: "medium",
-  created_at: datetime()
-});
+// Pattern relationships
+// FOLLOWS_PATTERN: File follows architectural/design pattern
+// VIOLATES_PATTERN: File violates expected pattern
+// DEFINES_PATTERN: File defines reusable pattern
+
+// Documentation relationships
+// DOCUMENTS: Documentation describes Code/Module
+// DOCUMENTED_BY: Code is documented by Documentation
+// TESTS: Test file tests Module/Function
+// TESTED_BY: Code is tested by Test file
+
+// Semantic relationships
+// SIMILAR_TO: Files with similar functionality
+// RELATED_TO: Files working toward same business goal
+// SUPERSEDES: Newer file replaces older file
+// REFERENCES: File references external resource
+
+// ============================================
+// UTILITY PROCEDURES FOR COMPLETE GRAPH
+// ============================================
 
 // ============================================
 // STORED PROCEDURES

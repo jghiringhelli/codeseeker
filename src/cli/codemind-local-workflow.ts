@@ -15,7 +15,7 @@ import { Command } from 'commander';
 import { Logger } from '../utils/logger';
 import { CLILogger } from '../utils/cli-logger';
 import { IntelligentToolSelector } from '../shared/intelligent-tool-selector';
-import { EnhancedContextProvider } from '../shared/enhanced-context-provider';
+import { ContextProvider } from '../shared/context-provider';
 import { ChangeAssessmentSystem } from '../shared/change-assessment-system';
 import { HybridFileDiscovery } from '../shared/hybrid-file-discovery';
 import { ComprehensiveImpactAnalyzer } from '../shared/comprehensive-impact-analyzer';
@@ -45,14 +45,14 @@ interface UserIntention {
 
 class CodeMindLocalWorkflow {
   private toolSelector: IntelligentToolSelector;
-  private contextProvider: EnhancedContextProvider;
+  private contextProvider: ContextProvider;
   private changeAssessment: ChangeAssessmentSystem;
   private fileDiscovery: HybridFileDiscovery;
   private impactAnalyzer: ComprehensiveImpactAnalyzer;
 
   constructor() {
     this.toolSelector = new IntelligentToolSelector();
-    this.contextProvider = new EnhancedContextProvider();
+    this.contextProvider = new ContextProvider();
     this.changeAssessment = new ChangeAssessmentSystem();
     this.fileDiscovery = new HybridFileDiscovery();
     this.impactAnalyzer = new ComprehensiveImpactAnalyzer();

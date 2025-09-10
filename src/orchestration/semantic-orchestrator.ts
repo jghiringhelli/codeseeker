@@ -4,7 +4,7 @@
  */
 
 import { SemanticGraphService } from '../services/semantic-graph';
-import { EnhancedDocumentMapAnalyzer } from '../features/documentation/enhanced-map-analyzer';
+import { DocumentMapAnalyzer } from '../features/documentation/map-analyzer';
 import { UseCasesAnalyzer } from '../features/use-cases/analyzer';
 import { TreeNavigator } from '../features/tree-navigation/navigator';
 import { Logger } from '../utils/logger';
@@ -34,14 +34,14 @@ export interface SemanticContextResult {
 
 export class SemanticOrchestrator {
   private semanticGraph: SemanticGraphService;
-  private docAnalyzer: EnhancedDocumentMapAnalyzer;
+  private docAnalyzer: DocumentMapAnalyzer;
   private useCasesAnalyzer: UseCasesAnalyzer;
   private treeNavigator: TreeNavigator;
   private logger = Logger.getInstance();
 
   constructor() {
     this.semanticGraph = new SemanticGraphService();
-    this.docAnalyzer = new EnhancedDocumentMapAnalyzer(this.semanticGraph);
+    this.docAnalyzer = new DocumentMapAnalyzer(this.semanticGraph);
     this.useCasesAnalyzer = new UseCasesAnalyzer();
     this.treeNavigator = new TreeNavigator();
   }
@@ -49,9 +49,9 @@ export class SemanticOrchestrator {
   async initialize(): Promise<void> {
     try {
       await this.semanticGraph.initialize();
-      this.logger.info('🧠 Semantic Orchestrator initialized with graph intelligence');
+      this.logger.debug('🧠 Semantic Orchestrator: Neo4j connection established');
     } catch (error) {
-      this.logger.error('❌ Failed to initialize semantic orchestrator:', error);
+      this.logger.error('❌ Failed to connect to Neo4j database:', error);
       throw error;
     }
   }

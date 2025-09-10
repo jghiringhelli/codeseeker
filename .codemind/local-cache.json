@@ -1,0 +1,52 @@
+{
+  "project": {
+    "id": "e8f5b4e7-10b2-4265-9007-1d279e1adc8f",
+    "name": "CodeMind",
+    "path": "C:\\workspace\\claude\\CodeMind",
+    "type": "cli_tool",
+    "languages": [
+      "JavaScript",
+      "TypeScript"
+    ],
+    "frameworks": [
+      "Node.js"
+    ],
+    "lastUpdated": "2025-09-09T16:07:14.346Z"
+  },
+  "context": {
+    "projectType": "",
+    "languages": [],
+    "frameworks": [],
+    "dependencies": {},
+    "architecture": "",
+    "patterns": [],
+    "insights": [],
+    "lastFetched": "",
+    "ttl": 60
+  },
+  "toolConfigs": {},
+  "recentAnalyses": [],
+  "session": {
+    "lastSessionId": "6767c754-9a71-4bbd-8273-d0121cdab376",
+    "lastAccessTime": "2025-09-10T13:58:10.306Z",
+    "totalSessions": 53,
+    "preferences": {
+      "colorOutput": true,
+      "verboseMode": false,
+      "autoSuggest": true,
+      "tokenBudget": 4000,
+      "semanticDepth": 3,
+      "graphTraversalDepth": 3,
+      "maxTools": 7,
+      "executionStrategy": "hybrid",
+      "maxTokens": 4000
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "createdAt": "2025-09-08T17:27:27.881Z",
+    "lastUpdated": "2025-09-10T13:58:10.308Z",
+    "cacheHits": 63,
+    "cacheMisses": 1
+  }
+}

@@ -1,8 +1,8 @@
 /**
  * Complete Semantic Search Tool Implementation
  */
-import { EnhancedAnalysisTool } from '../../shared/enhanced-tool-interface';
-export declare class SemanticSearchTool extends EnhancedAnalysisTool {
+import { AnalysisTool } from '../../shared/tool-interface';
+export declare class SemanticSearchTool extends AnalysisTool {
     id: string;
     name: string;
     description: string;

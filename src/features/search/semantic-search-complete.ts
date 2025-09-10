@@ -2,7 +2,7 @@
  * Complete Semantic Search Tool Implementation
  */
 
-import { EnhancedAnalysisTool } from '../../shared/enhanced-tool-interface';
+import { AnalysisTool } from '../../shared/tool-interface';
 import { Logger, LogLevel } from '../../utils/logger';
 import { SemanticSearchCache } from '../../shared/multi-level-cache';
 import * as fs from 'fs/promises';
@@ -10,7 +10,7 @@ import * as path from 'path';
 import { glob } from 'fast-glob';
 import crypto from 'crypto';
 
-export class SemanticSearchTool extends EnhancedAnalysisTool {
+export class SemanticSearchTool extends AnalysisTool {
   // Tool metadata
   id = 'semantic-search';
   name = 'Semantic Search';

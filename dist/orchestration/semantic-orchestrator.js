@@ -6,7 +6,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SemanticOrchestrator = void 0;
 const semantic_graph_1 = require("../services/semantic-graph");
-const enhanced_map_analyzer_1 = require("../features/documentation/enhanced-map-analyzer");
+const map_analyzer_1 = require("../features/documentation/map-analyzer");
 const analyzer_1 = require("../features/use-cases/analyzer");
 const navigator_1 = require("../features/tree-navigation/navigator");
 const logger_1 = require("../utils/logger");
@@ -18,17 +18,17 @@ class SemanticOrchestrator {
     logger = logger_1.Logger.getInstance();
     constructor() {
         this.semanticGraph = new semantic_graph_1.SemanticGraphService();
-        this.docAnalyzer = new enhanced_map_analyzer_1.EnhancedDocumentMapAnalyzer(this.semanticGraph);
+        this.docAnalyzer = new map_analyzer_1.DocumentMapAnalyzer(this.semanticGraph);
         this.useCasesAnalyzer = new analyzer_1.UseCasesAnalyzer();
         this.treeNavigator = new navigator_1.TreeNavigator();
     }
     async initialize() {
         try {
             await this.semanticGraph.initialize();
-            this.logger.info('🧠 Semantic Orchestrator initialized with graph intelligence');
+            this.logger.debug('🧠 Semantic Orchestrator: Neo4j connection established');
         }
         catch (error) {
-            this.logger.error('❌ Failed to initialize semantic orchestrator:', error);
+            this.logger.error('❌ Failed to connect to Neo4j database:', error);
             throw error;
         }
     }

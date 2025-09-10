@@ -4,7 +4,7 @@
  * This tool implements semantic search capabilities using OpenAI embeddings
  * and pgvector for similarity search across the codebase.
  */
-import { EnhancedAnalysisTool } from '../../shared/enhanced-tool-interface';
+import { AnalysisTool } from '../../shared/tool-interface';
 export interface SemanticSearchRequest {
     query: string;
     projectPath: string;
@@ -45,7 +45,7 @@ export interface EmbeddingResponse {
         total_tokens: number;
     };
 }
-export declare class SemanticSearchTool extends EnhancedAnalysisTool {
+export declare class SemanticSearchTool extends AnalysisTool {
     id: string;
     name: string;
     description: string;

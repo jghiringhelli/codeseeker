@@ -1,4 +1,4 @@
-import { EnhancedAnalysisTool } from '../../shared/enhanced-tool-interface';
+import { AnalysisTool } from '../../shared/tool-interface';
 export interface TreeNavigationRequest {
     projectPath: string;
     filePattern?: string;
@@ -97,7 +97,7 @@ export declare enum DependencyType {
     INHERITANCE = "inheritance",
     COMPOSITION = "composition"
 }
-export declare class TreeNavigator extends EnhancedAnalysisTool {
+export declare class TreeNavigator extends AnalysisTool {
     id: string;
     name: string;
     description: string;

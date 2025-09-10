@@ -16,7 +16,7 @@ const { ThreeToolsAPI } = require('./api-three-tools');
 const { ProjectAPI } = require('./project-api');
 const { AnalyticsAPI } = require('./analytics-api');
 const { MultiDatabaseAPI } = require('./multi-database-api');
-const { EnhancedProjectOverviewAPI } = require('./enhanced-project-overview-api');
+const { EnhancedProjectOverviewAPI } = require('./project-overview-api');
 const { CodeMindProjectAPI } = require('./codemind-project-api');
 // Try to load ToolBundleAPI, fallback to mock if fails
 let ToolBundleAPI;
@@ -584,6 +584,10 @@ class DashboardServer {
         this.app.get('/api/dashboard/projects/:id/semantic', this.auth.optionalAuth, this.getProjectSemanticData.bind(this));
         this.app.get('/api/dashboard/projects/:id/graph', this.auth.optionalAuth, this.getProjectGraphData.bind(this));
         this.app.get('/api/dashboard/projects/:id/insights', this.auth.optionalAuth, this.getProjectInsights.bind(this));
+        
+        // CLI Data endpoints
+        this.app.get('/api/dashboard/projects/:id/cli-data', this.auth.optionalAuth, this.getProjectCLIData.bind(this));
+        this.app.get('/api/dashboard/projects/:id/use-cases', this.auth.optionalAuth, this.getProjectUseCases.bind(this));
         
         // Analytics endpoints (DuckDB columnar analytics)
         this.app.get('/api/dashboard/projects/:id/analytics/dashboard', this.auth.optionalAuth, this.getAnalyticsDashboard.bind(this));
@@ -1331,25 +1335,33 @@ class DashboardServer {
         try {
             const projectId = req.params.id;
             
-            const [projectResult, patternsResult, metricsResult] = await Promise.all([
-                this.db.query(`
-                    LEFT JOIN initialization_progress ip ON p.id = ip.project_id
-                `, [projectId]),
-                
-                this.db.query(`
-                `, [projectId]),
-                
-                this.db.query(`
-                `, [projectId])
-            ]);
+            // Get basic project details with available tables
+            const projectResult = await this.db.query(`
+                SELECT 
+                    p.*,
+                    ip.phase as init_phase,
+                    ip.progress_data,
+                    ip.tech_stack_data,
+                    ip.error_log,
+                    ip.created_at as init_created_at,
+                    ip.updated_at as init_updated_at
+                FROM projects p
+                LEFT JOIN initialization_progress ip ON p.id = ip.project_id
+                WHERE p.id = $1
+            `, [projectId]);
             
             const project = projectResult.rows[0];
             if (!project) {
                 return res.status(404).json({ error: 'Project not found' });
             }
             
-            project.pattern_summary = patternsResult.rows[0];
-            project.recent_metrics = metricsResult.rows;
+            // Add mock data for missing tables until they're created
+            project.pattern_summary = {
+                total_patterns: 0,
+                detected_patterns: 0,
+                implemented_patterns: 0
+            };
+            project.recent_metrics = [];
             
             res.json(project);
         } catch (error) {
@@ -4303,6 +4315,175 @@ class DashboardServer {
         if (end < text.length) snippet = snippet + '...';
         
         return snippet;
+    }
+
+    // CLI Data Methods
+    async getProjectCLIData(req, res) {
+        try {
+            const projectId = req.params.id;
+            
+            // Get project info
+            const projectResult = await this.db.query(
+                'SELECT project_path FROM projects WHERE id = $1',
+                [projectId]
+            );
+            
+            if (!projectResult.rows.length) {
+                return res.status(404).json({ error: 'Project not found' });
+            }
+            
+            const projectPath = projectResult.rows[0].project_path;
+            
+            // Read local cache for CLI session data
+            const fs = require('fs');
+            const path = require('path');
+            const cacheFile = path.join(projectPath, '.codemind', 'local-cache.json');
+            
+            let sessionData = {
+                totalSessions: 0,
+                lastSessionId: null,
+                lastAccessTime: null,
+                preferences: {},
+                cacheStats: { hits: 0, misses: 0 }
+            };
+            
+            try {
+                if (fs.existsSync(cacheFile)) {
+                    const cacheData = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+                    sessionData = {
+                        totalSessions: cacheData.session?.totalSessions || 0,
+                        lastSessionId: cacheData.session?.lastSessionId,
+                        lastAccessTime: cacheData.session?.lastAccessTime,
+                        preferences: cacheData.session?.preferences || {},
+                        cacheStats: {
+                            hits: cacheData.metadata?.cacheHits || 0,
+                            misses: cacheData.metadata?.cacheMisses || 0
+                        },
+                        toolConfigs: cacheData.toolConfigs || {},
+                        recentAnalyses: cacheData.recentAnalyses || []
+                    };
+                }
+            } catch (error) {
+                console.warn('Could not read cache file:', error.message);
+            }
+            
+            // Get Redis data for file hashes and analysis data
+            let redisData = { fileHashes: 0, analysisData: [] };
+            try {
+                const redis = require('redis');
+                const client = redis.createClient({ url: 'redis://localhost:6379' });
+                await client.connect();
+                
+                const keys = await client.keys('hash:*');
+                redisData.fileHashes = keys.length;
+                
+                await client.disconnect();
+            } catch (error) {
+                console.warn('Could not connect to Redis:', error.message);
+            }
+            
+            res.json({
+                success: true,
+                data: {
+                    session: sessionData,
+                    redis: redisData,
+                    summary: {
+                        totalSessions: sessionData.totalSessions,
+                        cacheHitRate: sessionData.cacheStats.hits / (sessionData.cacheStats.hits + sessionData.cacheStats.misses) * 100,
+                        filesCached: redisData.fileHashes,
+                        lastActive: sessionData.lastAccessTime
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('❌ Error fetching CLI data:', error);
+            res.status(500).json({ error: 'Failed to fetch CLI data', details: error.message });
+        }
+    }
+
+    async getProjectUseCases(req, res) {
+        try {
+            const useCases = [
+                {
+                    category: '🔍 Code Analysis',
+                    items: [
+                        {
+                            title: 'Find authentication patterns',
+                            description: 'Discover how authentication is implemented across your codebase',
+                            query: 'auth OR login OR password OR token',
+                            difficulty: 'Easy',
+                            estimatedResults: '15-25 files'
+                        },
+                        {
+                            title: 'Locate performance bottlenecks',
+                            description: 'Identify slow queries, inefficient algorithms, and memory leaks',
+                            query: 'performance OR slow OR optimization OR memory',
+                            difficulty: 'Medium',
+                            estimatedResults: '8-15 files'
+                        },
+                        {
+                            title: 'Show error handling practices',
+                            description: 'Review how errors are caught, logged, and handled',
+                            query: 'try OR catch OR error OR exception',
+                            difficulty: 'Easy',
+                            estimatedResults: '20-35 files'
+                        }
+                    ]
+                },
+                {
+                    category: '🏗️ Architecture',
+                    items: [
+                        {
+                            title: 'Show component relationships',
+                            description: 'Visualize how different modules and components interact',
+                            query: 'import OR require OR dependency',
+                            difficulty: 'Medium',
+                            estimatedResults: '50+ files'
+                        },
+                        {
+                            title: 'Find design patterns',
+                            description: 'Identify common design patterns like Factory, Observer, Strategy',
+                            query: 'pattern OR factory OR observer OR singleton',
+                            difficulty: 'Hard',
+                            estimatedResults: '10-20 files'
+                        }
+                    ]
+                },
+                {
+                    category: '🔒 Security',
+                    items: [
+                        {
+                            title: 'Find hardcoded secrets',
+                            description: 'Locate potential security vulnerabilities in your code',
+                            query: 'password OR secret OR key OR token',
+                            difficulty: 'Easy',
+                            estimatedResults: '3-8 files'
+                        },
+                        {
+                            title: 'Show input validation',
+                            description: 'Review how user input is validated and sanitized',
+                            query: 'validation OR sanitize OR input OR filter',
+                            difficulty: 'Medium',
+                            estimatedResults: '12-20 files'
+                        }
+                    ]
+                }
+            ];
+            
+            res.json({
+                success: true,
+                data: useCases,
+                summary: {
+                    totalCategories: useCases.length,
+                    totalUseCases: useCases.reduce((sum, cat) => sum + cat.items.length, 0)
+                }
+            });
+            
+        } catch (error) {
+            console.error('❌ Error fetching use cases:', error);
+            res.status(500).json({ error: 'Failed to fetch use cases', details: error.message });
+        }
     }
 }
 

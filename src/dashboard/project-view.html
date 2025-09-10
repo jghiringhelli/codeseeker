@@ -906,11 +906,116 @@
             color: var(--text-secondary);
         }
 
-        .use-cases-section {
+        .use-cases-section, .cli-data-section {
             background: var(--bg-component);
             border-radius: var(--border-radius);
             padding: var(--spacing-lg);
             margin-bottom: var(--spacing-lg);
+        }
+
+        .cli-data-section {
+            border: 2px solid #007acc;
+        }
+
+        .cli-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .cli-stat-item {
+            background: var(--bg-header);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+
+        .cli-stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--primary-color);
+            display: block;
+        }
+
+        .cli-stat-label {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+
+        .use-case-category {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .use-case-category h4 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-md);
+            font-size: 1.1em;
+        }
+
+        .use-case-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .use-case-card {
+            background: var(--bg-header);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .use-case-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .use-case-title {
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .use-case-description {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .use-case-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8em;
+        }
+
+        .use-case-difficulty {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+        }
+
+        .use-case-difficulty.Easy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .use-case-difficulty.Medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .use-case-difficulty.Hard {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .use-case-results {
+            color: var(--text-secondary);
         }
 
         .use-cases-list {
@@ -2483,6 +2588,39 @@
                             `).join('')}
                         </div>
                     </div>
+
+                    <div class="cli-data-section" id="cli-data-section">
+                        <h3>💻 CLI Data & Analytics</h3>
+                        <div class="cli-stats-grid" id="cli-stats">
+                            <div class="cli-stat-item">
+                                <span class="cli-stat-value" id="total-sessions">--</span>
+                                <div class="cli-stat-label">Total Sessions</div>
+                            </div>
+                            <div class="cli-stat-item">
+                                <span class="cli-stat-value" id="cache-hit-rate">--</span>
+                                <div class="cli-stat-label">Cache Hit Rate</div>
+                            </div>
+                            <div class="cli-stat-item">
+                                <span class="cli-stat-value" id="files-cached">--</span>
+                                <div class="cli-stat-label">Files Cached</div>
+                            </div>
+                            <div class="cli-stat-item">
+                                <span class="cli-stat-value" id="last-active">--</span>
+                                <div class="cli-stat-label">Last Active</div>
+                            </div>
+                        </div>
+                        <div class="section-actions">
+                            <button class="btn btn-primary" onclick="refreshCLIData()">🔄 Refresh CLI Data</button>
+                            <button class="btn btn-secondary" onclick="showCLIDetails()">📊 View Details</button>
+                        </div>
+                    </div>
+
+                    <div class="use-cases-section" id="recommended-use-cases">
+                        <h3>🎯 Recommended Use Cases</h3>
+                        <div id="use-cases-content">
+                            <p>Loading recommended searches and use cases...</p>
+                        </div>
+                    </div>
                 </div>
             `;
 
@@ -2492,6 +2630,12 @@
             // Update other tabs with CodeMind-specific data
             updateSemanticGraphTab(graph);
             updateUseCasesDisplay(useCases);
+            
+            // Load CLI data and use cases for CodeMind projects
+            if (currentProject.includes('CodeMind') || currentProject.includes('codemind')) {
+                loadCLIData();
+                loadRecommendedUseCases();
+            }
         }
 
         function refreshCodeMindData() {
@@ -3098,6 +3242,78 @@
         // Placeholder functions for additional functionality
         function refreshOverview() { loadOverview(); }
         function exportOverview() { showError('Export functionality not yet implemented'); }
+
+        // CLI Data Functions
+        async function loadCLIData() {
+            try {
+                const response = await fetch(`${this.apiBase}/projects/${getSelectedProjectId()}/cli-data`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const { session, redis, summary } = result.data;
+                    
+                    // Update CLI stats
+                    document.getElementById('total-sessions').textContent = summary.totalSessions || 0;
+                    document.getElementById('cache-hit-rate').textContent = 
+                        summary.cacheHitRate ? `${summary.cacheHitRate.toFixed(1)}%` : '0%';
+                    document.getElementById('files-cached').textContent = summary.filesCached || 0;
+                    document.getElementById('last-active').textContent = 
+                        summary.lastActive ? new Date(summary.lastActive).toLocaleDateString() : 'Never';
+                }
+            } catch (error) {
+                console.error('Failed to load CLI data:', error);
+                document.getElementById('total-sessions').textContent = 'Error';
+            }
+        }
+
+        async function loadRecommendedUseCases() {
+            try {
+                const response = await fetch(`${this.apiBase}/projects/${getSelectedProjectId()}/use-cases`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const useCasesContent = document.getElementById('use-cases-content');
+                    useCasesContent.innerHTML = result.data.map(category => `
+                        <div class="use-case-category">
+                            <h4>${category.category}</h4>
+                            <div class="use-case-grid">
+                                ${category.items.map(item => `
+                                    <div class="use-case-card" onclick="executeUseCase('${item.query}', '${item.title}')">
+                                        <div class="use-case-title">${item.title}</div>
+                                        <div class="use-case-description">${item.description}</div>
+                                        <div class="use-case-meta">
+                                            <span class="use-case-difficulty ${item.difficulty}">${item.difficulty}</span>
+                                            <span class="use-case-results">${item.estimatedResults}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to load use cases:', error);
+                document.getElementById('use-cases-content').innerHTML = 
+                    '<p style="color: red;">Failed to load recommended use cases</p>';
+            }
+        }
+
+        function refreshCLIData() {
+            loadCLIData();
+        }
+
+        function showCLIDetails() {
+            showAlert('CLI Details', 'Detailed CLI analytics view will be implemented in a future update.');
+        }
+
+        function executeUseCase(query, title) {
+            // Navigate to search with the recommended query
+            showAlert('Search Query', `Executing search: "${query}"\n\nThis would navigate to the search interface with the pre-filled query.`);
+        }
+
+        function getSelectedProjectId() {
+            return getQueryParam('project') || window.selectedProjectId || 'e8f5b4e7-10b2-4265-9007-1d279e1adc8f';
+        }
         function refreshSemanticGraph() { loadSemanticIntelligence(); }
         function buildSemanticGraph() { showError('Build semantic graph functionality not yet implemented'); }
         function exportSemanticData() { showError('Export functionality not yet implemented'); }

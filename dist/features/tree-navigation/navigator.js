@@ -39,7 +39,7 @@ const path = __importStar(require("path"));
 const fast_glob_1 = require("fast-glob");
 const analyzer_1 = require("../../shared/ast/analyzer");
 const logger_1 = require("../../utils/logger");
-const enhanced_tool_interface_1 = require("../../shared/enhanced-tool-interface");
+const tool_interface_1 = require("../../shared/tool-interface");
 const readline = __importStar(require("readline"));
 var NodeType;
 (function (NodeType) {
@@ -58,7 +58,7 @@ var DependencyType;
     DependencyType["INHERITANCE"] = "inheritance";
     DependencyType["COMPOSITION"] = "composition";
 })(DependencyType || (exports.DependencyType = DependencyType = {}));
-class TreeNavigator extends enhanced_tool_interface_1.EnhancedAnalysisTool {
+class TreeNavigator extends tool_interface_1.AnalysisTool {
     // Tool metadata for auto-discovery and bundling
     id = 'tree-navigator';
     name = 'Enhanced Tree Navigator';

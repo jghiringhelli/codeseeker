@@ -30,12 +30,13 @@ class MongoDBClient {
         try {
             const uri = process.env.MONGO_URI ||
                 `mongodb://${process.env.MONGO_USER || 'codemind'}:${process.env.MONGO_PASSWORD || 'codemind123'}@${process.env.MONGO_HOST || 'localhost'}:${process.env.MONGO_PORT || 27017}/${process.env.MONGO_DB || 'codemind'}?authSource=admin`;
-            this.logger.info(`Connecting to MongoDB...`);
+            this.logger.info(`Connecting to MongoDB at ${process.env.MONGO_HOST || 'localhost'}:${process.env.MONGO_PORT || 27017}...`);
             this.client = new mongodb_1.MongoClient(uri, {
                 maxPoolSize: 10,
                 minPoolSize: 2,
-                serverSelectionTimeoutMS: 5000,
-                socketTimeoutMS: 45000,
+                serverSelectionTimeoutMS: 2000,
+                socketTimeoutMS: 10000,
+                connectTimeoutMS: 3000,
             });
             await this.client.connect();
             this.db = this.client.db(process.env.MONGO_DB || 'codemind');
@@ -48,7 +49,7 @@ class MongoDBClient {
                 this.logger.error(`MongoDB client error: ${error}`);
                 this.isConnected = false;
             });
-            this.logger.info('📄 MongoDB connected successfully');
+            this.logger.debug('📄 MongoDB connected successfully');
             // Verify collections exist
             await this.verifyCollections();
         }

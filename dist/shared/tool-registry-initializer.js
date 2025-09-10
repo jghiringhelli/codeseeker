@@ -107,7 +107,7 @@ class ToolRegistryInitializer {
             const toolInstance = new ToolClass();
             // Verify it has the required methods for enhanced interface
             if (!toolInstance.getDatabaseToolName || !toolInstance.performAnalysis) {
-                throw new Error(`Tool ${config.name} does not implement EnhancedAnalysisTool interface`);
+                throw new Error(`Tool ${config.name} does not implement AnalysisTool interface`);
             }
             const adaptedTool = new tool_adapter_1.ToolAdapter(toolInstance);
             tool_interface_1.ToolRegistry.registerTool(adaptedTool);

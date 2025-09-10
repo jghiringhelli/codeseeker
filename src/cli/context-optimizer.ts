@@ -79,15 +79,18 @@ export class ContextOptimizer {
 
   constructor() {
     this.semanticOrchestrator = new SemanticOrchestrator();
-    this.initializeSemanticGraph();
+    this.initializeSemanticGraphConnection().catch(error => {
+      this.logger.warn('⚠️ Context Optimizer: Could not connect to semantic graph:', error);
+    });
   }
 
-  private async initializeSemanticGraph() {
+  private async initializeSemanticGraphConnection() {
     try {
       await this.semanticOrchestrator.initialize();
-      this.logger.info('🧠 Context Optimizer: Semantic graph initialized');
+      this.logger.debug('🧠 Context Optimizer: Semantic graph connection established');
     } catch (error) {
-      this.logger.warn('⚠️ Context Optimizer: Could not initialize semantic graph:', error);
+      this.logger.warn('⚠️ Context Optimizer: Failed to connect to semantic graph:', error);
+      // Continue without semantic graph - optimization will still work
     }
   }
 

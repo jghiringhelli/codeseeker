@@ -3,11 +3,11 @@
  * Allows initialization script to work with existing tool implementations
  */
 import { InternalTool, ToolMetadata, AnalysisResult, ToolInitResult, ToolUpdateResult } from './tool-interface';
-import { EnhancedAnalysisTool } from './enhanced-tool-interface';
+import { AnalysisTool } from './tool-interface';
 export declare class ToolAdapter extends InternalTool {
     private enhancedTool;
     private logger;
-    constructor(enhancedTool: EnhancedAnalysisTool);
+    constructor(enhancedTool: AnalysisTool);
     getMetadata(): ToolMetadata;
     initializeForProject(projectPath: string, projectId: string): Promise<ToolInitResult>;
     analyzeProject(projectPath: string, projectId: string, parameters?: any): Promise<AnalysisResult>;

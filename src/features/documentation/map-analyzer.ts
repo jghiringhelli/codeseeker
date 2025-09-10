@@ -1,670 +1,396 @@
 /**
- * Document Map Analyzer - Semantic Documentation Understanding
- * Maps project documentation structure and provides semantic search for Claude Code context
+ * Enhanced Document Map Analyzer with Semantic Graph Integration
+ * Combines documentation analysis with graph-based semantic search
  */
 
+import { DocumentMapAnalyzer, DocumentMapRequest, DocumentMapResult } from './map-analyzer';
+import { SemanticGraphService, NodeType, RelationshipType } from '../../services/semantic-graph';
 import { Logger } from '../../utils/logger';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { glob } from 'fast-glob';
 
-export interface DocumentMapRequest {
-  projectPath: string;
-  includeCodeStructure?: boolean;
-  generateMermaid?: boolean;
-  maxDepth?: number;
-  excludePatterns?: string[];
+export interface EnhancedDocumentMapResult extends DocumentMapResult {
+  semanticGraph: {
+    totalNodes: number;
+    totalRelationships: number;
+    conceptClusters: ConceptCluster[];
+  };
+  crossDomainInsights: CrossDomainInsight[];
 }
 
-export interface DocumentMapResult {
-  documents: DocumentNode[];
-  mainClasses: ClassSummary[];
-  topics: TopicCluster[];
-  crossReferences: CrossReference[];
-  mermaidMap?: string;
-  searchIndex: SemanticIndex;
-  statistics: DocumentStatistics;
-}
-
-export interface DocumentNode {
-  id: string;
-  path: string;
-  title: string;
-  type: 'readme' | 'api' | 'guide' | 'architecture' | 'changelog' | 'contributing' | 'other';
-  summary: string;
-  topics: string[];
-  referencedClasses: string[];
+export interface ConceptCluster {
+  conceptName: string;
   relatedDocs: string[];
-  codeExamples: CodeSnippet[];
-  wordCount: number;
-  lastModified: Date;
+  relatedCode: string[];
+  relatedUI: string[];
+  strength: number;
 }
 
-export interface ClassSummary {
-  name: string;
-  mentions: DocumentMention[];
-  description: string;
-  category: 'core' | 'utility' | 'interface' | 'component';
+export interface CrossDomainInsight {
+  concept: string;
+  domains: string[];
+  connections: Array<{
+    from: string;
+    to: string;
+    type: string;
+    strength: number;
+  }>;
 }
 
-export interface DocumentMention {
-  documentId: string;
-  documentPath: string;
-  context: string;
-  lineNumber: number;
-}
+export class EnhancedDocumentMapAnalyzer extends DocumentMapAnalyzer {
+  private semanticGraph: SemanticGraphService;
 
-export interface TopicCluster {
-  topic: string;
-  documents: string[];
-  keywords: string[];
-  importance: 'high' | 'medium' | 'low';
-}
+  constructor(semanticGraph?: SemanticGraphService) {
+    super();
+    this.semanticGraph = semanticGraph || new SemanticGraphService();
+  }
 
-export interface CrossReference {
-  from: string;
-  to: string;
-  type: 'links' | 'mentions' | 'example';
-  context?: string;
-}
-
-export interface CodeSnippet {
-  language: string;
-  code: string;
-  description?: string;
-  lineStart: number;
-  lineEnd: number;
-}
-
-export interface SemanticIndex {
-  documents: Map<string, DocumentVector>;
-  topics: Map<string, string[]>;
-  classes: Map<string, string[]>;
-}
-
-export interface DocumentVector {
-  documentId: string;
-  keywords: string[];
-  semanticTokens: string[];
-}
-
-export interface DocumentStatistics {
-  totalDocuments: number;
-  totalWords: number;
-  documentTypes: Record<string, number>;
-  averageWordCount: number;
-  topicCoverage: number;
-  codeExampleCount: number;
-}
-
-export class DocumentMapAnalyzer {
-  private logger = Logger.getInstance();
-  
-  async analyzeDocumentation(params: DocumentMapRequest): Promise<DocumentMapResult> {
+  async analyzeDocumentationWithSemantics(params: DocumentMapRequest): Promise<EnhancedDocumentMapResult> {
     const startTime = Date.now();
+    const logger = Logger.getInstance();
     
     try {
-      this.logger.info('📚 Starting documentation map analysis...');
-      
-      // 1. Find all documentation files
-      const docFiles = await this.findDocumentationFiles(params.projectPath, params.excludePatterns);
-      
-      // 2. Analyze each document
-      const documents = await this.analyzeDocuments(docFiles, params.projectPath);
-      
-      // 3. Extract referenced classes if requested
-      const mainClasses = params.includeCodeStructure 
-        ? await this.extractMainClasses(documents)
-        : [];
-      
-      // 4. Identify topic clusters
-      const topics = this.identifyTopicClusters(documents);
-      
-      // 5. Find cross-references
-      const crossReferences = this.findCrossReferences(documents);
-      
-      // 6. Build semantic search index
-      const searchIndex = this.buildSearchIndex(documents, topics, mainClasses);
-      
-      // 7. Generate Mermaid diagram if requested
-      const mermaidMap = params.generateMermaid 
-        ? this.generateMermaidMap(documents, crossReferences, topics)
-        : undefined;
-      
-      // 8. Calculate statistics
-      const statistics = this.calculateStatistics(documents, topics);
-      
+      logger.info('📚🔗 Starting enhanced documentation analysis with semantic graph...');
+
+      // 1. Run base documentation analysis
+      const baseResult = await super.analyzeDocumentation(params);
+
+      // 2. Initialize semantic graph if needed
+      await this.semanticGraph.initialize();
+
+      // 3. Populate semantic graph with documentation data
+      await this.populateSemanticGraph(baseResult, params.projectPath);
+
+      // 4. Extract concept clusters using graph analysis
+      const conceptClusters = await this.extractConceptClusters(baseResult);
+
+      // 5. Find cross-domain insights
+      const crossDomainInsights = await this.findCrossDomainInsights(baseResult);
+
+      // 6. Get graph statistics
+      const graphStats = await this.semanticGraph.getGraphStatistics();
+
       const duration = Date.now() - startTime;
-      this.logger.info(`✅ Documentation map completed in ${duration}ms`, {
-        documentsFound: documents.length,
-        topicsIdentified: topics.length,
-        classesExtracted: mainClasses.length
+      logger.info(`✅ Enhanced documentation analysis completed in ${duration}ms`, {
+        documentsFound: baseResult.documents.length,
+        conceptClusters: conceptClusters.length,
+        graphNodes: graphStats.total_nodes,
+        graphRelationships: graphStats.total_relationships
       });
-      
+
       return {
-        documents,
-        mainClasses,
-        topics,
-        crossReferences,
-        mermaidMap,
-        searchIndex,
-        statistics
+        ...baseResult,
+        semanticGraph: {
+          totalNodes: graphStats.total_nodes,
+          totalRelationships: graphStats.total_relationships,
+          conceptClusters
+        },
+        crossDomainInsights
       };
-      
+
     } catch (error) {
-      this.logger.error('❌ Documentation map analysis failed:', error);
+      logger.error('❌ Enhanced documentation analysis failed:', error);
       throw error;
     }
   }
-  
-  async searchDocumentation(
-    query: string, 
-    searchIndex: SemanticIndex,
-    context?: string
-  ): Promise<DocumentNode[]> {
-    // Tokenize query
-    const queryTokens = this.tokenize(query.toLowerCase());
-    
-    // Find matching documents
-    const scores = new Map<string, number>();
-    
-    searchIndex.documents.forEach((vector, docId) => {
-      let score = 0;
-      
-      // Keyword matching
-      queryTokens.forEach(token => {
-        if (vector.keywords.includes(token)) score += 2;
-        if (vector.semanticTokens.includes(token)) score += 1;
+
+  async semanticDocumentSearch(
+    query: string,
+    context?: {
+      domain?: string;
+      includeCode?: boolean;
+      maxResults?: number;
+    }
+  ): Promise<Array<{
+    document: any;
+    relatedConcepts: string[];
+    relatedCode: string[];
+    relevanceScore: number;
+  }>> {
+    try {
+      const searchResults = await this.semanticGraph.semanticSearch(query, {
+        includeTypes: context?.includeCode ? ['Documentation', 'Code', 'BusinessConcept'] : ['Documentation', 'BusinessConcept'],
+        maxDepth: context?.maxResults || 10
       });
-      
-      // Context boost
-      if (context && vector.keywords.includes(context.toLowerCase())) {
-        score *= 1.5;
-      }
-      
-      if (score > 0) scores.set(docId, score);
-    });
-    
-    // Sort by relevance
-    const sortedDocs = Array.from(scores.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([docId]) => docId);
-    
-    return sortedDocs as any; // Would need to map back to DocumentNode objects
-  }
-  
-  private async findDocumentationFiles(
-    projectPath: string,
-    excludePatterns?: string[]
-  ): Promise<string[]> {
-    const patterns = [
-      '**/*.md',
-      '**/*.MD',
-      '**/docs/**/*.txt',
-      '**/documentation/**/*',
-      'README*',
-      'CHANGELOG*',
-      'CONTRIBUTING*',
-      'LICENSE*'
-    ];
-    
-    const exclude = [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/build/**',
-      '.git/**',
-      ...(excludePatterns || [])
-    ];
-    
-    const files = await glob(patterns, {
-      cwd: projectPath,
-      ignore: exclude,
-      absolute: false
-    });
-    
-    return files.map(f => path.join(projectPath, f));
-  }
-  
-  private async analyzeDocuments(
-    files: string[],
-    projectPath: string
-  ): Promise<DocumentNode[]> {
-    const documents: DocumentNode[] = [];
-    
-    for (const file of files) {
-      try {
-        const content = await fs.readFile(file, 'utf-8');
-        const stats = await fs.stat(file);
-        const relativePath = path.relative(projectPath, file);
-        
-        const doc: DocumentNode = {
-          id: this.generateDocId(relativePath),
-          path: relativePath,
-          title: this.extractTitle(content, relativePath),
-          type: this.determineDocType(relativePath, content),
-          summary: this.generateSummary(content),
-          topics: this.extractTopics(content),
-          referencedClasses: this.extractClassReferences(content),
-          relatedDocs: this.extractDocLinks(content),
-          codeExamples: this.extractCodeExamples(content),
-          wordCount: content.split(/\s+/).length,
-          lastModified: stats.mtime
-        };
-        
-        documents.push(doc);
-      } catch (error) {
-        this.logger.warn(`Failed to analyze ${file}:`, error);
-      }
+
+      return searchResults
+        .filter(result => result.node.labels.includes('Documentation'))
+        .map(result => ({
+          document: result.node.properties,
+          relatedConcepts: result.relatedNodes
+            .filter(rel => rel.node.labels.includes('BusinessConcept'))
+            .map(rel => rel.node.properties.name),
+          relatedCode: result.relatedNodes
+            .filter(rel => rel.node.labels.includes('Code'))
+            .map(rel => rel.node.properties.path),
+          relevanceScore: result.relevanceScore
+        }))
+        .slice(0, context?.maxResults || 10);
+
+    } catch (error) {
+      Logger.getInstance().error('❌ Semantic document search failed:', error);
+      return [];
     }
-    
-    return documents;
   }
-  
-  private extractTitle(content: string, filepath: string): string {
-    // Try to extract from markdown header
-    const headerMatch = content.match(/^#\s+(.+)$/m);
-    if (headerMatch) return headerMatch[1];
-    
-    // Use filename as fallback
-    return path.basename(filepath, path.extname(filepath))
-      .replace(/[-_]/g, ' ')
-      .replace(/\b\w/g, l => l.toUpperCase());
-  }
-  
-  private determineDocType(filepath: string, content: string): DocumentNode['type'] {
-    const filename = path.basename(filepath).toLowerCase();
-    
-    if (filename.includes('readme')) return 'readme';
-    if (filename.includes('api')) return 'api';
-    if (filename.includes('guide')) return 'guide';
-    if (filename.includes('architecture') || filename.includes('design')) return 'architecture';
-    if (filename.includes('changelog') || filename.includes('history')) return 'changelog';
-    if (filename.includes('contributing')) return 'contributing';
-    
-    // Check content for clues
-    if (content.includes('## API') || content.includes('# API')) return 'api';
-    if (content.includes('## Architecture') || content.includes('# Architecture')) return 'architecture';
-    
-    return 'other';
-  }
-  
-  private generateSummary(content: string): string {
-    // Extract first paragraph or first 200 characters
-    const lines = content.split('\n').filter(l => l.trim() && !l.startsWith('#'));
-    const firstParagraph = lines[0] || '';
-    
-    if (firstParagraph.length > 200) {
-      return firstParagraph.substring(0, 197) + '...';
-    }
-    return firstParagraph;
-  }
-  
-  private extractTopics(content: string): string[] {
-    const topics: Set<string> = new Set();
-    
-    // Extract from headers
-    const headers = content.match(/^#{1,3}\s+(.+)$/gm) || [];
-    headers.forEach((header: string) => {
-      const topic = header.replace(/^#+\s+/, '').toLowerCase();
-      if (topic.length > 2 && topic.length < 50) {
-        topics.add(topic);
-      }
-    });
-    
-    // Look for common topic keywords
-    const topicKeywords = [
-      'authentication', 'authorization', 'api', 'database', 'testing',
-      'deployment', 'configuration', 'security', 'performance', 'architecture',
-      'installation', 'usage', 'examples', 'troubleshooting', 'migration'
-    ];
-    
-    topicKeywords.forEach(keyword => {
-      if (content.toLowerCase().includes(keyword)) {
-        topics.add(keyword);
-      }
-    });
-    
-    return Array.from(topics);
-  }
-  
-  private extractClassReferences(content: string): string[] {
-    const classes: Set<string> = new Set();
-    
-    // Look for class/interface/component patterns
-    const patterns = [
-      /`([A-Z][a-zA-Z0-9]+)`/g,                    // Backtick references
-      /\b([A-Z][a-zA-Z0-9]+(?:Service|Controller|Component|Manager|Handler|Model|View))\b/g,
-      /class\s+([A-Z][a-zA-Z0-9]+)/g,
-      /interface\s+([A-Z][a-zA-Z0-9]+)/g,
-      /extends\s+([A-Z][a-zA-Z0-9]+)/g,
-      /implements\s+([A-Z][a-zA-Z0-9]+)/g
-    ];
-    
-    patterns.forEach(pattern => {
-      const matches = content.matchAll(pattern);
-      for (const match of matches) {
-        if (match[1] && match[1].length > 2) {
-          classes.add(match[1]);
-        }
-      }
-    });
-    
-    return Array.from(classes);
-  }
-  
-  private extractDocLinks(content: string): string[] {
-    const links: Set<string> = new Set();
-    
-    // Markdown links
-    const linkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
-    const matches = content.matchAll(linkPattern);
-    
-    for (const match of matches) {
-      const link = match[2];
-      if (link && !link.startsWith('http') && (link.endsWith('.md') || link.includes('doc'))) {
-        links.add(link);
-      }
-    }
-    
-    return Array.from(links);
-  }
-  
-  private extractCodeExamples(content: string): CodeSnippet[] {
-    const examples: CodeSnippet[] = [];
-    
-    // Match code blocks
-    const codeBlockPattern = /```(\w+)?\n([\s\S]*?)```/g;
-    const matches = content.matchAll(codeBlockPattern);
-    
-    let lineNumber = 1;
-    const lines = content.split('\n');
-    
-    for (const match of matches) {
-      const language = match[1] || 'plaintext';
-      const code = match[2];
-      
-      // Find line numbers
-      const startIndex = content.indexOf(match[0]);
-      const lineStart = content.substring(0, startIndex).split('\n').length;
-      const lineEnd = lineStart + match[0].split('\n').length - 1;
-      
-      examples.push({
-        language,
-        code,
-        lineStart,
-        lineEnd
-      });
-    }
-    
-    return examples;
-  }
-  
-  private async extractMainClasses(documents: DocumentNode[]): Promise<ClassSummary[]> {
-    const classMap = new Map<string, DocumentMention[]>();
-    
-    // Collect all class mentions
-    documents.forEach(doc => {
-      doc.referencedClasses.forEach(className => {
-        if (!classMap.has(className)) {
-          classMap.set(className, []);
-        }
-        classMap.get(className)!.push({
-          documentId: doc.id,
-          documentPath: doc.path,
-          context: doc.summary,
-          lineNumber: 0 // Would need proper line tracking
+
+  private async populateSemanticGraph(result: DocumentMapResult, projectPath: string): Promise<void> {
+    const logger = Logger.getInstance();
+    logger.info('🔗 Populating semantic graph with documentation data...');
+
+    try {
+      // 1. Create business concept nodes
+      const conceptNodes = new Map<string, string>();
+      for (const topic of result.topics) {
+        const conceptId = await this.semanticGraph.addNode('BusinessConcept', {
+          name: topic.topic,
+          domain: this.inferDomain(topic.topic),
+          description: `Business concept derived from documentation analysis`,
+          keywords: topic.keywords,
+          importance: topic.importance,
+          documentCount: topic.documents.length
         });
-      });
-    });
-    
-    // Create summaries for frequently mentioned classes
-    const summaries: ClassSummary[] = [];
-    classMap.forEach((mentions, className) => {
-      if (mentions.length >= 2) { // Only include if mentioned in multiple docs
-        summaries.push({
-          name: className,
-          mentions,
-          description: this.generateClassDescription(className, mentions),
-          category: this.categorizeClass(className)
-        });
+        conceptNodes.set(topic.topic, conceptId);
       }
-    });
-    
-    return summaries.sort((a, b) => b.mentions.length - a.mentions.length);
-  }
-  
-  private generateClassDescription(className: string, mentions: DocumentMention[]): string {
-    // Simple heuristic based on class name and mention context
-    if (className.includes('Service')) return `Service class for ${className.replace('Service', '')} operations`;
-    if (className.includes('Controller')) return `Controller handling ${className.replace('Controller', '')} requests`;
-    if (className.includes('Component')) return `UI component for ${className.replace('Component', '')}`;
-    if (className.includes('Model')) return `Data model for ${className.replace('Model', '')}`;
-    return `${className} referenced in ${mentions.length} documents`;
-  }
-  
-  private categorizeClass(className: string): ClassSummary['category'] {
-    if (className.includes('Service') || className.includes('Manager')) return 'core';
-    if (className.includes('Util') || className.includes('Helper')) return 'utility';
-    if (className.startsWith('I') || className.includes('Interface')) return 'interface';
-    if (className.includes('Component') || className.includes('View')) return 'component';
-    return 'core';
-  }
-  
-  private identifyTopicClusters(documents: DocumentNode[]): TopicCluster[] {
-    const topicMap = new Map<string, Set<string>>();
-    
-    // Group documents by topics
-    documents.forEach(doc => {
-      doc.topics.forEach(topic => {
-        if (!topicMap.has(topic)) {
-          topicMap.set(topic, new Set());
-        }
-        topicMap.get(topic)!.add(doc.id);
-      });
-    });
-    
-    // Create clusters
-    const clusters: TopicCluster[] = [];
-    topicMap.forEach((docIds, topic) => {
-      if (docIds.size >= 2) { // Only create cluster if multiple docs share topic
-        clusters.push({
-          topic,
-          documents: Array.from(docIds),
-          keywords: this.extractTopicKeywords(topic),
-          importance: this.assessTopicImportance(docIds.size, documents.length)
+
+      // 2. Create documentation nodes
+      const docNodes = new Map<string, string>();
+      for (const doc of result.documents) {
+        const docId = await this.semanticGraph.addNode('Documentation', {
+          path: doc.path,
+          title: doc.title,
+          type: doc.type,
+          summary: doc.summary,
+          content: doc.summary, // Full content would be too large
+          wordCount: doc.wordCount,
+          topics: doc.topics,
+          lastModified: doc.lastModified.toISOString()
         });
+        docNodes.set(doc.id, docId);
       }
-    });
-    
-    return clusters.sort((a, b) => b.documents.length - a.documents.length);
+
+      // 3. Create code nodes for referenced classes
+      const codeNodes = new Map<string, string>();
+      for (const classSummary of result.mainClasses) {
+        const codeId = await this.semanticGraph.addNode('Code', {
+          name: classSummary.name,
+          type: 'class',
+          description: classSummary.description,
+          category: classSummary.category,
+          mentionCount: classSummary.mentions.length
+        });
+        codeNodes.set(classSummary.name, codeId);
+      }
+
+      // 4. Create relationships
+      await this.createSemanticRelationships(result, conceptNodes, docNodes, codeNodes);
+
+      logger.info(`✅ Populated semantic graph: ${conceptNodes.size} concepts, ${docNodes.size} docs, ${codeNodes.size} code nodes`);
+
+    } catch (error) {
+      logger.error('❌ Failed to populate semantic graph:', error);
+    }
   }
-  
-  private extractTopicKeywords(topic: string): string[] {
-    // Simple keyword extraction from topic
-    return topic.split(/[\s-_]+/)
-      .filter(word => word.length > 2)
-      .map(word => word.toLowerCase());
-  }
-  
-  private assessTopicImportance(docCount: number, totalDocs: number): TopicCluster['importance'] {
-    const ratio = docCount / totalDocs;
-    if (ratio > 0.5) return 'high';
-    if (ratio > 0.2) return 'medium';
-    return 'low';
-  }
-  
-  private findCrossReferences(documents: DocumentNode[]): CrossReference[] {
-    const references: CrossReference[] = [];
-    
-    documents.forEach(doc => {
-      // Find links to other docs
-      doc.relatedDocs.forEach(relatedPath => {
-        const targetDoc = documents.find(d => 
-          d.path.includes(relatedPath) || 
-          relatedPath.includes(path.basename(d.path))
-        );
-        
-        if (targetDoc) {
-          references.push({
-            from: doc.id,
-            to: targetDoc.id,
-            type: 'links'
+
+  private async createSemanticRelationships(
+    result: DocumentMapResult,
+    conceptNodes: Map<string, string>,
+    docNodes: Map<string, string>,
+    codeNodes: Map<string, string>
+  ): Promise<void> {
+    // Document -> Business Concept relationships
+    for (const doc of result.documents) {
+      const docId = docNodes.get(doc.id);
+      if (!docId) continue;
+
+      for (const topic of doc.topics) {
+        const conceptId = conceptNodes.get(topic);
+        if (conceptId) {
+          await this.semanticGraph.addRelationship(docId, conceptId, 'DEFINES', {
+            strength: this.calculateTopicStrength(doc, topic)
           });
         }
-      });
+      }
+    }
+
+    // Documentation -> Code relationships
+    for (const classSummary of result.mainClasses) {
+      const codeId = codeNodes.get(classSummary.name);
+      if (!codeId) continue;
+
+      for (const mention of classSummary.mentions) {
+        const docId = docNodes.get(mention.documentId);
+        if (docId) {
+          await this.semanticGraph.addRelationship(docId, codeId, 'DESCRIBES', {
+            context: mention.context,
+            strength: 1.0 / classSummary.mentions.length // Distribute strength across mentions
+          });
+        }
+      }
+    }
+
+    // Business Concept relationships (based on co-occurrence)
+    const concepts = Array.from(conceptNodes.keys());
+    for (let i = 0; i < concepts.length; i++) {
+      for (let j = i + 1; j < concepts.length; j++) {
+        const concept1 = concepts[i];
+        const concept2 = concepts[j];
+        
+        // Find documents that mention both concepts
+        const sharedDocs = result.documents.filter(doc => 
+          doc.topics.includes(concept1) && doc.topics.includes(concept2)
+        );
+
+        if (sharedDocs.length > 0) {
+          const conceptId1 = conceptNodes.get(concept1)!;
+          const conceptId2 = conceptNodes.get(concept2)!;
+          
+          await this.semanticGraph.addRelationship(conceptId1, conceptId2, 'RELATES_TO', {
+            sharedDocuments: sharedDocs.length,
+            strength: sharedDocs.length / result.documents.length
+          });
+        }
+      }
+    }
+
+    // Cross-references
+    for (const crossRef of result.crossReferences) {
+      const fromDocId = docNodes.get(crossRef.from);
+      const toDocId = docNodes.get(crossRef.to);
       
-      // Find class mentions
-      doc.referencedClasses.forEach(className => {
-        documents.forEach(otherDoc => {
-          if (otherDoc.id !== doc.id && otherDoc.referencedClasses.includes(className)) {
-            references.push({
-              from: doc.id,
-              to: otherDoc.id,
-              type: 'mentions',
-              context: `Both reference ${className}`
-            });
-          }
+      if (fromDocId && toDocId) {
+        await this.semanticGraph.addRelationship(fromDocId, toDocId, 'RELATES_TO', {
+          type: crossRef.type,
+          context: crossRef.context
         });
-      });
-    });
-    
-    // Deduplicate
-    const seen = new Set<string>();
-    return references.filter(ref => {
-      const key = `${ref.from}-${ref.to}-${ref.type}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+      }
+    }
   }
-  
-  private buildSearchIndex(
-    documents: DocumentNode[],
-    topics: TopicCluster[],
-    classes: ClassSummary[]
-  ): SemanticIndex {
-    const documentVectors = new Map<string, DocumentVector>();
-    const topicIndex = new Map<string, string[]>();
-    const classIndex = new Map<string, string[]>();
+
+  private async extractConceptClusters(result: DocumentMapResult): Promise<ConceptCluster[]> {
+    const clusters: ConceptCluster[] = [];
+
+    for (const topic of result.topics) {
+      try {
+        const crossRefs = await this.semanticGraph.findCrossReferences(topic.topic);
+        
+        clusters.push({
+          conceptName: topic.topic,
+          relatedDocs: crossRefs.relatedDocs.map(node => node.properties.path),
+          relatedCode: crossRefs.relatedCode.map(node => node.properties.name),
+          relatedUI: crossRefs.relatedUI.map(node => node.properties.name),
+          strength: this.calculateClusterStrength(crossRefs)
+        });
+      } catch (error) {
+        // Concept might not exist in graph yet
+        Logger.getInstance().debug(`Could not find cross-references for ${topic.topic}`);
+      }
+    }
+
+    return clusters.sort((a, b) => b.strength - a.strength);
+  }
+
+  private async findCrossDomainInsights(result: DocumentMapResult): Promise<CrossDomainInsight[]> {
+    const insights: CrossDomainInsight[] = [];
+
+    // Find concepts that appear across multiple domains
+    const domainMap = new Map<string, Set<string>>();
     
-    // Build document vectors
-    documents.forEach(doc => {
-      const keywords = [
-        ...this.tokenize(doc.title),
-        ...doc.topics.flatMap(t => this.tokenize(t)),
-        ...doc.referencedClasses.map(c => c.toLowerCase())
-      ];
-      
-      const semanticTokens = this.tokenize(doc.summary);
-      
-      documentVectors.set(doc.id, {
-        documentId: doc.id,
-        keywords: [...new Set(keywords)],
-        semanticTokens: [...new Set(semanticTokens)]
-      });
-    });
-    
-    // Build topic index
-    topics.forEach(cluster => {
-      topicIndex.set(cluster.topic, cluster.documents);
-    });
-    
-    // Build class index
-    classes.forEach(cls => {
-      classIndex.set(cls.name, cls.mentions.map(m => m.documentId));
-    });
-    
-    return {
-      documents: documentVectors,
-      topics: topicIndex,
-      classes: classIndex
+    for (const doc of result.documents) {
+      const domain = this.inferDomain(doc.type);
+      for (const topic of doc.topics) {
+        if (!domainMap.has(topic)) {
+          domainMap.set(topic, new Set());
+        }
+        domainMap.get(topic)!.add(domain);
+      }
+    }
+
+    // Find cross-domain concepts
+    for (const [concept, domains] of domainMap.entries()) {
+      if (domains.size > 1) {
+        try {
+          const crossRefs = await this.semanticGraph.findCrossReferences(concept);
+          
+          // Analyze connections between domains
+          const connections = [];
+          const domainsArray = Array.from(domains);
+          
+          for (let i = 0; i < domainsArray.length; i++) {
+            for (let j = i + 1; j < domainsArray.length; j++) {
+              connections.push({
+                from: domainsArray[i],
+                to: domainsArray[j],
+                type: 'concept_bridge',
+                strength: this.calculateConnectionStrength(crossRefs, domainsArray[i], domainsArray[j])
+              });
+            }
+          }
+
+          insights.push({
+            concept,
+            domains: domainsArray,
+            connections
+          });
+        } catch (error) {
+          Logger.getInstance().debug(`Could not analyze cross-domain insight for ${concept}`);
+        }
+      }
+    }
+
+    return insights.sort((a, b) => b.domains.length - a.domains.length);
+  }
+
+  // Helper methods
+  private inferDomain(input: string): string {
+    const domainKeywords = {
+      'frontend': ['ui', 'component', 'navigation', 'user', 'interface'],
+      'backend': ['api', 'server', 'database', 'service'],
+      'security': ['auth', 'authentication', 'authorization', 'security'],
+      'testing': ['test', 'testing', 'spec', 'coverage'],
+      'documentation': ['readme', 'guide', 'docs', 'documentation'],
+      'architecture': ['architecture', 'design', 'patterns', 'principles']
     };
+
+    const inputLower = input.toLowerCase();
+    
+    for (const [domain, keywords] of Object.entries(domainKeywords)) {
+      if (keywords.some(keyword => inputLower.includes(keyword))) {
+        return domain;
+      }
+    }
+    
+    return 'general';
   }
-  
-  private tokenize(text: string): string[] {
-    return text.toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter(token => token.length > 2);
+
+  private calculateTopicStrength(doc: any, topic: string): number {
+    // Higher strength for topics that appear in title or multiple times
+    let strength = 0.5; // Base strength
+    
+    if (doc.title.toLowerCase().includes(topic.toLowerCase())) {
+      strength += 0.3;
+    }
+    
+    // Count occurrences in summary
+    const escapedTopic = topic.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const occurrences = (doc.summary.toLowerCase().match(new RegExp(escapedTopic, 'g')) || []).length;
+    strength += Math.min(occurrences * 0.1, 0.3);
+    
+    return Math.min(strength, 1.0);
   }
-  
-  private generateMermaidMap(
-    documents: DocumentNode[],
-    crossReferences: CrossReference[],
-    topics: TopicCluster[]
-  ): string {
-    const lines: string[] = ['graph TD'];
+
+  private calculateClusterStrength(crossRefs: any): number {
+    const totalConnections = crossRefs.relatedDocs.length + 
+                           crossRefs.relatedCode.length + 
+                           crossRefs.relatedUI.length + 
+                           crossRefs.relatedTests.length;
     
-    // Add document nodes with styling based on type
-    documents.forEach(doc => {
-      const label = `${doc.title}<br/><i>${doc.type}</i>`;
-      const shape = doc.type === 'readme' ? '((' : doc.type === 'api' ? '{{' : '[';
-      const endShape = doc.type === 'readme' ? '))' : doc.type === 'api' ? '}}' : ']';
-      lines.push(`    ${doc.id}${shape}"${label}"${endShape}`);
-    });
-    
-    // Add cross-reference edges
-    crossReferences.slice(0, 20).forEach(ref => { // Limit to prevent clutter
-      const style = ref.type === 'links' ? '-->' : '-..->';
-      const label = ref.context ? `: ${ref.context.substring(0, 20)}` : '';
-      lines.push(`    ${ref.from} ${style} ${ref.to}${label}`);
-    });
-    
-    // Add topic subgraphs for high-importance topics
-    topics.filter(t => t.importance === 'high').forEach(topic => {
-      lines.push(`    subgraph ${topic.topic.replace(/\s+/g, '_')}`);
-      lines.push(`        direction TB`);
-      topic.documents.forEach(docId => {
-        lines.push(`        ${docId}`);
-      });
-      lines.push(`    end`);
-    });
-    
-    // Add styling
-    lines.push('    classDef readme fill:#e1f5fe,stroke:#01579b,stroke-width:2px');
-    lines.push('    classDef api fill:#f3e5f5,stroke:#4a148c,stroke-width:2px');
-    lines.push('    classDef guide fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px');
-    
-    documents.forEach(doc => {
-      if (doc.type === 'readme') lines.push(`    class ${doc.id} readme`);
-      if (doc.type === 'api') lines.push(`    class ${doc.id} api`);
-      if (doc.type === 'guide') lines.push(`    class ${doc.id} guide`);
-    });
-    
-    return lines.join('\n');
+    // Normalize to 0-1 scale (assume max 20 connections for a strong cluster)
+    return Math.min(totalConnections / 20, 1.0);
   }
-  
-  private calculateStatistics(
-    documents: DocumentNode[],
-    topics: TopicCluster[]
-  ): DocumentStatistics {
-    const typeCount: Record<string, number> = {};
-    let totalWords = 0;
-    let codeExamples = 0;
-    
-    documents.forEach(doc => {
-      typeCount[doc.type] = (typeCount[doc.type] || 0) + 1;
-      totalWords += doc.wordCount;
-      codeExamples += doc.codeExamples.length;
-    });
-    
-    return {
-      totalDocuments: documents.length,
-      totalWords,
-      documentTypes: typeCount,
-      averageWordCount: Math.round(totalWords / documents.length),
-      topicCoverage: topics.length,
-      codeExampleCount: codeExamples
-    };
-  }
-  
-  private generateDocId(filepath: string): string {
-    return filepath
-      .replace(/[\/\\]/g, '_')
-      .replace(/\.[^.]+$/, '')
-      .replace(/[^a-zA-Z0-9_]/g, '_');
+
+  private calculateConnectionStrength(crossRefs: any, domain1: string, domain2: string): number {
+    // Simple heuristic based on shared resources
+    const sharedResources = crossRefs.relatedDocs.length + crossRefs.relatedCode.length;
+    return Math.min(sharedResources / 10, 1.0);
   }
 }
 
-export default DocumentMapAnalyzer;
+export default EnhancedDocumentMapAnalyzer;

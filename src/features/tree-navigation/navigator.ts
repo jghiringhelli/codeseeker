@@ -3,7 +3,7 @@ import * as path from 'path';
 import { glob } from 'fast-glob';
 import { ASTAnalyzer, Dependency } from '../../shared/ast/analyzer';
 import { Logger } from '../../utils/logger';
-import { EnhancedAnalysisTool, EnhancedToolResult } from '../../shared/enhanced-tool-interface';
+import { AnalysisTool, ToolResult } from '../../shared/tool-interface';
 import * as readline from 'readline';
 
 export interface TreeNavigationRequest {
@@ -124,7 +124,7 @@ interface NavigationFilters {
   languageFilter?: string;
 }
 
-export class TreeNavigator extends EnhancedAnalysisTool {
+export class TreeNavigator extends AnalysisTool {
   // Tool metadata for auto-discovery and bundling
   id = 'tree-navigator';
   name = 'Enhanced Tree Navigator';

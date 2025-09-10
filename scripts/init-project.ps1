@@ -28,7 +28,7 @@ Write-ColorOutput @"
 Comprehensive project indexing system
 
 Project: $ProjectPath
-"@ "Magenta"
+"@ -Color "Magenta"
 
 # Step 1: Validate environment
 Write-Progress "Validating environment..."

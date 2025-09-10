@@ -49,7 +49,7 @@ const commander_1 = require("commander");
 const logger_1 = require("../utils/logger");
 const cli_logger_1 = require("../utils/cli-logger");
 const intelligent_tool_selector_1 = require("../shared/intelligent-tool-selector");
-const enhanced_context_provider_1 = require("../shared/enhanced-context-provider");
+const context_provider_1 = require("../shared/context-provider");
 const change_assessment_system_1 = require("../shared/change-assessment-system");
 const hybrid_file_discovery_1 = require("../shared/hybrid-file-discovery");
 const comprehensive_impact_analyzer_1 = require("../shared/comprehensive-impact-analyzer");
@@ -66,7 +66,7 @@ class CodeMindLocalWorkflow {
     impactAnalyzer;
     constructor() {
         this.toolSelector = new intelligent_tool_selector_1.IntelligentToolSelector();
-        this.contextProvider = new enhanced_context_provider_1.EnhancedContextProvider();
+        this.contextProvider = new context_provider_1.ContextProvider();
         this.changeAssessment = new change_assessment_system_1.ChangeAssessmentSystem();
         this.fileDiscovery = new hybrid_file_discovery_1.HybridFileDiscovery();
         this.impactAnalyzer = new comprehensive_impact_analyzer_1.ComprehensiveImpactAnalyzer();

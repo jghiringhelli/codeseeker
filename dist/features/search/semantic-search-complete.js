@@ -40,14 +40,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SemanticSearchTool = void 0;
-const enhanced_tool_interface_1 = require("../../shared/enhanced-tool-interface");
+const tool_interface_1 = require("../../shared/tool-interface");
 const logger_1 = require("../../utils/logger");
 const multi_level_cache_1 = require("../../shared/multi-level-cache");
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const fast_glob_1 = require("fast-glob");
 const crypto_1 = __importDefault(require("crypto"));
-class SemanticSearchTool extends enhanced_tool_interface_1.EnhancedAnalysisTool {
+class SemanticSearchTool extends tool_interface_1.AnalysisTool {
     // Tool metadata
     id = 'semantic-search';
     name = 'Semantic Search';

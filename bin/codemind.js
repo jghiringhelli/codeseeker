@@ -13,7 +13,21 @@ const cliPath = path.join(__dirname, '..', 'dist', 'cli', 'codemind-unified-cli.
 
 if (fs.existsSync(cliPath)) {
   // Load and run the main CLI
-  require(cliPath);
+  try {
+    const { main } = require(cliPath);
+    if (typeof main === 'function') {
+      main().catch((error) => {
+        console.error(`❌ Failed to start CodeMind CLI: ${error.message}`);
+        process.exit(1);
+      });
+    } else {
+      console.error('❌ Could not find main function in CLI');
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error(`❌ Error loading CLI: ${error.message}`);
+    process.exit(1);
+  }
 } else {
   console.error('❌ CodeMind not built. Run: npm run build');
   process.exit(1);

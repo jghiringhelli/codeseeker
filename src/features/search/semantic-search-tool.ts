@@ -5,7 +5,7 @@
  * and pgvector for similarity search across the codebase.
  */
 
-import { EnhancedAnalysisTool, EnhancedToolResult } from '../../shared/enhanced-tool-interface';
+import { AnalysisTool, ToolResult } from '../../shared/tool-interface';
 import { Logger, LogLevel } from '../../utils/logger';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -52,7 +52,7 @@ export interface EmbeddingResponse {
   usage: { total_tokens: number };
 }
 
-export class SemanticSearchTool extends EnhancedAnalysisTool {
+export class SemanticSearchTool extends AnalysisTool {
   // Tool metadata
   id = 'semantic-search';
   name = 'Semantic Search';

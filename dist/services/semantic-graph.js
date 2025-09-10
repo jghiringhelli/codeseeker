@@ -21,7 +21,7 @@ class SemanticGraphService {
     async initialize() {
         try {
             await this.driver.verifyConnectivity();
-            this.logger.info('🔗 Semantic graph connected successfully');
+            this.logger.debug('🔗 Semantic graph connected successfully');
             // Ensure indexes exist
             await this.ensureIndexes();
         }
