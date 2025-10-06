@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS semantic_search_embeddings (
   content_type TEXT DEFAULT 'code',
   content_text TEXT NOT NULL,
   content_hash TEXT NOT NULL,
-  embedding VECTOR(1536), -- OpenAI text-embedding-ada-002 dimensions
+  embedding VECTOR(384), -- OpenAI text-embedding-3-small dimensions
   metadata JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

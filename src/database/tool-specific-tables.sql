@@ -229,7 +229,7 @@ CREATE TABLE IF NOT EXISTS code_embeddings (
   chunk_index INTEGER NOT NULL, -- for large files split into chunks
   content_type TEXT NOT NULL CHECK (content_type IN ('function', 'class', 'module', 'comment', 'documentation')),
   content TEXT NOT NULL,
-  embedding vector(1536), -- OpenAI embedding dimension
+  embedding vector(384), -- OpenAI text-embedding-3-small dimension
   metadata JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),

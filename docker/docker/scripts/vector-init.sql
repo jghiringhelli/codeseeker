@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS code_embeddings (
     content_type VARCHAR(50) NOT NULL, -- 'function', 'class', 'file', 'comment', etc.
     content_text TEXT NOT NULL,
     content_hash VARCHAR(64) NOT NULL,
-    embedding vector(1536), -- OpenAI ada-002 embedding dimension
+    embedding vector(384), -- OpenAI text-embedding-3-small dimension
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS semantic_search_queries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id UUID NOT NULL,
     query_text TEXT NOT NULL,
-    query_embedding vector(1536),
+    query_embedding vector(384),
     search_type VARCHAR(50) DEFAULT 'similarity', -- 'similarity', 'semantic', 'hybrid'
     filters JSONB DEFAULT '{}',
     results JSONB DEFAULT '[]',
@@ -62,7 +62,7 @@ $$ LANGUAGE plpgsql;
 -- Function to search similar code
 CREATE OR REPLACE FUNCTION search_similar_code(
     p_project_id UUID,
-    p_query_embedding vector(1536),
+    p_query_embedding vector(384),
     p_content_types TEXT[] DEFAULT NULL,
     p_similarity_threshold float DEFAULT 0.7,
     p_limit INTEGER DEFAULT 10
@@ -99,7 +99,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION hybrid_search_code(
     p_project_id UUID,
     p_query_text TEXT,
-    p_query_embedding vector(1536),
+    p_query_embedding vector(384),
     p_text_weight float DEFAULT 0.3,
     p_vector_weight float DEFAULT 0.7,
     p_limit INTEGER DEFAULT 10

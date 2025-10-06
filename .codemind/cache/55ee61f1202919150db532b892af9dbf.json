@@ -1,0 +1,10 @@
+{
+  "content": "module.exports = {\n  preset: 'ts-jest',\n  testEnvironment: 'node',\n  roots: ['<rootDir>/src', '<rootDir>/tests'],\n  testMatch: [\n    '**/__tests__/**/*.ts',\n    '**/?(*.)+(spec|test).ts'\n  ],\n  transform: {\n    '^.+\\\\.ts$': 'ts-jest'\n  },\n  coverageDirectory: 'coverage',\n  collectCoverageFrom: [\n    'src/**/*.ts',\n    '!src/**/*.d.ts',\n    '!src/**/*.test.ts',\n    '!src/**/*.spec.ts'\n  ],\n  coverageThreshold: {\n    global: {\n      branches: 80,\n      functions: 80,\n      lines: 80,\n      statements: 80\n    }\n  },\n  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']\n};",
+  "hash": "a4fb5043f8e761dc43096f9a2faa5dd692584c6828ccf8835aec4eb24ddfe65b",
+  "lastModified": 1756041217201,
+  "language": "JavaScript",
+  "exports": [],
+  "imports": [],
+  "functions": [],
+  "classes": []
+}

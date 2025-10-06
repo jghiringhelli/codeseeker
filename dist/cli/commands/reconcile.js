@@ -137,7 +137,7 @@ async function getProjectId(projectPath, providedId) {
     }
     // Try to get from database by path
     try {
-        const { toolDB } = await Promise.resolve().then(() => __importStar(require('../../orchestration/tool-database-api')));
+        const { toolDB } = await Promise.resolve().then(() => __importStar(require('../../orchestrator/tool-database-api')));
         const projects = await toolDB.query('SELECT id FROM projects WHERE project_path = $1 LIMIT 1', [projectPath]);
         if (projects.rows.length > 0) {
             return projects.rows[0].id;

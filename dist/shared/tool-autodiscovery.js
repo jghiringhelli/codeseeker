@@ -8,7 +8,7 @@ exports.ToolAutodiscoveryService = void 0;
 const tool_interface_1 = require("./tool-interface");
 const logger_1 = require("./logger");
 // Import all internal tools for registration
-const semantic_graph_tool_1 = require("../features/semantic-graph/semantic-graph-tool");
+const semantic_graph_tool_1 = require("../cli/features/semantic-graph/semantic-graph-tool");
 // import { SemanticSearchTool } from '../features/search/semantic-search-tool'; // TODO: Implement this tool
 // Note: Context optimization is the core CLI mechanism, not a separate tool
 // TODO: Add remaining tool imports as they are implemented:

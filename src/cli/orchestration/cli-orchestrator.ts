@@ -10,11 +10,11 @@
  */
 
 import { Logger } from '../../utils/logger';
-import { SemanticOrchestrator } from '../../orchestration/semantic-orchestrator';
-import { TreeNavigator } from '../../features/tree-navigation/navigator';
-import { ToolSelector } from '../tool-selector';
+import { SemanticOrchestrator } from '../../orchestrator/semantic-orchestrator';
+import { TreeNavigator } from '../features/tree-navigation/navigator';
+// import { ToolSelector } from '../tool-selector'; // Simplified for Phase 1
 import { ContextOptimizer } from '../context-optimizer';
-import { ToolBundleSystem } from '../tool-bundle-system';
+// import { ToolBundleSystem } from '../tool-bundle-system'; // Simplified for Phase 1
 
 export interface AnalysisRequest {
   query: string;
@@ -56,9 +56,9 @@ export class CLIOrchestrator {
   private logger: Logger;
   private semanticOrchestrator: SemanticOrchestrator;
   private treeNavigator: TreeNavigator;
-  private toolSelector: ToolSelector;
+  // private toolSelector: ToolSelector; // Simplified for Phase 1
   private contextOptimizer: ContextOptimizer;
-  private bundleSystem: ToolBundleSystem;
+  // private bundleSystem: ToolBundleSystem; // Simplified for Phase 1
 
   constructor() {
     this.logger = Logger.getInstance();
@@ -66,9 +66,9 @@ export class CLIOrchestrator {
     // Initialize orchestration services
     this.semanticOrchestrator = new SemanticOrchestrator();
     this.treeNavigator = new TreeNavigator();
-    this.toolSelector = new ToolSelector();
+    // this.toolSelector = new ToolSelector(); // Simplified for Phase 1
     this.contextOptimizer = new ContextOptimizer();
-    this.bundleSystem = new ToolBundleSystem();
+    // this.bundleSystem = new ToolBundleSystem(); // Simplified for Phase 1
   }
 
   /**
@@ -179,15 +179,16 @@ export class CLIOrchestrator {
   private async selectAndExecuteTools(request: AnalysisRequest, enhancedContext: any, context: OrchestrationContext): Promise<any> {
     this.logger.info('🔧 Step 3: Tool Selection & Execution');
     
-    // Select tools based on query and context
-    const toolSelection = this.toolSelector.selectTools({
-      userQuery: request.query,
-      projectPath: request.projectPath,
-      maxTokens: context.settings.tokenBudget,
-      preferBundles: true
-    });
+    // Select tools based on query and context (simplified for Phase 1)
+    // const toolSelection = this.toolSelector.selectTools({
+    //   userQuery: request.query,
+    //   projectPath: request.projectPath,
+    //   maxTokens: context.settings.tokenBudget,
+    //   preferBundles: true
+    // });
+    const toolSelection = { tools: [], bundles: [] }; // Simplified for Phase 1
 
-    this.logger.info(`Selected ${toolSelection.selectedTools.length} tools: ${toolSelection.selectedTools.map(t => t.name).join(', ')}`);
+    this.logger.info(`Selected ${toolSelection.tools.length} tools (simplified for Phase 1)`);
 
     // Execute tools (simplified - in real implementation would execute each tool)
     const toolResults = {

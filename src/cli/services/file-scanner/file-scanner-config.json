@@ -1,0 +1,119 @@
+{
+  "scanning": {
+    "maxFileSize": 10485760,
+    "maxFiles": 10000,
+    "followSymlinks": false
+  },
+  "exclusions": {
+    "directories": [
+      "node_modules",
+      "vendor",
+      "packages",
+      ".git",
+      ".svn",
+      ".hg",
+      "dist",
+      "build",
+      "out",
+      "target",
+      "bin",
+      ".cache",
+      "tmp",
+      "temp",
+      "coverage",
+      ".nyc_output",
+      "__pycache__",
+      ".pytest_cache",
+      ".tox",
+      "venv",
+      "virtualenv",
+      ".venv",
+      ".idea",
+      ".vscode/extensions"
+    ],
+    "extensions": [
+      ".exe", ".dll", ".so", ".dylib", ".app",
+      ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".ico",
+      ".mp4", ".avi", ".mkv", ".mov", ".wmv",
+      ".mp3", ".wav", ".flac", ".ogg",
+      ".zip", ".tar", ".gz", ".7z", ".rar",
+      ".db", ".sqlite", ".mdb",
+      ".log"
+    ],
+    "fileNames": [
+      "package-lock.json",
+      "yarn.lock",
+      "pnpm-lock.yaml",
+      "Pipfile.lock",
+      "Gemfile.lock",
+      "composer.lock",
+      "go.sum",
+      "Cargo.lock"
+    ]
+  },
+  "inclusions": {
+    "sourceExtensions": [
+      ".ts", ".js", ".tsx", ".jsx",
+      ".py", ".pyi",
+      ".java", ".kt", ".scala",
+      ".go", ".rs",
+      ".cpp", ".c", ".h", ".hpp",
+      ".cs", ".vb",
+      ".php", ".rb", ".swift",
+      ".dart", ".elm"
+    ],
+    "configExtensions": [
+      ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg",
+      ".xml", ".properties", ".conf",
+      ".env"
+    ],
+    "documentationExtensions": [
+      ".md", ".txt", ".rst", ".adoc", ".tex"
+    ],
+    "templateExtensions": [
+      ".html", ".htm", ".css", ".scss", ".sass", ".less",
+      ".vue", ".svelte", ".angular"
+    ],
+    "scriptExtensions": [
+      ".sh", ".bash", ".zsh", ".fish",
+      ".bat", ".cmd", ".ps1",
+      ".makefile", ".mk"
+    ],
+    "schemaExtensions": [
+      ".sql", ".graphql", ".gql", ".proto", ".avro"
+    ],
+    "importantDotFiles": [
+      ".env", ".env.example", ".env.local", ".env.development", ".env.production",
+      ".gitignore", ".gitattributes",
+      ".editorconfig", ".prettierrc", ".eslintrc", ".stylelintrc",
+      ".babelrc", ".npmrc", ".nvmrc",
+      ".dockerignore", ".htaccess",
+      ".travis.yml", ".github"
+    ]
+  },
+  "typeMapping": {
+    "source": ["ts", "js", "tsx", "jsx", "py", "java", "go", "rs", "cpp", "c", "cs", "php", "rb", "swift", "dart"],
+    "config": ["json", "yaml", "yml", "toml", "ini", "cfg", "xml", "properties", "conf", "env"],
+    "documentation": ["md", "txt", "rst", "adoc", "tex"],
+    "template": ["html", "htm", "css", "scss", "sass", "less", "vue", "svelte"],
+    "script": ["sh", "bash", "zsh", "fish", "bat", "cmd", "ps1", "makefile", "mk"],
+    "schema": ["sql", "graphql", "gql", "proto", "avro"]
+  },
+  "languageMapping": {
+    "ts": "TypeScript",
+    "js": "JavaScript",
+    "tsx": "TypeScript",
+    "jsx": "JavaScript",
+    "py": "Python",
+    "java": "Java",
+    "go": "Go",
+    "rs": "Rust",
+    "cpp": "C++",
+    "c": "C",
+    "cs": "C#",
+    "php": "PHP",
+    "rb": "Ruby",
+    "swift": "Swift",
+    "dart": "Dart"
+  }
+}

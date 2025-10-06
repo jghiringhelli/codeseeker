@@ -7,7 +7,7 @@ services:
   database:
     build:
       context: .
-      dockerfile: docker/postgres-vector.Dockerfile
+      dockerfile: docker/docker/postgres-vector.Dockerfile
     image: codemind-postgres-vector:latest
     container_name: codemind-database
     restart: unless-stopped
@@ -31,7 +31,8 @@ services:
 
   # Redis Cache & Message Queue
   redis:
-    image: redis:7-alpine
+    image: redis:7
+    platform: linux/amd64
     container_name: codemind-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
@@ -49,14 +50,20 @@ services:
 
   # Neo4j Graph Database
   neo4j:
-    image: neo4j:5.15-community
+    image: neo4j:5.12-community
+    platform: linux/amd64
     container_name: codemind-neo4j
     restart: unless-stopped
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-codemind123}
-      NEO4J_dbms_memory_heap_initial__size: 512m
-      NEO4J_dbms_memory_heap_max__size: 1G
-      NEO4J_dbms_memory_pagecache_size: 256m
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 256m
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+      # Enable APOC plugin for dynamic relationship creation
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+      NEO4J_dbms_security_procedures_allowlist: "apoc.*"
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
@@ -66,10 +73,11 @@ services:
     networks:
       - codemind-network
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "${NEO4J_PASSWORD:-codemind123}", "RETURN 1"]
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "${NEO4J_PASSWORD:-codemind123}", "RETURN 1 as test"]
       interval: 30s
-      timeout: 10s
-      retries: 5
+      timeout: 15s
+      retries: 10
+      start_period: 60s
 
   # MongoDB Document Database
   mongodb:
@@ -145,7 +153,7 @@ services:
   dashboard:
     build:
       context: .
-      dockerfile: docker/dashboard.Dockerfile
+      dockerfile: docker/docker/dashboard.Dockerfile
       target: ${BUILD_TARGET:-production}
     image: codemind-dashboard:latest
     container_name: codemind-dashboard
@@ -190,7 +198,7 @@ services:
   orchestrator:
     build:
       context: .
-      dockerfile: docker/orchestrator.Dockerfile
+      dockerfile: docker/docker/orchestrator.Dockerfile
       target: ${BUILD_TARGET:-production}
     image: codemind-orchestrator:latest
     container_name: codemind-orchestrator

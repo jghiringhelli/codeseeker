@@ -89,6 +89,55 @@ When you need to gather requirements, consider asking:
 - Project Intent: Smart Claude Code CLI with intelligent tool selection, token optimization, and real-time quality monitoring
 - Quality Focus: High Performance, High Reliability, Secure
 
+### SOLID Principles Requirements
+**CRITICAL**: All new code MUST follow SOLID principles:
+- **S**ingle Responsibility: Each class/function has one reason to change
+- **O**pen/Closed: Open for extension, closed for modification
+- **L**iskov Substitution: Derived classes must be substitutable for base classes
+- **I**nterface Segregation: Clients shouldn't depend on interfaces they don't use
+- **D**ependency Inversion: Depend on abstractions, not concretions
+
+**Implementation Guidelines:**
+- Use dependency injection patterns
+- Create focused, single-purpose classes
+- Implement proper interfaces and abstractions
+- Avoid tight coupling between components
+- Follow the established three-layer architecture (CLI/Orchestrator/Shared)
+
+### Class Naming Convention Enforcement
+**MANDATORY**: All classes MUST follow dash-style naming in file names:
+- **File names**: Use dash-style (kebab-case): `quality-checker.ts`, `project-manager.ts`
+- **Class names**: Use PascalCase: `QualityChecker`, `ProjectManager`
+- **NO duplicates**: Never create multiple classes with similar names (e.g., `quality-checker` and `QualityChecker`)
+- **Merge duplicates**: When found, merge into the most comprehensive version
+- **Examples**:
+  - ✅ Correct: `quality-checker.ts` exports `class QualityChecker`
+  - ❌ Wrong: `QualityChecker.ts` or multiple quality checker files
+  - ❌ Wrong: `qualityChecker.ts` (camelCase files)
+
+**Duplicate Detection and Resolution:**
+- Search for similar class names before creating new ones
+- Merge functionality from duplicate files into the most comprehensive version
+- Delete the less comprehensive duplicate
+- Update all imports to reference the single merged class
+
+### CodeMind CLI Integration
+**IMPORTANT**: After major codebase changes, CodeMind needs relinking:
+```bash
+# Relink CodeMind for Claude Code access
+npm run build
+npm link
+
+# Verify global access
+codemind --help
+```
+
+**When to Relink:**
+- After fixing compilation errors
+- After restructuring imports/exports
+- After adding new CLI features
+- After updating the bin entry point
+
 ### Integration Notes
 
 - All CodeMind API calls are cached for 5 minutes
@@ -179,6 +228,29 @@ docker-compose up dashboard -d
 
 ### Best Practices
 - **Always Check**: Verify file accessibility before running analysis
-- **Volume Consistency**: Use same mount paths across rebuilds  
+- **Volume Consistency**: Use same mount paths across rebuilds
 - **Path Validation**: Ensure project paths are correct in database
 - **Access Monitoring**: Monitor file system warnings in dashboard
+
+## Important Development Reminders
+
+### SOLID Principles Enforcement
+**MANDATORY**: ALL NEW CODE MUST FOLLOW SOLID PRINCIPLES:
+- **Single Responsibility**: One class, one purpose
+- **Open/Closed**: Extend behavior without modifying existing code
+- **Liskov Substitution**: Subclasses must be interchangeable with parent classes
+- **Interface Segregation**: Create specific interfaces, not monolithic ones
+- **Dependency Inversion**: Depend on abstractions, not concrete implementations
+
+### CodeMind CLI Relinking Requirements
+After major changes to CodeMind codebase:
+1. **Always run `npm run build`** to ensure TypeScript compilation
+2. **Run `npm link`** to relink the global CLI command
+3. **Test with `codemind --help`** to verify Claude Code can access it
+4. **This is CRITICAL** after fixing compilation errors or restructuring imports
+
+### File Creation Guidelines
+- Do what has been asked; nothing more, nothing less
+- NEVER create files unless absolutely necessary for achieving the goal
+- ALWAYS prefer editing an existing file to creating a new one
+- NEVER proactively create documentation files (*.md) or README files unless explicitly requested

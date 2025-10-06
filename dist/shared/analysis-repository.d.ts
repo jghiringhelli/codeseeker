@@ -1,9 +1,9 @@
 /**
  * Analysis Results Repository
- * Stores and retrieves complex analysis results in MongoDB
+ * Stores and retrieves complex analysis results in PostgreSQL
  */
 export interface AnalysisResult {
-    _id?: string;
+    id?: string;
     projectId: string;
     toolName: string;
     timestamp: Date;
@@ -20,70 +20,29 @@ export interface AnalysisResult {
     };
 }
 export declare class AnalysisRepository {
-    private collection?;
     private logger;
-    private readonly MAX_RESULTS_PER_TOOL;
+    private dbConnections;
     constructor();
-    private ensureConnection;
     /**
-     * Store analysis result with automatic cleanup
+     * Store analysis result (PostgreSQL implementation)
      */
     storeAnalysis(projectId: string, toolName: string, analysis: any): Promise<string>;
     /**
      * Get analysis history with filtering
      */
-    getAnalysisHistory(projectId: string, toolName?: string, options?: {
-        limit?: number;
-        skip?: number;
-        hasIssues?: boolean;
-        tags?: string[];
-        startDate?: Date;
-        endDate?: Date;
-    }): Promise<AnalysisResult[]>;
+    getAnalysisHistory(projectId: string, toolName?: string, limit?: number): Promise<AnalysisResult[]>;
     /**
-     * Search analysis results using full-text search
+     * Get latest analysis for a tool
      */
-    searchAnalysis(projectId: string, searchTerm: string): Promise<AnalysisResult[]>;
+    getLatestAnalysis(projectId: string, toolName: string): Promise<AnalysisResult | null>;
     /**
-     * Get latest analysis for each tool
+     * Search analysis results by query
      */
-    getLatestAnalyses(projectId: string): Promise<AnalysisResult[]>;
+    searchAnalysis(projectId: string, query: string): Promise<AnalysisResult[]>;
     /**
-     * Get analysis trends over time
+     * Delete analysis results for a project
      */
-    getAnalysisTrends(projectId: string, toolName: string, days?: number): Promise<any>;
-    /**
-     * Compare analysis results between two timestamps
-     */
-    compareAnalyses(projectId: string, toolName: string, timestamp1: Date, timestamp2: Date): Promise<any>;
-    /**
-     * Get aggregated statistics for a project
-     */
-    getProjectStatistics(projectId: string): Promise<any>;
-    /**
-     * Delete analysis results
-     */
-    deleteAnalysis(analysisId: string): Promise<boolean>;
-    /**
-     * Clean up old results to maintain storage limits
-     */
-    private cleanupOldResults;
-    /**
-     * Extract summary from analysis
-     */
-    private extractSummary;
-    /**
-     * Check if analysis contains issues
-     */
-    private checkForIssues;
-    /**
-     * Extract searchable tags from analysis
-     */
-    private extractTags;
-    /**
-     * Extract metrics from analysis
-     */
-    private extractMetrics;
+    deleteProjectAnalysis(projectId: string): Promise<void>;
 }
 export declare const analysisRepo: AnalysisRepository;
 //# sourceMappingURL=analysis-repository.d.ts.map

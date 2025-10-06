@@ -22,7 +22,11 @@ class Theme {
         result: chalk_1.default.white,
         border: chalk_1.default.gray,
         command: chalk_1.default.cyan,
-        highlight: chalk_1.default.cyan.bold
+        highlight: chalk_1.default.cyan.bold,
+        claudeCode: chalk_1.default.hex('#FF6B35'), // Claude's distinctive orange
+        claudeCodeMuted: chalk_1.default.hex('#FF6B35').dim,
+        interrupt: chalk_1.default.red.bold,
+        accent: chalk_1.default.magenta.bold
     };
     /**
      * Get themed prompt text

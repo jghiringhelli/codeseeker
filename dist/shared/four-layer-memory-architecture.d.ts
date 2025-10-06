@@ -1,11 +1,12 @@
 /**
- * Four-Layer Memory Architecture for CodeMind
+ * Three-Database Memory Architecture for CodeMind
  *
- * Complete memory system mapping to different storage types:
+ * Complete memory system mapping to three disjoint storage types:
  * 1. SHORT TERM: Live task execution (Redis) - Active working memory
- * 2. LONG TERM: Persistent information, knowledge retention (PostgreSQL + pgvector) - Facts and patterns
- * 3. EPISODIC: Experiential records for improvements (MongoDB) - Event sequences and experiences
- * 4. SEMANTIC: Factual knowledge and concepts for agents (Neo4j) - Relationships and understanding
+ * 2. LONG TERM: Persistent information, knowledge retention, episodic records (PostgreSQL + pgvector) - Facts, patterns, and experiences
+ * 3. SEMANTIC: Factual knowledge and concepts for agents (Neo4j) - Relationships and understanding
+ *
+ * Note: Episodic memory consolidated into PostgreSQL to maintain database disjointness
  */
 declare class RedisService {
     get(key: string): Promise<any>;
@@ -21,13 +22,8 @@ declare class RedisService {
 declare class PostgreSQLService {
     query(): Promise<any[]>;
     insert(): Promise<string>;
-}
-declare class MongoDBService {
-    find(): Promise<any[]>;
-    insert(): Promise<string>;
-    update(): Promise<{
-        modifiedCount: number;
-    }>;
+    insertEpisodicRecord(): Promise<string>;
+    queryEpisodicRecords(): Promise<any[]>;
 }
 declare class Neo4jService {
     createNode(): Promise<string>;
@@ -242,7 +238,6 @@ export declare class FourLayerMemoryManager {
     private logger;
     private redis;
     private postgresql;
-    private mongodb;
     private neo4j;
     private shortTermManager;
     private longTermManager;
@@ -350,9 +345,9 @@ export declare class LongTermMemoryManager {
  * Manages experiential records, event sequences, improvement insights
  */
 export declare class EpisodicMemoryManager {
-    private mongodb;
+    private postgresql;
     private logger;
-    constructor(mongodb: MongoDBService);
+    constructor(postgresql: PostgreSQLService);
     initialize(): Promise<void>;
     findSimilarExperiences(userRequest: string, projectId: string): Promise<any>;
     addEventToEpisode(requestId: string, event: EpisodeEvent): Promise<void>;

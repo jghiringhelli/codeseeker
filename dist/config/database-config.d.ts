@@ -1,9 +1,8 @@
 /**
  * Database Configuration and Connection Manager
- * Handles connections to all 4 CodeMind databases: PostgreSQL, Neo4j, Redis, MongoDB
+ * Handles connections to 3 CodeMind databases: PostgreSQL, Neo4j, Redis
  */
 import { Client } from 'pg';
-import { MongoClient } from 'mongodb';
 export interface DatabaseConfig {
     postgres: {
         host: string;
@@ -22,21 +21,16 @@ export interface DatabaseConfig {
         user: string;
         password: string;
     };
-    mongodb: {
-        uri: string;
-    };
 }
 export declare class DatabaseConnections {
     private config;
     private pgClient?;
     private redisClient?;
-    private mongoClient?;
     private neo4jDriver?;
     constructor(config?: DatabaseConfig);
     private getDefaultConfig;
     getPostgresConnection(): Promise<Client>;
     getRedisConnection(): Promise<any>;
-    getMongoConnection(): Promise<MongoClient>;
     getNeo4jConnection(): Promise<any>;
     closeAll(): Promise<void>;
 }

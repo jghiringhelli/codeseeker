@@ -1,70 +1,41 @@
 /**
  * Tool Configuration Repository
- * Manages flexible tool configurations in MongoDB
+ * Manages tool configurations using PostgreSQL
  */
 export interface ToolConfig {
-    projectId: string;
+    id?: string;
     toolName: string;
-    config: any;
-    version?: string;
-    updatedAt: Date;
-    inheritFrom?: string;
-    overrides?: any;
+    projectId: string;
+    configuration: any;
+    enabled: boolean;
+    lastUsed: Date;
+    successRate?: number;
+    avgExecutionTime?: number;
 }
 export declare class ToolConfigRepository {
-    private collection?;
     private logger;
-    private cache;
+    private dbConnections;
     constructor();
-    private ensureConnection;
     /**
-     * Save or update tool configuration
+     * Get tool configuration
      */
-    saveToolConfig(projectId: string, toolName: string, config: any): Promise<void>;
+    getToolConfig(projectId: string, toolName: string): Promise<ToolConfig | null>;
     /**
-     * Get tool configuration with inheritance support
+     * Save tool configuration
      */
-    getToolConfig(projectId: string, toolName: string): Promise<any | null>;
+    saveToolConfig(config: ToolConfig): Promise<void>;
     /**
-     * Get configurations by framework
+     * Get all tool configurations for a project
      */
-    getConfigsByFramework(framework: string): Promise<ToolConfig[]>;
+    getAllToolConfigs(projectId: string): Promise<ToolConfig[]>;
     /**
-     * Get all configurations for a project
+     * Get project configurations
      */
     getProjectConfigs(projectId: string): Promise<ToolConfig[]>;
     /**
-     * Copy default configurations to a new project
+     * Update tool usage statistics
      */
-    initializeProjectConfigs(projectId: string): Promise<void>;
-    /**
-     * Update specific configuration field
-     */
-    updateConfigField(projectId: string, toolName: string, field: string, value: any): Promise<void>;
-    /**
-     * Find optimal configuration based on similar projects
-     */
-    findOptimalConfig(projectContext: any, toolName: string): Promise<any | null>;
-    /**
-     * Delete tool configuration
-     */
-    deleteToolConfig(projectId: string, toolName: string): Promise<boolean>;
-    /**
-     * Clear cache
-     */
-    clearCache(): void;
-    /**
-     * Merge two configuration objects
-     */
-    private mergeConfigs;
-    /**
-     * Validate configuration against schema
-     */
-    validateConfig(toolName: string, config: any): Promise<boolean>;
-    /**
-     * Get configuration history
-     */
-    getConfigHistory(projectId: string, toolName: string, limit?: number): Promise<ToolConfig[]>;
+    updateToolStats(projectId: string, toolName: string, executionTime: number, success: boolean): Promise<void>;
 }
 export declare const toolConfigRepo: ToolConfigRepository;
 //# sourceMappingURL=tool-config-repository.d.ts.map

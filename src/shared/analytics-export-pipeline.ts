@@ -4,7 +4,7 @@
  */
 
 import { Pool } from 'pg';
-import { AnalyticsDatabase, AnalyticsMetric, CodeQualityMetric, FileChangeEvent } from './analytics-database';
+import { PostgreSQLAnalyticsDatabase, AnalyticsMetric, CodeQualityMetric, FileChangeEvent } from './postgresql-analytics-database';
 import { Logger, LogLevel } from '../utils/logger';
 
 export interface ExportConfig {
@@ -17,11 +17,11 @@ export interface ExportConfig {
 export class AnalyticsExportPipeline {
   private logger: Logger;
   private pgPool: Pool;
-  private analyticsDb: AnalyticsDatabase;
+  private analyticsDb: PostgreSQLAnalyticsDatabase;
   private config: ExportConfig;
   private lastExportTimestamp: Map<string, Date> = new Map();
 
-  constructor(pgPool: Pool, analyticsDb: AnalyticsDatabase, config: ExportConfig) {
+  constructor(pgPool: Pool, analyticsDb: PostgreSQLAnalyticsDatabase, config: ExportConfig) {
     this.logger = new Logger(LogLevel.INFO, 'AnalyticsExportPipeline');
     this.pgPool = pgPool;
     this.analyticsDb = analyticsDb;
@@ -351,7 +351,7 @@ export function createAnalyticsExportPipeline(
   pgPool: Pool,
   config?: Partial<ExportConfig>
 ): AnalyticsExportPipeline {
-  const analyticsDb = new AnalyticsDatabase(projectPath);
+  const analyticsDb = new PostgreSQLAnalyticsDatabase(projectId);
   const fullConfig: ExportConfig = {
     batchSize: 1000,
     maxRetries: 3,

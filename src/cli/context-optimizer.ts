@@ -3,7 +3,7 @@ import * as path from 'path';
 import { glob } from 'fast-glob';
 import { Logger } from '../utils/logger';
 import { ASTAnalyzer } from '../shared/ast/analyzer';
-import { SemanticOrchestrator, SemanticContextRequest } from '../orchestration/semantic-orchestrator';
+import { SemanticOrchestrator, SemanticContextRequest } from '../orchestrator/semantic-orchestrator';
 
 export interface ContextOptimizationRequest {
   projectPath: string;

@@ -1,14 +1,14 @@
 /**
  * Analysis Results Repository
- * Stores and retrieves complex analysis results in MongoDB
+ * Stores and retrieves complex analysis results in PostgreSQL
  */
 
-import { Collection, Db } from 'mongodb';
-import { mongoClient } from './mongodb-client';
 import { Logger, LogLevel } from '../utils/logger';
+import { DatabaseConnections } from '../config/database-config';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface AnalysisResult {
-  _id?: string;
+  id?: string;
   projectId: string;
   toolName: string;
   timestamp: Date;
@@ -26,51 +26,42 @@ export interface AnalysisResult {
 }
 
 export class AnalysisRepository {
-  private collection?: Collection<AnalysisResult>;
   private logger: Logger;
-  private readonly MAX_RESULTS_PER_TOOL = 50;
+  private dbConnections: DatabaseConnections;
 
   constructor() {
     this.logger = new Logger(LogLevel.INFO, 'AnalysisRepository');
-  }
-
-  private async ensureConnection(): Promise<Collection<AnalysisResult>> {
-    if (!this.collection) {
-      if (!mongoClient.isReady()) {
-        await mongoClient.connect();
-      }
-      this.collection = mongoClient.getCollection<AnalysisResult>('analysis_results');
-    }
-    return this.collection;
+    this.dbConnections = new DatabaseConnections();
   }
 
   /**
-   * Store analysis result with automatic cleanup
+   * Store analysis result (PostgreSQL implementation)
    */
   async storeAnalysis(projectId: string, toolName: string, analysis: any): Promise<string> {
     try {
-      const collection = await this.ensureConnection();
-      
-      const document: AnalysisResult = {
+      const pgClient = await this.dbConnections.getPostgresConnection();
+      const id = uuidv4();
+
+      const query = `
+        INSERT INTO analysis_results (id, project_id, tool_name, timestamp, analysis, summary, file_count, has_issues)
+        VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7)
+        RETURNING id
+      `;
+
+      const values = [
+        id,
         projectId,
         toolName,
-        timestamp: new Date(),
-        analysis,
-        summary: this.extractSummary(analysis),
-        fileCount: analysis.data?.length || 0,
-        hasIssues: this.checkForIssues(analysis),
-        tags: this.extractTags(analysis),
-        metrics: this.extractMetrics(analysis)
-      };
+        JSON.stringify(analysis),
+        analysis.summary || `${toolName} analysis completed`,
+        analysis.fileCount || 0,
+        analysis.hasIssues || false
+      ];
 
-      const result = await collection.insertOne(document);
-      
-      // Cleanup old results
-      await this.cleanupOldResults(projectId, toolName);
+      const result = await pgClient.query(query, values);
 
-      this.logger.info(`Stored analysis for ${toolName} in project ${projectId}`);
-      
-      return result.insertedId.toString();
+      this.logger.info(`Analysis stored for ${toolName} in project ${projectId} with ID ${id}`);
+      return result.rows[0].id;
     } catch (error) {
       this.logger.error(`Failed to store analysis: ${error}`);
       throw error;
@@ -80,49 +71,42 @@ export class AnalysisRepository {
   /**
    * Get analysis history with filtering
    */
-  async getAnalysisHistory(
-    projectId: string, 
-    toolName?: string,
-    options?: {
-      limit?: number;
-      skip?: number;
-      hasIssues?: boolean;
-      tags?: string[];
-      startDate?: Date;
-      endDate?: Date;
-    }
-  ): Promise<AnalysisResult[]> {
+  async getAnalysisHistory(projectId: string, toolName?: string, limit = 10): Promise<AnalysisResult[]> {
     try {
-      const query: any = { projectId };
-      
+      const pgClient = await this.dbConnections.getPostgresConnection();
+
+      let query = `
+        SELECT id, project_id, tool_name, timestamp, analysis, summary, file_count, has_issues
+        FROM analysis_results
+        WHERE project_id = $1
+      `;
+      let values: any[] = [projectId];
+
       if (toolName) {
-        query.toolName = toolName;
-      }
-      
-      if (options?.hasIssues !== undefined) {
-        query.hasIssues = options.hasIssues;
-      }
-      
-      if (options?.tags && options.tags.length > 0) {
-        query.tags = { $in: options.tags };
-      }
-      
-      if (options?.startDate || options?.endDate) {
-        query.timestamp = {};
-        if (options.startDate) {
-          query.timestamp.$gte = options.startDate;
-        }
-        if (options.endDate) {
-          query.timestamp.$lte = options.endDate;
-        }
+        query += ` AND tool_name = $2`;
+        values.push(toolName);
+        query += ` ORDER BY timestamp DESC LIMIT $3`;
+        values.push(limit);
+      } else {
+        query += ` ORDER BY timestamp DESC LIMIT $2`;
+        values.push(limit);
       }
 
-      return await this.collection
-        .find(query)
-        .sort({ timestamp: -1 })
-        .limit(options?.limit || 20)
-        .skip(options?.skip || 0)
-        .toArray();
+      const result = await pgClient.query(query, values);
+
+      const analyses = result.rows.map(row => ({
+        id: row.id,
+        projectId: row.project_id,
+        toolName: row.tool_name,
+        timestamp: row.timestamp,
+        analysis: JSON.parse(row.analysis),
+        summary: row.summary,
+        fileCount: row.file_count,
+        hasIssues: row.has_issues
+      }));
+
+      this.logger.info(`Retrieved ${analyses.length} analysis records for project ${projectId}`);
+      return analyses;
     } catch (error) {
       this.logger.error(`Failed to get analysis history: ${error}`);
       return [];
@@ -130,18 +114,79 @@ export class AnalysisRepository {
   }
 
   /**
-   * Search analysis results using full-text search
+   * Get latest analysis for a tool
    */
-  async searchAnalysis(projectId: string, searchTerm: string): Promise<AnalysisResult[]> {
+  async getLatestAnalysis(projectId: string, toolName: string): Promise<AnalysisResult | null> {
     try {
-      return await this.collection
-        .find({
-          projectId,
-          $text: { $search: searchTerm }
-        })
-        .sort({ score: { $meta: 'textScore' } })
-        .limit(50)
-        .toArray();
+      const pgClient = await this.dbConnections.getPostgresConnection();
+
+      const query = `
+        SELECT id, project_id, tool_name, timestamp, analysis, summary, file_count, has_issues
+        FROM analysis_results
+        WHERE project_id = $1 AND tool_name = $2
+        ORDER BY timestamp DESC
+        LIMIT 1
+      `;
+
+      const result = await pgClient.query(query, [projectId, toolName]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        projectId: row.project_id,
+        toolName: row.tool_name,
+        timestamp: row.timestamp,
+        analysis: JSON.parse(row.analysis),
+        summary: row.summary,
+        fileCount: row.file_count,
+        hasIssues: row.has_issues
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get latest analysis: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Search analysis results by query
+   */
+  async searchAnalysis(projectId: string, query: string): Promise<AnalysisResult[]> {
+    try {
+      const pgClient = await this.dbConnections.getPostgresConnection();
+
+      const searchQuery = `
+        SELECT id, project_id, tool_name, timestamp, analysis, summary, file_count, has_issues
+        FROM analysis_results
+        WHERE project_id = $1
+        AND (
+          tool_name ILIKE $2
+          OR summary ILIKE $2
+          OR analysis::text ILIKE $2
+        )
+        ORDER BY timestamp DESC
+        LIMIT 50
+      `;
+
+      const searchPattern = `%${query}%`;
+      const result = await pgClient.query(searchQuery, [projectId, searchPattern]);
+
+      const analyses = result.rows.map(row => ({
+        id: row.id,
+        projectId: row.project_id,
+        toolName: row.tool_name,
+        timestamp: row.timestamp,
+        analysis: JSON.parse(row.analysis),
+        summary: row.summary,
+        fileCount: row.file_count,
+        hasIssues: row.has_issues
+      }));
+
+      this.logger.info(`Found ${analyses.length} analysis records matching "${query}" for project ${projectId}`);
+      return analyses;
     } catch (error) {
       this.logger.error(`Failed to search analysis: ${error}`);
       return [];
@@ -149,298 +194,24 @@ export class AnalysisRepository {
   }
 
   /**
-   * Get latest analysis for each tool
+   * Delete analysis results for a project
    */
-  async getLatestAnalyses(projectId: string): Promise<AnalysisResult[]> {
+  async deleteProjectAnalysis(projectId: string): Promise<void> {
     try {
-      const pipeline = [
-        { $match: { projectId } },
-        { $sort: { timestamp: -1 } },
-        {
-          $group: {
-            _id: '$toolName',
-            latestResult: { $first: '$$ROOT' }
-          }
-        },
-        { $replaceRoot: { newRoot: '$latestResult' } }
-      ];
+      const pgClient = await this.dbConnections.getPostgresConnection();
 
-      return await this.collection.aggregate(pipeline).toArray() as AnalysisResult[];
-    } catch (error) {
-      this.logger.error(`Failed to get latest analyses: ${error}`);
-      return [];
-    }
-  }
+      const query = `
+        DELETE FROM analysis_results
+        WHERE project_id = $1
+      `;
 
-  /**
-   * Get analysis trends over time
-   */
-  async getAnalysisTrends(
-    projectId: string, 
-    toolName: string, 
-    days: number = 7
-  ): Promise<any> {
-    try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      const result = await pgClient.query(query, [projectId]);
 
-      const pipeline = [
-        {
-          $match: {
-            projectId,
-            toolName,
-            timestamp: { $gte: startDate }
-          }
-        },
-        {
-          $group: {
-            _id: {
-              date: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } }
-            },
-            count: { $sum: 1 },
-            avgIssues: { $avg: '$metrics.issuesFound' },
-            avgComplexity: { $avg: '$metrics.complexity' },
-            avgExecutionTime: { $avg: '$metrics.executionTime' }
-          }
-        },
-        { $sort: { '_id.date': 1 } }
-      ];
-
-      const results = await this.collection.aggregate(pipeline).toArray();
-      
-      return {
-        dates: results.map(r => r._id.date),
-        counts: results.map(r => r.count),
-        avgIssues: results.map(r => r.avgIssues || 0),
-        avgComplexity: results.map(r => r.avgComplexity || 0),
-        avgExecutionTime: results.map(r => r.avgExecutionTime || 0)
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get analysis trends: ${error}`);
-      return { dates: [], counts: [], avgIssues: [], avgComplexity: [], avgExecutionTime: [] };
-    }
-  }
-
-  /**
-   * Compare analysis results between two timestamps
-   */
-  async compareAnalyses(
-    projectId: string,
-    toolName: string,
-    timestamp1: Date,
-    timestamp2: Date
-  ): Promise<any> {
-    try {
-      const [result1, result2] = await Promise.all([
-        this.collection.findOne({ projectId, toolName, timestamp: { $lte: timestamp1 } }, { sort: { timestamp: -1 } }),
-        this.collection.findOne({ projectId, toolName, timestamp: { $lte: timestamp2 } }, { sort: { timestamp: -1 } })
-      ]);
-
-      if (!result1 || !result2) {
-        return null;
-      }
-
-      return {
-        before: {
-          timestamp: result1.timestamp,
-          metrics: result1.metrics,
-          issueCount: result1.metrics?.issuesFound || 0
-        },
-        after: {
-          timestamp: result2.timestamp,
-          metrics: result2.metrics,
-          issueCount: result2.metrics?.issuesFound || 0
-        },
-        changes: {
-          issuesDelta: (result2.metrics?.issuesFound || 0) - (result1.metrics?.issuesFound || 0),
-          complexityDelta: (result2.metrics?.complexity || 0) - (result1.metrics?.complexity || 0),
-          executionTimeDelta: (result2.metrics?.executionTime || 0) - (result1.metrics?.executionTime || 0)
-        }
-      };
-    } catch (error) {
-      this.logger.error(`Failed to compare analyses: ${error}`);
-      return null;
-    }
-  }
-
-  /**
-   * Get aggregated statistics for a project
-   */
-  async getProjectStatistics(projectId: string): Promise<any> {
-    try {
-      const pipeline = [
-        { $match: { projectId } },
-        {
-          $group: {
-            _id: '$toolName',
-            totalRuns: { $sum: 1 },
-            avgExecutionTime: { $avg: '$metrics.executionTime' },
-            avgFilesProcessed: { $avg: '$metrics.filesProcessed' },
-            totalIssuesFound: { $sum: '$metrics.issuesFound' },
-            lastRun: { $max: '$timestamp' }
-          }
-        }
-      ];
-
-      const toolStats = await this.collection.aggregate(pipeline).toArray();
-      
-      const overallStats = await this.collection.aggregate([
-        { $match: { projectId } },
-        {
-          $group: {
-            _id: null,
-            totalAnalyses: { $sum: 1 },
-            uniqueTools: { $addToSet: '$toolName' },
-            avgExecutionTime: { $avg: '$metrics.executionTime' },
-            totalIssuesFound: { $sum: '$metrics.issuesFound' }
-          }
-        }
-      ]).toArray();
-
-      return {
-        byTool: toolStats,
-        overall: overallStats[0] || {
-          totalAnalyses: 0,
-          uniqueTools: [],
-          avgExecutionTime: 0,
-          totalIssuesFound: 0
-        }
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get project statistics: ${error}`);
-      return { byTool: [], overall: {} };
-    }
-  }
-
-  /**
-   * Delete analysis results
-   */
-  async deleteAnalysis(analysisId: string): Promise<boolean> {
-    try {
-      const result = await this.collection.deleteOne({ _id: analysisId as any });
-      return result.deletedCount > 0;
+      this.logger.info(`Deleted ${result.rowCount} analysis records for project ${projectId}`);
     } catch (error) {
       this.logger.error(`Failed to delete analysis: ${error}`);
-      return false;
+      throw error;
     }
-  }
-
-  /**
-   * Clean up old results to maintain storage limits
-   */
-  private async cleanupOldResults(projectId: string, toolName: string): Promise<void> {
-    try {
-      const count = await this.collection.countDocuments({ projectId, toolName });
-      
-      if (count > this.MAX_RESULTS_PER_TOOL) {
-        // Find the cutoff timestamp
-        const cutoffResult = await this.collection
-          .find({ projectId, toolName })
-          .sort({ timestamp: -1 })
-          .skip(this.MAX_RESULTS_PER_TOOL)
-          .limit(1)
-          .toArray();
-
-        if (cutoffResult.length > 0) {
-          const cutoffTimestamp = cutoffResult[0].timestamp;
-          
-          // Delete older results
-          const deleteResult = await this.collection.deleteMany({
-            projectId,
-            toolName,
-            timestamp: { $lt: cutoffTimestamp }
-          });
-
-          if (deleteResult.deletedCount > 0) {
-            this.logger.info(`Cleaned up ${deleteResult.deletedCount} old results for ${toolName}`);
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(`Failed to cleanup old results: ${error}`);
-    }
-  }
-
-  /**
-   * Extract summary from analysis
-   */
-  private extractSummary(analysis: any): string {
-    if (analysis.summary) return analysis.summary;
-    if (analysis.analysis?.summary) return analysis.analysis.summary;
-    
-    // Generate summary based on content
-    const parts = [];
-    if (analysis.data?.length) {
-      parts.push(`Analyzed ${analysis.data.length} files`);
-    }
-    if (analysis.issues?.length) {
-      parts.push(`Found ${analysis.issues.length} issues`);
-    }
-    if (analysis.recommendations?.length) {
-      parts.push(`${analysis.recommendations.length} recommendations`);
-    }
-    
-    return parts.join(', ') || 'Analysis completed';
-  }
-
-  /**
-   * Check if analysis contains issues
-   */
-  private checkForIssues(analysis: any): boolean {
-    return !!(
-      analysis.issues?.length ||
-      analysis.errors?.length ||
-      analysis.violations?.length ||
-      analysis.analysis?.issues?.length ||
-      analysis.analysis?.violations?.length
-    );
-  }
-
-  /**
-   * Extract searchable tags from analysis
-   */
-  private extractTags(analysis: any): string[] {
-    const tags = new Set<string>();
-    
-    // Add tool-specific tags
-    if (analysis.toolName) tags.add(analysis.toolName);
-    
-    // Add language tags
-    if (analysis.languages) {
-      analysis.languages.forEach((lang: string) => tags.add(lang));
-    }
-    
-    // Add framework tags
-    if (analysis.frameworks) {
-      analysis.frameworks.forEach((fw: string) => tags.add(fw));
-    }
-    
-    // Add issue severity tags
-    if (analysis.issues) {
-      analysis.issues.forEach((issue: any) => {
-        if (issue.severity) tags.add(`severity:${issue.severity}`);
-        if (issue.type) tags.add(`issue:${issue.type}`);
-      });
-    }
-    
-    // Add custom tags
-    if (analysis.tags) {
-      analysis.tags.forEach((tag: string) => tags.add(tag));
-    }
-    
-    return Array.from(tags);
-  }
-
-  /**
-   * Extract metrics from analysis
-   */
-  private extractMetrics(analysis: any): any {
-    return {
-      executionTime: analysis.executionTime || analysis.metrics?.executionTime,
-      filesProcessed: analysis.filesProcessed || analysis.data?.length || 0,
-      issuesFound: analysis.issues?.length || analysis.violations?.length || 0,
-      complexity: analysis.complexity || analysis.metrics?.complexity
-    };
   }
 }
 

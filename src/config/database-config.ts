@@ -1,11 +1,11 @@
 /**
  * Database Configuration and Connection Manager
- * Handles connections to all 4 CodeMind databases: PostgreSQL, Neo4j, Redis, MongoDB
+ * Handles connections to 3 CodeMind databases: PostgreSQL, Neo4j, Redis
  */
 
 import { Client } from 'pg';
 import { createClient } from 'redis';
-import { MongoClient } from 'mongodb';
+import neo4j from 'neo4j-driver';
 
 export interface DatabaseConfig {
   postgres: {
@@ -25,16 +25,12 @@ export interface DatabaseConfig {
     user: string;
     password: string;
   };
-  mongodb: {
-    uri: string;
-  };
 }
 
 export class DatabaseConnections {
   private config: DatabaseConfig;
   private pgClient?: Client;
   private redisClient?: any;
-  private mongoClient?: MongoClient;
   private neo4jDriver?: any;
 
   constructor(config?: DatabaseConfig) {
@@ -59,9 +55,6 @@ export class DatabaseConnections {
         uri: process.env.NEO4J_URI || 'bolt://localhost:7687',
         user: process.env.NEO4J_USER || 'neo4j',
         password: process.env.NEO4J_PASSWORD || 'codemind123'
-      },
-      mongodb: {
-        uri: process.env.MONGO_URI || 'mongodb://codemind:codemind123@localhost:27017/codemind'
       }
     };
   }
@@ -81,39 +74,73 @@ export class DatabaseConnections {
   }
 
   async getRedisConnection(): Promise<any> {
-    if (!this.redisClient) {
+    if (!this.redisClient || !this.redisClient.isOpen) {
+      // Clean up any existing client
+      if (this.redisClient) {
+        try {
+          await this.redisClient.quit();
+        } catch {
+          // Ignore cleanup errors
+        }
+        this.redisClient = null;
+      }
+
       this.redisClient = createClient({
         socket: {
           host: this.config.redis.host,
-          port: this.config.redis.port
+          port: this.config.redis.port,
+          connectTimeout: 5000,  // 5 second timeout
+          reconnectStrategy: (retries) => {
+            if (retries > 1) {
+              // Stop trying after 1 attempt for health checks
+              return new Error('Redis connection failed');
+            }
+            return 1000; // Try once after 1 second
+          }
         },
         password: this.config.redis.password
       });
-      await this.redisClient.connect();
+
+      // Add error handler to prevent unhandled errors
+      this.redisClient.on('error', (err: any) => {
+        // Silent - errors are handled by the connection attempt
+        // This prevents the TCP error loop from flooding the console
+      });
+
+      // Set a connection timeout promise
+      const connectTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Redis connection timeout')), 5000);
+      });
+
+      // Try to connect with timeout protection
+      try {
+        await Promise.race([
+          this.redisClient.connect(),
+          connectTimeout
+        ]);
+      } catch (error: any) {
+        // Clean up the failed client
+        this.redisClient = null;
+
+        // Don't log here - let the caller decide whether to log
+        if (error.message.includes('ECONNREFUSED')) {
+          throw new Error('Redis is not running');
+        } else if (error.message.includes('timeout')) {
+          throw new Error('Redis connection timed out');
+        }
+        throw new Error(`Redis connection failed: ${error.message}`);
+      }
     }
     return this.redisClient;
   }
 
-  async getMongoConnection(): Promise<MongoClient> {
-    if (!this.mongoClient) {
-      this.mongoClient = new MongoClient(this.config.mongodb.uri);
-      await this.mongoClient.connect();
-    }
-    return this.mongoClient;
-  }
 
   async getNeo4jConnection(): Promise<any> {
     if (!this.neo4jDriver) {
-      // Mock Neo4j driver for now since we don't have the actual neo4j-driver package
-      this.neo4jDriver = {
-        session: () => ({
-          run: async (query: string, params?: any) => ({
-            records: []
-          }),
-          close: async () => {}
-        }),
-        close: async () => {}
-      };
+      this.neo4jDriver = neo4j.driver(
+        this.config.neo4j.uri,
+        neo4j.auth.basic(this.config.neo4j.user, this.config.neo4j.password)
+      );
     }
     return this.neo4jDriver;
   }
@@ -129,9 +156,6 @@ export class DatabaseConnections {
       promises.push(this.redisClient.quit());
     }
     
-    if (this.mongoClient) {
-      promises.push(this.mongoClient.close());
-    }
     
     if (this.neo4jDriver) {
       promises.push(this.neo4jDriver.close());

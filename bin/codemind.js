@@ -8,24 +8,31 @@
 const path = require('path');
 const fs = require('fs');
 
+// Store original working directory
+const originalCwd = process.cwd();
+const projectRoot = path.join(__dirname, '..');
+
 // Find the actual CLI file
-const cliPath = path.join(__dirname, '..', 'dist', 'cli', 'codemind-unified-cli.js');
+const cliPath = path.join(projectRoot, 'dist', 'cli', 'codemind-cli.js');
 
 if (fs.existsSync(cliPath)) {
-  // Load and run the main CLI
   try {
-    const { main } = require(cliPath);
-    if (typeof main === 'function') {
-      main().catch((error) => {
-        console.error(`❌ Failed to start CodeMind CLI: ${error.message}`);
+    // Set environment variable with user's original working directory
+    process.env.CODEMIND_USER_CWD = originalCwd;
+
+    // Change to project root directory for proper module resolution
+    process.chdir(projectRoot);
+
+    // Execute the CLI directly and call main function
+    const cliModule = require(cliPath);
+    if (cliModule.main) {
+      cliModule.main().catch((error) => {
+        console.error('❌ Failed to start CodeMind CLI:', error.message);
         process.exit(1);
       });
-    } else {
-      console.error('❌ Could not find main function in CLI');
-      process.exit(1);
     }
   } catch (error) {
-    console.error(`❌ Error loading CLI: ${error.message}`);
+    console.error('❌ Failed to start CodeMind CLI:', error.message);
     process.exit(1);
   }
 } else {

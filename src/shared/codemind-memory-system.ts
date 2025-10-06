@@ -14,7 +14,7 @@
 
 import { Logger } from './logger';
 // Database services - using semantic graph service as proxy
-import { SemanticGraphService } from '../services/semantic-graph';
+import SemanticGraphService from '../cli/services/semantic-graph';
 
 // Temporary stubs for missing services
 class PostgreSQLService { 

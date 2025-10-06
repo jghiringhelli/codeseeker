@@ -1,7 +1,7 @@
 /**
  * Semantic Enhancement Engine
  * Powers CLI cycle with semantic search and relationship traversal
- * Provides complete context to Claude without file reads
+ * Now a thin wrapper around the unified SemanticSearchManager
  */
 export interface SemanticSearchResult {
     filePath: string;
@@ -27,66 +27,44 @@ export interface EnhancementContext {
     cacheHitRate: number;
     generatedAt: number;
 }
-export interface RedisFileCache {
-    content: string;
-    hash: string;
-    lastModified: number;
-    size: number;
-    language: string;
-    exports: string[];
-    imports: string[];
-    classes: string[];
-    functions: string[];
-}
+/**
+ * Legacy wrapper for SemanticSearchManager
+ * Maintains backward compatibility while delegating to unified manager
+ */
 export declare class SemanticEnhancementEngine {
     private logger;
-    private redisClient;
-    private pgPool;
-    private neo4jDriver;
+    private semanticSearchManager;
     constructor();
     /**
-     * Main enhancement workflow:
-     * 1. Execute semantic search based on user query
-     * 2. Get reasonable subset of most relevant files
-     * 3. Traverse Neo4j to find all related files
-     * 4. Provide complete context with cached content
-     * 5. Update cache after Claude's response
+     * Main enhancement workflow using unified semantic search manager
      */
-    enhanceQuery(query: string, maxPrimaryFiles?: number, maxRelatedFiles?: number, maxContextSize?: number): Promise<EnhancementContext>;
-    /**
-     * Execute semantic search using pgvector embeddings
-     */
-    private executeSemanticSearch;
-    /**
-     * Find all files related through Neo4j graph relationships
-     */
-    private findAllRelatedFiles;
-    /**
-     * Validate cache freshness using file hash comparison
-     */
-    private validateAndUpdateCache;
-    /**
-     * Build optimal context within size constraints
-     */
-    private buildOptimalContext;
+    enhanceQuery(query: string, maxPrimaryFiles?: number, maxRelatedFiles?: number, maxContextSize?: number, projectId?: string): Promise<EnhancementContext>;
     /**
      * Update context after Claude's processing
      */
-    updateContextAfterProcessing(modifiedFiles: string[], context: EnhancementContext): Promise<void>;
-    private initializeConnections;
-    private generateQueryEmbedding;
-    private getFromRedisCache;
-    private updateRedisCache;
-    private calculateFileHash;
-    private updateSemanticEmbedding;
-    private determineMatchReason;
-    private detectLanguage;
-    private extractExports;
-    private extractImports;
-    private extractClasses;
-    private extractFunctions;
-    private refreshFileContent;
-    private refreshRelatedFileContent;
+    updateContextAfterProcessing(modifiedFiles: string[], context: EnhancementContext, projectId?: string): Promise<void>;
+    /**
+     * Initialize semantic search for a project
+     */
+    initializeProjectSemanticSearch(projectId: string, files: string[], progressCallback?: (progress: number, current: string, detail: string) => void): Promise<{
+        success: number;
+        errors: number;
+        chunks: number;
+        skipped: number;
+    }>;
+    /**
+     * Get semantic search statistics
+     */
+    getSemanticSearchStats(projectId?: string): Promise<{
+        totalChunks: number;
+        totalFiles: number;
+        avgChunksPerFile: number;
+        storageSize: string;
+    }>;
+    /**
+     * Convert search response to legacy format for compatibility
+     */
+    private convertToLegacyFormat;
 }
 export default SemanticEnhancementEngine;
 //# sourceMappingURL=semantic-enhancement-engine.d.ts.map

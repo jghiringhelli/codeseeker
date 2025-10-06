@@ -1,215 +1,352 @@
 /**
- * Project Planner - Layer 3: Long-Term Planning
- * 
- * Manages multi-phase project execution with milestone tracking and dependency management.
- * Uses the Orchestrator (Layer 2) to execute complex workflows.
+ * Project Planner
+ * Handles project planning and requirement analysis
  */
 
-export interface ProjectPhase {
-  id: string;
-  name: string;
-  description: string;
-  estimatedDuration: number; // in days
-  dependencies: string[]; // phase IDs
-  milestones: Milestone[];
-  status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { glob } from 'fast-glob';
+
+interface ProjectAnalysis {
+  type: string;
+  complexity: 'low' | 'medium' | 'high';
+  recommendations: string[];
+  technologies: string[];
+  fileStats: {
+    totalFiles: number;
+    codeFiles: number;
+    testFiles: number;
+    configFiles: number;
+  };
+  architecture: string[];
 }
 
-export interface Milestone {
-  id: string;
-  name: string;
-  description: string;
-  targetDate: Date;
-  status: 'pending' | 'achieved' | 'overdue';
-  deliverables: string[];
-}
-
-export interface ProjectPlan {
-  id: string;
-  name: string;
-  description: string;
-  startDate: Date;
-  targetEndDate: Date;
-  phases: ProjectPhase[];
-  overallProgress: number;
-  status: 'planning' | 'active' | 'completed' | 'paused';
+interface ProjectPlan {
+  phases: Array<{
+    name: string;
+    description: string;
+    tasks: string[];
+    estimatedDays: number;
+  }>;
+  timeline: string;
+  resources: string[];
+  risks: string[];
+  dependencies: string[];
 }
 
 export class ProjectPlanner {
-  private plans: Map<string, ProjectPlan> = new Map();
 
-  /**
-   * Create a new project plan with phases and milestones
-   */
-  async createProjectPlan(
-    name: string,
-    description: string,
-    requirements: string[]
-  ): Promise<ProjectPlan> {
-    const planId = `plan_${Date.now()}`;
-    
-    // Generate phases based on requirements analysis
-    const phases = await this.generatePhases(requirements);
-    
-    const plan: ProjectPlan = {
-      id: planId,
-      name,
-      description,
-      startDate: new Date(),
-      targetEndDate: this.calculateEndDate(phases),
-      phases,
-      overallProgress: 0,
-      status: 'planning'
-    };
+  async analyzeProject(projectPath: string): Promise<ProjectAnalysis> {
+    try {
+      // Get all files in the project
+      const allFiles = await glob('**/*', {
+        cwd: projectPath,
+        ignore: ['node_modules/**', '.git/**', 'dist/**', 'build/**'],
+        onlyFiles: true
+      });
 
-    this.plans.set(planId, plan);
-    return plan;
+      const fileStats = this.analyzeFileStats(allFiles);
+      const technologies = await this.detectTechnologies(projectPath, allFiles);
+      const projectType = this.determineProjectType(technologies, allFiles);
+      const complexity = this.calculateComplexity(fileStats, technologies);
+      const architecture = this.analyzeArchitecture(allFiles);
+      const recommendations = this.generateRecommendations(projectType, technologies, fileStats);
+
+      return {
+        type: projectType,
+        complexity,
+        recommendations,
+        technologies,
+        fileStats,
+        architecture
+      };
+    } catch (error) {
+      console.error(`Project analysis failed: ${error.message}`);
+      return {
+        type: 'unknown',
+        complexity: 'medium',
+        recommendations: ['Unable to analyze project structure'],
+        technologies: [],
+        fileStats: { totalFiles: 0, codeFiles: 0, testFiles: 0, configFiles: 0 },
+        architecture: []
+      };
+    }
   }
 
-  /**
-   * Execute a project phase using the orchestrator
-   */
-  async executePhase(planId: string, phaseId: string): Promise<void> {
-    const plan = this.plans.get(planId);
-    if (!plan) throw new Error(`Plan ${planId} not found`);
+  async generatePlan(requirements: string[]): Promise<ProjectPlan> {
+    const phases = this.createPhases(requirements);
+    const timeline = this.estimateTimeline(phases);
+    const resources = this.identifyResources(requirements);
+    const risks = this.identifyRisks(requirements);
+    const dependencies = this.identifyDependencies(requirements);
 
-    const phase = plan.phases.find(p => p.id === phaseId);
-    if (!phase) throw new Error(`Phase ${phaseId} not found`);
+    return {
+      phases,
+      timeline,
+      resources,
+      risks,
+      dependencies
+    };
+  }
 
-    // Check dependencies
-    const blockedByDependencies = phase.dependencies.some(depId => {
-      const dep = plan.phases.find(p => p.id === depId);
-      return dep && dep.status !== 'completed';
+  private analyzeFileStats(files: string[]) {
+    const codeExtensions = ['.ts', '.js', '.tsx', '.jsx', '.py', '.java', '.cpp', '.c', '.cs', '.php', '.rb', '.go', '.rs'];
+    const testPatterns = ['/test/', '/tests/', '.test.', '.spec.', '__tests__'];
+    const configPatterns = ['package.json', 'tsconfig.json', '.eslintrc', 'webpack.config', 'babel.config', '.env'];
+
+    return {
+      totalFiles: files.length,
+      codeFiles: files.filter(f => codeExtensions.some(ext => f.endsWith(ext))).length,
+      testFiles: files.filter(f => testPatterns.some(pattern => f.includes(pattern))).length,
+      configFiles: files.filter(f => configPatterns.some(pattern => f.includes(pattern))).length
+    };
+  }
+
+  private async detectTechnologies(projectPath: string, files: string[]): Promise<string[]> {
+    const technologies: string[] = [];
+
+    // Check package.json
+    if (files.includes('package.json')) {
+      try {
+        const packageJson = JSON.parse(await fs.readFile(path.join(projectPath, 'package.json'), 'utf8'));
+        const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+
+        if (deps.react) technologies.push('React');
+        if (deps.vue) technologies.push('Vue');
+        if (deps.angular) technologies.push('Angular');
+        if (deps.typescript) technologies.push('TypeScript');
+        if (deps.express) technologies.push('Express');
+        if (deps.next) technologies.push('Next.js');
+        if (deps['@nestjs/core']) technologies.push('NestJS');
+        if (deps.webpack) technologies.push('Webpack');
+        if (deps.vite) technologies.push('Vite');
+      } catch (error) {
+        // Ignore package.json parsing errors
+      }
+    }
+
+    // Check file extensions
+    if (files.some(f => f.endsWith('.ts') || f.endsWith('.tsx'))) technologies.push('TypeScript');
+    if (files.some(f => f.endsWith('.py'))) technologies.push('Python');
+    if (files.some(f => f.endsWith('.java'))) technologies.push('Java');
+    if (files.some(f => f.endsWith('.cs'))) technologies.push('C#');
+    if (files.some(f => f.endsWith('.go'))) technologies.push('Go');
+    if (files.some(f => f.endsWith('.rs'))) technologies.push('Rust');
+
+    // Check for Docker
+    if (files.includes('Dockerfile') || files.includes('docker-compose.yml')) {
+      technologies.push('Docker');
+    }
+
+    return [...new Set(technologies)];
+  }
+
+  private determineProjectType(technologies: string[], files: string[]): string {
+    if (technologies.includes('React') || technologies.includes('Vue') || technologies.includes('Angular')) {
+      return 'Frontend Application';
+    }
+    if (technologies.includes('Express') || technologies.includes('NestJS')) {
+      return 'Backend API';
+    }
+    if (technologies.includes('Next.js')) {
+      return 'Full-Stack Application';
+    }
+    if (files.some(f => f.includes('test') || f.includes('spec'))) {
+      return 'Library/Package';
+    }
+    if (technologies.includes('Python')) {
+      return 'Python Application';
+    }
+    return 'General Software Project';
+  }
+
+  private calculateComplexity(fileStats: any, technologies: string[]): 'low' | 'medium' | 'high' {
+    const complexityScore =
+      (fileStats.codeFiles * 1) +
+      (technologies.length * 2) +
+      (fileStats.configFiles * 0.5);
+
+    if (complexityScore < 20) return 'low';
+    if (complexityScore < 100) return 'medium';
+    return 'high';
+  }
+
+  private analyzeArchitecture(files: string[]): string[] {
+    const patterns: string[] = [];
+
+    if (files.some(f => f.includes('/components/') && f.includes('/pages/'))) {
+      patterns.push('Component-based Architecture');
+    }
+    if (files.some(f => f.includes('/services/') || f.includes('/api/'))) {
+      patterns.push('Service Layer Architecture');
+    }
+    if (files.some(f => f.includes('/models/') || f.includes('/entities/'))) {
+      patterns.push('Data Model Layer');
+    }
+    if (files.some(f => f.includes('/utils/') || f.includes('/helpers/'))) {
+      patterns.push('Utility Layer');
+    }
+    if (files.some(f => f.includes('/middleware/'))) {
+      patterns.push('Middleware Pattern');
+    }
+
+    return patterns;
+  }
+
+  private generateRecommendations(type: string, technologies: string[], fileStats: any): string[] {
+    const recommendations: string[] = [];
+
+    if (fileStats.testFiles === 0) {
+      recommendations.push('Add unit tests for better code quality');
+    }
+
+    if (!technologies.includes('TypeScript') && fileStats.codeFiles > 10) {
+      recommendations.push('Consider migrating to TypeScript for better type safety');
+    }
+
+    if (fileStats.configFiles < 2) {
+      recommendations.push('Add linting and formatting configuration files');
+    }
+
+    if (!technologies.includes('Docker') && type.includes('Application')) {
+      recommendations.push('Consider containerization with Docker');
+    }
+
+    recommendations.push('Implement CI/CD pipeline for automated testing and deployment');
+    recommendations.push('Add comprehensive documentation and README');
+
+    return recommendations;
+  }
+
+  private createPhases(requirements: string[]) {
+    const phases = [];
+
+    // Analysis Phase
+    phases.push({
+      name: 'Project Analysis',
+      description: 'Analyze existing codebase and requirements',
+      tasks: [
+        'Review current codebase structure',
+        'Identify technical debt',
+        'Document existing functionality',
+        'Analyze performance bottlenecks'
+      ],
+      estimatedDays: Math.max(3, Math.ceil(requirements.length * 0.5))
     });
 
-    if (blockedByDependencies) {
-      throw new Error(`Phase ${phaseId} blocked by incomplete dependencies`);
-    }
+    // Planning Phase
+    phases.push({
+      name: 'Technical Planning',
+      description: 'Design technical solution and architecture',
+      tasks: [
+        'Create technical specification',
+        'Design system architecture',
+        'Plan database schema changes',
+        'Define API contracts'
+      ],
+      estimatedDays: Math.max(5, Math.ceil(requirements.length * 0.8))
+    });
 
-    // Use orchestrator to execute phase workflows
-    phase.status = 'in_progress';
-    
-    try {
-      // Here we would integrate with the orchestrator to execute workflows
-      await this.executePhaseWorkflows(phase);
-      
-      phase.status = 'completed';
-      this.updateProjectProgress(plan);
-    } catch (error) {
-      phase.status = 'blocked';
-      throw error;
-    }
-  }
+    // Implementation Phase
+    phases.push({
+      name: 'Implementation',
+      description: 'Develop the required features',
+      tasks: requirements.map(req => `Implement: ${req}`),
+      estimatedDays: Math.max(10, requirements.length * 2)
+    });
 
-  /**
-   * Get project status and progress
-   */
-  getProjectStatus(planId: string): ProjectPlan | undefined {
-    return this.plans.get(planId);
-  }
+    // Testing Phase
+    phases.push({
+      name: 'Testing & QA',
+      description: 'Test and validate the implementation',
+      tasks: [
+        'Write unit tests',
+        'Perform integration testing',
+        'User acceptance testing',
+        'Performance testing'
+      ],
+      estimatedDays: Math.max(5, Math.ceil(requirements.length * 1.2))
+    });
 
-  /**
-   * Generate project phases based on requirements
-   */
-  private async generatePhases(requirements: string[]): Promise<ProjectPhase[]> {
-    // This would use AI to analyze requirements and generate appropriate phases
-    const phases: ProjectPhase[] = [
-      {
-        id: 'phase_1',
-        name: 'Analysis & Planning',
-        description: 'Analyze codebase and plan implementation',
-        estimatedDuration: 2,
-        dependencies: [],
-        milestones: [
-          {
-            id: 'milestone_1_1',
-            name: 'Requirements Analysis Complete',
-            description: 'All requirements analyzed and documented',
-            targetDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-            status: 'pending',
-            deliverables: ['Requirements Document', 'Technical Specification']
-          }
-        ],
-        status: 'pending'
-      },
-      {
-        id: 'phase_2',
-        name: 'Implementation',
-        description: 'Execute implementation tasks',
-        estimatedDuration: 7,
-        dependencies: ['phase_1'],
-        milestones: [
-          {
-            id: 'milestone_2_1',
-            name: 'Core Implementation Complete',
-            description: 'Main functionality implemented',
-            targetDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-            status: 'pending',
-            deliverables: ['Working Code', 'Unit Tests']
-          }
-        ],
-        status: 'pending'
-      },
-      {
-        id: 'phase_3',
-        name: 'Testing & Validation',
-        description: 'Comprehensive testing and validation',
-        estimatedDuration: 3,
-        dependencies: ['phase_2'],
-        milestones: [
-          {
-            id: 'milestone_3_1',
-            name: 'Testing Complete',
-            description: 'All tests pass and validation complete',
-            targetDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-            status: 'pending',
-            deliverables: ['Test Results', 'Quality Report']
-          }
-        ],
-        status: 'pending'
-      }
-    ];
+    // Deployment Phase
+    phases.push({
+      name: 'Deployment',
+      description: 'Deploy to production environment',
+      tasks: [
+        'Setup production environment',
+        'Database migration',
+        'Deploy application',
+        'Monitor and validate'
+      ],
+      estimatedDays: 3
+    });
 
     return phases;
   }
 
-  /**
-   * Calculate project end date based on phases
-   */
-  private calculateEndDate(phases: ProjectPhase[]): Date {
-    const totalDuration = phases.reduce((total, phase) => total + phase.estimatedDuration, 0);
-    return new Date(Date.now() + totalDuration * 24 * 60 * 60 * 1000);
+  private estimateTimeline(phases: any[]): string {
+    const totalDays = phases.reduce((sum, phase) => sum + phase.estimatedDays, 0);
+    const weeks = Math.ceil(totalDays / 5);
+
+    if (weeks <= 2) return `${totalDays} days (${weeks} weeks)`;
+    if (weeks <= 8) return `${weeks} weeks`;
+    return `${Math.ceil(weeks / 4)} months (${weeks} weeks)`;
   }
 
-  /**
-   * Execute workflows for a phase using the orchestrator
-   */
-  private async executePhaseWorkflows(phase: ProjectPhase): Promise<void> {
-    // This would integrate with the orchestrator layer to execute specific workflows
-    console.log(`Executing workflows for phase: ${phase.name}`);
-    
-    // Simulate phase execution
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update milestone progress
-    phase.milestones.forEach(milestone => {
-      if (milestone.status === 'pending') {
-        milestone.status = 'achieved';
-      }
-    });
-  }
+  private identifyResources(requirements: string[]): string[] {
+    const resources = [
+      'Development Team (Frontend/Backend)',
+      'DevOps Engineer',
+      'QA Engineer',
+      'Project Manager'
+    ];
 
-  /**
-   * Update overall project progress
-   */
-  private updateProjectProgress(plan: ProjectPlan): void {
-    const completedPhases = plan.phases.filter(p => p.status === 'completed').length;
-    plan.overallProgress = (completedPhases / plan.phases.length) * 100;
-    
-    if (plan.overallProgress === 100) {
-      plan.status = 'completed';
-    } else if (completedPhases > 0) {
-      plan.status = 'active';
+    if (requirements.some(req => req.toLowerCase().includes('database'))) {
+      resources.push('Database Administrator');
     }
+    if (requirements.some(req => req.toLowerCase().includes('ui') || req.toLowerCase().includes('design'))) {
+      resources.push('UI/UX Designer');
+    }
+    if (requirements.some(req => req.toLowerCase().includes('security'))) {
+      resources.push('Security Specialist');
+    }
+
+    return resources;
+  }
+
+  private identifyRisks(requirements: string[]): string[] {
+    const risks = [
+      'Technical complexity may lead to delays',
+      'Integration challenges with existing systems',
+      'Performance requirements may require optimization',
+      'Resource availability and scheduling conflicts'
+    ];
+
+    if (requirements.length > 10) {
+      risks.push('Scope creep due to large number of requirements');
+    }
+
+    if (requirements.some(req => req.toLowerCase().includes('migration'))) {
+      risks.push('Data migration risks and potential downtime');
+    }
+
+    return risks;
+  }
+
+  private identifyDependencies(requirements: string[]): string[] {
+    const dependencies = [
+      'Access to production environment',
+      'Database access and permissions',
+      'Third-party API documentation',
+      'Stakeholder approval for major changes'
+    ];
+
+    if (requirements.some(req => req.toLowerCase().includes('integration'))) {
+      dependencies.push('External system availability and cooperation');
+    }
+
+    return dependencies;
   }
 }
+
+export const projectPlanner = new ProjectPlanner();

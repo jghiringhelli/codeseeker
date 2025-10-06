@@ -36,6 +36,9 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSynchronizationSystem = void 0;
 const fs = __importStar(require("fs/promises"));
@@ -43,14 +46,22 @@ const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
 const fast_glob_1 = require("fast-glob");
 const logger_1 = require("../utils/logger");
-const tool_database_api_1 = require("../orchestration/tool-database-api");
+const tool_database_api_1 = require("../orchestrator/tool-database-api");
+const embedding_service_1 = __importDefault(require("../cli/services/embedding-service"));
 class FileSynchronizationSystem {
     logger = logger_1.Logger.getInstance();
     databaseAPI;
+    embeddingService;
     localHashCacheFile;
     localHashCache = new Map();
     constructor(projectPath) {
         this.databaseAPI = new tool_database_api_1.ToolDatabaseAPI();
+        this.embeddingService = new embedding_service_1.default({
+            provider: 'xenova', // Use Xenova transformers for zero-cost embeddings
+            model: 'Xenova/all-MiniLM-L6-v2',
+            chunkSize: 8000,
+            maxTokens: 8191
+        });
         this.localHashCacheFile = path.join(projectPath, '.codemind', 'file-hashes.json');
     }
     async initialize() {
@@ -458,8 +469,8 @@ class FileSynchronizationSystem {
      */
     async updateRelatedIndexes(projectId, filePath, content, fileData) {
         try {
-            // Update vector embeddings for semantic search
-            if (process.env.OPENAI_API_KEY && fileData.contentType === 'code') {
+            // Update vector embeddings for semantic search using Xenova (always available)
+            if (fileData.contentType === 'code') {
                 await this.updateVectorEmbedding(projectId, filePath, content, fileData);
             }
             // Update Neo4j graph with file relationships
@@ -473,47 +484,40 @@ class FileSynchronizationSystem {
         }
     }
     /**
-     * Update vector embedding for semantic search
+     * Update vector embedding for semantic search using Xenova transformers
      */
     async updateVectorEmbedding(projectId, filePath, content, fileData) {
         try {
-            const response = await fetch('https://api.openai.com/v1/embeddings', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'text-embedding-ada-002',
-                    input: content.substring(0, 8000) // OpenAI limit
+            // Generate embedding using Xenova transformers (zero-cost, local)
+            const embedding = await this.embeddingService.generateEmbedding(content.substring(0, 8000), // Limit content size for performance
+            filePath);
+            // Update or insert embedding
+            await this.databaseAPI.query(`
+        INSERT INTO code_embeddings (
+          project_id, file_path, content_type, content_text, content_hash,
+          embedding, metadata, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6::vector, $7, NOW(), NOW())
+        ON CONFLICT (project_id, file_path, content_type)
+        DO UPDATE SET
+          content_text = EXCLUDED.content_text,
+          content_hash = EXCLUDED.content_hash,
+          embedding = EXCLUDED.embedding,
+          updated_at = NOW()
+      `, [
+                projectId,
+                filePath,
+                'file',
+                content,
+                fileData.contentHash,
+                `[${embedding.join(',')}]`,
+                JSON.stringify({
+                    language: fileData.language,
+                    size: fileData.fileSize,
+                    embeddingProvider: 'xenova',
+                    model: 'Xenova/all-MiniLM-L6-v2'
                 })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                const embedding = data.data[0].embedding;
-                // Update or insert embedding
-                await this.databaseAPI.query(`
-          INSERT INTO code_embeddings (
-            project_id, file_path, content_type, content_text, content_hash, 
-            embedding, metadata, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6::vector, $7, NOW(), NOW())
-          ON CONFLICT (project_id, file_path, content_type) 
-          DO UPDATE SET 
-            content_text = EXCLUDED.content_text,
-            content_hash = EXCLUDED.content_hash,
-            embedding = EXCLUDED.embedding,
-            updated_at = NOW()
-        `, [
-                    projectId,
-                    filePath,
-                    'file',
-                    content,
-                    fileData.contentHash,
-                    `[${embedding.join(',')}]`,
-                    JSON.stringify({ language: fileData.language, size: fileData.fileSize })
-                ]);
-                this.logger.debug(`📊 Updated vector embedding for ${filePath}`);
-            }
+            ]);
+            this.logger.debug(`📊 Updated Xenova vector embedding for ${filePath}`);
         }
         catch (error) {
             this.logger.warn(`Failed to update vector embedding for ${filePath}: ${error}`);
@@ -524,7 +528,7 @@ class FileSynchronizationSystem {
      */
     async updateGraphRelationships(projectId, filePath, content, fileData) {
         try {
-            const { CodeRelationshipParser } = await Promise.resolve().then(() => __importStar(require('../services/code-relationship-parser')));
+            const { CodeRelationshipParser } = await Promise.resolve().then(() => __importStar(require('../cli/services/code-relationship-parser')));
             const parser = new CodeRelationshipParser();
             // Parse just this file and update its relationships
             // This is a simplified version - in practice, we'd want more sophisticated incremental updates

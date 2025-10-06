@@ -1,16 +1,17 @@
 /**
- * Four-Layer Memory Architecture for CodeMind
- * 
- * Complete memory system mapping to different storage types:
+ * Three-Database Memory Architecture for CodeMind
+ *
+ * Complete memory system mapping to three disjoint storage types:
  * 1. SHORT TERM: Live task execution (Redis) - Active working memory
- * 2. LONG TERM: Persistent information, knowledge retention (PostgreSQL + pgvector) - Facts and patterns
- * 3. EPISODIC: Experiential records for improvements (MongoDB) - Event sequences and experiences  
- * 4. SEMANTIC: Factual knowledge and concepts for agents (Neo4j) - Relationships and understanding
+ * 2. LONG TERM: Persistent information, knowledge retention, episodic records (PostgreSQL + pgvector) - Facts, patterns, and experiences
+ * 3. SEMANTIC: Factual knowledge and concepts for agents (Neo4j) - Relationships and understanding
+ *
+ * Note: Episodic memory consolidated into PostgreSQL to maintain database disjointness
  */
 
 import { Logger } from './logger';
 // Database services - using semantic graph service as proxy for now
-import { SemanticGraphService } from '../services/semantic-graph';
+import SemanticGraphService from '../cli/services/semantic-graph';
 
 // Temporary stubs for missing services
 class RedisService { 
@@ -24,14 +25,12 @@ class RedisService {
   async lrange(key: string, start: number, end: number) { return []; }
   async expire(key: string, ttl: number) { return 1; }
 }
-class PostgreSQLService { 
+class PostgreSQLService {
   async query() { return []; }
   async insert() { return 'id'; }
-}
-class MongoDBService { 
-  async find() { return []; }
-  async insert() { return 'id'; }
-  async update() { return { modifiedCount: 1 }; }
+  // Handles both long-term and episodic memory in single database
+  async insertEpisodicRecord() { return 'id'; }
+  async queryEpisodicRecords() { return []; }
 }
 class Neo4jService { 
   async createNode() { return 'id'; }
@@ -286,8 +285,7 @@ export class FourLayerMemoryManager {
   
   // Storage services for each layer
   private redis: RedisService;         // Short term memory
-  private postgresql: PostgreSQLService; // Long term memory  
-  private mongodb: MongoDBService;     // Episodic memory
+  private postgresql: PostgreSQLService; // Long term memory + episodic memory
   private neo4j: Neo4jService;         // Semantic memory
   
   // Layer-specific managers
@@ -301,14 +299,13 @@ export class FourLayerMemoryManager {
     
     // Initialize storage services
     this.redis = new RedisService();
-    this.postgresql = new PostgreSQLService();
-    this.mongodb = new MongoDBService();
+    this.postgresql = new PostgreSQLService(); // Handles both long-term and episodic memory
     this.neo4j = new Neo4jService();
     
     // Initialize layer managers
     this.shortTermManager = new ShortTermMemoryManager(this.redis);
     this.longTermManager = new LongTermMemoryManager(this.postgresql);
-    this.episodicManager = new EpisodicMemoryManager(this.mongodb);
+    this.episodicManager = new EpisodicMemoryManager(this.postgresql);
     this.semanticManager = new SemanticMemoryManager(this.neo4j);
   }
 
@@ -621,11 +618,11 @@ export class LongTermMemoryManager {
  * Manages experiential records, event sequences, improvement insights
  */
 export class EpisodicMemoryManager {
-  private mongodb: MongoDBService;
+  private postgresql: PostgreSQLService;
   private logger: Logger;
 
-  constructor(mongodb: MongoDBService) {
-    this.mongodb = mongodb;
+  constructor(postgresql: PostgreSQLService) {
+    this.postgresql = postgresql;
     this.logger = Logger.getInstance();
   }
 

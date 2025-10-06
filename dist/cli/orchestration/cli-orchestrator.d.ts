@@ -45,9 +45,7 @@ export declare class CLIOrchestrator {
     private logger;
     private semanticOrchestrator;
     private treeNavigator;
-    private toolSelector;
     private contextOptimizer;
-    private bundleSystem;
     constructor();
     /**
      * High-level analysis orchestration

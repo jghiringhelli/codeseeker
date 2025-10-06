@@ -21,7 +21,7 @@ export interface CacheConfig {
 }
 export declare class MultiLevelCache<T> {
     private logger;
-    private databaseAPI;
+    private redisCache;
     private config;
     private memoryCache;
     private fileCacheDir;
@@ -62,10 +62,8 @@ export declare class MultiLevelCache<T> {
     private getFromFileCache;
     private readFileEntry;
     private setFileCache;
-    private getFromDatabaseCache;
-    private setDatabaseCache;
-    private invalidateDatabaseCache;
-    private invalidateDatabasePattern;
+    private getFromRedisCache;
+    private setRedisCache;
     private calculateHitRate;
     private calculateTotalSize;
     close(): Promise<void>;

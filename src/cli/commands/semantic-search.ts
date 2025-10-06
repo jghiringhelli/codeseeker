@@ -6,7 +6,8 @@
 
 import { Command } from 'commander';
 import { Logger, LogLevel } from '../../utils/logger';
-import { SemanticSearchTool } from '../../features/search/semantic-search-complete';
+import { SemanticSearchTool } from '../features/search/semantic-search-complete';
+import EmbeddingService from '../services/embedding-service';
 import path from 'path';
 
 const logger = new Logger(LogLevel.INFO, 'SemanticSearchCLI');
@@ -50,7 +51,7 @@ export function createSemanticSearchCommand(): Command {
           console.log('🔄 Indexing codebase for semantic search...');
           
           const analysisResult = await searchTool.analyze(resolvedProjectPath, projectId, {
-            skipEmbeddings: !process.env.OPENAI_API_KEY
+            skipEmbeddings: false  // Always generate embeddings with Xenova
           });
 
           if (analysisResult.data && analysisResult.data.length > 0) {
@@ -87,34 +88,20 @@ export function createSemanticSearchCommand(): Command {
           }
 
         } else if (options.query) {
-          // Perform search
-          if (!process.env.OPENAI_API_KEY) {
-            console.error('❌ OPENAI_API_KEY environment variable is required for semantic search');
-            process.exit(1);
-          }
-
+          // Perform search using Xenova embeddings
           console.log(`🔍 Searching for: "${options.query}"`);
 
           try {
-            // Generate embedding for query
-            const response = await fetch('https://api.openai.com/v1/embeddings', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                model: 'text-embedding-ada-002',
-                input: options.query
-              })
+            // Initialize embedding service with Xenova transformers
+            const embeddingService = new EmbeddingService({
+              provider: 'xenova',
+              model: 'Xenova/all-MiniLM-L6-v2',
+              chunkSize: 8000,
+              maxTokens: 8191
             });
 
-            if (!response.ok) {
-              throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-            }
-
-            const embeddingData = await response.json();
-            const queryEmbedding = embeddingData.data[0].embedding;
+            // Generate embedding for query using Xenova
+            const queryEmbedding = await embeddingService.generateEmbedding(options.query, 'query.txt');
 
             // Search using API
             const apiUrl = process.env.TOOL_API_URL || 'http://localhost:3003';

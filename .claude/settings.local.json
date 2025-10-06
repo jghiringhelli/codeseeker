@@ -68,13 +68,11 @@
       "Bash(/c/WINDOWS/System32/WindowsPowerShell/v1.0/powershell -File \"scripts\\init-project-final.ps1\" -ProjectPath \".\" -SkipDocker)",
       "Read(//c/**)",
       "Bash(PGPASSWORD=codemind123 psql -h localhost -p 5432 -U codemind -d codemind -c \"SELECT COUNT(*) FROM semantic_search_embeddings;\")",
-      "Bash(PGPASSWORD=codemind123 psql -h localhost -p 5432 -U codemind -d codemind -c \"\\d initialization_progress\")"
+      "Bash(PGPASSWORD=codemind123 psql -h localhost -p 5432 -U codemind -d codemind -c \"\\d initialization_progress\")",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "ask": [],
-    "additionalDirectories": [
-      "C:\\workspace\\claude\\TestNewProject",
-      "C:\\workspace\\claude\\FreshTestProject"
-    ]
+    "additionalDirectories": []
   }
 }

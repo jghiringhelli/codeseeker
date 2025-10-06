@@ -7,7 +7,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { Logger } from '../utils/logger';
-import { ToolDatabaseAPI } from '../orchestration/tool-database-api';
+import { RedisCacheAdapter } from './redis-cache-adapter';
 
 export interface CacheEntry<T> {
   key: string;
@@ -30,15 +30,15 @@ export interface CacheConfig {
 
 export class MultiLevelCache<T> {
   private logger = Logger.getInstance();
-  private databaseAPI: ToolDatabaseAPI;
+  private redisCache: RedisCacheAdapter<T>;
   private config: CacheConfig;
-  
+
   // L1 Cache: In-Memory (fastest)
   private memoryCache: Map<string, CacheEntry<T>> = new Map();
-  
+
   // L2 Cache: File System (fast)
   private fileCacheDir: string;
-  
+
   constructor(cacheName: string, config: Partial<CacheConfig> = {}) {
     this.config = {
       maxMemoryEntries: config.maxMemoryEntries || 1000,
@@ -47,14 +47,22 @@ export class MultiLevelCache<T> {
       fileBasePath: config.fileBasePath || '.codemind/cache',
       enableCompression: config.enableCompression || true
     };
-    
+
     this.fileCacheDir = path.join(this.config.fileBasePath, cacheName);
-    this.databaseAPI = new ToolDatabaseAPI();
+    this.redisCache = new RedisCacheAdapter<T>(`codemind:cache:${cacheName}`);
   }
 
   async initialize(): Promise<void> {
     await fs.mkdir(this.fileCacheDir, { recursive: true });
-    await this.databaseAPI.initialize();
+
+    // Initialize Redis cache but don't fail if it's not available
+    try {
+      await this.redisCache.initialize();
+    } catch (error: any) {
+      this.logger.warn(`⚠️  Redis cache unavailable: ${error.message}`);
+      this.logger.warn('  Multi-level cache will operate without Redis (L1 + L2 only)');
+    }
+
     this.logger.info(`🗄️  Multi-level cache initialized: ${this.fileCacheDir}`);
   }
 
@@ -82,14 +90,14 @@ export class MultiLevelCache<T> {
       return fileEntry.data;
     }
     
-    // L3: Database cache (slow but comprehensive)
-    const dbEntry = await this.getFromDatabaseCache(key, contentHash);
-    if (dbEntry) {
+    // L3: Redis cache (comprehensive and persistent)
+    const redisEntry = await this.getFromRedisCache(key, contentHash);
+    if (redisEntry) {
       // Promote to L2 and L1
-      await this.setFileCache(cacheKey, dbEntry);
-      this.setMemoryCache(cacheKey, dbEntry);
-      this.logger.debug(`🗃️  L3 cache hit: ${key}`);
-      return dbEntry.data;
+      await this.setFileCache(cacheKey, redisEntry);
+      this.setMemoryCache(cacheKey, redisEntry);
+      this.logger.debug(`🗃️  L3 Redis cache hit: ${key}`);
+      return redisEntry.data;
     }
     
     this.logger.debug(`❌ Cache miss: ${key}`);
@@ -115,7 +123,7 @@ export class MultiLevelCache<T> {
     // Set in all levels
     this.setMemoryCache(cacheKey, entry);
     await this.setFileCache(cacheKey, entry);
-    await this.setDatabaseCache(key, entry);
+    await this.setRedisCache(key, entry);
     
     this.logger.debug(`💾 Cached: ${key} (hash: ${contentHash.substring(0, 8)})`);
   }
@@ -136,8 +144,8 @@ export class MultiLevelCache<T> {
       // File may not exist
     }
     
-    // Mark as invalid in L3 (don't delete to preserve history)
-    await this.invalidateDatabaseCache(key);
+    // Remove from L3 (Redis)
+    await this.redisCache.delete(key);
     
     this.logger.debug(`🗑️  Invalidated: ${key}`);
   }
@@ -173,8 +181,8 @@ export class MultiLevelCache<T> {
       this.logger.warn(`Error checking file cache for pattern: ${error}`);
     }
     
-    // L3: Database invalidation
-    invalidated += await this.invalidateDatabasePattern(pattern);
+    // L3: Redis invalidation
+    invalidated += await this.redisCache.invalidatePattern(pattern);
     
     this.logger.info(`🧹 Invalidated ${invalidated} entries matching pattern: ${pattern}`);
     return invalidated;
@@ -331,95 +339,25 @@ export class MultiLevelCache<T> {
     }
   }
 
-  private async getFromDatabaseCache(key: string, contentHash?: string): Promise<CacheEntry<T> | null> {
+  private async getFromRedisCache(key: string, contentHash?: string): Promise<CacheEntry<T> | null> {
     try {
-      const result = await this.databaseAPI.query(
-        'SELECT * FROM cache_entries WHERE cache_key = $1 AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC LIMIT 1',
-        [key]
-      );
-      
-      if (result.rows.length > 0) {
-        const row = result.rows[0];
-        
-        // Check content hash if provided
-        if (contentHash && row.content_hash !== contentHash) {
-          return null;
-        }
-        
-        return {
-          key: row.cache_key,
-          data: JSON.parse(row.data),
-          contentHash: row.content_hash,
-          timestamp: row.created_at,
-          accessCount: row.access_count,
-          lastAccessed: row.last_accessed,
-          expiresAt: row.expires_at,
-          metadata: row.metadata ? JSON.parse(row.metadata) : undefined
-        };
-      }
+      const entry = await this.redisCache.get(key, contentHash);
+      return entry;
     } catch (error) {
-      this.logger.warn(`Failed to read from database cache: ${error}`);
-    }
-    
-    return null;
-  }
-
-  private async setDatabaseCache(key: string, entry: CacheEntry<T>): Promise<void> {
-    try {
-      await this.databaseAPI.query(`
-        INSERT INTO cache_entries (cache_key, data, content_hash, created_at, access_count, last_accessed, expires_at, metadata)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (cache_key) DO UPDATE SET
-        data = $2, content_hash = $3, access_count = $5, last_accessed = $6, expires_at = $7, metadata = $8
-      `, [
-        key,
-        JSON.stringify(entry.data),
-        entry.contentHash,
-        entry.timestamp,
-        entry.accessCount,
-        entry.lastAccessed,
-        entry.expiresAt,
-        entry.metadata ? JSON.stringify(entry.metadata) : null
-      ]);
-    } catch (error) {
-      this.logger.warn(`Failed to write to database cache: ${error}`);
+      this.logger.warn(`Failed to read from Redis cache: ${error}`);
+      return null;
     }
   }
 
-  private async invalidateDatabaseCache(key: string): Promise<void> {
+  private async setRedisCache(key: string, entry: CacheEntry<T>): Promise<void> {
     try {
-      await this.databaseAPI.query(
-        'UPDATE cache_entries SET expires_at = NOW() WHERE cache_key = $1',
-        [key]
-      );
+      const ttl = entry.expiresAt ? entry.expiresAt.getTime() - Date.now() : undefined;
+      await this.redisCache.set(key, entry.data, entry.contentHash, ttl);
     } catch (error) {
-      this.logger.warn(`Failed to invalidate database cache: ${error}`);
+      this.logger.warn(`Failed to write to Redis cache: ${error}`);
     }
   }
 
-  private async invalidateDatabasePattern(pattern: RegExp): Promise<number> {
-    try {
-      const result = await this.databaseAPI.query(
-        'SELECT cache_key FROM cache_entries WHERE expires_at IS NULL OR expires_at > NOW()'
-      );
-      
-      const keysToInvalidate = result.rows
-        .map(row => row.cache_key)
-        .filter(key => pattern.test(key));
-      
-      if (keysToInvalidate.length > 0) {
-        await this.databaseAPI.query(
-          'UPDATE cache_entries SET expires_at = NOW() WHERE cache_key = ANY($1)',
-          [keysToInvalidate]
-        );
-      }
-      
-      return keysToInvalidate.length;
-    } catch (error) {
-      this.logger.warn(`Failed to invalidate database pattern: ${error}`);
-      return 0;
-    }
-  }
 
   private calculateHitRate(): number {
     if (this.memoryCache.size === 0) return 0;
@@ -442,7 +380,7 @@ export class MultiLevelCache<T> {
 
   async close(): Promise<void> {
     await this.cleanup();
-    await this.databaseAPI.close();
+    await this.redisCache.close();
   }
 }
 

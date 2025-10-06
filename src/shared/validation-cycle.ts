@@ -6,8 +6,8 @@
  */
 
 import { Logger } from './logger';
-import { CompilationVerifier, CompilationResult } from '../features/compilation/verifier';
-import { SOLIDPrinciplesAnalyzer, SOLIDAnalysisResult } from '../features/solid-principles/analyzer';
+import { CompilationVerifier, CompilationResult } from '../cli/features/compilation/verifier';
+import { SOLIDPrinciplesAnalyzer, SOLIDAnalysisResult } from '../cli/features/solid-principles/analyzer';
 import { IntelligentCycleFeatures, SemanticDeduplicationResult, SmartSecurityResult } from './intelligent-cycle-features';
 import * as fs from 'fs/promises';
 import * as path from 'path';

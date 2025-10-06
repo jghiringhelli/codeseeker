@@ -1,70 +1,45 @@
 "use strict";
 /**
- * Project Intelligence Repository
- * Stores and manages intelligent project context in MongoDB
+ * Project Intelligence Service
+ * Provides AI-driven insights about projects using PostgreSQL
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.projectIntelligence = exports.ProjectIntelligence = void 0;
-const mongodb_client_1 = require("./mongodb-client");
 const logger_1 = require("../utils/logger");
+const database_config_1 = require("../config/database-config");
 class ProjectIntelligence {
-    collection;
     logger;
-    cache = new Map();
+    dbConnections;
     constructor() {
         this.logger = new logger_1.Logger(logger_1.LogLevel.INFO, 'ProjectIntelligence');
-    }
-    async ensureConnection() {
-        if (!this.collection) {
-            if (!mongodb_client_1.mongoClient.isReady()) {
-                await mongodb_client_1.mongoClient.connect();
-            }
-            this.collection = mongodb_client_1.mongoClient.getCollection('project_intelligence');
-        }
-        return this.collection;
+        this.dbConnections = new database_config_1.DatabaseConnections();
     }
     /**
-     * Update project context with version tracking
-     */
-    async updateProjectContext(projectId, context) {
-        try {
-            const collection = await this.ensureConnection();
-            // Get existing document for version tracking
-            const existing = await collection.findOne({ projectId });
-            const doc = {
-                projectId,
-                context,
-                lastUpdated: new Date(),
-                version: existing ? existing.version + 1 : 1,
-                history: existing?.history ? [...existing.history.slice(-9), existing.context] : []
-            };
-            await collection.replaceOne({ projectId }, doc, { upsert: true });
-            // Update cache
-            this.cache.set(projectId, doc);
-            this.logger.info(`Updated context for project ${projectId} (v${doc.version})`);
-            // Trigger tool recommendation update
-            await this.updateToolRecommendations(projectId, context);
-        }
-        catch (error) {
-            this.logger.error(`Failed to update project context: ${error}`);
-            throw error;
-        }
-    }
-    /**
-     * Get project context with caching
+     * Get intelligent project context
      */
     async getProjectContext(projectId) {
         try {
-            // Check cache first
-            if (this.cache.has(projectId)) {
-                return this.cache.get(projectId).context;
+            const pgClient = await this.dbConnections.getPostgresConnection();
+            const query = `
+        SELECT project_id, name, type, languages, frameworks, patterns, complexity, last_analyzed
+        FROM project_intelligence
+        WHERE project_id = $1
+      `;
+            const result = await pgClient.query(query, [projectId]);
+            if (result.rows.length === 0) {
+                return null;
             }
-            const doc = await this.collection.findOne({ projectId });
-            if (doc) {
-                this.cache.set(projectId, doc);
-                return doc.context;
-            }
-            return null;
+            const row = result.rows[0];
+            return {
+                projectId: row.project_id,
+                name: row.name,
+                type: row.type,
+                languages: JSON.parse(row.languages || '[]'),
+                frameworks: JSON.parse(row.frameworks || '[]'),
+                patterns: JSON.parse(row.patterns || '[]'),
+                complexity: row.complexity,
+                lastAnalyzed: row.last_analyzed
+            };
         }
         catch (error) {
             this.logger.error(`Failed to get project context: ${error}`);
@@ -72,427 +47,127 @@ class ProjectIntelligence {
         }
     }
     /**
-     * Find similar projects based on context
+     * Update project intelligence
      */
-    async findSimilarProjects(projectContext, limit = 5) {
+    async updateProjectIntelligence(projectId, data) {
         try {
-            const query = {
-                $or: [
-                    { 'context.languages': { $in: projectContext.languages } },
-                    { 'context.frameworks': { $in: projectContext.frameworks } },
-                    { 'context.projectType': projectContext.projectType }
-                ]
-            };
-            const results = await this.collection
-                .find(query)
-                .sort({ lastUpdated: -1 })
-                .limit(limit)
-                .toArray();
-            // Calculate similarity scores
-            const scoredResults = results.map(doc => {
-                const score = this.calculateSimilarityScore(projectContext, doc.context);
-                return { ...doc, similarityScore: score };
-            });
-            // Sort by similarity score
-            return scoredResults.sort((a, b) => b.similarityScore - a.similarityScore);
+            const pgClient = await this.dbConnections.getPostgresConnection();
+            const query = `
+        INSERT INTO project_intelligence (project_id, name, type, languages, frameworks, patterns, complexity, last_analyzed)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        ON CONFLICT (project_id)
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          type = EXCLUDED.type,
+          languages = EXCLUDED.languages,
+          frameworks = EXCLUDED.frameworks,
+          patterns = EXCLUDED.patterns,
+          complexity = EXCLUDED.complexity,
+          last_analyzed = NOW()
+      `;
+            await pgClient.query(query, [
+                projectId,
+                data.name || 'Unknown Project',
+                data.type || 'unknown',
+                JSON.stringify(data.languages || []),
+                JSON.stringify(data.frameworks || []),
+                JSON.stringify(data.patterns || []),
+                data.complexity || 1
+            ]);
+            this.logger.info(`Updated intelligence for project ${projectId}`);
         }
         catch (error) {
-            this.logger.error(`Failed to find similar projects: ${error}`);
-            return [];
+            this.logger.error(`Failed to update project intelligence: ${error}`);
         }
     }
     /**
-     * Get recommended tools based on project context
+     * Get project insights
      */
-    async getRecommendedTools(projectId) {
+    async getProjectInsights(projectId) {
         try {
+            const pgClient = await this.dbConnections.getPostgresConnection();
+            // Get basic project intelligence
             const context = await this.getProjectContext(projectId);
             if (!context) {
-                return this.getDefaultTools();
+                return {};
             }
-            // Start with explicitly recommended tools
-            const tools = new Set(context.recommendedTools);
-            // Add tools based on project type
-            const typeTools = this.getToolsByProjectType(context.projectType);
-            typeTools.forEach(tool => tools.add(tool));
-            // Add tools based on languages
-            const langTools = this.getToolsByLanguages(context.languages);
-            langTools.forEach(tool => tools.add(tool));
-            // Add tools based on frameworks
-            const frameworkTools = this.getToolsByFrameworks(context.frameworks);
-            frameworkTools.forEach(tool => tools.add(tool));
-            // Add tools based on complexity
-            const complexityTools = this.getToolsByComplexity(context.complexity);
-            complexityTools.forEach(tool => tools.add(tool));
-            return Array.from(tools);
+            // Get recent analysis results for insights
+            const analysisQuery = `
+        SELECT tool_name, analysis, has_issues, timestamp
+        FROM analysis_results
+        WHERE project_id = $1
+        ORDER BY timestamp DESC
+        LIMIT 10
+      `;
+            const analysisResult = await pgClient.query(analysisQuery, [projectId]);
+            const recentAnalyses = analysisResult.rows;
+            // Generate insights based on project data
+            const insights = {
+                projectType: context.type,
+                primaryLanguages: context.languages.slice(0, 3),
+                frameworks: context.frameworks,
+                complexity: context.complexity,
+                recentIssues: recentAnalyses.filter(a => a.has_issues).length,
+                totalAnalyses: recentAnalyses.length,
+                lastActivity: context.lastAnalyzed,
+                recommendations: this.generateRecommendations(context, recentAnalyses)
+            };
+            this.logger.info(`Retrieved insights for project ${projectId}`);
+            return insights;
         }
         catch (error) {
-            this.logger.error(`Failed to get recommended tools: ${error}`);
-            return this.getDefaultTools();
+            this.logger.error(`Failed to get project insights: ${error}`);
+            return {};
         }
     }
     /**
-     * Learn from successful tool runs
+     * Learn from tool execution
      */
-    async learnFromToolExecution(projectId, toolName, success, executionTime, context) {
+    async learnFromToolExecution(projectId, toolName, result) {
         try {
-            const projectContext = await this.getProjectContext(projectId);
-            if (!projectContext)
-                return;
-            if (success) {
-                // Add tool to recommendations if execution was successful and fast
-                if (executionTime < 5000 && !projectContext.recommendedTools.includes(toolName)) {
-                    projectContext.recommendedTools.push(toolName);
-                    await this.updateProjectContext(projectId, projectContext);
-                }
-            }
-            else {
-                // Remove tool from recommendations if it consistently fails
-                const failureKey = `${projectId}:${toolName}:failures`;
-                // In production, track failures in Redis or another store
-                // For now, just log
-                this.logger.warn(`Tool ${toolName} failed for project ${projectId}`);
-            }
+            // TODO: Implement PostgreSQL-based learning
+            this.logger.info(`Learning from ${toolName} execution in project ${projectId}`);
         }
         catch (error) {
             this.logger.error(`Failed to learn from tool execution: ${error}`);
         }
     }
     /**
-     * Analyze project and generate initial context
+     * Get smart recommendations
      */
-    async analyzeProject(projectId, projectPath, fileList) {
+    async getRecommendations(projectId) {
         try {
-            const context = {
-                languages: this.detectLanguages(fileList),
-                frameworks: this.detectFrameworks(fileList),
-                projectType: this.detectProjectType(fileList),
-                fileStructure: this.analyzeFileStructure(fileList),
-                patterns: this.detectPatterns(fileList),
-                complexity: this.calculateComplexity(fileList),
-                recommendedTools: [],
-                metrics: {
-                    totalFiles: fileList.length,
-                    totalLines: 0, // Would need to read files to calculate
-                    dependencies: this.countDependencies(fileList)
-                }
-            };
-            // Get initial tool recommendations
-            context.recommendedTools = await this.generateInitialRecommendations(context);
-            // Save the context
-            await this.updateProjectContext(projectId, context);
-            return context;
+            const insights = await this.getProjectInsights(projectId);
+            return insights.recommendations || [];
         }
         catch (error) {
-            this.logger.error(`Failed to analyze project: ${error}`);
-            throw error;
-        }
-    }
-    /**
-     * Get intelligence insights for a project
-     */
-    async getProjectInsights(projectId) {
-        try {
-            const context = await this.getProjectContext(projectId);
-            if (!context)
-                return [];
-            const insights = [];
-            // Complexity insights
-            if (context.complexity === 'high') {
-                insights.push('High complexity detected - consider refactoring or splitting into modules');
-            }
-            // Pattern insights
-            if (!context.patterns.architectural.length) {
-                insights.push('No clear architectural pattern detected - consider adopting MVC, Clean Architecture, or similar');
-            }
-            // Testing insights
-            if (!context.fileStructure.testDirectories.length) {
-                insights.push('No test directories found - consider adding unit tests');
-            }
-            // Framework insights
-            if (context.frameworks.length > 5) {
-                insights.push('Multiple frameworks detected - consider consolidating to reduce complexity');
-            }
-            // Tool insights
-            const similarProjects = await this.findSimilarProjects(context, 3);
-            if (similarProjects.length > 0) {
-                const commonTools = this.findCommonTools(similarProjects);
-                if (commonTools.length > 0) {
-                    insights.push(`Similar projects use: ${commonTools.join(', ')}`);
-                }
-            }
-            return insights;
-        }
-        catch (error) {
-            this.logger.error(`Failed to get project insights: ${error}`);
+            this.logger.error(`Failed to get recommendations: ${error}`);
             return [];
         }
     }
     /**
-     * Compare two project contexts
+     * Generate recommendations based on project data
      */
-    async compareProjects(projectId1, projectId2) {
-        try {
-            const [context1, context2] = await Promise.all([
-                this.getProjectContext(projectId1),
-                this.getProjectContext(projectId2)
-            ]);
-            if (!context1 || !context2) {
-                return null;
-            }
-            return {
-                similarities: {
-                    languages: context1.languages.filter(l => context2.languages.includes(l)),
-                    frameworks: context1.frameworks.filter(f => context2.frameworks.includes(f)),
-                    patterns: context1.patterns.architectural.filter(p => context2.patterns.architectural.includes(p)),
-                    projectType: context1.projectType === context2.projectType
-                },
-                differences: {
-                    languages: {
-                        project1Only: context1.languages.filter(l => !context2.languages.includes(l)),
-                        project2Only: context2.languages.filter(l => !context1.languages.includes(l))
-                    },
-                    frameworks: {
-                        project1Only: context1.frameworks.filter(f => !context2.frameworks.includes(f)),
-                        project2Only: context2.frameworks.filter(f => !context1.frameworks.includes(f))
-                    },
-                    complexity: {
-                        project1: context1.complexity,
-                        project2: context2.complexity
-                    }
-                },
-                similarityScore: this.calculateSimilarityScore(context1, context2)
-            };
+    generateRecommendations(context, recentAnalyses) {
+        const recommendations = [];
+        // Complexity-based recommendations
+        if (context.complexity > 5) {
+            recommendations.push('Consider refactoring to reduce code complexity');
         }
-        catch (error) {
-            this.logger.error(`Failed to compare projects: ${error}`);
-            return null;
+        // Language-based recommendations
+        if (context.languages.includes('typescript') && !context.frameworks.includes('prettier')) {
+            recommendations.push('Consider adding Prettier for consistent code formatting');
         }
-    }
-    // Helper methods
-    calculateSimilarityScore(context1, context2) {
-        let score = 0;
-        // Language similarity (weight: 30%)
-        const langIntersection = context1.languages.filter(l => context2.languages.includes(l));
-        score += (langIntersection.length / Math.max(context1.languages.length, context2.languages.length)) * 0.3;
-        // Framework similarity (weight: 25%)
-        const fwIntersection = context1.frameworks.filter(f => context2.frameworks.includes(f));
-        score += (fwIntersection.length / Math.max(context1.frameworks.length, context2.frameworks.length, 1)) * 0.25;
-        // Project type similarity (weight: 20%)
-        if (context1.projectType === context2.projectType) {
-            score += 0.2;
+        // Issue-based recommendations
+        const recentIssues = recentAnalyses.filter(a => a.has_issues);
+        if (recentIssues.length > 3) {
+            recommendations.push('Multiple issues detected - consider running quality analysis');
         }
-        // Complexity similarity (weight: 15%)
-        if (context1.complexity === context2.complexity) {
-            score += 0.15;
+        // Framework-specific recommendations
+        if (context.frameworks.includes('react') && !context.frameworks.includes('eslint')) {
+            recommendations.push('Consider adding ESLint for React best practices');
         }
-        // Pattern similarity (weight: 10%)
-        const patternIntersection = context1.patterns.architectural.filter(p => context2.patterns.architectural.includes(p));
-        score += (patternIntersection.length / Math.max(context1.patterns.architectural.length, context2.patterns.architectural.length, 1)) * 0.1;
-        return Math.round(score * 100) / 100;
-    }
-    async updateToolRecommendations(projectId, context) {
-        const recommendations = await this.generateInitialRecommendations(context);
-        if (recommendations.length > 0 && JSON.stringify(recommendations) !== JSON.stringify(context.recommendedTools)) {
-            context.recommendedTools = recommendations;
-            // Note: This would be updated in the next context save
-        }
-    }
-    detectLanguages(fileList) {
-        const languages = new Set();
-        fileList.forEach(file => {
-            if (file.endsWith('.ts') || file.endsWith('.tsx'))
-                languages.add('typescript');
-            if (file.endsWith('.js') || file.endsWith('.jsx'))
-                languages.add('javascript');
-            if (file.endsWith('.py'))
-                languages.add('python');
-            if (file.endsWith('.java'))
-                languages.add('java');
-            if (file.endsWith('.cs'))
-                languages.add('csharp');
-            if (file.endsWith('.go'))
-                languages.add('go');
-            if (file.endsWith('.rs'))
-                languages.add('rust');
-            if (file.endsWith('.cpp') || file.endsWith('.cc'))
-                languages.add('cpp');
-        });
-        return Array.from(languages);
-    }
-    detectFrameworks(fileList) {
-        const frameworks = new Set();
-        // React
-        if (fileList.some(f => f.includes('react') || f.endsWith('.jsx') || f.endsWith('.tsx'))) {
-            frameworks.add('react');
-        }
-        // Node.js
-        if (fileList.includes('package.json')) {
-            frameworks.add('nodejs');
-        }
-        // Express
-        if (fileList.some(f => f.includes('app.js') || f.includes('server.js'))) {
-            frameworks.add('express');
-        }
-        // Angular
-        if (fileList.includes('angular.json')) {
-            frameworks.add('angular');
-        }
-        // Vue
-        if (fileList.some(f => f.endsWith('.vue'))) {
-            frameworks.add('vue');
-        }
-        // Django
-        if (fileList.includes('manage.py')) {
-            frameworks.add('django');
-        }
-        // Flask
-        if (fileList.some(f => f.includes('flask'))) {
-            frameworks.add('flask');
-        }
-        return Array.from(frameworks);
-    }
-    detectProjectType(fileList) {
-        if (fileList.includes('package.json')) {
-            if (fileList.some(f => f.includes('server') || f.includes('api'))) {
-                return 'api_service';
-            }
-            if (fileList.some(f => f.endsWith('.tsx') || f.endsWith('.jsx'))) {
-                return 'web_application';
-            }
-            if (fileList.some(f => f.includes('cli') || f.includes('bin'))) {
-                return 'cli_tool';
-            }
-            return 'library';
-        }
-        if (fileList.includes('requirements.txt') || fileList.includes('setup.py')) {
-            return 'python_application';
-        }
-        if (fileList.includes('pom.xml') || fileList.includes('build.gradle')) {
-            return 'java_application';
-        }
-        return 'unknown';
-    }
-    analyzeFileStructure(fileList) {
-        return {
-            entryPoints: fileList.filter(f => f.includes('index') || f.includes('main') || f.includes('app') || f.includes('server')),
-            configFiles: fileList.filter(f => f.includes('config') || f.endsWith('.json') || f.endsWith('.yml') || f.endsWith('.yaml')),
-            testDirectories: fileList.filter(f => f.includes('test') || f.includes('spec') || f.includes('__tests__'))
-        };
-    }
-    detectPatterns(fileList) {
-        const architectural = [];
-        const design = [];
-        // MVC
-        if (fileList.some(f => f.includes('controller')) &&
-            fileList.some(f => f.includes('model')) &&
-            fileList.some(f => f.includes('view'))) {
-            architectural.push('MVC');
-        }
-        // Repository Pattern
-        if (fileList.some(f => f.includes('repository'))) {
-            design.push('Repository');
-        }
-        // Factory Pattern
-        if (fileList.some(f => f.includes('factory'))) {
-            design.push('Factory');
-        }
-        // Clean Architecture
-        if (fileList.some(f => f.includes('domain')) &&
-            fileList.some(f => f.includes('infrastructure')) &&
-            fileList.some(f => f.includes('application'))) {
-            architectural.push('Clean Architecture');
-        }
-        return { architectural, design };
-    }
-    calculateComplexity(fileList) {
-        if (fileList.length < 50)
-            return 'low';
-        if (fileList.length < 200)
-            return 'medium';
-        return 'high';
-    }
-    countDependencies(fileList) {
-        // Simplified - in reality would parse package.json, requirements.txt, etc.
-        return fileList.filter(f => f === 'package.json' || f === 'requirements.txt' || f === 'pom.xml').length * 10; // Rough estimate
-    }
-    async generateInitialRecommendations(context) {
-        const tools = new Set();
-        // Always recommend these core tools
-        tools.add('semantic-search');
-        tools.add('solid-principles');
-        // Language-specific tools
-        if (context.languages.includes('typescript') || context.languages.includes('javascript')) {
-            tools.add('compilation-verifier');
-            tools.add('tree-navigation');
-        }
-        // Framework-specific tools
-        if (context.frameworks.includes('react')) {
-            tools.add('ui-navigation');
-        }
-        // Project type specific
-        if (context.projectType === 'api_service') {
-            tools.add('use-cases');
-        }
-        // Complexity-based
-        if (context.complexity === 'high') {
-            tools.add('centralization-detector');
-        }
-        return Array.from(tools);
-    }
-    getDefaultTools() {
-        return ['semantic-search', 'solid-principles', 'compilation-verifier'];
-    }
-    getToolsByProjectType(projectType) {
-        const typeTools = {
-            'web_application': ['ui-navigation', 'tree-navigation'],
-            'api_service': ['use-cases', 'solid-principles'],
-            'cli_tool': ['solid-principles', 'compilation-verifier'],
-            'library': ['solid-principles', 'tree-navigation']
-        };
-        return typeTools[projectType] || [];
-    }
-    getToolsByLanguages(languages) {
-        const tools = new Set();
-        if (languages.includes('typescript') || languages.includes('javascript')) {
-            tools.add('compilation-verifier');
-        }
-        return Array.from(tools);
-    }
-    getToolsByFrameworks(frameworks) {
-        const tools = new Set();
-        if (frameworks.includes('react') || frameworks.includes('angular') || frameworks.includes('vue')) {
-            tools.add('ui-navigation');
-        }
-        return Array.from(tools);
-    }
-    getToolsByComplexity(complexity) {
-        if (complexity === 'high') {
-            return ['centralization-detector', 'solid-principles'];
-        }
-        return [];
-    }
-    findCommonTools(projects) {
-        if (projects.length === 0)
-            return [];
-        const toolCounts = new Map();
-        projects.forEach(project => {
-            project.context.recommendedTools.forEach(tool => {
-                toolCounts.set(tool, (toolCounts.get(tool) || 0) + 1);
-            });
-        });
-        // Return tools used by at least half of the projects
-        const threshold = Math.ceil(projects.length / 2);
-        return Array.from(toolCounts.entries())
-            .filter(([_, count]) => count >= threshold)
-            .map(([tool, _]) => tool);
-    }
-    /**
-     * Clear cache
-     */
-    clearCache() {
-        this.cache.clear();
-        this.logger.info('Project intelligence cache cleared');
+        return recommendations;
     }
 }
 exports.ProjectIntelligence = ProjectIntelligence;

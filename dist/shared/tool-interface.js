@@ -5,8 +5,8 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ToolRegistry = exports.InternalTool = exports.AnalysisTool = void 0;
-const tool_database_api_1 = require("../orchestration/tool-database-api");
-const analytics_database_1 = require("./analytics-database");
+const tool_database_api_1 = require("../orchestrator/tool-database-api");
+const postgresql_analytics_database_1 = require("./postgresql-analytics-database");
 const tool_config_repository_1 = require("./tool-config-repository");
 const analysis_repository_1 = require("./analysis-repository");
 const project_intelligence_1 = require("./project-intelligence");
@@ -26,7 +26,6 @@ class AnalysisTool {
      */
     async analyze(projectPath, projectId, parameters = {}, fileContext) {
         try {
-            // Get tool configuration from MongoDB
             const config = await tool_config_repository_1.toolConfigRepo.getToolConfig(projectId, this.name);
             if (config) {
                 parameters = { ...config, ...parameters }; // Parameters override config
@@ -59,7 +58,6 @@ class AnalysisTool {
             // Save results to both databases
             if (freshAnalysis && freshAnalysis.data) {
                 await this.saveData(projectId, freshAnalysis.data);
-                // Store in MongoDB for complex queries
                 await analysis_repository_1.analysisRepo.storeAnalysis(projectId, this.name, {
                     ...freshAnalysis,
                     executionTime,
@@ -70,7 +68,7 @@ class AnalysisTool {
             await this.recordPerformanceMetric(projectId, executionTime, cachedData ? 0.5 : 0, // Cache hit rate
             process.memoryUsage().heapUsed, { toolVersion: this.version });
             // Learn from execution
-            await project_intelligence_1.projectIntelligence.learnFromToolExecution(projectId, this.name, true, executionTime);
+            await project_intelligence_1.projectIntelligence.learnFromToolExecution(projectId, this.name, { success: true, executionTime });
             return {
                 source: 'live',
                 data: freshAnalysis.data,
@@ -84,7 +82,7 @@ class AnalysisTool {
         catch (error) {
             console.error(`Analysis failed for ${this.name}:`, error);
             // Learn from failure
-            await project_intelligence_1.projectIntelligence.learnFromToolExecution(projectId, this.name, false, 0);
+            await project_intelligence_1.projectIntelligence.learnFromToolExecution(projectId, this.name, { success: false, executionTime: 0 });
             // Fallback to cached data if live analysis fails
             try {
                 const fallbackData = await this.queryData(projectId, { limit: 100 });
@@ -195,7 +193,7 @@ class AnalysisTool {
      */
     async recordPerformanceMetric(projectId, executionTime, cacheHitRate, memoryUsage, metadata) {
         try {
-            const analyticsDb = new analytics_database_1.AnalyticsDatabase(''); // Path will be resolved by analytics system
+            const analyticsDb = new postgresql_analytics_database_1.PostgreSQLAnalyticsDatabase(projectId);
             await analyticsDb.initialize();
             const metric = {
                 project_id: projectId,
@@ -217,7 +215,7 @@ class AnalysisTool {
      */
     async recordQualityMetric(projectId, filePath, metricType, metricValue, metadata) {
         try {
-            const analyticsDb = new analytics_database_1.AnalyticsDatabase('');
+            const analyticsDb = new postgresql_analytics_database_1.PostgreSQLAnalyticsDatabase(projectId);
             await analyticsDb.initialize();
             const metric = {
                 project_id: projectId,
@@ -239,7 +237,7 @@ class AnalysisTool {
      */
     async recordFileEvent(projectId, filePath, eventType, contentHash, fileSize, metadata) {
         try {
-            const analyticsDb = new analytics_database_1.AnalyticsDatabase('');
+            const analyticsDb = new postgresql_analytics_database_1.PostgreSQLAnalyticsDatabase(projectId);
             await analyticsDb.initialize();
             const event = {
                 project_id: projectId,

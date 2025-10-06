@@ -3,8 +3,8 @@
  * Combines vector search (intent-based) + semantic graph (structure-based) for intelligent file discovery
  */
 
-import { SemanticSearchTool } from '../features/search/semantic-search-complete';
-import { SemanticGraphService } from '../services/semantic-graph';
+import { SemanticSearchTool } from '../cli/features/search/semantic-search-complete';
+import SemanticGraphService from '../cli/services/semantic-graph';
 import { Logger } from '../utils/logger';
 
 export interface FileDiscoveryRequest {

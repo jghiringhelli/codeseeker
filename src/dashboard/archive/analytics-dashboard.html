@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeMind Analytics Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .analytics-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 24px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .metric-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 8px 0;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <div class="bg-white shadow-lg border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-chart-line text-3xl text-indigo-600"></i>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
+                        <p class="text-gray-500" id="project-name">Loading project data...</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <select id="time-range-selector" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="1h">Last Hour</option>
+                        <option value="6h">Last 6 Hours</option>
+                        <option value="24h" selected>Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                    </select>
+                    <button id="refresh-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                    <button id="export-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-6 py-8">
+        <!-- Analytics Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="analytics-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">Performance</h3>
+                        <p class="text-3xl font-bold" id="avg-execution-time">--</p>
+                        <p class="text-sm opacity-75">Avg Execution Time (ms)</p>
+                    </div>
+                    <i class="fas fa-tachometer-alt text-2xl opacity-75"></i>
+                </div>
+                <div class="metric-card mt-4">
+                    <div class="flex justify-between">
+                        <span>Total Executions</span>
+                        <span id="total-executions">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analytics-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">Code Quality</h3>
+                        <p class="text-3xl font-bold" id="avg-quality-value">--</p>
+                        <p class="text-sm opacity-75">Avg Quality Score</p>
+                    </div>
+                    <i class="fas fa-code-branch text-2xl opacity-75"></i>
+                </div>
+                <div class="metric-card mt-4">
+                    <div class="flex justify-between">
+                        <span>Measurements</span>
+                        <span id="quality-measurements">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analytics-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">File Activity</h3>
+                        <p class="text-3xl font-bold" id="total-file-events">--</p>
+                        <p class="text-sm opacity-75">File Events</p>
+                    </div>
+                    <i class="fas fa-file-alt text-2xl opacity-75"></i>
+                </div>
+                <div class="metric-card mt-4">
+                    <div class="flex justify-between">
+                        <span>Active Files</span>
+                        <span id="active-files">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analytics-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">Tool Efficiency</h3>
+                        <p class="text-3xl font-bold" id="tool-count">--</p>
+                        <p class="text-sm opacity-75">Active Tools</p>
+                    </div>
+                    <i class="fas fa-tools text-2xl opacity-75"></i>
+                </div>
+                <div class="metric-card mt-4">
+                    <div class="flex justify-between">
+                        <span>Avg Exec Time</span>
+                        <span id="avg-tool-time">-- ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Performance Trends Chart -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Performance Trends</h3>
+                <canvas id="performance-chart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- Code Quality Trends Chart -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Code Quality Trends</h3>
+                <canvas id="quality-chart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- File Activity Chart -->
+        <div class="chart-container mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">File Activity Timeline</h3>
+            <canvas id="activity-chart" width="800" height="300"></canvas>
+        </div>
+
+        <!-- Tool Efficiency Table -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Tool Efficiency Report</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tool Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Executions</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Time</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cache Hit Rate</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Memory Usage</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tool-efficiency-table" class="bg-white divide-y divide-gray-200">
+                        <!-- Tool efficiency data will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analytics Statistics -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Analytics Statistics</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="text-sm text-gray-600">Performance Records</div>
+                    <div class="text-2xl font-bold text-gray-900" id="perf-records">--</div>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="text-sm text-gray-600">Quality Records</div>
+                    <div class="text-2xl font-bold text-gray-900" id="quality-records">--</div>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="text-sm text-gray-600">Database Size</div>
+                    <div class="text-2xl font-bold text-gray-900" id="db-size">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search/Filter Modal -->
+    <div id="search-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Search Analytics Data</h3>
+            <form id="search-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Tool Name</label>
+                        <input type="text" id="search-tool" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">File Path</label>
+                        <input type="text" id="search-file" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Metric Type</label>
+                        <select id="search-metric" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2">
+                            <option value="">All Metrics</option>
+                            <option value="complexity">Complexity</option>
+                            <option value="violations">Violations</option>
+                            <option value="embeddings">Embeddings</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Max Execution Time (ms)</label>
+                        <input type="number" id="search-exec-time" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="search-cancel" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                        Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        class AnalyticsDashboard {
+            constructor() {
+                this.projectId = new URLSearchParams(window.location.search).get('project') || 'default';
+                this.currentTimeRange = '24h';
+                this.charts = {};
+                this.socket = null;
+                
+                this.initializeEventListeners();
+                this.loadDashboard();
+                this.setupRealTimeUpdates();
+            }
+
+            initializeEventListeners() {
+                document.getElementById('time-range-selector').addEventListener('change', (e) => {
+                    this.currentTimeRange = e.target.value;
+                    this.loadDashboard();
+                });
+
+                document.getElementById('refresh-btn').addEventListener('click', () => {
+                    this.loadDashboard();
+                });
+
+                document.getElementById('export-btn').addEventListener('click', () => {
+                    this.exportData();
+                });
+
+                // Search modal
+                document.getElementById('search-cancel').addEventListener('click', () => {
+                    document.getElementById('search-modal').classList.add('hidden');
+                });
+
+                document.getElementById('search-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.searchAnalytics();
+                });
+            }
+
+            async loadDashboard() {
+                try {
+                    // Show loading states
+                    this.showLoading();
+
+                    // Load analytics dashboard data
+                    const response = await fetch(`/api/dashboard/projects/${this.projectId}/analytics/dashboard?timeRange=${this.currentTimeRange}`);
+                    if (!response.ok) throw new Error('Failed to load analytics data');
+                    
+                    const data = await response.json();
+                    this.updateDashboard(data);
+
+                    // Load additional data
+                    await Promise.all([
+                        this.loadToolEfficiency(),
+                        this.loadAnalyticsStats()
+                    ]);
+
+                } catch (error) {
+                    console.error('Failed to load analytics dashboard:', error);
+                    this.showError('Failed to load analytics data');
+                }
+            }
+
+            updateDashboard(data) {
+                // Update summary cards
+                const performance = data.performance.summary;
+                document.getElementById('avg-execution-time').textContent = 
+                    performance.avgExecutionTime ? Math.round(performance.avgExecutionTime) : '--';
+                document.getElementById('total-executions').textContent = performance.totalExecutions || 0;
+
+                const quality = data.quality.summary;
+                document.getElementById('avg-quality-value').textContent = 
+                    quality.avgValue ? quality.avgValue.toFixed(2) : '--';
+                document.getElementById('quality-measurements').textContent = quality.measurements || 0;
+
+                const activity = data.activity.summary;
+                document.getElementById('total-file-events').textContent = activity.totalEvents || 0;
+                document.getElementById('active-files').textContent = activity.totalFiles || 0;
+
+                const tools = data.tools.summary;
+                document.getElementById('tool-count').textContent = tools.toolCount || 0;
+                document.getElementById('avg-tool-time').textContent = 
+                    tools.avgExecutionTime ? Math.round(tools.avgExecutionTime) + ' ms' : '-- ms';
+
+                // Update charts
+                this.updatePerformanceChart(data.performance.trends);
+                this.updateQualityChart(data.quality.trends);
+                this.updateActivityChart(data.activity.files);
+            }
+
+            updatePerformanceChart(trends) {
+                const ctx = document.getElementById('performance-chart').getContext('2d');
+                
+                if (this.charts.performance) {
+                    this.charts.performance.destroy();
+                }
+
+                const labels = trends.map(t => new Date(t.hour).toLocaleTimeString());
+                const executionData = trends.map(t => t.avg_execution_time);
+                const cacheData = trends.map(t => t.avg_cache_hit_rate * 100);
+
+                this.charts.performance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Avg Execution Time (ms)',
+                            data: executionData,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            yAxisID: 'y'
+                        }, {
+                            label: 'Cache Hit Rate (%)',
+                            data: cacheData,
+                            borderColor: '#764ba2',
+                            backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Execution Time (ms)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Cache Hit Rate (%)'
+                                },
+                                grid: {
+                                    drawOnChartArea: false,
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateQualityChart(trends) {
+                const ctx = document.getElementById('quality-chart').getContext('2d');
+                
+                if (this.charts.quality) {
+                    this.charts.quality.destroy();
+                }
+
+                const labels = trends.map(t => new Date(t.day).toLocaleDateString());
+                const avgValues = trends.map(t => t.avg_value);
+                const minValues = trends.map(t => t.min_value);
+                const maxValues = trends.map(t => t.max_value);
+
+                this.charts.quality = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Average',
+                            data: avgValues,
+                            borderColor: '#f093fb',
+                            backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                            fill: true
+                        }, {
+                            label: 'Min',
+                            data: minValues,
+                            borderColor: '#f5576c',
+                            borderDash: [5, 5]
+                        }, {
+                            label: 'Max', 
+                            data: maxValues,
+                            borderColor: '#f5576c',
+                            borderDash: [5, 5]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Quality Score'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateActivityChart(files) {
+                const ctx = document.getElementById('activity-chart').getContext('2d');
+                
+                if (this.charts.activity) {
+                    this.charts.activity.destroy();
+                }
+
+                const labels = files.slice(0, 20).map(f => f.file_path.split('/').pop());
+                const totalEvents = files.slice(0, 20).map(f => f.total_events);
+                const modifications = files.slice(0, 20).map(f => f.modifications);
+
+                this.charts.activity = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Total Events',
+                            data: totalEvents,
+                            backgroundColor: 'rgba(79, 172, 254, 0.6)',
+                            borderColor: '#4facfe'
+                        }, {
+                            label: 'Modifications',
+                            data: modifications,
+                            backgroundColor: 'rgba(0, 242, 254, 0.6)',
+                            borderColor: '#00f2fe'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Event Count'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            async loadToolEfficiency() {
+                try {
+                    const response = await fetch(`/api/dashboard/projects/${this.projectId}/analytics/tools`);
+                    if (!response.ok) throw new Error('Failed to load tool efficiency');
+                    
+                    const data = await response.json();
+                    this.updateToolEfficiencyTable(data.efficiency);
+                } catch (error) {
+                    console.error('Failed to load tool efficiency:', error);
+                }
+            }
+
+            updateToolEfficiencyTable(efficiency) {
+                const tbody = document.getElementById('tool-efficiency-table');
+                tbody.innerHTML = '';
+
+                efficiency.forEach(tool => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${tool.tool_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${tool.total_executions}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${Math.round(tool.avg_execution_time)} ms</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${Math.round(tool.avg_cache_hit_rate * 100)}%</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${this.formatBytes(tool.avg_memory_usage)}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            async loadAnalyticsStats() {
+                try {
+                    const response = await fetch(`/api/dashboard/projects/${this.projectId}/analytics/stats`);
+                    if (!response.ok) throw new Error('Failed to load analytics stats');
+                    
+                    const data = await response.json();
+                    this.updateAnalyticsStats(data);
+                } catch (error) {
+                    console.error('Failed to load analytics stats:', error);
+                }
+            }
+
+            updateAnalyticsStats(stats) {
+                if (stats.database) {
+                    document.getElementById('perf-records').textContent = stats.database.performance_records || 0;
+                    document.getElementById('quality-records').textContent = stats.database.quality_records || 0;
+                    document.getElementById('db-size').textContent = stats.database.database_size || 'Unknown';
+                }
+            }
+
+            async exportData() {
+                try {
+                    const response = await fetch(`/api/dashboard/projects/${this.projectId}/analytics/export`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ type: 'incremental' })
+                    });
+                    
+                    if (!response.ok) throw new Error('Export failed');
+                    
+                    const result = await response.json();
+                    alert('Export completed successfully!');
+                    
+                } catch (error) {
+                    console.error('Export failed:', error);
+                    alert('Export failed: ' + error.message);
+                }
+            }
+
+            async searchAnalytics() {
+                const query = {
+                    tool: document.getElementById('search-tool').value,
+                    file_path: document.getElementById('search-file').value,
+                    metric_type: document.getElementById('search-metric').value,
+                    execution_time: document.getElementById('search-exec-time').value
+                };
+
+                try {
+                    const response = await fetch(`/api/dashboard/projects/${this.projectId}/analytics/search`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(query)
+                    });
+
+                    if (!response.ok) throw new Error('Search failed');
+                    
+                    const results = await response.json();
+                    console.log('Search results:', results);
+                    
+                    document.getElementById('search-modal').classList.add('hidden');
+                    
+                } catch (error) {
+                    console.error('Search failed:', error);
+                    alert('Search failed: ' + error.message);
+                }
+            }
+
+            setupRealTimeUpdates() {
+                // Initialize Socket.IO connection
+                this.socket = io();
+                
+                this.socket.on('analytics-update', (data) => {
+                    if (data.projectId === this.projectId) {
+                        this.loadDashboard();
+                    }
+                });
+            }
+
+            showLoading() {
+                // Update summary cards with loading state
+                ['avg-execution-time', 'total-executions', 'avg-quality-value', 'quality-measurements',
+                 'total-file-events', 'active-files', 'tool-count', 'avg-tool-time'].forEach(id => {
+                    document.getElementById(id).textContent = 'Loading...';
+                });
+            }
+
+            showError(message) {
+                // Show error message
+                console.error(message);
+            }
+
+            formatBytes(bytes) {
+                if (!bytes || bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AnalyticsDashboard();
+        });
+    </script>
+</body>
+</html>

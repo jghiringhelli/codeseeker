@@ -12,7 +12,7 @@ import * as path from 'path';
 import { glob } from 'fast-glob';
 import { Logger, LogLevel } from '../utils/logger';
 import { ToolRegistry } from './tool-interface';
-import { toolDB } from '../orchestration/tool-database-api';
+import { toolDB } from '../orchestrator/tool-database-api';
 import crypto from 'crypto';
 
 export interface ReconciliationRequest {

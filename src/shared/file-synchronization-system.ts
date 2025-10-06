@@ -8,7 +8,8 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { glob } from 'fast-glob';
 import { Logger } from '../utils/logger';
-import { ToolDatabaseAPI } from '../orchestration/tool-database-api';
+import { ToolDatabaseAPI } from '../orchestrator/tool-database-api';
+import EmbeddingService from '../cli/services/embedding-service';
 
 export interface FileHashEntry {
   filePath: string;
@@ -43,11 +44,18 @@ export interface FileContent {
 export class FileSynchronizationSystem {
   private logger = Logger.getInstance();
   private databaseAPI: ToolDatabaseAPI;
+  private embeddingService: EmbeddingService;
   private localHashCacheFile: string;
   private localHashCache: Map<string, string> = new Map();
 
   constructor(projectPath: string) {
     this.databaseAPI = new ToolDatabaseAPI();
+    this.embeddingService = new EmbeddingService({
+      provider: 'xenova',  // Use Xenova transformers for zero-cost embeddings
+      model: 'Xenova/all-MiniLM-L6-v2',
+      chunkSize: 8000,
+      maxTokens: 8191
+    });
     this.localHashCacheFile = path.join(projectPath, '.codemind', 'file-hashes.json');
   }
 
@@ -520,14 +528,14 @@ export class FileSynchronizationSystem {
    * Update related indexes (semantic search, graph, tree navigation)
    */
   private async updateRelatedIndexes(
-    projectId: string, 
-    filePath: string, 
-    content: string, 
+    projectId: string,
+    filePath: string,
+    content: string,
     fileData: FileHashEntry
   ): Promise<void> {
     try {
-      // Update vector embeddings for semantic search
-      if (process.env.OPENAI_API_KEY && fileData.contentType === 'code') {
+      // Update vector embeddings for semantic search using Xenova (always available)
+      if (fileData.contentType === 'code') {
         await this.updateVectorEmbedding(projectId, filePath, content, fileData);
       }
 
@@ -544,55 +552,49 @@ export class FileSynchronizationSystem {
   }
 
   /**
-   * Update vector embedding for semantic search
+   * Update vector embedding for semantic search using Xenova transformers
    */
   private async updateVectorEmbedding(
-    projectId: string, 
-    filePath: string, 
-    content: string, 
+    projectId: string,
+    filePath: string,
+    content: string,
     fileData: FileHashEntry
   ): Promise<void> {
     try {
-      const response = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'text-embedding-ada-002',
-          input: content.substring(0, 8000) // OpenAI limit
+      // Generate embedding using Xenova transformers (zero-cost, local)
+      const embedding = await this.embeddingService.generateEmbedding(
+        content.substring(0, 8000), // Limit content size for performance
+        filePath
+      );
+
+      // Update or insert embedding
+      await this.databaseAPI.query(`
+        INSERT INTO code_embeddings (
+          project_id, file_path, content_type, content_text, content_hash,
+          embedding, metadata, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6::vector, $7, NOW(), NOW())
+        ON CONFLICT (project_id, file_path, content_type)
+        DO UPDATE SET
+          content_text = EXCLUDED.content_text,
+          content_hash = EXCLUDED.content_hash,
+          embedding = EXCLUDED.embedding,
+          updated_at = NOW()
+      `, [
+        projectId,
+        filePath,
+        'file',
+        content,
+        fileData.contentHash,
+        `[${embedding.join(',')}]`,
+        JSON.stringify({
+          language: fileData.language,
+          size: fileData.fileSize,
+          embeddingProvider: 'xenova',
+          model: 'Xenova/all-MiniLM-L6-v2'
         })
-      });
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
-        const embedding = data.data[0].embedding;
-
-        // Update or insert embedding
-        await this.databaseAPI.query(`
-          INSERT INTO code_embeddings (
-            project_id, file_path, content_type, content_text, content_hash, 
-            embedding, metadata, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6::vector, $7, NOW(), NOW())
-          ON CONFLICT (project_id, file_path, content_type) 
-          DO UPDATE SET 
-            content_text = EXCLUDED.content_text,
-            content_hash = EXCLUDED.content_hash,
-            embedding = EXCLUDED.embedding,
-            updated_at = NOW()
-        `, [
-          projectId,
-          filePath,
-          'file',
-          content,
-          fileData.contentHash,
-          `[${embedding.join(',')}]`,
-          JSON.stringify({ language: fileData.language, size: fileData.fileSize })
-        ]);
-
-        this.logger.debug(`📊 Updated vector embedding for ${filePath}`);
-      }
+      this.logger.debug(`📊 Updated Xenova vector embedding for ${filePath}`);
     } catch (error) {
       this.logger.warn(`Failed to update vector embedding for ${filePath}: ${error}`);
     }
@@ -608,7 +610,7 @@ export class FileSynchronizationSystem {
     fileData: FileHashEntry
   ): Promise<void> {
     try {
-      const { CodeRelationshipParser } = await import('../services/code-relationship-parser');
+      const { CodeRelationshipParser } = await import('../cli/services/code-relationship-parser');
       const parser = new CodeRelationshipParser();
       
       // Parse just this file and update its relationships

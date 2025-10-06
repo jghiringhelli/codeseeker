@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Bundles Manager - CodeMind Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #dee2e6;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .bundles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .bundle-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .bundle-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+            border-color: #667eea;
+        }
+
+        .bundle-card.inactive {
+            opacity: 0.6;
+            background: #f8f9fa;
+        }
+
+        .bundle-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .bundle-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .bundle-category {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .bundle-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.active {
+            background: #4caf50;
+        }
+
+        .status-dot.inactive {
+            background: #f44336;
+        }
+
+        .bundle-description {
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .bundle-tools {
+            margin-bottom: 15px;
+        }
+
+        .bundle-tools-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .tools-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tool-tag {
+            background: #f0f4f8;
+            color: #334e68;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            border: 1px solid #cbd5e0;
+        }
+
+        .bundle-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .meta-item {
+            text-align: center;
+        }
+
+        .meta-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .meta-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .bundle-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .descriptions-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .descriptions-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .descriptions-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .descriptions-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            vertical-align: top;
+        }
+
+        .descriptions-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .description-text {
+            max-width: 400px;
+            word-wrap: break-word;
+        }
+
+        .description-custom {
+            color: #1976d2;
+            font-weight: 600;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-control.textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧰 Tool Bundles Manager</h1>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="refreshData()">
+                    <span>🔄</span> Refresh
+                </button>
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <span>➕</span> Create Bundle
+                </button>
+                <a href="/dashboard" class="btn btn-secondary">
+                    <span>←</span> Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-bundles">-</div>
+                <div class="stat-label">Total Bundles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="active-bundles">-</div>
+                <div class="stat-label">Active Bundles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avg-tools">-</div>
+                <div class="stat-label">Avg Tools/Bundle</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="cache-size">-</div>
+                <div class="stat-label">Cache Entries</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('bundles')">📦 Bundles</div>
+            <div class="tab" onclick="switchTab('descriptions')">📝 Descriptions</div>
+            <div class="tab" onclick="switchTab('analytics')">📊 Analytics</div>
+        </div>
+
+        <!-- Bundles Tab -->
+        <div id="bundles-tab" class="tab-content active">
+            <input type="text" class="search-box" id="bundle-search" placeholder="Search bundles by name, category, or description..." onkeyup="filterBundles()">
+            
+            <div class="bundles-grid" id="bundles-container">
+                <div class="loading" style="margin: 50px auto;"></div>
+            </div>
+        </div>
+
+        <!-- Descriptions Tab -->
+        <div id="descriptions-tab" class="tab-content">
+            <input type="text" class="search-box" id="desc-search" placeholder="Search descriptions..." onkeyup="filterDescriptions()">
+            
+            <div class="descriptions-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="descriptions-container">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 20px;">
+                                <div class="loading"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analytics-tab" class="tab-content">
+            <div style="text-align: center; padding: 40px;">
+                <h3>Bundle Analytics</h3>
+                <p>Analytics dashboard coming soon...</p>
+                <div class="loading" style="margin: 20px auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Bundle Modal -->
+    <div id="bundle-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Create New Bundle</h2>
+                <span class="close" onclick="closeBundleModal()">&times;</span>
+            </div>
+            <form id="bundle-form">
+                <div class="form-group">
+                    <label class="form-label">Bundle Name *</label>
+                    <input type="text" class="form-control" id="bundle-name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description *</label>
+                    <textarea class="form-control textarea" id="bundle-description" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category *</label>
+                    <input type="text" class="form-control" id="bundle-category" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tools (comma-separated) *</label>
+                    <input type="text" class="form-control" id="bundle-tools" required placeholder="tool1, tool2, tool3">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Priority (0-10)</label>
+                    <input type="number" class="form-control" id="bundle-priority" min="0" max="10" value="5">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Token Cost</label>
+                    <select class="form-control" id="bundle-token-cost">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeBundleModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="save-btn-text">Save Bundle</span>
+                        <div id="save-loading" class="loading" style="display: none; width: 16px; height: 16px;"></div>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Description Modal -->
+    <div id="description-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Description</h2>
+                <span class="close" onclick="closeDescriptionModal()">&times;</span>
+            </div>
+            <form id="description-form">
+                <div class="form-group">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" id="desc-name" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <input type="text" class="form-control" id="desc-type" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control textarea" id="desc-text" required></textarea>
+                </div>
+                <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeDescriptionModal()">Cancel</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetDescription()">Reset to Default</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let bundles = [];
+        let descriptions = [];
+        let currentEditingBundle = null;
+        let currentEditingDescription = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAllData();
+        });
+
+        async function loadAllData() {
+            await Promise.all([
+                loadBundles(),
+                loadDescriptions()
+            ]);
+        }
+
+        async function loadBundles() {
+            try {
+                const response = await fetch('/api/dashboard/tool-bundles/bundles');
+                const data = await response.json();
+                
+                if (data.success) {
+                    bundles = data.bundles;
+                    updateStats(data.stats);
+                    renderBundles();
+                } else {
+                    showAlert('Error loading bundles: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to load bundles: ' + error.message, 'error');
+            }
+        }
+
+        async function loadDescriptions() {
+            try {
+                const response = await fetch('/api/dashboard/tool-bundles/descriptions');
+                const data = await response.json();
+                
+                if (data.success) {
+                    descriptions = data.descriptions;
+                    renderDescriptions();
+                } else {
+                    showAlert('Error loading descriptions: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to load descriptions: ' + error.message, 'error');
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('total-bundles').textContent = stats.totalBundles;
+            document.getElementById('active-bundles').textContent = stats.activeBundles;
+            document.getElementById('avg-tools').textContent = stats.averageToolsPerBundle.toFixed(1);
+            document.getElementById('cache-size').textContent = stats.cacheSize;
+        }
+
+        function renderBundles() {
+            const container = document.getElementById('bundles-container');
+            
+            if (bundles.length === 0) {
+                container.innerHTML = '<div class="no-results">No bundles found</div>';
+                return;
+            }
+
+            container.innerHTML = bundles.map(bundle => `
+                <div class="bundle-card ${bundle.isActive ? '' : 'inactive'}">
+                    <div class="bundle-header">
+                        <div>
+                            <div class="bundle-title">${bundle.name}</div>
+                            <span class="bundle-category">${bundle.category}</span>
+                        </div>
+                        <div class="bundle-status">
+                            <span class="status-dot ${bundle.isActive ? 'active' : 'inactive'}"></span>
+                            ${bundle.isActive ? 'Active' : 'Inactive'}
+                        </div>
+                    </div>
+                    
+                    <div class="bundle-description">${bundle.description}</div>
+                    
+                    <div class="bundle-tools">
+                        <div class="bundle-tools-label">Tools (${bundle.tools.length}):</div>
+                        <div class="tools-list">
+                            ${bundle.tools.map(tool => `<span class="tool-tag">${tool}</span>`).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="bundle-meta">
+                        <div class="meta-item">
+                            <div class="meta-label">Priority</div>
+                            <div class="meta-value">${bundle.priority}</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Token Cost</div>
+                            <div class="meta-value">${bundle.tokenCost}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bundle-actions">
+                        <button class="btn btn-secondary" onclick="editBundle('${bundle.id}')">Edit</button>
+                        <button class="btn ${bundle.isActive ? 'btn-secondary' : 'btn-success'}" 
+                                onclick="toggleBundle('${bundle.id}')">
+                            ${bundle.isActive ? 'Disable' : 'Enable'}
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteBundle('${bundle.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderDescriptions() {
+            const container = document.getElementById('descriptions-container');
+            
+            if (descriptions.length === 0) {
+                container.innerHTML = '<tr><td colspan="5" class="no-results">No descriptions found</td></tr>';
+                return;
+            }
+
+            container.innerHTML = descriptions.map(desc => `
+                <tr>
+                    <td>${desc.name}</td>
+                    <td><span class="bundle-category">${desc.type}</span></td>
+                    <td class="description-text ${desc.isCustom ? 'description-custom' : ''}">${desc.description}</td>
+                    <td>${desc.isCustom ? 'Custom' : 'Default'}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="editDescription('${desc.id}')">Edit</button>
+                        ${desc.isCustom ? `<button class="btn btn-secondary" onclick="resetDescription('${desc.id}')">Reset</button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        function filterBundles() {
+            const searchTerm = document.getElementById('bundle-search').value.toLowerCase();
+            const filteredBundles = bundles.filter(bundle => 
+                bundle.name.toLowerCase().includes(searchTerm) ||
+                bundle.category.toLowerCase().includes(searchTerm) ||
+                bundle.description.toLowerCase().includes(searchTerm)
+            );
+            
+            // Temporarily replace bundles for rendering
+            const originalBundles = bundles;
+            bundles = filteredBundles;
+            renderBundles();
+            bundles = originalBundles;
+        }
+
+        function filterDescriptions() {
+            const searchTerm = document.getElementById('desc-search').value.toLowerCase();
+            const filteredDescriptions = descriptions.filter(desc => 
+                desc.name.toLowerCase().includes(searchTerm) ||
+                desc.description.toLowerCase().includes(searchTerm)
+            );
+            
+            // Temporarily replace descriptions for rendering
+            const originalDescriptions = descriptions;
+            descriptions = filteredDescriptions;
+            renderDescriptions();
+            descriptions = originalDescriptions;
+        }
+
+        async function refreshData() {
+            showAlert('Refreshing data...', 'info');
+            await loadAllData();
+            showAlert('Data refreshed successfully!', 'success');
+        }
+
+        function openCreateModal() {
+            document.getElementById('modal-title').textContent = 'Create New Bundle';
+            document.getElementById('bundle-form').reset();
+            currentEditingBundle = null;
+            document.getElementById('bundle-modal').style.display = 'block';
+        }
+
+        function closeBundleModal() {
+            document.getElementById('bundle-modal').style.display = 'none';
+        }
+
+        function editBundle(bundleId) {
+            const bundle = bundles.find(b => b.id === bundleId);
+            if (!bundle) return;
+
+            document.getElementById('modal-title').textContent = 'Edit Bundle';
+            document.getElementById('bundle-name').value = bundle.name;
+            document.getElementById('bundle-description').value = bundle.description;
+            document.getElementById('bundle-category').value = bundle.category;
+            document.getElementById('bundle-tools').value = bundle.tools.join(', ');
+            document.getElementById('bundle-priority').value = bundle.priority;
+            document.getElementById('bundle-token-cost').value = bundle.tokenCost;
+            
+            currentEditingBundle = bundleId;
+            document.getElementById('bundle-modal').style.display = 'block';
+        }
+
+        document.getElementById('bundle-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const saveBtn = document.getElementById('save-btn-text');
+            const saveLoading = document.getElementById('save-loading');
+            
+            saveBtn.style.display = 'none';
+            saveLoading.style.display = 'inline-block';
+
+            const bundleData = {
+                name: document.getElementById('bundle-name').value,
+                description: document.getElementById('bundle-description').value,
+                category: document.getElementById('bundle-category').value,
+                tools: document.getElementById('bundle-tools').value.split(',').map(t => t.trim()).filter(t => t),
+                priority: parseInt(document.getElementById('bundle-priority').value),
+                tokenCost: document.getElementById('bundle-token-cost').value
+            };
+
+            try {
+                const url = currentEditingBundle 
+                    ? `/api/dashboard/tool-bundles/bundles/${currentEditingBundle}`
+                    : '/api/dashboard/tool-bundles/bundles';
+                
+                const method = currentEditingBundle ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bundleData)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Bundle ${currentEditingBundle ? 'updated' : 'created'} successfully!`, 'success');
+                    closeBundleModal();
+                    await loadBundles();
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to save bundle: ' + error.message, 'error');
+            } finally {
+                saveBtn.style.display = 'inline';
+                saveLoading.style.display = 'none';
+            }
+        });
+
+        async function toggleBundle(bundleId) {
+            try {
+                const response = await fetch(`/api/dashboard/tool-bundles/bundles/${bundleId}/toggle`, {
+                    method: 'PUT'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    await loadBundles();
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to toggle bundle: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteBundle(bundleId) {
+            if (!confirm('Are you sure you want to delete this bundle? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/dashboard/tool-bundles/bundles/${bundleId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Bundle deleted successfully!', 'success');
+                    await loadBundles();
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to delete bundle: ' + error.message, 'error');
+            }
+        }
+
+        function editDescription(descId) {
+            const desc = descriptions.find(d => d.id === descId);
+            if (!desc) return;
+
+            document.getElementById('desc-name').value = desc.name;
+            document.getElementById('desc-type').value = desc.type;
+            document.getElementById('desc-text').value = desc.description;
+            
+            currentEditingDescription = descId;
+            document.getElementById('description-modal').style.display = 'block';
+        }
+
+        function closeDescriptionModal() {
+            document.getElementById('description-modal').style.display = 'none';
+        }
+
+        document.getElementById('description-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const desc = descriptions.find(d => d.id === currentEditingDescription);
+            if (!desc) return;
+
+            try {
+                const response = await fetch(`/api/dashboard/tool-bundles/descriptions/${currentEditingDescription}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: desc.type,
+                        description: document.getElementById('desc-text').value
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Description updated successfully!', 'success');
+                    closeDescriptionModal();
+                    await loadDescriptions();
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to update description: ' + error.message, 'error');
+            }
+        });
+
+        async function resetDescription(descId) {
+            if (!descId) descId = currentEditingDescription;
+            if (!descId) return;
+
+            if (!confirm('Reset description to default?')) return;
+
+            try {
+                const response = await fetch(`/api/dashboard/tool-bundles/descriptions/${descId}/reset`, {
+                    method: 'PUT'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Description reset to default!', 'success');
+                    closeDescriptionModal();
+                    await loadDescriptions();
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to reset description: ' + error.message, 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type === 'error' ? 'error' : 'success'}`;
+            alertDiv.textContent = message;
+            
+            container.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                container.removeChild(alertDiv);
+            }, 5000);
+        }
+
+        // Close modals when clicking outside
+        window.addEventListener('click', function(event) {
+            const bundleModal = document.getElementById('bundle-modal');
+            const descModal = document.getElementById('description-modal');
+            
+            if (event.target === bundleModal) {
+                closeBundleModal();
+            }
+            if (event.target === descModal) {
+                closeDescriptionModal();
+            }
+        });
+    </script>
+</body>
+</html>

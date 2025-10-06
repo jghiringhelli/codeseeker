@@ -38,10 +38,13 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ComprehensiveImpactAnalyzer = void 0;
 const logger_1 = require("./logger");
-const semantic_graph_1 = require("../services/semantic-graph");
+const semantic_graph_1 = __importDefault(require("../cli/services/semantic-graph"));
 const path = __importStar(require("path"));
 const fast_glob_1 = require("fast-glob");
 class ComprehensiveImpactAnalyzer {
@@ -49,7 +52,7 @@ class ComprehensiveImpactAnalyzer {
     semanticGraph;
     constructor() {
         this.logger = logger_1.Logger.getInstance();
-        this.semanticGraph = new semantic_graph_1.SemanticGraphService();
+        this.semanticGraph = new semantic_graph_1.default();
     }
     async initialize() {
         await this.semanticGraph.initialize();

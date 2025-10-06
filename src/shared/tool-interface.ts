@@ -3,9 +3,8 @@
  * Tools remain auto-discoverable, bundleable, intention-based, and fully functional
  */
 
-import { toolDB } from '../orchestration/tool-database-api';
-import { AnalyticsDatabase, AnalyticsMetric, CodeQualityMetric, FileChangeEvent } from './analytics-database';
-import { mongoClient } from './mongodb-client';
+import { toolDB } from '../orchestrator/tool-database-api';
+import { PostgreSQLAnalyticsDatabase, AnalyticsMetric, CodeQualityMetric, FileChangeEvent } from './postgresql-analytics-database';
 import { toolConfigRepo } from './tool-config-repository';
 import { analysisRepo } from './analysis-repository';
 import { projectIntelligence } from './project-intelligence';
@@ -80,7 +79,6 @@ export abstract class AnalysisTool implements BaseToolInterface {
    */
   async analyze(projectPath: string, projectId: string, parameters: any = {}, fileContext?: any): Promise<any> {
     try {
-      // Get tool configuration from MongoDB
       const config = await toolConfigRepo.getToolConfig(projectId, this.name);
       if (config) {
         parameters = { ...config, ...parameters }; // Parameters override config
@@ -121,7 +119,6 @@ export abstract class AnalysisTool implements BaseToolInterface {
       if (freshAnalysis && freshAnalysis.data) {
         await this.saveData(projectId, freshAnalysis.data);
         
-        // Store in MongoDB for complex queries
         await analysisRepo.storeAnalysis(projectId, this.name, {
           ...freshAnalysis,
           executionTime,
@@ -142,8 +139,7 @@ export abstract class AnalysisTool implements BaseToolInterface {
       await projectIntelligence.learnFromToolExecution(
         projectId,
         this.name,
-        true,
-        executionTime
+        { success: true, executionTime }
       );
       
       return {
@@ -163,8 +159,7 @@ export abstract class AnalysisTool implements BaseToolInterface {
       await projectIntelligence.learnFromToolExecution(
         projectId,
         this.name,
-        false,
-        0
+        { success: false, executionTime: 0 }
       );
       
       // Fallback to cached data if live analysis fails
@@ -301,7 +296,7 @@ export abstract class AnalysisTool implements BaseToolInterface {
    */
   protected async recordPerformanceMetric(projectId: string, executionTime: number, cacheHitRate: number, memoryUsage?: number, metadata?: any): Promise<void> {
     try {
-      const analyticsDb = new AnalyticsDatabase(''); // Path will be resolved by analytics system
+      const analyticsDb = new PostgreSQLAnalyticsDatabase(projectId);
       await analyticsDb.initialize();
       
       const metric: AnalyticsMetric = {
@@ -325,7 +320,7 @@ export abstract class AnalysisTool implements BaseToolInterface {
    */
   protected async recordQualityMetric(projectId: string, filePath: string, metricType: string, metricValue: number, metadata?: any): Promise<void> {
     try {
-      const analyticsDb = new AnalyticsDatabase('');
+      const analyticsDb = new PostgreSQLAnalyticsDatabase(projectId);
       await analyticsDb.initialize();
       
       const metric: CodeQualityMetric = {
@@ -349,7 +344,7 @@ export abstract class AnalysisTool implements BaseToolInterface {
    */
   protected async recordFileEvent(projectId: string, filePath: string, eventType: string, contentHash?: string, fileSize?: number, metadata?: any): Promise<void> {
     try {
-      const analyticsDb = new AnalyticsDatabase('');
+      const analyticsDb = new PostgreSQLAnalyticsDatabase(projectId);
       await analyticsDb.initialize();
       
       const event: FileChangeEvent = {

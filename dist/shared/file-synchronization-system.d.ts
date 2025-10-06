@@ -35,6 +35,7 @@ export interface FileContent {
 export declare class FileSynchronizationSystem {
     private logger;
     private databaseAPI;
+    private embeddingService;
     private localHashCacheFile;
     private localHashCache;
     constructor(projectPath: string);
@@ -110,7 +111,7 @@ export declare class FileSynchronizationSystem {
      */
     private updateRelatedIndexes;
     /**
-     * Update vector embedding for semantic search
+     * Update vector embedding for semantic search using Xenova transformers
      */
     private updateVectorEmbedding;
     /**

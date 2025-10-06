@@ -1,118 +1,62 @@
 /**
  * Tool Configuration Repository
- * Manages flexible tool configurations in MongoDB
+ * Manages tool configurations using PostgreSQL
  */
 
-import { Collection, Db } from 'mongodb';
-import { mongoClient } from './mongodb-client';
 import { Logger, LogLevel } from '../utils/logger';
+import { DatabaseConnections } from '../config/database-config';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface ToolConfig {
-  projectId: string;
+  id?: string;
   toolName: string;
-  config: any;
-  version?: string;
-  updatedAt: Date;
-  inheritFrom?: string; // Allow config inheritance
-  overrides?: any; // Project-specific overrides
+  projectId: string;
+  configuration: any;
+  enabled: boolean;
+  lastUsed: Date;
+  successRate?: number;
+  avgExecutionTime?: number;
 }
 
 export class ToolConfigRepository {
-  private collection?: Collection<ToolConfig>;
   private logger: Logger;
-  private cache: Map<string, ToolConfig> = new Map();
+  private dbConnections: DatabaseConnections;
 
   constructor() {
     this.logger = new Logger(LogLevel.INFO, 'ToolConfigRepository');
-  }
-
-  private async ensureConnection(): Promise<Collection<ToolConfig>> {
-    if (!this.collection) {
-      if (!mongoClient.isReady()) {
-        await mongoClient.connect();
-      }
-      this.collection = mongoClient.getCollection<ToolConfig>('tool_configs');
-    }
-    return this.collection;
+    this.dbConnections = new DatabaseConnections();
   }
 
   /**
-   * Save or update tool configuration
+   * Get tool configuration
    */
-  async saveToolConfig(projectId: string, toolName: string, config: any): Promise<void> {
+  async getToolConfig(projectId: string, toolName: string): Promise<ToolConfig | null> {
     try {
-      const collection = await this.ensureConnection();
-      
-      const configDoc: ToolConfig = {
-        projectId,
-        toolName,
-        config,
-        version: config.version || '1.0.0',
-        updatedAt: new Date()
-      };
+      const pgClient = await this.dbConnections.getPostgresConnection();
 
-      await collection.replaceOne(
-        { projectId, toolName },
-        configDoc,
-        { upsert: true }
-      );
+      const query = `
+        SELECT id, tool_name, project_id, configuration, enabled, last_used, success_rate, avg_execution_time
+        FROM tool_configs
+        WHERE project_id = $1 AND tool_name = $2
+      `;
 
-      // Update cache
-      const cacheKey = `${projectId}:${toolName}`;
-      this.cache.set(cacheKey, configDoc);
+      const result = await pgClient.query(query, [projectId, toolName]);
 
-      this.logger.info(`Saved config for ${toolName} in project ${projectId}`);
-    } catch (error) {
-      this.logger.error(`Failed to save tool config: ${error}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Get tool configuration with inheritance support
-   */
-  async getToolConfig(projectId: string, toolName: string): Promise<any | null> {
-    try {
-      const cacheKey = `${projectId}:${toolName}`;
-      
-      // Check cache first
-      if (this.cache.has(cacheKey)) {
-        return this.cache.get(cacheKey)?.config;
-      }
-
-      // Try project-specific config
-      let config = await this.collection.findOne({ projectId, toolName });
-      
-      // If not found, try default config
-      if (!config) {
-        config = await this.collection.findOne({ 
-          projectId: 'default', 
-          toolName 
-        });
-      }
-
-      // If still not found, return null
-      if (!config) {
+      if (result.rows.length === 0) {
         return null;
       }
 
-      // Handle inheritance
-      if (config.inheritFrom) {
-        const parentConfig = await this.getToolConfig(config.inheritFrom, toolName);
-        if (parentConfig) {
-          config.config = this.mergeConfigs(parentConfig, config.config);
-        }
-      }
-
-      // Apply overrides if present
-      if (config.overrides) {
-        config.config = this.mergeConfigs(config.config, config.overrides);
-      }
-
-      // Cache the result
-      this.cache.set(cacheKey, config);
-
-      return config.config;
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        toolName: row.tool_name,
+        projectId: row.project_id,
+        configuration: JSON.parse(row.configuration),
+        enabled: row.enabled,
+        lastUsed: row.last_used,
+        successRate: row.success_rate,
+        avgExecutionTime: row.avg_execution_time
+      };
     } catch (error) {
       this.logger.error(`Failed to get tool config: ${error}`);
       return null;
@@ -120,191 +64,139 @@ export class ToolConfigRepository {
   }
 
   /**
-   * Get configurations by framework
+   * Save tool configuration
    */
-  async getConfigsByFramework(framework: string): Promise<ToolConfig[]> {
+  async saveToolConfig(config: ToolConfig): Promise<void> {
     try {
-      return await this.collection.find({
-        'config.frameworks': framework
-      }).toArray();
+      const pgClient = await this.dbConnections.getPostgresConnection();
+
+      if (config.id) {
+        // Update existing config
+        const query = `
+          UPDATE tool_configs
+          SET configuration = $1, enabled = $2, last_used = $3, success_rate = $4, avg_execution_time = $5
+          WHERE id = $6
+        `;
+
+        await pgClient.query(query, [
+          JSON.stringify(config.configuration),
+          config.enabled,
+          config.lastUsed,
+          config.successRate,
+          config.avgExecutionTime,
+          config.id
+        ]);
+      } else {
+        // Insert new config
+        const id = uuidv4();
+        const query = `
+          INSERT INTO tool_configs (id, tool_name, project_id, configuration, enabled, last_used, success_rate, avg_execution_time)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `;
+
+        await pgClient.query(query, [
+          id,
+          config.toolName,
+          config.projectId,
+          JSON.stringify(config.configuration),
+          config.enabled,
+          config.lastUsed,
+          config.successRate,
+          config.avgExecutionTime
+        ]);
+      }
+
+      this.logger.info(`Saved config for ${config.toolName}`);
     } catch (error) {
-      this.logger.error(`Failed to get configs by framework: ${error}`);
+      this.logger.error(`Failed to save tool config: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all tool configurations for a project
+   */
+  async getAllToolConfigs(projectId: string): Promise<ToolConfig[]> {
+    try {
+      const pgClient = await this.dbConnections.getPostgresConnection();
+
+      const query = `
+        SELECT id, tool_name, project_id, configuration, enabled, last_used, success_rate, avg_execution_time
+        FROM tool_configs
+        WHERE project_id = $1
+        ORDER BY tool_name
+      `;
+
+      const result = await pgClient.query(query, [projectId]);
+
+      return result.rows.map(row => ({
+        id: row.id,
+        toolName: row.tool_name,
+        projectId: row.project_id,
+        configuration: JSON.parse(row.configuration),
+        enabled: row.enabled,
+        lastUsed: row.last_used,
+        successRate: row.success_rate,
+        avgExecutionTime: row.avg_execution_time
+      }));
+    } catch (error) {
+      this.logger.error(`Failed to get tool configs: ${error}`);
       return [];
     }
   }
 
   /**
-   * Get all configurations for a project
+   * Get project configurations
    */
   async getProjectConfigs(projectId: string): Promise<ToolConfig[]> {
+    // This is the same as getAllToolConfigs - keeping for backward compatibility
+    return this.getAllToolConfigs(projectId);
+  }
+
+  /**
+   * Update tool usage statistics
+   */
+  async updateToolStats(projectId: string, toolName: string, executionTime: number, success: boolean): Promise<void> {
     try {
-      return await this.collection.find({ projectId }).toArray();
-    } catch (error) {
-      this.logger.error(`Failed to get project configs: ${error}`);
-      return [];
-    }
-  }
+      const pgClient = await this.dbConnections.getPostgresConnection();
 
-  /**
-   * Copy default configurations to a new project
-   */
-  async initializeProjectConfigs(projectId: string): Promise<void> {
-    try {
-      const defaultConfigs = await this.collection.find({ 
-        projectId: 'default' 
-      }).toArray();
+      // First, get current stats
+      const currentConfig = await this.getToolConfig(projectId, toolName);
 
-      for (const defaultConfig of defaultConfigs) {
-        const existingConfig = await this.collection.findOne({
-          projectId,
-          toolName: defaultConfig.toolName
-        });
+      if (currentConfig) {
+        // Calculate new averages
+        const currentSuccessRate = currentConfig.successRate || 0;
+        const currentAvgTime = currentConfig.avgExecutionTime || 0;
 
-        if (!existingConfig) {
-          await this.saveToolConfig(
-            projectId,
-            defaultConfig.toolName,
-            defaultConfig.config
-          );
-        }
-      }
+        // Simple weighted average update (could be more sophisticated)
+        const newSuccessRate = success ? Math.min(currentSuccessRate + 0.1, 1.0) : Math.max(currentSuccessRate - 0.1, 0.0);
+        const newAvgTime = currentAvgTime === 0 ? executionTime : (currentAvgTime + executionTime) / 2;
 
-      this.logger.info(`Initialized configs for project ${projectId}`);
-    } catch (error) {
-      this.logger.error(`Failed to initialize project configs: ${error}`);
-      throw error;
-    }
-  }
+        const query = `
+          UPDATE tool_configs
+          SET last_used = NOW(), success_rate = $1, avg_execution_time = $2
+          WHERE project_id = $3 AND tool_name = $4
+        `;
 
-  /**
-   * Update specific configuration field
-   */
-  async updateConfigField(projectId: string, toolName: string, field: string, value: any): Promise<void> {
-    try {
-      await this.collection.updateOne(
-        { projectId, toolName },
-        {
-          $set: {
-            [`config.${field}`]: value,
-            updatedAt: new Date()
-          }
-        }
-      );
-
-      // Invalidate cache
-      const cacheKey = `${projectId}:${toolName}`;
-      this.cache.delete(cacheKey);
-
-      this.logger.info(`Updated ${field} for ${toolName} in project ${projectId}`);
-    } catch (error) {
-      this.logger.error(`Failed to update config field: ${error}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Find optimal configuration based on similar projects
-   */
-  async findOptimalConfig(projectContext: any, toolName: string): Promise<any | null> {
-    try {
-      // Find projects with similar characteristics
-      const similarProjects = await mongoClient.getCollection('project_intelligence')
-        .find({
-          'context.languages': { $in: projectContext.languages },
-          'context.frameworks': { $in: projectContext.frameworks },
-          'context.projectType': projectContext.projectType
-        })
-        .limit(5)
-        .toArray();
-
-      if (similarProjects.length === 0) {
-        return null;
-      }
-
-      // Get configs from similar projects
-      const configs = await this.collection.find({
-        projectId: { $in: similarProjects.map(p => p.projectId) },
-        toolName
-      }).toArray();
-
-      if (configs.length === 0) {
-        return null;
-      }
-
-      // Return the most recent successful config
-      // In production, this could use ML to find the best config
-      return configs[0].config;
-
-    } catch (error) {
-      this.logger.error(`Failed to find optimal config: ${error}`);
-      return null;
-    }
-  }
-
-  /**
-   * Delete tool configuration
-   */
-  async deleteToolConfig(projectId: string, toolName: string): Promise<boolean> {
-    try {
-      const result = await this.collection.deleteOne({ projectId, toolName });
-      
-      // Invalidate cache
-      const cacheKey = `${projectId}:${toolName}`;
-      this.cache.delete(cacheKey);
-
-      return result.deletedCount > 0;
-    } catch (error) {
-      this.logger.error(`Failed to delete tool config: ${error}`);
-      return false;
-    }
-  }
-
-  /**
-   * Clear cache
-   */
-  clearCache(): void {
-    this.cache.clear();
-    this.logger.info('Configuration cache cleared');
-  }
-
-  /**
-   * Merge two configuration objects
-   */
-  private mergeConfigs(base: any, override: any): any {
-    const result = { ...base };
-    
-    for (const key in override) {
-      if (typeof override[key] === 'object' && !Array.isArray(override[key]) && override[key] !== null) {
-        result[key] = this.mergeConfigs(result[key] || {}, override[key]);
+        await pgClient.query(query, [newSuccessRate, newAvgTime, projectId, toolName]);
       } else {
-        result[key] = override[key];
+        // Create new config entry
+        const newConfig: ToolConfig = {
+          toolName,
+          projectId,
+          configuration: {},
+          enabled: true,
+          lastUsed: new Date(),
+          successRate: success ? 1.0 : 0.0,
+          avgExecutionTime: executionTime
+        };
+
+        await this.saveToolConfig(newConfig);
       }
-    }
-    
-    return result;
-  }
 
-  /**
-   * Validate configuration against schema
-   */
-  async validateConfig(toolName: string, config: any): Promise<boolean> {
-    // TODO: Implement schema validation based on tool requirements
-    // For now, just check that config is an object
-    return typeof config === 'object' && config !== null;
-  }
-
-  /**
-   * Get configuration history
-   */
-  async getConfigHistory(projectId: string, toolName: string, limit: number = 10): Promise<ToolConfig[]> {
-    try {
-      // In a production system, we'd maintain a separate history collection
-      // For now, return the current config
-      const config = await this.collection.findOne({ projectId, toolName });
-      return config ? [config] : [];
+      this.logger.info(`Updated stats for ${toolName}: ${success ? 'success' : 'failure'}, ${executionTime}ms`);
     } catch (error) {
-      this.logger.error(`Failed to get config history: ${error}`);
-      return [];
+      this.logger.error(`Failed to update tool stats: ${error}`);
     }
   }
 }

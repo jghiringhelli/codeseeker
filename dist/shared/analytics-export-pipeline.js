@@ -6,7 +6,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AnalyticsExportPipeline = void 0;
 exports.createAnalyticsExportPipeline = createAnalyticsExportPipeline;
-const analytics_database_1 = require("./analytics-database");
+const postgresql_analytics_database_1 = require("./postgresql-analytics-database");
 const logger_1 = require("../utils/logger");
 class AnalyticsExportPipeline {
     logger;
@@ -294,7 +294,7 @@ class AnalyticsExportPipeline {
 exports.AnalyticsExportPipeline = AnalyticsExportPipeline;
 // Factory function for easy setup
 function createAnalyticsExportPipeline(projectPath, projectId, pgPool, config) {
-    const analyticsDb = new analytics_database_1.AnalyticsDatabase(projectPath);
+    const analyticsDb = new postgresql_analytics_database_1.PostgreSQLAnalyticsDatabase(projectId);
     const fullConfig = {
         batchSize: 1000,
         maxRetries: 3,

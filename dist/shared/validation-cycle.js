@@ -41,8 +41,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CodeMindValidationCycle = void 0;
 const logger_1 = require("./logger");
-const verifier_1 = require("../features/compilation/verifier");
-const analyzer_1 = require("../features/solid-principles/analyzer");
+const verifier_1 = require("../cli/features/compilation/verifier");
+const analyzer_1 = require("../cli/features/solid-principles/analyzer");
 const intelligent_cycle_features_1 = require("./intelligent-cycle-features");
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));

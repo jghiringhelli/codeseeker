@@ -1,0 +1,21 @@
+{
+  "content": "#!/usr/bin/env node\n\n/**\n * Simple database initialization for CodeMind project\n */\n\nconst { Pool } = require('pg');\nconst neo4j = require('neo4j-driver');\nconst Redis = require('ioredis');\n\nasync function initializeBasicData() {\n  console.log('🚀 Initializing CodeMind project data...\\n');\n  \n  const projectData = {\n    id: '550e8400-e29b-41d4-a716-446655440000', // Valid UUID for PostgreSQL\n    name: 'CodeMind',\n    path: 'C:\\\\workspace\\\\claude\\\\CodeMind',\n    type: 'cli_tool',\n    status: 'active',\n    languages: ['TypeScript', 'JavaScript'],\n    frameworks: ['Express', 'Node.js', 'Docker']\n  };\n  \n  // Initialize PostgreSQL\n  try {\n    console.log('📦 Initializing PostgreSQL...');\n    const pgClient = new Pool({\n      host: 'localhost',\n      port: 5432,\n      database: 'codemind',\n      user: 'codemind',\n      password: 'codemind123'\n    });\n    \n    // Insert project data\n    await pgClient.query(`\n      INSERT INTO projects (id, project_name, project_path, status, languages, frameworks, project_type, created_at, updated_at)\n      VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, NOW(), NOW())\n      ON CONFLICT (project_path) DO UPDATE SET\n        updated_at = NOW(),\n        status = $4,\n        languages = $5::jsonb,\n        frameworks = $6::jsonb;\n    `, [\n      projectData.id,\n      projectData.name,\n      projectData.path,\n      projectData.status,\n      JSON.stringify(projectData.languages),\n      JSON.stringify(projectData.frameworks),\n      projectData.type\n    ]);\n    \n    console.log('✅ PostgreSQL project data initialized');\n    await pgClient.end();\n  } catch (err) {\n    console.log('⚠️  PostgreSQL error:', err.message);\n  }\n  \n  // Initialize Neo4j\n  try {\n    console.log('🕸️  Initializing Neo4j...');\n    const driver = neo4j.driver(\n      'bolt://localhost:7687',\n      neo4j.auth.basic('neo4j', 'codemind123')\n    );\n    const session = driver.session();\n    \n    // Create project node with proper escaping\n    const query = `\n      MERGE (p:Project {id: $id})\n      SET p.name = $name,\n          p.path = $path,\n          p.type = $type,\n          p.languages = $languages,\n          p.frameworks = $frameworks,\n          p.createdAt = datetime(),\n          p.updatedAt = datetime(),\n          p.status = $status\n      RETURN p\n    `;\n    \n    const result = await session.run(query, {\n      id: projectData.id,\n      name: projectData.name,\n      path: projectData.path,\n      type: projectData.type,\n      languages: projectData.languages,\n      frameworks: projectData.frameworks,\n      status: projectData.status\n    });\n    \n    console.log('✅ Neo4j project node created');\n    await session.close();\n    await driver.close();\n  } catch (err) {\n    console.log('⚠️  Neo4j error:', err.message);\n  }\n  \n  // Initialize Redis\n  try {\n    console.log('🔴 Initializing Redis...');\n    const redis = new Redis({\n      host: 'localhost',\n      port: 6379\n    });\n    \n    await redis.hset('codemind:project:codemind-project', {\n      name: projectData.name,\n      path: projectData.path,\n      type: projectData.type,\n      status: projectData.status,\n      languages: JSON.stringify(projectData.languages),\n      frameworks: JSON.stringify(projectData.frameworks),\n      updatedAt: new Date().toISOString()\n    });\n    \n    console.log('✅ Redis project data cached');\n    redis.disconnect();\n  } catch (err) {\n    console.log('⚠️  Redis error:', err.message);\n  }\n  \n  console.log('\\n🎉 Basic CodeMind project data initialization completed!');\n}\n\n// Run initialization\ninitializeBasicData().catch(error => {\n  console.error('❌ Initialization failed:', error);\n  process.exit(1);\n});",
+  "hash": "5e2a5841efbc856a91d0675d42b35196aad26822f56004f4a6e123bc80b94324",
+  "lastModified": 1757201101170,
+  "language": "JavaScript",
+  "exports": [],
+  "imports": [],
+  "functions": [
+    "const",
+    "const",
+    "function",
+    "const",
+    "const",
+    "const",
+    "const",
+    "const",
+    "const",
+    "const"
+  ],
+  "classes": []
+}

@@ -7,7 +7,7 @@ import { InternalTool, ToolMetadata, ToolRegistry, AnalysisResult, ToolInitResul
 import { Logger } from './logger';
 
 // Import all internal tools for registration
-import { SemanticGraphTool } from '../features/semantic-graph/semantic-graph-tool';
+import { SemanticGraphTool } from '../cli/features/semantic-graph/semantic-graph-tool';
 // import { SemanticSearchTool } from '../features/search/semantic-search-tool'; // TODO: Implement this tool
 // Note: Context optimization is the core CLI mechanism, not a separate tool
 // TODO: Add remaining tool imports as they are implemented:

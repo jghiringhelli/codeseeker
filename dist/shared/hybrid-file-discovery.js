@@ -3,10 +3,13 @@
  * Hybrid File Discovery System
  * Combines vector search (intent-based) + semantic graph (structure-based) for intelligent file discovery
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HybridFileDiscovery = void 0;
-const semantic_search_complete_1 = require("../features/search/semantic-search-complete");
-const semantic_graph_1 = require("../services/semantic-graph");
+const semantic_search_complete_1 = require("../cli/features/search/semantic-search-complete");
+const semantic_graph_1 = __importDefault(require("../cli/services/semantic-graph"));
 const logger_1 = require("../utils/logger");
 class HybridFileDiscovery {
     vectorSearch;
@@ -14,7 +17,7 @@ class HybridFileDiscovery {
     logger = logger_1.Logger.getInstance();
     constructor() {
         this.vectorSearch = new semantic_search_complete_1.SemanticSearchTool();
-        this.semanticGraph = new semantic_graph_1.SemanticGraphService();
+        this.semanticGraph = new semantic_graph_1.default();
     }
     async initialize() {
         await this.semanticGraph.initialize();

@@ -3,7 +3,7 @@
  * Bridges PostgreSQL operational data to DuckDB analytics storage
  */
 import { Pool } from 'pg';
-import { AnalyticsDatabase } from './analytics-database';
+import { PostgreSQLAnalyticsDatabase } from './postgresql-analytics-database';
 export interface ExportConfig {
     batchSize: number;
     maxRetries: number;
@@ -16,7 +16,7 @@ export declare class AnalyticsExportPipeline {
     private analyticsDb;
     private config;
     private lastExportTimestamp;
-    constructor(pgPool: Pool, analyticsDb: AnalyticsDatabase, config: ExportConfig);
+    constructor(pgPool: Pool, analyticsDb: PostgreSQLAnalyticsDatabase, config: ExportConfig);
     startPipeline(): Promise<void>;
     private runFullExport;
     private runIncrementalExport;

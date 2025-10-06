@@ -1,96 +1,45 @@
 /**
- * Project Intelligence Repository
- * Stores and manages intelligent project context in MongoDB
+ * Project Intelligence Service
+ * Provides AI-driven insights about projects using PostgreSQL
  */
 export interface ProjectContext {
+    projectId: string;
+    name: string;
+    type: string;
     languages: string[];
     frameworks: string[];
-    projectType: string;
-    fileStructure: {
-        entryPoints: string[];
-        configFiles: string[];
-        testDirectories: string[];
-    };
-    patterns: {
-        architectural: string[];
-        design: string[];
-    };
-    complexity: 'low' | 'medium' | 'high';
-    recommendedTools: string[];
-    metrics?: {
-        totalFiles: number;
-        totalLines: number;
-        testCoverage?: number;
-        dependencies: number;
-    };
-    insights?: string[];
-}
-export interface ProjectIntelligenceDoc {
-    _id?: string;
-    projectId: string;
-    context: ProjectContext;
-    lastUpdated: Date;
-    version: number;
-    history?: ProjectContext[];
+    patterns: string[];
+    complexity: number;
+    lastAnalyzed: Date;
 }
 export declare class ProjectIntelligence {
-    private collection?;
     private logger;
-    private cache;
+    private dbConnections;
     constructor();
-    private ensureConnection;
     /**
-     * Update project context with version tracking
-     */
-    updateProjectContext(projectId: string, context: ProjectContext): Promise<void>;
-    /**
-     * Get project context with caching
+     * Get intelligent project context
      */
     getProjectContext(projectId: string): Promise<ProjectContext | null>;
     /**
-     * Find similar projects based on context
+     * Update project intelligence
      */
-    findSimilarProjects(projectContext: ProjectContext, limit?: number): Promise<ProjectIntelligenceDoc[]>;
+    updateProjectIntelligence(projectId: string, data: any): Promise<void>;
     /**
-     * Get recommended tools based on project context
+     * Get project insights
      */
-    getRecommendedTools(projectId: string): Promise<string[]>;
+    getProjectInsights(projectId: string): Promise<any>;
     /**
-     * Learn from successful tool runs
+     * Learn from tool execution
      */
-    learnFromToolExecution(projectId: string, toolName: string, success: boolean, executionTime: number, context?: any): Promise<void>;
+    learnFromToolExecution(projectId: string, toolName: string, result: any): Promise<void>;
     /**
-     * Analyze project and generate initial context
+     * Get smart recommendations
      */
-    analyzeProject(projectId: string, projectPath: string, fileList: string[]): Promise<ProjectContext>;
+    getRecommendations(projectId: string): Promise<string[]>;
     /**
-     * Get intelligence insights for a project
+     * Generate recommendations based on project data
      */
-    getProjectInsights(projectId: string): Promise<string[]>;
-    /**
-     * Compare two project contexts
-     */
-    compareProjects(projectId1: string, projectId2: string): Promise<any>;
-    private calculateSimilarityScore;
-    private updateToolRecommendations;
-    private detectLanguages;
-    private detectFrameworks;
-    private detectProjectType;
-    private analyzeFileStructure;
-    private detectPatterns;
-    private calculateComplexity;
-    private countDependencies;
-    private generateInitialRecommendations;
-    private getDefaultTools;
-    private getToolsByProjectType;
-    private getToolsByLanguages;
-    private getToolsByFrameworks;
-    private getToolsByComplexity;
-    private findCommonTools;
-    /**
-     * Clear cache
-     */
-    clearCache(): void;
+    private generateRecommendations;
 }
 export declare const projectIntelligence: ProjectIntelligence;
 //# sourceMappingURL=project-intelligence.d.ts.map

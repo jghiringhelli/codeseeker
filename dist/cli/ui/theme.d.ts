@@ -16,6 +16,10 @@ export interface ThemeColors {
     border: chalk.Chalk;
     command: chalk.Chalk;
     highlight: chalk.Chalk;
+    claudeCode: chalk.Chalk;
+    claudeCodeMuted: chalk.Chalk;
+    interrupt: chalk.Chalk;
+    accent: chalk.Chalk;
 }
 export declare class Theme {
     static readonly colors: ThemeColors;

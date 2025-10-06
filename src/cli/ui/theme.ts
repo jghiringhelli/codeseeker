@@ -18,6 +18,10 @@ export interface ThemeColors {
   border: chalk.Chalk;
   command: chalk.Chalk;
   highlight: chalk.Chalk;
+  claudeCode: chalk.Chalk;
+  claudeCodeMuted: chalk.Chalk;
+  interrupt: chalk.Chalk;
+  accent: chalk.Chalk;
 }
 
 export class Theme {
@@ -33,7 +37,11 @@ export class Theme {
     result: chalk.white,
     border: chalk.gray,
     command: chalk.cyan,
-    highlight: chalk.cyan.bold
+    highlight: chalk.cyan.bold,
+    claudeCode: chalk.hex('#FF6B35'), // Claude's distinctive orange
+    claudeCodeMuted: chalk.hex('#FF6B35').dim,
+    interrupt: chalk.red.bold,
+    accent: chalk.magenta.bold
   };
 
   /**
