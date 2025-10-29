@@ -156,6 +156,28 @@ class EmbeddingService {
         }
     }
     /**
+     * Process a single file and store its embedding
+     * Public method for incremental sync
+     */
+    async processSingleFile(projectId, filePath, content) {
+        try {
+            const crypto = require('crypto');
+            const hash = crypto.createHash('sha256').update(content).digest('hex');
+            const embedding = await this.generateEmbedding(content, filePath);
+            const metadata = this.extractFileMetadata(filePath, content);
+            // Get database connection
+            const { DatabaseConnections } = await Promise.resolve().then(() => __importStar(require('../../config/database-config')));
+            const dbConnections = new DatabaseConnections();
+            const pgClient = await dbConnections.getPostgresConnection();
+            await this.storeEmbedding(projectId, filePath, content, hash, embedding, metadata, pgClient);
+            return true;
+        }
+        catch (error) {
+            this.logger.error(`Failed to process single file ${filePath}:`, error);
+            return false;
+        }
+    }
+    /**
      * Generate embedding for content using configured provider
      * Public method for use by semantic search engine
      */

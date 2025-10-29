@@ -884,11 +884,11 @@ class CommandProcessor {
                     }
                     console.log(theme_1.Theme.colors.muted(`  Processing: ${path.basename(filePath)}`));
                     // Process the file to generate and store embedding
-                    // This will use the processFile method which handles everything
-                    const fileContent = fs.readFileSync(absolutePath, 'utf-8');
-                    const pgClient = await this.context.databaseManager.getPostgresConnection();
-                    const result = await embeddingService.processFile(existingProject.projectId, filePath, fileContent, pgClient);
-                    if (result !== 'success') {
+                    // Use generateProjectEmbeddings for a single file
+                    const result = await embeddingService.generateProjectEmbeddings(existingProject.projectId, [absolutePath], (progress, current) => {
+                        // Progress callback for single file
+                    });
+                    if (result.errors > 0) {
                         throw new Error(`Failed to process file`);
                     }
                     processedCount++;

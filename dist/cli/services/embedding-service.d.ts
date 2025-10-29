@@ -44,6 +44,11 @@ export declare class EmbeddingService {
      */
     private processFile;
     /**
+     * Process a single file and store its embedding
+     * Public method for incremental sync
+     */
+    processSingleFile(projectId: string, filePath: string, content: string): Promise<boolean>;
+    /**
      * Generate embedding for content using configured provider
      * Public method for use by semantic search engine
      */

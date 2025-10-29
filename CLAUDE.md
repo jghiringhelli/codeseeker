@@ -254,3 +254,5 @@ After major changes to CodeMind codebase:
 - NEVER create files unless absolutely necessary for achieving the goal
 - ALWAYS prefer editing an existing file to creating a new one
 - NEVER proactively create documentation files (*.md) or README files unless explicitly requested
+- NEVER create new versions of files with adjectives (no "file-enhanced.js", "file-improved.js", "file-v2.js")
+- Always modify the existing file directly instead of creating variations

@@ -359,7 +359,7 @@ export class DatabaseHealthService {
       console.log(Theme.colors.info('📋 Initializing database tables...'));
 
       // Run the setup script
-      const { stdout, stderr } = await execAsync('node scripts/setup-complete.js', {
+      const { stdout, stderr } = await execAsync('node scripts/setup.js', {
         cwd: process.cwd(),
         timeout: 60000
       });

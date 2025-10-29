@@ -13,15 +13,15 @@ import { ProjectManager } from './project-manager';
 // import { ClaudeCodeOrchestrator } from './ClaudeCodeOrchestrator'; // Excluded for core build
 import { DatabaseManager } from './database-manager';
 import { UserInterface } from './user-interface';
-import { CodeMindInstructionService } from '../services/codemind-instruction-service';
+import { CodeMindInstructionService } from '../services/integration/codemind-instruction-service';
 import { InterruptManager } from './interrupt-manager';
 import { ClaudeCodeForwarder } from './claude-code-forwarder';
-import { SyncManagerService } from '../services/sync-manager-service';
-import { FileWatcherService } from '../services/file-watcher-service';
-import { AssumptionDetector } from '../services/assumption-detector';
-import { UserClarificationService } from '../services/user-clarification-service';
+import { SyncManagerService } from '../../services/managers/sync-manager';
+import { FileWatcherService } from '../services/monitoring/file-watcher-service';
+import { AssumptionDetector } from '../services/analysis/user-intentions/assumption-detector';
+import { UserClarificationService } from '../services/analysis/user-intentions/user-clarification-service';
 import { DocumentationRAGService } from '../../shared/documentation-rag-service';
-import { DatabaseHealthService } from '../services/database-health-service';
+import { DatabaseHealthService } from '../services/data/database/database-health-service';
 
 const execAsync = promisify(exec);
 
@@ -191,37 +191,21 @@ export class CommandProcessor {
       };
     }
 
-    // Step 1: Detect assumptions and ambiguities
-    console.log(Theme.colors.info('🔍 Analyzing request for assumptions...'));
-    const analysis = this.assumptionDetector.analyzeRequest(query, this.context.currentProject);
+    // Step 1: Detect assumptions and ambiguities (streamlined)
+    const analysis = await this.assumptionDetector.analyzeRequest(query, this.context.currentProject);
 
     let finalQuery = query;
 
-    // Step 2: If ambiguities detected, request clarification from user
-    if (analysis.hasAmbiguities && this.rl) {
-      const clarificationService = new UserClarificationService(this.rl);
-      const clarification = await clarificationService.requestClarification(query, analysis);
-
-      if (!clarification.shouldProceed) {
-        return {
-          success: false,
-          message: 'Request cancelled by user. Please refine your request.'
-        };
-      }
-
-      finalQuery = clarification.clarifiedPrompt;
-      console.log(Theme.colors.success('✅ Request clarified with user input'));
-    } else if (analysis.hasAmbiguities) {
-      // No readline interface available, show assumptions but proceed
-      console.log(Theme.colors.warning('⚠️  Detected assumptions (proceeding without clarification):'));
-      analysis.assumptions.forEach((assumption, index) => {
-        console.log(Theme.colors.muted(`${index + 1}. [${assumption.category}] ${assumption.assumption}`));
-      });
+    // Step 2: If ambiguities detected, log intention but proceed automatically in CLI mode
+    if (analysis.hasAmbiguities) {
+      const intention = analysis.assumptions[0]?.assumption || 'Processing request with standard approach';
+      console.log(Theme.colors.info(`🔍 Intention: ${intention}`));
+      // In CLI mode, proceed automatically without user interaction
+      finalQuery = query; // Keep original query unchanged
     }
 
-    // Step 3: Process through Claude Code with enhanced prompt
-    console.log(Theme.colors.claudeCode('🤖 Sending to Claude Code...'));
-    console.log(Theme.colors.claudeCodeMuted(`   Enhanced query length: ${finalQuery.length} characters`));
+    // Step 3: Process through Claude Code (streamlined)
+    console.log(Theme.colors.claudeCode('🤖 Processing with Claude Code...'));
 
     try {
       // Add prompt enhancement for assumption awareness
@@ -660,27 +644,37 @@ export class CommandProcessor {
       };
     }
 
-    const subCommand = args.split(' ')[0] || 'analyze';
-
     try {
-      const { DeduplicationService } = await import('../services/deduplication-service');
-      const dedupService = new DeduplicationService();
+      // Always use smart dedup that leverages existing Xenova embeddings
+      const { SmartDedupDetector } = await import('../services/analysis/deduplication/smart-dedup-detector');
+      const smartDedup = new SmartDedupDetector();
 
-      switch (subCommand) {
-        case 'analyze':
-        case 'report':
-          return await this.handleDedupAnalyze(dedupService);
+      console.log(Theme.colors.primary('🧠 INTELLIGENT DUPLICATE DETECTION'));
+      console.log(Theme.colors.info('Using existing Xenova embeddings from database...'));
 
-        case 'merge':
-        case 'interactive':
-          return await this.handleDedupMerge(dedupService);
-
-        default:
-          return {
-            success: false,
-            message: `Unknown dedup command: ${subCommand}. Use "analyze" or "merge".`
-          };
+      // Check for cached results first
+      const cached = await smartDedup.getCachedResults(this.context.currentProject.projectId);
+      if (cached && args.includes('--cached')) {
+        console.log(Theme.colors.muted('Using cached results from previous analysis'));
+        this.displayDedupResults(cached);
+        return {
+          success: true,
+          message: `Showing cached results. Found ${cached.candidates.length} duplicate candidates.`,
+          data: cached
+        };
       }
+
+      // Run the smart dedup analysis
+      const result = await smartDedup.analyzeProject(this.context.currentProject.projectId);
+
+      // Display results
+      this.displayDedupResults(result);
+
+      return {
+        success: true,
+        message: `Analysis complete! Found ${result.candidates.length} duplicate candidates.`,
+        data: result
+      };
     } catch (error) {
       return {
         success: false,
@@ -690,80 +684,31 @@ export class CommandProcessor {
   }
 
   /**
-   * Handle dedup analyze command
+   * Display deduplication results in a user-friendly format
    */
-  private async handleDedupAnalyze(dedupService: any): Promise<CommandResult> {
-    console.log(Theme.colors.primary('🔍 GRANULAR DUPLICATE CODE ANALYSIS'));
-    console.log(Theme.colors.info('Analyzing methods and classes for duplicates using semantic embeddings...'));
+  private displayDedupResults(result: any): void {
+    console.log(Theme.colors.success(`\n✅ Analysis complete!`));
+    console.log(Theme.colors.info(`Found ${result.candidates.length} duplicate candidates`));
+    console.log(Theme.colors.muted(`Changed files: ${result.stats.changedFiles}, Deleted: ${result.stats.deletedFiles}`));
 
-    try {
-      const report = await dedupService.generateDeduplicationReport(
-        this.context.currentProject.projectId,
-        (progress: number, status: string) => {
-          console.log(Theme.colors.muted(`   ${progress}% - ${status}`));
+    if (result.suggestions.length > 0) {
+      console.log(Theme.colors.primary('\n💡 Top Consolidation Suggestions:'));
+      for (const suggestion of result.suggestions.slice(0, 5)) {
+        console.log(Theme.colors.success(`  • ${suggestion.description}`));
+        console.log(Theme.colors.muted(`    Strategy: ${suggestion.strategy}`));
+        console.log(Theme.colors.muted(`    Estimated reduction: ${suggestion.estimatedLinesReduced} lines`));
+        if (suggestion.claudeAnalysis) {
+          console.log(Theme.colors.info(`    Claude: ${suggestion.claudeAnalysis.trim()}`));
         }
-      );
-
-      // Display the comprehensive report
-      dedupService.printDeduplicationReport(report);
-
-      return {
-        success: true,
-        message: `Analysis complete! Found ${report.duplicateGroups.length} duplicate groups.`,
-        data: { report }
-      };
-
-    } catch (error) {
-      return {
-        success: false,
-        message: `Analysis failed: ${error.message}`
-      };
-    }
-  }
-
-  /**
-   * Handle dedup merge command
-   */
-  private async handleDedupMerge(dedupService: any): Promise<CommandResult> {
-    console.log(Theme.colors.primary('🔧 INTERACTIVE DUPLICATE MERGING'));
-    console.log(Theme.colors.info('Starting interactive merge process with quality cycle...'));
-
-    try {
-      // First generate the report
-      const report = await dedupService.generateDeduplicationReport(
-        this.context.currentProject.projectId,
-        (progress: number, status: string) => {
-          console.log(Theme.colors.muted(`   ${progress}% - ${status}`));
-        }
-      );
-
-      if (report.duplicateGroups.length === 0) {
-        return {
-          success: true,
-          message: 'No duplicates found to merge. Your code is well-organized!'
-        };
       }
 
-      // Start interactive merge process
-      await dedupService.interactiveMerge(
-        report,
-        this.context.userInterface,
-        this.context.claudeOrchestrator
-      );
-
-      return {
-        success: true,
-        message: 'Interactive merging process completed.',
-        data: { report }
-      };
-
-    } catch (error) {
-      return {
-        success: false,
-        message: `Interactive merge failed: ${error.message}`
-      };
+      console.log(Theme.colors.muted(`\n💾 Results cached. Use "/dedup --cached" to view again.`));
+    } else {
+      console.log(Theme.colors.success('\n🎉 No significant duplicates found! Your code is well-organized.'));
     }
   }
+
+  // Old dedup methods removed - now using smart dedup by default
 
   /**
    * Parse deduplication options from command arguments
@@ -818,7 +763,7 @@ export class CommandProcessor {
   private async syncProject(existingProject: any, projectPath: string): Promise<CommandResult> {
     try {
       // Import the InitializationStatusTracker
-      const { InitializationStatusTracker } = await import('../services/initialization/initialization-status-tracker');
+      const { InitializationStatusTracker } = await import('../services/monitoring/initialization/initialization-status-tracker');
       const statusTracker = new InitializationStatusTracker();
 
       // Check current initialization status
@@ -1030,7 +975,7 @@ export class CommandProcessor {
       console.log(Theme.colors.info('🔄 Processing changed files incrementally...'));
 
       // Instead of re-initializing the whole project, process only changed files
-      const { EmbeddingService } = await import('../services/embedding-service');
+      const { EmbeddingService } = await import('../services/data/embedding/embedding-service');
       const embeddingService = new EmbeddingService();
 
       let processedCount = 0;
@@ -1050,18 +995,13 @@ export class CommandProcessor {
           console.log(Theme.colors.muted(`  Processing: ${path.basename(filePath)}`));
 
           // Process the file to generate and store embedding
-          // This will use the processFile method which handles everything
-          const fileContent = fs.readFileSync(absolutePath, 'utf-8');
-          const pgClient = await this.context.databaseManager.getPostgresConnection();
-
-          const result = await embeddingService.processFile(
+          // Use generateProjectEmbeddings for a single file
+          const result = await embeddingService.generateProjectEmbeddings(
             existingProject.projectId,
-            filePath,
-            fileContent,
-            pgClient
+            [absolutePath]
           );
 
-          if (result !== 'success') {
+          if (result.errors > 0) {
             throw new Error(`Failed to process file`);
           }
 
@@ -1310,7 +1250,7 @@ export class CommandProcessor {
     const options = this.parsePathAndFlags(args);
 
     try {
-      const { SOLIDAnalyzerService } = await import('../services/solid-analyzer-service');
+      const { SOLIDAnalyzerService } = await import('../services/analysis/solid/solid-analyzer-service');
       const solidService = new SOLIDAnalyzerService();
 
       return await this.handleSolidAnalyze(solidService, options);
@@ -1432,7 +1372,7 @@ export class CommandProcessor {
     const subCommand = args.split(' ')[0] || 'generate';
 
     try {
-      const { DocumentationService } = await import('../services/documentation-service');
+      const { DocumentationService } = await import('../services/data/documentation-service');
       const docsService = new DocumentationService();
 
       switch (subCommand) {
@@ -2322,6 +2262,142 @@ export class CommandProcessor {
 
     } catch (error) {
       // Silently fail - this is just helpful feedback
+    }
+  }
+
+  /**
+   * Centralized Claude Code CLI execution method
+   * All Claude Code interactions should go through this method
+   */
+  static async executeClaudeCode(
+    prompt: string,
+    options: {
+      projectPath?: string;
+      maxTokens?: number;
+      outputFormat?: 'text' | 'json';
+      model?: string;
+      systemPrompt?: string;
+      timeout?: number;
+    } = {}
+  ): Promise<{ success: boolean; data?: string; error?: string; tokensUsed?: number }> {
+    try {
+      console.log(`🤖 Processing with Claude Code...`);
+
+      // Set defaults
+      const {
+        projectPath = process.cwd(),
+        outputFormat = 'text',
+        timeout = 60000,
+        model,
+        systemPrompt
+      } = options;
+
+      // Create temporary input file for the prompt
+      const { randomBytes } = await import('crypto');
+      const tmpDir = require('os').tmpdir();
+      const inputFile = path.join(tmpDir, `claude-codemind-${randomBytes(8).toString('hex')}.txt`);
+
+      // Write prompt to temp file
+      await fs.promises.writeFile(inputFile, prompt, 'utf8');
+
+      // Build Claude Code command
+      const args = ['--print'];
+
+      if (outputFormat === 'json') {
+        args.push('--output-format', 'json');
+      }
+
+      if (model) {
+        args.push('--model', model);
+      }
+
+      if (systemPrompt) {
+        args.push('--system-prompt', systemPrompt);
+      }
+
+      // Try different command approaches for maximum compatibility
+      const commands = [
+        // Primary: PowerShell with --print flag
+        `powershell -Command "Get-Content '${inputFile}' -Raw | claude ${args.join(' ')}"`,
+        // Alternative: Direct pipe with --print
+        `claude ${args.join(' ')} < "${inputFile}"`,
+        // Fallback: Command prompt approach
+        `cmd /c "type \\"${inputFile}\\" | claude ${args.join(' ')}"`,
+        // Final fallback: Basic approach
+        `type "${inputFile}" | claude ${args.join(' ')}`
+      ];
+
+      let lastError: any;
+      let responseData = '';
+
+      for (const command of commands) {
+        try {
+          console.log(`🔧 Trying: ${command.split('|')[0].trim()}...`);
+
+          const { stdout, stderr } = await execAsync(command, {
+            cwd: projectPath,
+            timeout,
+            env: { ...process.env },
+            maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+          });
+
+          // Check for critical errors in stderr
+          if (stderr && (stderr.includes('Error:') || stderr.includes('Failed:')) &&
+              !stderr.includes('Debugger attached')) {
+            console.log(`⚠️ Command warning: ${stderr.substring(0, 100)}...`);
+            // Continue trying other commands for critical errors
+            continue;
+          }
+
+          if (stdout && stdout.trim().length > 0) {
+            console.log(`✅ Claude Code response received (${Math.ceil(stdout.length/1000)}KB)`);
+            responseData = stdout.trim();
+
+            // Estimate token usage (rough approximation: 1 token ≈ 4 characters)
+            const estimatedTokens = Math.ceil((prompt.length + responseData.length) / 4);
+
+            // Clean up temp file
+            try {
+              await fs.promises.unlink(inputFile);
+            } catch (cleanupError) {
+              // Ignore cleanup errors
+              console.warn('⚠️ Could not clean up temp file:', cleanupError);
+            }
+
+            return {
+              success: true,
+              data: responseData,
+              tokensUsed: estimatedTokens
+            };
+          }
+        } catch (error) {
+          lastError = error;
+          console.log(`⚠️ Command failed, trying next approach...`);
+          continue;
+        }
+      }
+
+      // All commands failed
+      console.log(`❌ All Claude Code CLI attempts failed. Last error: ${lastError?.message}`);
+
+      // Clean up temp file
+      try {
+        await fs.promises.unlink(inputFile);
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      return {
+        success: false,
+        error: `Claude Code CLI not available or failed to execute. Last error: ${lastError?.message || 'Unknown error'}`
+      };
+
+    } catch (error) {
+      console.error(`❌ Claude Code execution failed: ${error instanceof Error ? error.message : error}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   }
 }
