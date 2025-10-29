@@ -7,7 +7,7 @@
 import { Command } from 'commander';
 import { Logger, LogLevel } from '../../utils/logger';
 import { SemanticSearchTool } from '../features/search/semantic-search-complete';
-import EmbeddingService from '../services/embedding-service';
+import { EmbeddingService } from '../services/data/embedding/embedding-service';
 import path from 'path';
 
 const logger = new Logger(LogLevel.INFO, 'SemanticSearchCLI');
