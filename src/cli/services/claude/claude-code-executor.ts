@@ -52,6 +52,9 @@ export class ClaudeCodeExecutor {
       const tmpDir = PlatformUtils.getTempDir();
       const inputFile = path.join(tmpDir, `claude-prompt-${randomBytes(8).toString('hex')}.txt`);
 
+      // Convert to Windows path for PowerShell compatibility
+      const windowsInputFile = PlatformUtils.isWindows() ? inputFile.replace(/\//g, '\\') : inputFile;
+
       // Write prompt to temp file
       await fs.writeFile(inputFile, prompt, 'utf8');
 
@@ -74,15 +77,15 @@ export class ClaudeCodeExecutor {
         // Try multiple command approaches for reliability
         const commands = [
           // Primary approach: PowerShell with file input
-          `powershell -Command "Get-Content '${inputFile}' -Raw | claude ${args.join(' ')}"`,
+          `powershell -Command "Get-Content '${windowsInputFile}' -Raw | claude ${args.join(' ')}"`,
           // Alternative: Direct file input
           `claude ${args.join(' ')} < "${inputFile}"`,
           // PowerShell with proper escaping
-          `powershell -Command "& { $content = Get-Content '${inputFile}' -Raw; $content | claude ${args.join(' ')} }"`,
+          `powershell -Command "& { $content = Get-Content '${windowsInputFile}' -Raw; $content | claude ${args.join(' ')} }"`,
           // Command prompt approach
-          `cmd /c "type \\"${inputFile}\\" | claude ${args.join(' ')}"`,
-          // Fallback: Basic pipe approach
-          `type "${inputFile}" | claude ${args.join(' ')}`
+          `cmd /c "type \\"${windowsInputFile}\\" | claude ${args.join(' ')}"`,
+          // Fallback: Basic pipe approach - use original path for Unix commands
+          `cat "${inputFile}" | claude ${args.join(' ')}`
         ];
 
         let lastError: any;
@@ -90,6 +93,8 @@ export class ClaudeCodeExecutor {
         for (const command of commands) {
           try {
             console.log(`🔧 Trying: ${command.split('|')[0].trim()}...`);
+            console.log(`📁 File exists: ${await fs.access(inputFile).then(() => true).catch(() => false)}`);
+            console.log(`📄 File size: ${(await fs.stat(inputFile).catch(() => ({ size: 0 }))).size} bytes`);
 
             const execOptions: any = {
               timeout,
@@ -127,7 +132,8 @@ export class ClaudeCodeExecutor {
 
           } catch (error) {
             lastError = error;
-            console.log(`⚠️ Command failed, trying next approach...`);
+            console.log(`⚠️ Command failed: ${error.message || error}`);
+            console.log(`   Full command: ${command}`);
             continue;
           }
         }

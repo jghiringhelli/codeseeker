@@ -9,6 +9,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
 import { Theme } from '../ui/theme';
+import { ClaudeCodeExecutor } from '../services/claude/claude-code-executor';
 import { ProjectManager } from './project-manager';
 // import { ClaudeCodeOrchestrator } from './ClaudeCodeOrchestrator'; // Excluded for core build
 import { DatabaseManager } from './database-manager';
@@ -2268,6 +2269,7 @@ export class CommandProcessor {
   /**
    * Centralized Claude Code CLI execution method
    * All Claude Code interactions should go through this method
+   * REFACTORED: Now delegates to ClaudeCodeExecutor service
    */
   static async executeClaudeCode(
     prompt: string,
@@ -2280,124 +2282,7 @@ export class CommandProcessor {
       timeout?: number;
     } = {}
   ): Promise<{ success: boolean; data?: string; error?: string; tokensUsed?: number }> {
-    try {
-      console.log(`🤖 Processing with Claude Code...`);
-
-      // Set defaults
-      const {
-        projectPath = process.cwd(),
-        outputFormat = 'text',
-        timeout = 60000,
-        model,
-        systemPrompt
-      } = options;
-
-      // Create temporary input file for the prompt
-      const { randomBytes } = await import('crypto');
-      const tmpDir = require('os').tmpdir();
-      const inputFile = path.join(tmpDir, `claude-codemind-${randomBytes(8).toString('hex')}.txt`);
-
-      // Write prompt to temp file
-      await fs.promises.writeFile(inputFile, prompt, 'utf8');
-
-      // Build Claude Code command
-      const args = ['--print'];
-
-      if (outputFormat === 'json') {
-        args.push('--output-format', 'json');
-      }
-
-      if (model) {
-        args.push('--model', model);
-      }
-
-      if (systemPrompt) {
-        args.push('--system-prompt', systemPrompt);
-      }
-
-      // Try different command approaches for maximum compatibility
-      const commands = [
-        // Primary: PowerShell with --print flag
-        `powershell -Command "Get-Content '${inputFile}' -Raw | claude ${args.join(' ')}"`,
-        // Alternative: Direct pipe with --print
-        `claude ${args.join(' ')} < "${inputFile}"`,
-        // Fallback: Command prompt approach
-        `cmd /c "type \\"${inputFile}\\" | claude ${args.join(' ')}"`,
-        // Final fallback: Basic approach
-        `type "${inputFile}" | claude ${args.join(' ')}`
-      ];
-
-      let lastError: any;
-      let responseData = '';
-
-      for (const command of commands) {
-        try {
-          console.log(`🔧 Trying: ${command.split('|')[0].trim()}...`);
-
-          const { stdout, stderr } = await execAsync(command, {
-            cwd: projectPath,
-            timeout,
-            env: { ...process.env },
-            maxBuffer: 1024 * 1024 * 10 // 10MB buffer
-          });
-
-          // Check for critical errors in stderr
-          if (stderr && (stderr.includes('Error:') || stderr.includes('Failed:')) &&
-              !stderr.includes('Debugger attached')) {
-            console.log(`⚠️ Command warning: ${stderr.substring(0, 100)}...`);
-            // Continue trying other commands for critical errors
-            continue;
-          }
-
-          if (stdout && stdout.trim().length > 0) {
-            console.log(`✅ Claude Code response received (${Math.ceil(stdout.length/1000)}KB)`);
-            responseData = stdout.trim();
-
-            // Estimate token usage (rough approximation: 1 token ≈ 4 characters)
-            const estimatedTokens = Math.ceil((prompt.length + responseData.length) / 4);
-
-            // Clean up temp file
-            try {
-              await fs.promises.unlink(inputFile);
-            } catch (cleanupError) {
-              // Ignore cleanup errors
-              console.warn('⚠️ Could not clean up temp file:', cleanupError);
-            }
-
-            return {
-              success: true,
-              data: responseData,
-              tokensUsed: estimatedTokens
-            };
-          }
-        } catch (error) {
-          lastError = error;
-          console.log(`⚠️ Command failed, trying next approach...`);
-          continue;
-        }
-      }
-
-      // All commands failed
-      console.log(`❌ All Claude Code CLI attempts failed. Last error: ${lastError?.message}`);
-
-      // Clean up temp file
-      try {
-        await fs.promises.unlink(inputFile);
-      } catch {
-        // Ignore cleanup errors
-      }
-
-      return {
-        success: false,
-        error: `Claude Code CLI not available or failed to execute. Last error: ${lastError?.message || 'Unknown error'}`
-      };
-
-    } catch (error) {
-      console.error(`❌ Claude Code execution failed: ${error instanceof Error ? error.message : error}`);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
+    // REFACTORED: Delegate to ClaudeCodeExecutor service
+    return await ClaudeCodeExecutor.execute(prompt, options);
   }
 }
