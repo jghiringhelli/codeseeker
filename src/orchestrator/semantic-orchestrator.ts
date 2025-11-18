@@ -5,7 +5,6 @@
 
 import { SemanticGraphService } from '../cli/services/data/semantic-graph/semantic-graph';
 import { DocumentMapAnalyzer } from '../cli/features/documentation/map-analyzer';
-import { UseCasesAnalyzer } from '../cli/features/use-cases/analyzer';
 import { TreeNavigator } from '../cli/features/tree-navigation/navigator';
 import { Logger } from '../utils/logger';
 
@@ -35,14 +34,12 @@ export interface SemanticContextResult {
 export class SemanticOrchestrator {
   private semanticGraph: SemanticGraphService;
   private docAnalyzer: DocumentMapAnalyzer;
-  private useCasesAnalyzer: UseCasesAnalyzer;
   private treeNavigator: TreeNavigator;
   private logger = Logger.getInstance();
 
   constructor() {
     this.semanticGraph = new SemanticGraphService();
     this.docAnalyzer = new DocumentMapAnalyzer();
-    this.useCasesAnalyzer = new UseCasesAnalyzer();
     this.treeNavigator = new TreeNavigator();
   }
 

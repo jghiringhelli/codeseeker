@@ -1,75 +1,39 @@
 /**
- * SOLID Principles Analyzer - Simplified Architecture Quality Assessment
- * Analyzes code adherence to SOLID principles for Claude Code architectural guidance
+ * Minimal SOLID Principles Analyzer - MVP Implementation
+ * Provides basic SOLID principles analysis for validation cycle
  */
 export interface SOLIDAnalysisRequest {
     projectPath: string;
-    excludePatterns?: string[];
-    focusOnFiles?: string[];
-}
-export interface SOLIDViolation {
-    principle: 'SRP' | 'OCP' | 'LSP' | 'ISP' | 'DIP';
-    file: string;
-    line?: number;
-    severity: 'low' | 'medium' | 'high' | 'critical';
-    description: string;
-    suggestion: string;
-    codeSnippet?: string;
-}
-export interface ClassAnalysis {
-    file: string;
-    className: string;
-    methods: number;
-    responsibilities: string[];
-    dependencies: string[];
-    violations: SOLIDViolation[];
-    complexity: number;
-    maintainabilityScore: number;
-}
-export interface PrincipleScore {
-    principle: string;
-    score: number;
-    violationCount: number;
-    criticalViolations: number;
-    description: string;
-}
-export interface RefactoringOpportunity {
-    type: 'extract_class' | 'extract_interface' | 'dependency_injection' | 'strategy_pattern';
-    description: string;
-    files: string[];
-    estimatedEffort: 'low' | 'medium' | 'high';
-    benefits: string[];
+    files?: string[];
 }
 export interface SOLIDAnalysisResult {
     overallScore: number;
-    principleScores: PrincipleScore[];
+    principleScores: {
+        singleResponsibility: number;
+        openClosed: number;
+        liskovSubstitution: number;
+        interfaceSegregation: number;
+        dependencyInversion: number;
+    };
     violations: SOLIDViolation[];
-    classAnalyses: ClassAnalysis[];
-    refactoringOpportunities: RefactoringOpportunity[];
-    recommendations: string[];
+    suggestions: string[];
+}
+export interface SOLIDViolation {
+    principle: string;
+    file: string;
+    line?: number;
+    description: string;
+    severity: 'low' | 'medium' | 'high';
 }
 export declare class SOLIDPrinciplesAnalyzer {
     private logger;
-    analyzeSOLID(params: SOLIDAnalysisRequest): Promise<SOLIDAnalysisResult>;
-    private findClassFiles;
-    private analyzeClassFile;
-    private extractMethods;
-    private identifyResponsibilities;
-    private extractDependencies;
-    private findViolations;
-    private checkSRPViolations;
-    private checkOCPViolations;
-    private checkLSPViolations;
-    private checkISPViolations;
-    private checkDIPViolations;
-    private calculateClassComplexity;
-    private calculateMaintainabilityScore;
-    private calculatePrincipleScores;
-    private calculateOverallScore;
-    private identifyRefactoringOpportunities;
-    private generateRecommendations;
-    private getPrincipleName;
-    private getPrincipleDescription;
+    /**
+     * Perform basic SOLID analysis using simple heuristics
+     */
+    analyzeSOLID(request: SOLIDAnalysisRequest): Promise<SOLIDAnalysisResult>;
+    /**
+     * Generate improvement suggestions based on violations
+     */
+    private generateSuggestions;
 }
-export default SOLIDPrinciplesAnalyzer;
 //# sourceMappingURL=analyzer.d.ts.map

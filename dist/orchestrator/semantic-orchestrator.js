@@ -7,19 +7,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SemanticOrchestrator = void 0;
 const semantic_graph_1 = require("../cli/services/data/semantic-graph/semantic-graph");
 const map_analyzer_1 = require("../cli/features/documentation/map-analyzer");
-const analyzer_1 = require("../cli/features/use-cases/analyzer");
 const navigator_1 = require("../cli/features/tree-navigation/navigator");
 const logger_1 = require("../utils/logger");
 class SemanticOrchestrator {
     semanticGraph;
     docAnalyzer;
-    useCasesAnalyzer;
     treeNavigator;
     logger = logger_1.Logger.getInstance();
     constructor() {
         this.semanticGraph = new semantic_graph_1.SemanticGraphService();
         this.docAnalyzer = new map_analyzer_1.DocumentMapAnalyzer();
-        this.useCasesAnalyzer = new analyzer_1.UseCasesAnalyzer();
         this.treeNavigator = new navigator_1.TreeNavigator();
     }
     async initialize() {

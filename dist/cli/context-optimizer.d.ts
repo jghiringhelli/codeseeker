@@ -62,7 +62,6 @@ export interface ProjectAnalysisRequest {
 }
 export declare class ContextOptimizer {
     private logger;
-    private astAnalyzer;
     private cache;
     private semanticOrchestrator;
     constructor();

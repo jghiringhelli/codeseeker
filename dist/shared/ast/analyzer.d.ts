@@ -1,96 +1,59 @@
-export interface ASTNode {
-    type: string;
-    name?: string;
-    kind?: string;
-    start?: number;
-    end?: number;
-    line?: number;
-    column?: number;
-    children?: ASTNode[];
-    metadata?: Record<string, any>;
-}
-export interface ASTAnalysisResult {
-    language: string;
-    symbols: Symbol[];
-    dependencies: Dependency[];
-    complexity: ComplexityMetrics;
-    patterns: Pattern[];
-    errors: AnalysisError[];
-}
+/**
+ * Minimal AST Analyzer - MVP Implementation
+ * Provides basic AST analysis functionality for features that depend on it
+ */
 export interface Symbol {
     name: string;
-    type: 'function' | 'class' | 'interface' | 'variable' | 'type' | 'enum' | 'method' | 'property';
-    location: SourceLocation;
-    signature?: string;
-    visibility?: 'public' | 'private' | 'protected';
-    isExported?: boolean;
-    isAsync?: boolean;
-    parameters?: Parameter[];
-    returnType?: string;
+    type: string;
+    location: {
+        file: string;
+        line: number;
+        endLine: number;
+        column: number;
+        endColumn: number;
+    };
 }
 export interface Dependency {
-    type: 'import' | 'export' | 'call' | 'inheritance' | 'composition';
-    source: string;
-    target: string;
-    line: number;
-    isExternal?: boolean;
+    from: string;
+    to: string;
+    target?: string;
+    type: 'import' | 'call' | 'extends' | 'implements';
+    location?: {
+        line: number;
+        column: number;
+    };
 }
-export interface ComplexityMetrics {
-    cyclomaticComplexity: number;
-    cognitiveComplexity: number;
-    linesOfCode: number;
-    maintainabilityIndex: number;
-    nestingDepth: number;
-}
-export interface Pattern {
-    name: string;
-    type: 'architectural' | 'design' | 'anti-pattern';
-    confidence: number;
-    description: string;
-    locations: SourceLocation[];
-}
-export interface AnalysisError {
-    message: string;
-    line?: number;
-    column?: number;
-    severity: 'error' | 'warning' | 'info';
-}
-export interface SourceLocation {
-    file: string;
-    line: number;
-    column: number;
-    endLine?: number;
-    endColumn?: number;
-}
-export interface Parameter {
-    name: string;
-    type?: string;
-    optional?: boolean;
-    defaultValue?: string;
+export interface ASTAnalysisResult {
+    symbols: Symbol[];
+    dependencies: Dependency[];
+    exports: Symbol[];
+    imports: Symbol[];
+    complexity: number;
 }
 export declare class ASTAnalyzer {
-    private logger;
+    /**
+     * Basic file analysis using regex patterns instead of full AST parsing
+     */
     analyzeFile(filePath: string): Promise<ASTAnalysisResult>;
-    private detectLanguage;
-    private analyzeTypeScript;
-    private analyzePython;
-    private extractTypeScriptSymbols;
-    private extractBabelSymbols;
-    private extractTypeScriptDependencies;
-    private extractBabelDependencies;
-    private calculateTypeScriptComplexity;
-    private calculateBabelComplexity;
-    private detectTypeScriptPatterns;
-    private detectSingletonPattern;
-    private detectFactoryPattern;
-    private initializeComplexityMetrics;
-    private getSourceLocation;
-    private getBabelLocation;
-    private getFunctionSignature;
-    private hasExportModifier;
-    private hasAsyncModifier;
-    private getFunctionParameters;
-    private getVisibility;
+    /**
+     * Extract symbols (functions, classes, variables) using regex
+     */
+    private extractSymbols;
+    /**
+     * Extract dependencies using regex
+     */
+    private extractDependencies;
+    /**
+     * Extract exports using regex
+     */
+    private extractExports;
+    /**
+     * Extract imports using regex
+     */
+    private extractImports;
+    /**
+     * Calculate basic complexity based on control flow keywords
+     */
+    private calculateComplexity;
 }
-export default ASTAnalyzer;
 //# sourceMappingURL=analyzer.d.ts.map

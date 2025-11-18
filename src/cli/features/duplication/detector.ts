@@ -387,7 +387,7 @@ export class DuplicationDetector {
           metadata: {
             linesOfCode: duplicates[0].content.split('\n').length,
             tokenCount: duplicates[0].tokens.length,
-            complexity: duplicates[0].astInfo?.complexity.cyclomaticComplexity || 1
+            complexity: duplicates[0].astInfo?.complexity || 1
           }
         };
 

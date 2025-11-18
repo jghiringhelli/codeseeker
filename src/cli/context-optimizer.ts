@@ -2,7 +2,6 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'fast-glob';
 import { Logger } from '../utils/logger';
-import { ASTAnalyzer } from '../shared/ast/analyzer';
 import { SemanticOrchestrator, SemanticContextRequest } from '../orchestrator/semantic-orchestrator';
 
 export interface ContextOptimizationRequest {
@@ -73,7 +72,6 @@ export interface ProjectAnalysisRequest {
 
 export class ContextOptimizer {
   private logger = Logger.getInstance();
-  private astAnalyzer = new ASTAnalyzer();
   private cache = new Map<string, ContextOptimization>();
   private semanticOrchestrator: SemanticOrchestrator;
 

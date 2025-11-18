@@ -332,28 +332,28 @@ class CodeMindValidationCycle {
             const startTime = Date.now();
             const solidResult = await this.solidAnalyzer.analyzeSOLID({
                 projectPath: context.projectPath,
-                focusOnFiles: filesToAnalyze
+                files: filesToAnalyze
             });
             result.duration = Date.now() - startTime;
             // Convert to cycle format
-            const criticalViolations = solidResult.violations.filter(v => v.severity === 'critical');
             const highViolations = solidResult.violations.filter(v => v.severity === 'high');
-            if (criticalViolations.length > 0) {
-                result.warnings.push({
-                    type: 'solid',
-                    message: `${criticalViolations.length} critical SOLID violations found`,
-                    severity: 'error'
-                });
-            }
+            const mediumViolations = solidResult.violations.filter(v => v.severity === 'medium');
             if (highViolations.length > 0) {
                 result.warnings.push({
                     type: 'solid',
-                    message: `${highViolations.length} high-severity SOLID violations found`,
+                    message: `${highViolations.length} high severity SOLID violations found`,
+                    severity: 'error'
+                });
+            }
+            if (mediumViolations.length > 0) {
+                result.warnings.push({
+                    type: 'solid',
+                    message: `${mediumViolations.length} medium-severity SOLID violations found`,
                     severity: 'warning'
                 });
             }
             // Add top recommendations
-            result.recommendations.push(...solidResult.recommendations.slice(0, 3));
+            result.recommendations.push(...solidResult.suggestions.slice(0, 3));
         }
         catch (error) {
             result.warnings.push({

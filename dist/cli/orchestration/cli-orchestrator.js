@@ -97,11 +97,10 @@ class CLIOrchestrator {
             ...(semanticResults.relatedFiles || [])
         ];
         // Perform tree analysis on relevant files
-        const treeAnalysis = await this.treeNavigator.performAnalysis(request.projectPath, request.projectId, {
-            focusFiles: relevantFiles.slice(0, 20), // Limit for performance
-            semanticBoost: true,
-            callGraphDepth: 2,
-            includeComplexity: true
+        const treeAnalysis = await this.treeNavigator.performAnalysis({
+            projectPath: request.projectPath,
+            query: request.query,
+            maxDepth: 2
         });
         // Optimize context based on token budget
         const optimizedContext = await this.contextOptimizer.optimizeContext({

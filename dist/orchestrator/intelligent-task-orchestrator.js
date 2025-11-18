@@ -241,11 +241,14 @@ class IntelligentTaskOrchestrator {
         for (const filePath of discoveredFiles) {
             try {
                 // Use tree navigator to analyze code structure
-                const analysis = await this.treeNavigator.performAnalysis(request.projectPath, request.projectId, { focusFiles: [filePath] });
-                if (analysis.data) {
+                const analysis = await this.treeNavigator.performAnalysis({
+                    projectPath: request.projectPath,
+                    maxDepth: 2
+                });
+                if (analysis.relevantFiles.length > 0) {
                     treeResults.push({
                         filePath,
-                        codeElements: this.extractCodeElements(analysis.data)
+                        codeElements: this.extractCodeElements(analysis)
                     });
                 }
             }

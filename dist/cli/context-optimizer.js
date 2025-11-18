@@ -38,11 +38,9 @@ const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const fast_glob_1 = require("fast-glob");
 const logger_1 = require("../utils/logger");
-const analyzer_1 = require("../shared/ast/analyzer");
 const semantic_orchestrator_1 = require("../orchestrator/semantic-orchestrator");
 class ContextOptimizer {
     logger = logger_1.Logger.getInstance();
-    astAnalyzer = new analyzer_1.ASTAnalyzer();
     cache = new Map();
     semanticOrchestrator;
     constructor() {

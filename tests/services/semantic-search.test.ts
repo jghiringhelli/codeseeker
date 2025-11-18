@@ -235,7 +235,7 @@ describe('SemanticSearchService', () => {
         options: { maxResults: 10 }
       };
 
-      const result = await service.performAnalysis(context);
+      const result = await service.performAnalysis('test-project-path', 'test-project-id', context);
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();

@@ -26,7 +26,6 @@ export interface SemanticContextResult {
 export declare class SemanticOrchestrator {
     private semanticGraph;
     private docAnalyzer;
-    private useCasesAnalyzer;
     private treeNavigator;
     private logger;
     constructor();
