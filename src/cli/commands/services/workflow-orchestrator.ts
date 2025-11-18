@@ -33,6 +33,7 @@ export class WorkflowOrchestrator {
   private _graphAnalysisService?: GraphAnalysisService;
   private _contextBuilder?: ContextBuilder;
   private _userInteractionService?: UserInteractionService;
+  private projectPath: string;
 
   // Lazy initialization with singleton pattern for better performance
   private get nlpProcessor(): NaturalLanguageProcessor {
@@ -51,7 +52,7 @@ export class WorkflowOrchestrator {
 
   private get graphAnalysisService(): GraphAnalysisService {
     if (!this._graphAnalysisService) {
-      this._graphAnalysisService = new GraphAnalysisService();
+      this._graphAnalysisService = new GraphAnalysisService(this.projectPath);
     }
     return this._graphAnalysisService;
   }
@@ -70,7 +71,8 @@ export class WorkflowOrchestrator {
     return this._userInteractionService;
   }
 
-  constructor() {
+  constructor(projectPath: string) {
+    this.projectPath = projectPath;
     // Services now use lazy initialization for better performance
   }
 
@@ -172,7 +174,17 @@ export class WorkflowOrchestrator {
           classes: [],
           relationships: [],
           relationshipDetails: [],
-          packageStructure: []
+          packageStructure: [],
+          graphInsights: {
+            totalNodes: 0,
+            totalRelationships: 0,
+            architecturalPatterns: [],
+            qualityMetrics: {
+              coupling: 0,
+              cohesion: 0,
+              complexity: 0
+            }
+          }
         },
         enhancedContext: {
           originalQuery: query,
@@ -254,8 +266,8 @@ export class WorkflowOrchestrator {
   /**
    * Create a factory method for dependency injection
    */
-  static create(): WorkflowOrchestrator {
-    return new WorkflowOrchestrator();
+  static create(projectPath?: string): WorkflowOrchestrator {
+    return new WorkflowOrchestrator(projectPath || process.cwd());
   }
 
   /**

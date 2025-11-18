@@ -34,7 +34,7 @@ export class CommandRouter {
     workflowOrchestrator?: WorkflowOrchestrator
   ) {
     this.context = context;
-    this.workflowOrchestrator = workflowOrchestrator || WorkflowOrchestrator.create();
+    this.workflowOrchestrator = workflowOrchestrator || new WorkflowOrchestrator(context.currentProject?.path || process.cwd());
     this.initializeHandlers();
   }
 

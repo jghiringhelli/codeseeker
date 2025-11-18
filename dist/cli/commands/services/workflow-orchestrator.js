@@ -17,6 +17,7 @@ class WorkflowOrchestrator {
     _graphAnalysisService;
     _contextBuilder;
     _userInteractionService;
+    projectPath;
     // Lazy initialization with singleton pattern for better performance
     get nlpProcessor() {
         if (!this._nlpProcessor) {
@@ -32,7 +33,7 @@ class WorkflowOrchestrator {
     }
     get graphAnalysisService() {
         if (!this._graphAnalysisService) {
-            this._graphAnalysisService = new graph_analysis_service_1.GraphAnalysisService();
+            this._graphAnalysisService = new graph_analysis_service_1.GraphAnalysisService(this.projectPath);
         }
         return this._graphAnalysisService;
     }
@@ -48,7 +49,8 @@ class WorkflowOrchestrator {
         }
         return this._userInteractionService;
     }
-    constructor() {
+    constructor(projectPath) {
+        this.projectPath = projectPath;
         // Services now use lazy initialization for better performance
     }
     /**
@@ -127,7 +129,17 @@ class WorkflowOrchestrator {
                     classes: [],
                     relationships: [],
                     relationshipDetails: [],
-                    packageStructure: []
+                    packageStructure: [],
+                    graphInsights: {
+                        totalNodes: 0,
+                        totalRelationships: 0,
+                        architecturalPatterns: [],
+                        qualityMetrics: {
+                            coupling: 0,
+                            cohesion: 0,
+                            complexity: 0
+                        }
+                    }
                 },
                 enhancedContext: {
                     originalQuery: query,
@@ -199,8 +211,8 @@ class WorkflowOrchestrator {
     /**
      * Create a factory method for dependency injection
      */
-    static create() {
-        return new WorkflowOrchestrator();
+    static create(projectPath) {
+        return new WorkflowOrchestrator(projectPath || process.cwd());
     }
     /**
      * Validate that all required services are properly initialized

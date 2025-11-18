@@ -29,12 +29,13 @@ export declare class WorkflowOrchestrator {
     private _graphAnalysisService?;
     private _contextBuilder?;
     private _userInteractionService?;
+    private projectPath;
     private get nlpProcessor();
     private get searchOrchestrator();
     private get graphAnalysisService();
     private get contextBuilder();
     private get userInteractionService();
-    constructor();
+    constructor(projectPath: string);
     /**
      * Execute the complete CodeMind workflow
      */
@@ -61,7 +62,7 @@ export declare class WorkflowOrchestrator {
     /**
      * Create a factory method for dependency injection
      */
-    static create(): WorkflowOrchestrator;
+    static create(projectPath?: string): WorkflowOrchestrator;
     /**
      * Validate that all required services are properly initialized
      */

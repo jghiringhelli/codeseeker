@@ -27,7 +27,7 @@ class CommandRouter {
     workflowOrchestrator;
     constructor(context, workflowOrchestrator) {
         this.context = context;
-        this.workflowOrchestrator = workflowOrchestrator || workflow_orchestrator_1.WorkflowOrchestrator.create();
+        this.workflowOrchestrator = workflowOrchestrator || new workflow_orchestrator_1.WorkflowOrchestrator(context.currentProject?.path || process.cwd());
         this.initializeHandlers();
     }
     /**
