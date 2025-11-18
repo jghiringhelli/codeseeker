@@ -1,14 +1,10 @@
 /**
- * Workflow Orchestration Adapter
+ * Workflow Orchestration Adapter - SOLID Principles Compliant
  * Bridges the CLI CommandProcessor to the sophisticated CodeMindWorkflowOrchestrator
- * Implements the expected ClaudeCodeOrchestrator interface while delegating to the full workflow
+ * Implements the IRequestProcessor interface following Dependency Inversion Principle
  */
-export interface ProcessRequestResult {
-    success: boolean;
-    data?: any;
-    error?: string;
-}
-export declare class WorkflowOrchestrationAdapter {
+import { IRequestProcessor, ProcessRequestResult } from '../../core/interfaces/orchestrator-interfaces';
+export declare class WorkflowOrchestrationAdapter implements IRequestProcessor {
     private workflowOrchestrator;
     private logger;
     constructor(projectId?: string, projectPath?: string);

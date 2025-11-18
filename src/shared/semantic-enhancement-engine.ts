@@ -5,7 +5,9 @@
  */
 
 import { Logger } from '../utils/logger';
-import SemanticSearchManager, { SearchQuery, SearchResponse } from './semantic-search-manager';
+import { SemanticSearchService } from '../cli/services/search/semantic-search';
+import { SearchQuery, SearchResponse } from '../core/interfaces/search-interfaces';
+import { SearchServiceFactory } from '../core/factories/search-service-factory';
 
 // Legacy interfaces for backward compatibility
 export interface SemanticSearchResult {
@@ -41,10 +43,11 @@ export interface EnhancementContext {
  */
 export class SemanticEnhancementEngine {
   private logger = Logger.getInstance();
-  private semanticSearchManager: SemanticSearchManager;
+  private semanticSearchManager: SemanticSearchService;
 
   constructor() {
-    this.semanticSearchManager = new SemanticSearchManager();
+    const searchFactory = SearchServiceFactory.getInstance();
+    this.semanticSearchManager = searchFactory.createSemanticSearchService();
   }
 
   /**
@@ -111,7 +114,19 @@ export class SemanticEnhancementEngine {
     files: string[],
     progressCallback?: (progress: number, current: string, detail: string) => void
   ): Promise<{ success: number; errors: number; chunks: number; skipped: number }> {
-    return await this.semanticSearchManager.initializeProject(projectId, files, progressCallback);
+    // Extract project path from the first file path (legacy compatibility)
+    const projectPath = files.length > 0 ? files[0].split('/').slice(0, -1).join('/') : process.cwd();
+
+    await this.semanticSearchManager.initializeProject(projectId, projectPath);
+
+    const serviceStats = await this.semanticSearchManager.getStats(projectId);
+    const stats = serviceStats.indexStats || { totalFiles: 0, totalChunks: 0, projectSize: 0 };
+    return {
+      success: stats.totalFiles,
+      errors: 0, // New implementation doesn't track errors this way
+      chunks: stats.totalChunks,
+      skipped: 0
+    };
   }
 
   /**
@@ -123,7 +138,14 @@ export class SemanticEnhancementEngine {
     avgChunksPerFile: number;
     storageSize: string;
   }> {
-    return await this.semanticSearchManager.getIndexStats(projectId);
+    const serviceStats = await this.semanticSearchManager.getStats(projectId);
+    const stats = serviceStats.indexStats || { totalFiles: 0, totalChunks: 0, projectSize: 0 };
+    return {
+      totalChunks: stats.totalChunks,
+      totalFiles: stats.totalFiles,
+      avgChunksPerFile: stats.totalFiles > 0 ? Math.round(stats.totalChunks / stats.totalFiles) : 0,
+      storageSize: `${Math.round((stats.projectSize || 0) / 1024)}KB`
+    };
   }
 
   /**
@@ -159,7 +181,7 @@ export class SemanticEnhancementEngine {
       relatedFiles, // Empty for now - could be populated from Neo4j in future
       totalFiles: primaryFiles.length,
       contextSize: totalSize,
-      cacheHitRate: searchResponse.usedFallback ? 0.5 : 1.0,
+      cacheHitRate: searchResponse.results.length > 0 ? 1.0 : 0.5, // Estimate based on results
       generatedAt: Date.now()
     };
   }

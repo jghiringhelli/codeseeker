@@ -7,7 +7,7 @@
 
 import { Logger } from './logger';
 import { ComprehensiveImpactAnalyzer, ImpactAnalysisResult, AffectedFile } from './comprehensive-impact-analyzer';
-import { GitBranchManager, FeatureBranch, BranchSnapshot } from './git-branch-manager';
+import { GitBranchManager, FeatureBranch, BranchSnapshot } from './managers/git-branch-manager';
 import { CodeMindValidationCycle } from './validation-cycle';
 import { PostExecutionIntegration, IntegrationResult } from './post-execution-integration';
 import { ProjectContext } from './types';

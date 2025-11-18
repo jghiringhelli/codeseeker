@@ -4,7 +4,7 @@
  * Coordinates the complete workflow: Impact Analysis → Git Branching → File Updates → Validation → Rollback
  * Provides Claude Code with exact paths and specific tasks for each file to avoid extra work
  */
-import { BranchSnapshot } from './git-branch-manager';
+import { BranchSnapshot } from './managers/git-branch-manager';
 import { IntegrationResult } from './post-execution-integration';
 export interface FileTask {
     filePath: string;

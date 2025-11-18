@@ -1,39 +1,8 @@
 /**
- * Enhanced Document Map Analyzer with Semantic Graph Integration
+ * Document Map Analyzer with Semantic Graph Integration
  * Combines documentation analysis with graph-based semantic search
  */
-import { SemanticGraphService } from '../../services/semantic-graph';
-export interface EnhancedDocumentMapResult extends DocumentMapResult {
-    semanticGraph: {
-        totalNodes: number;
-        totalRelationships: number;
-        conceptClusters: ConceptCluster[];
-    };
-    crossDomainInsights: CrossDomainInsight[];
-}
-export interface ConceptCluster {
-    conceptName: string;
-    relatedDocs: string[];
-    relatedCode: string[];
-    relatedUI: string[];
-    strength: number;
-}
-export interface CrossDomainInsight {
-    concept: string;
-    domains: string[];
-    connections: Array<{
-        from: string;
-        to: string;
-        type: string;
-        strength: number;
-    }>;
-}
-export interface DocumentMapRequest {
-    projectPath: string;
-    includeTypes?: string[];
-    excludePatterns?: string[];
-    maxDepth?: number;
-}
+import { SemanticGraphService } from '../../services/data/semantic-graph/semantic-graph';
 export interface DocumentMapResult {
     documents: Array<{
         id: string;
@@ -67,13 +36,42 @@ export interface DocumentMapResult {
         context: string;
     }>;
 }
-export declare class DocumentMapAnalyzer {
-    analyzeDocumentation(params: DocumentMapRequest): Promise<DocumentMapResult>;
+export interface DocumentMapResultWithSemantics extends DocumentMapResult {
+    semanticGraph: {
+        totalNodes: number;
+        totalRelationships: number;
+        conceptClusters: ConceptCluster[];
+    };
+    crossDomainInsights: CrossDomainInsight[];
 }
-export declare class EnhancedDocumentMapAnalyzer extends DocumentMapAnalyzer {
+export interface ConceptCluster {
+    conceptName: string;
+    relatedDocs: string[];
+    relatedCode: string[];
+    relatedUI: string[];
+    strength: number;
+}
+export interface CrossDomainInsight {
+    concept: string;
+    domains: string[];
+    connections: Array<{
+        from: string;
+        to: string;
+        type: string;
+        strength: number;
+    }>;
+}
+export interface DocumentMapRequest {
+    projectPath: string;
+    includeTypes?: string[];
+    excludePatterns?: string[];
+    maxDepth?: number;
+}
+export declare class DocumentMapAnalyzer {
     private semanticGraph;
     constructor(semanticGraph?: SemanticGraphService);
-    analyzeDocumentationWithSemantics(params: DocumentMapRequest): Promise<EnhancedDocumentMapResult>;
+    analyzeDocumentation(params: DocumentMapRequest): Promise<DocumentMapResult>;
+    analyzeDocumentationWithSemantics(params: DocumentMapRequest): Promise<DocumentMapResultWithSemantics>;
     semanticDocumentSearch(query: string, context?: {
         domain?: string;
         includeCode?: boolean;
@@ -93,5 +91,5 @@ export declare class EnhancedDocumentMapAnalyzer extends DocumentMapAnalyzer {
     private calculateClusterStrength;
     private calculateConnectionStrength;
 }
-export default EnhancedDocumentMapAnalyzer;
+export default DocumentMapAnalyzer;
 //# sourceMappingURL=map-analyzer.d.ts.map

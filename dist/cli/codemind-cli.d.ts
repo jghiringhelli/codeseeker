@@ -6,16 +6,16 @@
  */
 export declare class CodeMindCLI {
     private rl;
-    private projectManager;
     private commandProcessor;
-    private databaseManager;
-    private userInterface;
-    private instructionService;
-    private interruptManager;
-    private claudeForwarder;
+    private context;
     private currentProject;
     private activeOperations;
+    private currentAbortController?;
     constructor();
+    /**
+     * Start silently for command mode (no welcome, no interactive prompt)
+     */
+    startSilent(): Promise<void>;
     /**
      * Start the CLI - SOLID implementation with immediate prompt
      */
@@ -29,9 +29,21 @@ export declare class CodeMindCLI {
      */
     private processInput;
     /**
+     * Sync project context with command processor (optimized)
+     */
+    private syncProjectContext;
+    /**
+     * Create a timeout promise with abort controller support
+     */
+    private createTimeoutPromise;
+    /**
      * Internal operation handler to be tracked
      */
     private processInputOperation;
+    /**
+     * Auto-detect CodeMind project silently (no output)
+     */
+    private autoDetectProjectSilent;
     /**
      * Auto-detect CodeMind project - Delegated to ProjectManager (SOLID)
      */
@@ -40,6 +52,10 @@ export declare class CodeMindCLI {
      * Set project path programmatically (for command-line options)
      */
     setProjectPath(projectPath: string): void;
+    /**
+     * Check database connections on startup
+     */
+    private checkDatabaseConnections;
     /**
      * Cleanup resources on exit
      */

@@ -40,7 +40,7 @@ export declare class PlatformUtils {
     /**
      * Get platform-specific exec options
      */
-    static getExecOptions(baseOptions?: any): any;
+    static getExecOptions(baseOptions?: Record<string, unknown>): Record<string, unknown>;
     /**
      * Get the appropriate pipe command for Claude Code execution
      * Note: Environment variables should be set via execOptions.env in Node.js, not via export/set commands

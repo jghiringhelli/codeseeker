@@ -43,11 +43,13 @@ const util_1 = require("util");
 const path = __importStar(require("path"));
 const theme_1 = require("../ui/theme");
 const database_config_1 = require("../../config/database-config");
+const database_schema_manager_1 = require("./database-schema-manager");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
 // Import the existing Docker detector
 const { DockerDetector } = require(path.join(__dirname, '../../../scripts/helpers/docker-detector'));
 class DatabaseHealthService {
     connections;
+    schemaManager;
     checkTimeouts = {
         postgresql: 5000,
         redis: 5000,
@@ -55,6 +57,7 @@ class DatabaseHealthService {
     };
     constructor() {
         this.connections = new database_config_1.DatabaseConnections();
+        this.schemaManager = new database_schema_manager_1.DatabaseSchemaManager(this.connections);
     }
     /**
      * Check health of all databases with timeout protection
@@ -309,24 +312,10 @@ class DatabaseHealthService {
      */
     async checkDatabaseTables() {
         try {
-            const client = await this.connections.getPostgresConnection();
-            const requiredTables = [
-                'projects',
-                'semantic_search_embeddings',
-                'analysis_results',
-                'tool_configurations'
-            ];
-            const result = await client.query(`
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-        AND table_name = ANY($1)
-      `, [requiredTables]);
-            const existingTables = result.rows.map((r) => r.table_name);
-            const missingTables = requiredTables.filter(t => !existingTables.includes(t));
+            const validation = await this.schemaManager.validateSchema();
             return {
-                initialized: missingTables.length === 0,
-                missingTables
+                initialized: validation.valid,
+                missingTables: validation.missingTables
             };
         }
         catch (error) {
@@ -342,16 +331,26 @@ class DatabaseHealthService {
     async initializeDatabaseTables() {
         try {
             console.log(theme_1.Theme.colors.info('📋 Initializing database tables...'));
-            // Run the setup script
-            const { stdout, stderr } = await execAsync('node scripts/setup-complete.js', {
-                cwd: process.cwd(),
-                timeout: 60000
-            });
-            if (stderr && !stderr.includes('warning')) {
-                throw new Error(stderr);
+            // Use schema manager to repair/create missing tables
+            const repairResult = await this.schemaManager.repairSchema();
+            if (repairResult.success) {
+                if (repairResult.tablesCreated.length > 0) {
+                    console.log(theme_1.Theme.colors.success(`✓ Created tables: ${repairResult.tablesCreated.join(', ')}`));
+                }
+                if (repairResult.indexesCreated.length > 0) {
+                    console.log(theme_1.Theme.colors.success(`✓ Created ${repairResult.indexesCreated.length} indexes`));
+                }
+                console.log(theme_1.Theme.colors.success('✓ Database tables initialized'));
+                return { success: true };
             }
-            console.log(theme_1.Theme.colors.success('✓ Database tables initialized'));
-            return { success: true };
+            else {
+                const errorMsg = repairResult.errors.join('; ');
+                console.log(theme_1.Theme.colors.error(`❌ Schema repair failed: ${errorMsg}`));
+                return {
+                    success: false,
+                    error: errorMsg
+                };
+            }
         }
         catch (error) {
             return {

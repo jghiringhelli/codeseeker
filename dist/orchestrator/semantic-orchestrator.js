@@ -3,12 +3,9 @@
  * Semantic Orchestrator - Enhanced with Graph Intelligence
  * Integrates semantic graph queries into every analysis request
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SemanticOrchestrator = void 0;
-const semantic_graph_1 = __importDefault(require("../cli/services/semantic-graph"));
+const semantic_graph_1 = require("../cli/services/data/semantic-graph/semantic-graph");
 const map_analyzer_1 = require("../cli/features/documentation/map-analyzer");
 const analyzer_1 = require("../cli/features/use-cases/analyzer");
 const navigator_1 = require("../cli/features/tree-navigation/navigator");
@@ -20,7 +17,7 @@ class SemanticOrchestrator {
     treeNavigator;
     logger = logger_1.Logger.getInstance();
     constructor() {
-        this.semanticGraph = new semantic_graph_1.default();
+        this.semanticGraph = new semantic_graph_1.SemanticGraphService();
         this.docAnalyzer = new map_analyzer_1.DocumentMapAnalyzer();
         this.useCasesAnalyzer = new analyzer_1.UseCasesAnalyzer();
         this.treeNavigator = new navigator_1.TreeNavigator();

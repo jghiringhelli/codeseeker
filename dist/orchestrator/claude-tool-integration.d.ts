@@ -1,4 +1,4 @@
-import { ExternalToolManager, ToolRecommendation } from './external-tool-manager';
+import { ExternalToolManager, ToolRecommendation } from '../services/managers/external-tool-manager';
 import { WorkflowToolIntegrator } from './workflow-tool-integrator';
 import { Database } from '../database/database';
 import { RoleType } from './types';

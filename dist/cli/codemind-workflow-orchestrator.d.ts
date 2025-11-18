@@ -136,6 +136,10 @@ export declare class CodeMindWorkflowOrchestrator {
     private executeTaskWithClaude;
     private buildClaudePrompt;
     private extractModifiedFiles;
+    /**
+     * Extract and format Claude Code's summary for user display
+     */
+    private extractClaudeCodeSummary;
     private runQualityChecks;
     private finalizeChanges;
     private updateAllDatabases;

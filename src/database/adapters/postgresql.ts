@@ -787,7 +787,7 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
     }
   }
 
-  // Generic query method for compatibility with ExternalToolManager
+  // Generic query method for database operations
   async query(sql: string, params?: any[]): Promise<{ rows: any[]; rowCount: number }> {
     if (!this.pool) throw new Error('Database not initialized');
 

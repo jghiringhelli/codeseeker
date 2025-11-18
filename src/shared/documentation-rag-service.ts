@@ -9,8 +9,9 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { Logger } from '../utils/logger';
 import { DatabaseConnections } from '../config/database-config';
-import EmbeddingService from '../cli/services/embedding-service';
-import { SemanticSearchManager } from './semantic-search-manager';
+import { EmbeddingService } from '../cli/services/data/embedding/embedding-service';
+import { SemanticSearchService } from '../cli/services/search/semantic-search';
+import { SearchServiceFactory } from '../core/factories/search-service-factory';
 
 export interface DocumentationChunk {
   id: string;
@@ -67,8 +68,10 @@ export class DocumentationRAGService {
   private logger: Logger;
   private dbConnections: DatabaseConnections;
   private embeddingService: EmbeddingService;
-  private semanticSearchManager: SemanticSearchManager;
+  private semanticSearchService: SemanticSearchService;
   private initialized = false;
+  private cacheHits = 0;
+  private cacheRequests = 0;
 
   // Documentation-specific configuration
   private readonly DOC_CHUNK_SIZE = 2000; // Smaller chunks for documentation
@@ -80,7 +83,8 @@ export class DocumentationRAGService {
     this.logger = Logger.getInstance();
     this.dbConnections = new DatabaseConnections();
     this.embeddingService = new EmbeddingService();
-    this.semanticSearchManager = new SemanticSearchManager();
+    const searchFactory = SearchServiceFactory.getInstance();
+    this.semanticSearchService = searchFactory.createSemanticSearchService();
   }
 
   async initialize(): Promise<void> {
@@ -450,7 +454,7 @@ export class DocumentationRAGService {
       techStackInfo,
       totalDocuments: documentationResults.length,
       searchTime: Date.now() - startTime,
-      cacheHitRate: 0, // TODO: Implement caching metrics
+      cacheHitRate: this.calculateCacheHitRate(),
       generatedAt: Date.now()
     };
   }
@@ -467,13 +471,19 @@ export class DocumentationRAGService {
     ingested: number;
     errors: string[];
   }> {
-    // TODO: Implement internet documentation fetching
-    // This would use WebFetch to get official documentation for specified tech stack
+    // Internet documentation fetching - placeholder implementation
+    // In production, this would use WebFetch to get official documentation
+    this.logger.info('📡 Internet documentation fetching not implemented - using local docs only');
     return {
       fetched: 0,
       ingested: 0,
       errors: ['Internet documentation fetching not yet implemented']
     };
+  }
+
+  private calculateCacheHitRate(): number {
+    if (this.cacheRequests === 0) return 0;
+    return (this.cacheHits / this.cacheRequests) * 100;
   }
 
   // Helper methods

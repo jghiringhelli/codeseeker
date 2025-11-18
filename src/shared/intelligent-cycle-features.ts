@@ -6,7 +6,7 @@
  */
 
 import { Logger } from './logger';
-import SemanticGraphService from '../cli/services/semantic-graph';
+import SemanticGraphService from '../cli/services/data/semantic-graph/semantic-graph';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'fast-glob';

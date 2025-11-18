@@ -36,9 +36,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSynchronizationSystem = void 0;
 const fs = __importStar(require("fs/promises"));
@@ -47,7 +44,7 @@ const crypto = __importStar(require("crypto"));
 const fast_glob_1 = require("fast-glob");
 const logger_1 = require("../utils/logger");
 const tool_database_api_1 = require("../orchestrator/tool-database-api");
-const embedding_service_1 = __importDefault(require("../cli/services/embedding-service"));
+const embedding_service_1 = require("../cli/services/data/embedding/embedding-service");
 class FileSynchronizationSystem {
     logger = logger_1.Logger.getInstance();
     databaseAPI;
@@ -56,7 +53,7 @@ class FileSynchronizationSystem {
     localHashCache = new Map();
     constructor(projectPath) {
         this.databaseAPI = new tool_database_api_1.ToolDatabaseAPI();
-        this.embeddingService = new embedding_service_1.default({
+        this.embeddingService = new embedding_service_1.EmbeddingService({
             provider: 'xenova', // Use Xenova transformers for zero-cost embeddings
             model: 'Xenova/all-MiniLM-L6-v2',
             chunkSize: 8000,
@@ -528,7 +525,7 @@ class FileSynchronizationSystem {
      */
     async updateGraphRelationships(projectId, filePath, content, fileData) {
         try {
-            const { CodeRelationshipParser } = await Promise.resolve().then(() => __importStar(require('../cli/services/code-relationship-parser')));
+            const { CodeRelationshipParser } = await Promise.resolve().then(() => __importStar(require('../cli/services/data/code-relationship-parser')));
             const parser = new CodeRelationshipParser();
             // Parse just this file and update its relationships
             // This is a simplified version - in practice, we'd want more sophisticated incremental updates

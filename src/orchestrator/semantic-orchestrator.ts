@@ -3,7 +3,7 @@
  * Integrates semantic graph queries into every analysis request
  */
 
-import SemanticGraphService from '../cli/services/semantic-graph';
+import { SemanticGraphService } from '../cli/services/data/semantic-graph/semantic-graph';
 import { DocumentMapAnalyzer } from '../cli/features/documentation/map-analyzer';
 import { UseCasesAnalyzer } from '../cli/features/use-cases/analyzer';
 import { TreeNavigator } from '../cli/features/tree-navigation/navigator';

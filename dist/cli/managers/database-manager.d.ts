@@ -1,41 +1,147 @@
 /**
- * DatabaseManager - Handles all database operations and health checks
- * Single Responsibility: Database connectivity and operations
+ * Consolidated Database Manager - SOLID Principles Compliant
+ * Single Responsibility: Database operations coordination
+ * Uses dependency injection for health, schema, and update strategies
  */
+import { DatabaseConnections } from '../../config/database-config';
+export interface IDatabaseHealthStrategy {
+    checkSystemHealth(): Promise<DatabaseStatus>;
+    startMissingServices(requirements: DatabaseRequirements): Promise<boolean>;
+    ensureServicesRunning(requirements: DatabaseRequirements): Promise<DatabaseStatus>;
+}
+export interface IDatabaseSchemaStrategy {
+    validateSchema(): Promise<SchemaValidationResult>;
+    repairSchema(): Promise<SchemaRepairResult>;
+    initializeTables(): Promise<{
+        success: boolean;
+        errors?: string[];
+    }>;
+}
+export interface IDatabaseUpdateStrategy {
+    updateAllDatabases(context: unknown, options?: unknown): Promise<DatabaseUpdateResult>;
+    updateFileEmbeddings(projectId: string, filePath: string, content: string): Promise<void>;
+    removeFileEmbeddings(projectId: string, filePath: string): Promise<void>;
+}
+export interface DatabaseStatus {
+    postgresql: {
+        available: boolean;
+        error?: string;
+    };
+    redis: {
+        available: boolean;
+        error?: string;
+    };
+    neo4j: {
+        available: boolean;
+        error?: string;
+    };
+}
+export interface DatabaseRequirements {
+    postgresql?: boolean;
+    redis?: boolean;
+    neo4j?: boolean;
+}
+export interface SchemaValidationResult {
+    valid: boolean;
+    missingTables: string[];
+    missingIndexes: string[];
+    errors: string[];
+}
+export interface SchemaRepairResult {
+    success: boolean;
+    tablesCreated: string[];
+    indexesCreated: string[];
+    errors: string[];
+}
+export interface DatabaseUpdateResult {
+    neo4j: {
+        nodesCreated: number;
+        nodesUpdated: number;
+        relationshipsCreated: number;
+        relationshipsUpdated: number;
+        success: boolean;
+        error?: string;
+    };
+    redis: {
+        filesUpdated: number;
+        hashesUpdated: number;
+        cacheEntriesInvalidated: number;
+        success: boolean;
+        error?: string;
+    };
+    postgres: {
+        recordsUpdated: number;
+        embeddingsUpdated: number;
+        success: boolean;
+        error?: string;
+    };
+}
 export interface SystemHealth {
     postgresql: boolean;
     redis: boolean;
     neo4j: boolean;
 }
+/**
+ * Consolidated DatabaseManager with injected strategies
+ * Follows Single Responsibility and Dependency Inversion principles
+ */
 export declare class DatabaseManager {
+    private healthStrategy?;
+    private schemaStrategy?;
+    private updateStrategy?;
     private dbConnections;
-    constructor();
+    private logger;
+    constructor(healthStrategy?: IDatabaseHealthStrategy, schemaStrategy?: IDatabaseSchemaStrategy, updateStrategy?: IDatabaseUpdateStrategy);
     /**
-     * Check health of all database systems
+     * Check system health - delegates to health strategy if available
      */
     checkSystemHealth(): Promise<SystemHealth>;
     /**
-     * Initialize database schemas and configurations
+     * Get detailed database status
      */
-    initializeSchemas(): Promise<{
+    getDatabaseStatus(): Promise<DatabaseStatus>;
+    /**
+     * Start missing database services
+     */
+    startMissingServices(requirements?: DatabaseRequirements): Promise<boolean>;
+    /**
+     * Validate database schema
+     */
+    validateSchema(): Promise<SchemaValidationResult>;
+    /**
+     * Initialize database tables
+     */
+    initializeTables(): Promise<{
         success: boolean;
-        error?: string;
+        errors?: string[];
     }>;
     /**
-     * Store project data across all databases
+     * Repair database schema
      */
-    storeProjectData(projectId: string, data: any): Promise<void>;
+    repairSchema(): Promise<SchemaRepairResult>;
     /**
-     * Get project statistics and metrics
+     * Update all databases atomically
      */
-    getProjectStats(projectId: string): Promise<any>;
+    updateAllDatabases(context: unknown, options?: unknown): Promise<DatabaseUpdateResult>;
     /**
-     * Get PostgreSQL connection
+     * Update file embeddings
      */
-    getPostgresConnection(): Promise<import("pg").Client>;
+    updateFileEmbeddings(projectId: string, filePath: string, content: string): Promise<void>;
     /**
-     * Cleanup database connections
+     * Remove file embeddings
      */
-    cleanup(): Promise<void>;
+    removeFileEmbeddings(projectId: string, filePath: string): Promise<void>;
+    /**
+     * Get database connections
+     */
+    getConnections(): DatabaseConnections;
+    /**
+     * Close all database connections
+     */
+    closeConnections(): Promise<void>;
+    /**
+     * Basic health check fallback implementation
+     */
+    private basicHealthCheck;
 }
 //# sourceMappingURL=database-manager.d.ts.map

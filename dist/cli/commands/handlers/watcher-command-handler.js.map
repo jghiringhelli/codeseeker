@@ -1,0 +1,1 @@
+{"version":3,"file":"watcher-command-handler.js","sourceRoot":"","sources":["../../../../src/cli/commands/handlers/watcher-command-handler.ts"],"names":[],"mappings":";AAAA;;;GAGG;;;AAEH,kEAA6D;AAG7D,MAAa,qBAAsB,SAAQ,yCAAkB;IAC3D,KAAK,CAAC,MAAM,CAAC,IAAY;QACvB,iEAAiE;QACjE,OAAO;YACL,OAAO,EAAE,KAAK;YACd,OAAO,EAAE,8EAA8E;SACxF,CAAC;IACJ,CAAC;CACF;AARD,sDAQC"}

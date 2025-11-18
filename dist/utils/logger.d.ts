@@ -15,10 +15,10 @@ export declare class Logger implements ILogger {
     constructor(level?: LogLevel, context?: string);
     static getInstance(): Logger;
     setLevel(level: 'debug' | 'info' | 'warn' | 'error'): void;
-    debug(message: string, meta?: any): void;
-    info(message: string, meta?: any): void;
-    warn(message: string, meta?: any): void;
-    error(message: string, error?: Error, meta?: any): void;
+    debug(message: string, meta?: unknown): void;
+    info(message: string, meta?: unknown): void;
+    warn(message: string, meta?: unknown): void;
+    error(message: string, error?: Error, meta?: unknown): void;
     child(context: string): Logger;
     private log;
 }

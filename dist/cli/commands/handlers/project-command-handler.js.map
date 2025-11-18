@@ -1,0 +1,1 @@
+{"version":3,"file":"project-command-handler.js","sourceRoot":"","sources":["../../../../src/cli/commands/handlers/project-command-handler.ts"],"names":[],"mappings":";AAAA;;;GAGG;;;AAEH,kEAA6D;AAG7D,MAAa,qBAAsB,SAAQ,yCAAkB;IAC3D,KAAK,CAAC,MAAM,CAAC,IAAY;QACvB,4EAA4E;QAC5E,OAAO;YACL,OAAO,EAAE,KAAK;YACd,OAAO,EAAE,8EAA8E;SACxF,CAAC;IACJ,CAAC;CACF;AARD,sDAQC"}

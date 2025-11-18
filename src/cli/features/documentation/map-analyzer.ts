@@ -1,48 +1,12 @@
 /**
- * Enhanced Document Map Analyzer with Semantic Graph Integration
+ * Document Map Analyzer with Semantic Graph Integration
  * Combines documentation analysis with graph-based semantic search
  */
 
 // Import the base analyzer from a proper location or define it inline
 // For now, let's define basic interfaces to resolve the circular import
-import { SemanticGraphService, NodeType, RelationshipType } from '../../services/semantic-graph';
+import { SemanticGraphService, NodeType, RelationshipType } from '../../services/data/semantic-graph/semantic-graph';
 import { Logger } from '../../../utils/logger';
-
-export interface EnhancedDocumentMapResult extends DocumentMapResult {
-  semanticGraph: {
-    totalNodes: number;
-    totalRelationships: number;
-    conceptClusters: ConceptCluster[];
-  };
-  crossDomainInsights: CrossDomainInsight[];
-}
-
-export interface ConceptCluster {
-  conceptName: string;
-  relatedDocs: string[];
-  relatedCode: string[];
-  relatedUI: string[];
-  strength: number;
-}
-
-export interface CrossDomainInsight {
-  concept: string;
-  domains: string[];
-  connections: Array<{
-    from: string;
-    to: string;
-    type: string;
-    strength: number;
-  }>;
-}
-
-// Base interfaces and classes
-export interface DocumentMapRequest {
-  projectPath: string;
-  includeTypes?: string[];
-  excludePatterns?: string[];
-  maxDepth?: number;
-}
 
 export interface DocumentMapResult {
   documents: Array<{
@@ -78,7 +42,49 @@ export interface DocumentMapResult {
   }>;
 }
 
+export interface DocumentMapResultWithSemantics extends DocumentMapResult {
+  semanticGraph: {
+    totalNodes: number;
+    totalRelationships: number;
+    conceptClusters: ConceptCluster[];
+  };
+  crossDomainInsights: CrossDomainInsight[];
+}
+
+export interface ConceptCluster {
+  conceptName: string;
+  relatedDocs: string[];
+  relatedCode: string[];
+  relatedUI: string[];
+  strength: number;
+}
+
+export interface CrossDomainInsight {
+  concept: string;
+  domains: string[];
+  connections: Array<{
+    from: string;
+    to: string;
+    type: string;
+    strength: number;
+  }>;
+}
+
+// Base interfaces and classes
+export interface DocumentMapRequest {
+  projectPath: string;
+  includeTypes?: string[];
+  excludePatterns?: string[];
+  maxDepth?: number;
+}
+
 export class DocumentMapAnalyzer {
+  private semanticGraph: SemanticGraphService;
+
+  constructor(semanticGraph?: SemanticGraphService) {
+    this.semanticGraph = semanticGraph || new SemanticGraphService();
+  }
+
   async analyzeDocumentation(params: DocumentMapRequest): Promise<DocumentMapResult> {
     // Basic implementation - this would be expanded in real use
     return {
@@ -88,17 +94,8 @@ export class DocumentMapAnalyzer {
       crossReferences: []
     };
   }
-}
 
-export class EnhancedDocumentMapAnalyzer extends DocumentMapAnalyzer {
-  private semanticGraph: SemanticGraphService;
-
-  constructor(semanticGraph?: SemanticGraphService) {
-    super();
-    this.semanticGraph = semanticGraph || new SemanticGraphService();
-  }
-
-  async analyzeDocumentationWithSemantics(params: DocumentMapRequest): Promise<EnhancedDocumentMapResult> {
+  async analyzeDocumentationWithSemantics(params: DocumentMapRequest): Promise<DocumentMapResultWithSemantics> {
     const startTime = Date.now();
     const logger = Logger.getInstance();
     
@@ -106,7 +103,7 @@ export class EnhancedDocumentMapAnalyzer extends DocumentMapAnalyzer {
       logger.info('📚🔗 Starting enhanced documentation analysis with semantic graph...');
 
       // 1. Run base documentation analysis
-      const baseResult = await super.analyzeDocumentation(params);
+      const baseResult = await this.analyzeDocumentation(params);
 
       // 2. Initialize semantic graph if needed
       await this.semanticGraph.initialize();
@@ -448,4 +445,4 @@ export class EnhancedDocumentMapAnalyzer extends DocumentMapAnalyzer {
   }
 }
 
-export default EnhancedDocumentMapAnalyzer;
+export default DocumentMapAnalyzer;

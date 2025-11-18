@@ -4,10 +4,19 @@
  */
 
 import inquirer from 'inquirer';
+import * as readline from 'readline';
 import { Theme } from '../ui/theme';
 import { ProjectInitOptions } from './project-manager';
 
 export class UserInterface {
+  private rl?: readline.Interface;
+
+  /**
+   * Set the readline interface for managing input during inquirer prompts
+   */
+  setReadlineInterface(rl: readline.Interface): void {
+    this.rl = rl;
+  }
   
   /**
    * Get project initialization options from user
@@ -18,6 +27,11 @@ export class UserInterface {
     const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
     const defaultProjectName = path.basename(userCwd);
     
+    // Pause readline if available to prevent conflicts with inquirer
+    if (this.rl) {
+      this.rl.pause();
+    }
+
     const answers = await inquirer.prompt([
       {
         type: 'input',
@@ -54,6 +68,11 @@ export class UserInterface {
         ]
       }
     ]);
+
+    // Resume readline after inquirer is done
+    if (this.rl) {
+      this.rl.resume();
+    }
 
     return answers as ProjectInitOptions;
   }
@@ -142,27 +161,37 @@ export class UserInterface {
    * Display processing results from Claude Code
    */
   displayProcessingResults(data: any): void {
+    // If data is a string (raw Claude Code response), display it directly
+    if (typeof data === 'string') {
+      console.log(Theme.colors.claudeCode('\n🤖 Claude Code Response:'));
+      console.log(Theme.colors.border('─'.repeat(60)));
+      console.log(data);
+      console.log(Theme.colors.border('─'.repeat(60)));
+      return;
+    }
+
+    // Handle structured data
     console.log(Theme.colors.result('\n📋 Processing Results:'));
-    
+
     if (data.files_modified && data.files_modified.length > 0) {
       console.log(Theme.colors.success(`📝 Files Modified: ${data.files_modified.length}`));
       data.files_modified.forEach((file: string) => {
         console.log(Theme.colors.muted(`   • ${file}`));
       });
     }
-    
+
     if (data.tests_run) {
-      const testColor = data.tests_run.passed === data.tests_run.total ? 
+      const testColor = data.tests_run.passed === data.tests_run.total ?
         Theme.colors.success : Theme.colors.warning;
       console.log(testColor(`🧪 Tests: ${data.tests_run.passed}/${data.tests_run.total} passed`));
     }
-    
+
     if (data.quality_score) {
       const scoreColor = data.quality_score >= 8 ? Theme.colors.success :
                         data.quality_score >= 6 ? Theme.colors.warning : Theme.colors.error;
       console.log(scoreColor(`⭐ Quality Score: ${data.quality_score}/10`));
     }
-    
+
     if (data.summary) {
       console.log(Theme.colors.result(`\n📄 Summary: ${data.summary}`));
     }
@@ -320,6 +349,11 @@ export class UserInterface {
    * Show a confirmation prompt to the user
    */
   async confirm(message: string): Promise<boolean> {
+    // Pause readline if available to prevent conflicts with inquirer
+    if (this.rl) {
+      this.rl.pause();
+    }
+
     const answer = await inquirer.prompt([
       {
         type: 'confirm',
@@ -328,6 +362,11 @@ export class UserInterface {
         default: false
       }
     ]);
+
+    // Resume readline after inquirer is done
+    if (this.rl) {
+      this.rl.resume();
+    }
 
     return answer.confirmed;
   }
@@ -345,6 +384,11 @@ export class UserInterface {
       { name: 'Reinitialize - Clear all data and start fresh', value: 'reinitialize' }
     ];
 
+    // Pause readline if available to prevent conflicts with inquirer
+    if (this.rl) {
+      this.rl.pause();
+    }
+
     const answer = await inquirer.prompt([
       {
         type: 'list',
@@ -354,6 +398,11 @@ export class UserInterface {
         default: 'sync'
       }
     ]);
+
+    // Resume readline after inquirer is done
+    if (this.rl) {
+      this.rl.resume();
+    }
 
     console.log(Theme.colors.info('\n💡 Tip: You can skip this prompt next time by using:'));
     console.log(Theme.colors.muted(`   /init --${answer.action === 'reinitialize' ? 'reinit' : answer.action}`));

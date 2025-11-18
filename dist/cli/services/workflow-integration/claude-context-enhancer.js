@@ -38,14 +38,13 @@ class ClaudeContextEnhancer {
         this.fileScanner = new project_file_scanner_1.ProjectFileScanner();
         this.semanticGraphService = new integrated_semantic_graph_service_1.IntegratedSemanticGraphService();
         this.contentProcessor = new content_processor_1.ContentProcessor({
-            embeddingModel: this.config.embeddingModel,
             chunkSize: this.config.maxTokensPerFile
         });
         // Initialize vector store based on configuration
         const vectorStore = this.config.vectorStore === 'postgresql' && databaseClient
             ? new vector_search_engine_1.PostgreSQLVectorStore(databaseClient)
             : new vector_search_engine_1.InMemoryVectorStore();
-        this.vectorSearchEngine = new vector_search_engine_1.VectorSearchEngine(vectorStore, this.contentProcessor['embeddingProvider'] // Access embedding provider
+        this.vectorSearchEngine = new vector_search_engine_1.VectorSearchEngine(vectorStore, null // Embeddings are handled by SemanticSearchManager
         );
     }
     /**
@@ -71,9 +70,12 @@ class ClaudeContextEnhancer {
             );
             // 4. Index content for semantic search
             console.log('🔍 Building semantic search index...');
+            // Note: Actual embeddings are generated and stored by SemanticSearchManager
+            // This enhancer uses the chunks for context preparation only
             for (const result of contentResults) {
-                if (result.chunks.length > 0 && result.embeddings.length > 0) {
-                    await this.vectorSearchEngine.indexContent(result.chunks, result.embeddings);
+                if (result.chunks.length > 0) {
+                    // Chunks are used for context, embeddings come from SemanticSearchManager
+                    await this.vectorSearchEngine.indexContent(result.chunks, []);
                 }
             }
             const initTime = Date.now() - startTime;

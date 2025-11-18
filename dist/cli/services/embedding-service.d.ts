@@ -1,7 +1,9 @@
 /**
- * CodeMind Embedding Service
- * Generates vector embeddings for semantic search using multiple strategies
+ * CodeMind Unified Embedding Service
+ * Generates vector embeddings for semantic search at file, class, and method levels
+ * Combines functionality from both embedding-service and granular-embedding-service
  */
+import { DatabaseConnections } from '../../config/database-config';
 export interface EmbeddingConfig {
     provider: 'xenova' | 'openai' | 'local' | 'hybrid';
     openaiApiKey?: string;
@@ -9,6 +11,7 @@ export interface EmbeddingConfig {
     chunkSize: number;
     maxTokens: number;
     batchSize: number;
+    granularMode?: boolean;
 }
 export interface FileEmbedding {
     filePath: string;
@@ -25,78 +28,179 @@ export interface FileEmbedding {
         exports: string[];
     };
 }
+export interface MethodEmbedding {
+    methodId: string;
+    className?: string;
+    methodName: string;
+    filePath: string;
+    content: string;
+    signature: string;
+    parameters: Array<{
+        name: string;
+        type?: string;
+    }>;
+    returnType?: string;
+    complexity: number;
+    embedding: number[];
+    metadata: {
+        isAsync: boolean;
+        visibility: 'public' | 'private' | 'protected';
+        isStatic: boolean;
+        startLine: number;
+        endLine: number;
+        language: string;
+        callsTo: string[];
+    };
+}
+export interface ClassEmbedding {
+    classId: string;
+    className: string;
+    filePath: string;
+    content: string;
+    embedding: number[];
+    metadata: {
+        extends?: string;
+        implements: string[];
+        methodCount: number;
+        propertyCount: number;
+        startLine: number;
+        endLine: number;
+        language: string;
+        methods: string[];
+        properties: string[];
+    };
+}
 export declare class EmbeddingService {
     private logger;
     private config;
     private openaiClient?;
     private xenovaExtractor?;
+    private codeParser?;
     constructor(config?: Partial<EmbeddingConfig>);
     /**
-     * Generate embeddings for all files in a project
+     * Initialize Xenova transformers pipeline
      */
-    generateProjectEmbeddings(projectId: string, files: string[], progressCallback?: (progress: number, current: string) => void): Promise<{
-        success: number;
+    private initializeXenova;
+    /**
+     * Initialize OpenAI client
+     */
+    private initializeOpenAI;
+    /**
+     * Generate embeddings for a project - supports both file-level and granular modes
+     */
+    generateProjectEmbeddings(projectPath: string, files: string[], dbConnections?: DatabaseConnections): Promise<{
+        embeddings: number;
         errors: number;
-        skipped: number;
+        methodEmbeddings?: number;
+        classEmbeddings?: number;
     }>;
     /**
-     * Process a single file for embedding generation
+     * Generate file-level embeddings (original functionality)
      */
-    private processFile;
+    private generateFileEmbeddings;
     /**
-     * Process a single file and store its embedding
-     * Public method for incremental sync
+     * Generate granular embeddings at method and class levels
      */
-    processSingleFile(projectId: string, filePath: string, content: string): Promise<boolean>;
+    private generateGranularEmbeddings;
     /**
-     * Generate embedding for content using configured provider
-     * Public method for use by semantic search engine
+     * Generate embedding for a single file
      */
-    generateEmbedding(content: string, filePath: string): Promise<number[]>;
+    private generateFileEmbedding;
     /**
-     * Generate Xenova Transformers embedding (semantic, free, local)
+     * Generate embedding for a class
+     */
+    private generateClassEmbedding;
+    /**
+     * Generate embedding for a method
+     */
+    private generateMethodEmbedding;
+    /**
+     * Generate embedding vector using configured provider
+     */
+    generateEmbedding(text: string, context?: string): Promise<number[]>;
+    /**
+     * Generate embedding using Xenova transformers
      */
     private generateXenovaEmbedding;
     /**
-     * Generate OpenAI embedding
+     * Generate embedding using OpenAI
      */
     private generateOpenAIEmbedding;
     /**
-     * Generate local embedding using simple but effective algorithm
+     * Generate local embedding using basic techniques
      */
     private generateLocalEmbedding;
     /**
-     * Extract content features for local embedding
+     * Generate hybrid embedding combining multiple approaches
      */
-    private extractContentFeatures;
+    private generateHybridEmbedding;
     /**
-     * Map extracted features to embedding dimensions
+     * Extract metadata from file content
      */
-    private mapFeaturesToEmbedding;
+    private extractFileMetadata;
     /**
-     * Store embedding in database
+     * Detect programming language from file extension
+     */
+    private detectLanguage;
+    /**
+     * Extract class content from file
+     */
+    private extractClassContent;
+    /**
+     * Extract method content from file
+     */
+    private extractMethodContent;
+    /**
+     * Build context string for class embedding
+     */
+    private buildClassContext;
+    /**
+     * Build context string for method embedding
+     */
+    private buildMethodContext;
+    /**
+     * Store file embedding in database
      */
     private storeEmbedding;
-    private shouldSkipFile;
-    private truncateContent;
-    private extractFileMetadata;
-    private detectLanguage;
-    private extractFunctions;
-    private extractClasses;
-    private extractImports;
-    private extractExports;
-    private extractKeywords;
-    private extractComments;
-    private estimateComplexity;
-    private estimateNestingDepth;
-    private generateStructureHash;
-    private encodeLanguage;
-    private encodeKeywords;
-    private encodeStructure;
-    private encodeHashes;
-    private simpleHash;
-    private initializeProviders;
-    private delay;
+    /**
+     * Store class embedding in database
+     */
+    private storeClassEmbedding;
+    /**
+     * Store method embedding in database
+     */
+    private storeMethodEmbedding;
+    /**
+     * Search for similar content using embeddings
+     */
+    searchSimilar(query: string, limit?: number, threshold?: number): Promise<Array<{
+        filePath: string;
+        similarity: number;
+        content: string;
+    }>>;
+    /**
+     * Calculate cosine similarity between two vectors
+     */
+    private cosineSimilarity;
+    /**
+     * Find similar methods using embeddings
+     */
+    findSimilarMethods(methodEmbedding: MethodEmbedding, threshold?: number): Promise<Array<{
+        id: string;
+        similarity: number;
+        content: string;
+    }>>;
+    /**
+     * Find similar classes using embeddings
+     */
+    findSimilarClasses(classEmbedding: ClassEmbedding, threshold?: number): Promise<Array<{
+        id: string;
+        similarity: number;
+        content: string;
+    }>>;
+    /**
+     * Initialize database tables for embeddings
+     */
+    initializeDatabase(dbConnections: DatabaseConnections): Promise<void>;
 }
-export default EmbeddingService;
 //# sourceMappingURL=embedding-service.d.ts.map

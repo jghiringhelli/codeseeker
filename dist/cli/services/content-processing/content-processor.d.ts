@@ -23,30 +23,19 @@ export interface ContentChunk {
         dependencies?: string[];
     };
 }
-export interface EmbeddingVector {
-    chunkId: string;
-    embedding: number[];
-    model: string;
-    dimensions: number;
-    createdAt: Date;
-}
 export interface ContentProcessingResult {
     filePath: string;
     chunks: ContentChunk[];
-    embeddings: EmbeddingVector[];
     processingStats: {
         totalChunks: number;
         totalTokens: number;
         processingTime: number;
-        embeddingModel: string;
         chunkStrategy: string;
     };
 }
 export interface ContentProcessorConfig {
     chunkSize: number;
     chunkOverlap: number;
-    embeddingModel: 'openai' | 'local' | 'mock';
-    embeddingDimensions: number;
     significanceThreshold: number;
     extractComments: boolean;
     extractDocstrings: boolean;
@@ -55,20 +44,12 @@ export interface ContentProcessorConfig {
     maxChunkSize: number;
 }
 /**
- * Abstract base for embedding providers - Dependency Inversion Principle
+ * OpenAI Embedding Provider - Kept for potential future use in dedup
  */
-export declare abstract class EmbeddingProvider {
-    abstract generateEmbedding(text: string): Promise<number[]>;
-    abstract getDimensions(): number;
-    abstract getModel(): string;
-}
-/**
- * OpenAI Embedding Provider
- */
-export declare class OpenAIEmbeddingProvider extends EmbeddingProvider {
+export declare class OpenAIEmbeddingProvider {
     private apiKey;
     constructor(apiKey?: string);
-    generateEmbedding(text: string): Promise<number[]>;
+    generateEmbedding(text: string, context?: string): Promise<number[]>;
     private generateMockEmbedding;
     private simpleHash;
     getDimensions(): number;
@@ -76,12 +57,12 @@ export declare class OpenAIEmbeddingProvider extends EmbeddingProvider {
 }
 /**
  * Local Embedding Provider using all-MiniLM-L6-v2 (CPU optimized)
- * This is a lightweight, fast sentence transformer model that produces 384-dimensional embeddings
+ * Used by deduplication service for semantic similarity
  */
-export declare class LocalEmbeddingProvider extends EmbeddingProvider {
+export declare class LocalEmbeddingProvider {
     private readonly MODEL_NAME;
     private readonly DIMENSIONS;
-    generateEmbedding(text: string): Promise<number[]>;
+    generateEmbedding(text: string, context?: string): Promise<number[]>;
     /**
      * Generate embedding using all-MiniLM-L6-v2 inspired architecture
      * Optimized for CPU inference with good semantic understanding
@@ -114,9 +95,8 @@ export declare class LocalEmbeddingProvider extends EmbeddingProvider {
  */
 export declare class ContentProcessor {
     private config;
-    private embeddingProvider;
     private chunkIdCounter;
-    constructor(config?: Partial<ContentProcessorConfig>, embeddingProvider?: EmbeddingProvider);
+    constructor(config?: Partial<ContentProcessorConfig>);
     /**
      * Process file content and generate embeddings
      */
@@ -147,8 +127,6 @@ export declare class ContentProcessor {
     private extractImports;
     private extractExports;
     private calculateSignificance;
-    private generateEmbeddings;
-    private createEmbeddingProvider;
     private generateChunkId;
     private delay;
     /**

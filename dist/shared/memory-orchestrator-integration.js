@@ -6,11 +6,11 @@
  * to provide intelligent context continuity and learning across requests.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MemoryEnhancedOrchestrator = void 0;
+exports.MemoryOrchestrator = void 0;
 const logger_1 = require("./logger");
 const task_specific_file_orchestrator_1 = require("./task-specific-file-orchestrator");
 const codemind_memory_system_1 = require("./codemind-memory-system");
-class MemoryEnhancedOrchestrator {
+class MemoryOrchestrator {
     logger;
     orchestrator;
     memorySystem;
@@ -295,6 +295,6 @@ class MemoryEnhancedOrchestrator {
         return optimizations;
     }
 }
-exports.MemoryEnhancedOrchestrator = MemoryEnhancedOrchestrator;
-exports.default = MemoryEnhancedOrchestrator;
+exports.MemoryOrchestrator = MemoryOrchestrator;
+exports.default = MemoryOrchestrator;
 //# sourceMappingURL=memory-orchestrator-integration.js.map

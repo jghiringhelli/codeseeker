@@ -55,8 +55,10 @@ export declare class DocumentationRAGService {
     private logger;
     private dbConnections;
     private embeddingService;
-    private semanticSearchManager;
+    private semanticSearchService;
     private initialized;
+    private cacheHits;
+    private cacheRequests;
     private readonly DOC_CHUNK_SIZE;
     private readonly DOC_OVERLAP_SIZE;
     private readonly MIN_DOC_CHUNK_SIZE;
@@ -125,6 +127,7 @@ export declare class DocumentationRAGService {
         ingested: number;
         errors: string[];
     }>;
+    private calculateCacheHitRate;
     private isDocumentationFile;
     private detectDocumentType;
     private detectLanguage;

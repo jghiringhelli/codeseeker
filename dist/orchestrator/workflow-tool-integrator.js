@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkflowToolIntegrator = void 0;
 const logger_1 = require("../utils/logger");
-const types_1 = require("./types");
 /**
  * Integrates external tool management with workflow orchestration.
  * Handles tool recommendations, installations, and executions within role contexts.
@@ -195,8 +194,8 @@ class WorkflowToolIntegrator {
             context.purpose.toLowerCase().includes('code')) {
             currentTiming = 'before-coding';
         }
-        else if (context.roleType === types_1.RoleType.SECURITY_AUDITOR ||
-            context.roleType === types_1.RoleType.QUALITY_AUDITOR) {
+        else if (context.roleType === 'analyzer' ||
+            context.roleType === 'validator') {
             currentTiming = 'now';
         }
         return recommendations.filter(rec => {

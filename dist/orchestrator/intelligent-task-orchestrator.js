@@ -3,13 +3,10 @@
  * Intelligent Task Orchestrator
  * Manages three-phase discovery and splits work into context-window-optimized tasks
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IntelligentTaskOrchestrator = void 0;
 const hybrid_file_discovery_1 = require("../shared/hybrid-file-discovery");
-const semantic_graph_1 = __importDefault(require("../cli/services/semantic-graph"));
+const semantic_graph_1 = require("../cli/services/data/semantic-graph/semantic-graph");
 const navigator_1 = require("../cli/features/tree-navigation/navigator");
 const logger_1 = require("../utils/logger");
 class IntelligentTaskOrchestrator {
@@ -22,7 +19,7 @@ class IntelligentTaskOrchestrator {
     retryDelay = 1000; // 1 second
     constructor() {
         this.fileDiscovery = new hybrid_file_discovery_1.HybridFileDiscovery();
-        this.semanticGraph = new semantic_graph_1.default();
+        this.semanticGraph = new semantic_graph_1.SemanticGraphService();
         this.treeNavigator = new navigator_1.TreeNavigator();
     }
     async initialize() {

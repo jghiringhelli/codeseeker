@@ -9,7 +9,7 @@ import { Logger } from './logger';
 import { TaskSpecificFileOrchestrator, OrchestrationResult, FileTask } from './task-specific-file-orchestrator';
 import { CodeMindMemorySystem, InteractionMemory, RequestMemory, ContextualContinuation } from './codemind-memory-system';
 
-export interface MemoryEnhancedOrchestrationOptions {
+export interface MemoryOrchestrationOptions {
   useMemoryContext: boolean;
   learnFromInteractions: boolean;
   adaptToProjectPatterns: boolean;
@@ -17,7 +17,7 @@ export interface MemoryEnhancedOrchestrationOptions {
   enableSmartContinuation: boolean;
 }
 
-export interface MemoryEnhancedResult extends OrchestrationResult {
+export interface MemoryOrchestrationResult extends OrchestrationResult {
   memoryContext: {
     requestId: string;
     contextualContinuation: ContextualContinuation;
@@ -32,7 +32,7 @@ export interface MemoryEnhancedResult extends OrchestrationResult {
   };
 }
 
-export class MemoryEnhancedOrchestrator {
+export class MemoryOrchestrator {
   private logger: Logger;
   private orchestrator: TaskSpecificFileOrchestrator;
   private memorySystem: CodeMindMemorySystem;
@@ -56,9 +56,9 @@ export class MemoryEnhancedOrchestrator {
       skipCycles?: boolean;
       dryRun?: boolean;
       autoRollback?: boolean;
-      memory?: MemoryEnhancedOrchestrationOptions;
+      memory?: MemoryOrchestrationOptions;
     } = {}
-  ): Promise<MemoryEnhancedResult> {
+  ): Promise<MemoryOrchestrationResult> {
     const memoryOptions = {
       useMemoryContext: true,
       learnFromInteractions: true,
@@ -113,7 +113,7 @@ export class MemoryEnhancedOrchestrator {
       );
 
       // PHASE 4: Generate Enhanced Result
-      const enhancedResult: MemoryEnhancedResult = {
+      const enhancedResult: MemoryOrchestrationResult = {
         ...orchestrationResult,
         memoryContext: {
           requestId,
@@ -143,7 +143,7 @@ export class MemoryEnhancedOrchestrator {
     requestId: string,
     contextualContinuation: ContextualContinuation,
     options: any,
-    memoryOptions: MemoryEnhancedOrchestrationOptions
+    memoryOptions: MemoryOrchestrationOptions
   ): Promise<OrchestrationResult> {
 
     // Create memory-aware orchestrator wrapper
@@ -167,7 +167,7 @@ export class MemoryEnhancedOrchestrator {
    */
   private createMemoryAwareWrapper(
     requestId: string,
-    memoryOptions: MemoryEnhancedOrchestrationOptions
+    memoryOptions: MemoryOrchestrationOptions
   ) {
     const originalOrchestrator = this.orchestrator;
     const memorySystem = this.memorySystem;
@@ -284,7 +284,7 @@ export class MemoryEnhancedOrchestrator {
     requestId: string,
     orchestrationResult: OrchestrationResult,
     duration: number,
-    memoryOptions: MemoryEnhancedOrchestrationOptions
+    memoryOptions: MemoryOrchestrationOptions
   ): Promise<{
     interactionsRecorded: number;
     patternsLearned: string[];
@@ -468,4 +468,4 @@ export class MemoryEnhancedOrchestrator {
   }
 }
 
-export default MemoryEnhancedOrchestrator;
+export default MemoryOrchestrator;

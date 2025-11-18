@@ -4,7 +4,7 @@
  */
 
 import { HybridFileDiscovery, FileDiscoveryResult } from '../shared/hybrid-file-discovery';
-import SemanticGraphService from '../cli/services/semantic-graph';
+import { SemanticGraphService } from '../cli/services/data/semantic-graph/semantic-graph';
 import { TreeNavigator } from '../cli/features/tree-navigation/navigator';
 import { Logger } from '../utils/logger';
 

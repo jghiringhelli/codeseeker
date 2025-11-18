@@ -1,0 +1,1 @@
+{"version":3,"file":"setup-command-handler.d.ts","sourceRoot":"","sources":["../../../../src/cli/commands/handlers/setup-command-handler.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAEH,OAAO,EAAE,kBAAkB,EAAE,MAAM,yBAAyB,CAAC;AAC7D,OAAO,EAAE,aAAa,EAAE,MAAM,oBAAoB,CAAC;AAGnD,qBAAa,mBAAoB,SAAQ,kBAAkB;IACzD;;OAEG;IACG,MAAM,CAAC,IAAI,EAAE,MAAM,GAAG,OAAO,CAAC,aAAa,CAAC;CAcnD"}

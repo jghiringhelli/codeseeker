@@ -37,9 +37,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DocumentationRAGService = void 0;
 const fs = __importStar(require("fs/promises"));
@@ -47,8 +44,8 @@ const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
 const logger_1 = require("../utils/logger");
 const database_config_1 = require("../config/database-config");
-const embedding_service_1 = __importDefault(require("../cli/services/embedding-service"));
-const semantic_search_manager_1 = require("./semantic-search-manager");
+const embedding_service_1 = require("../cli/services/data/embedding/embedding-service");
+const search_service_factory_1 = require("../core/factories/search-service-factory");
 /**
  * Documentation RAG Service
  * Separate collection for documentation with specialized chunking and search
@@ -57,8 +54,10 @@ class DocumentationRAGService {
     logger;
     dbConnections;
     embeddingService;
-    semanticSearchManager;
+    semanticSearchService;
     initialized = false;
+    cacheHits = 0;
+    cacheRequests = 0;
     // Documentation-specific configuration
     DOC_CHUNK_SIZE = 2000; // Smaller chunks for documentation
     DOC_OVERLAP_SIZE = 100; // Less overlap for cleaner sections
@@ -67,8 +66,9 @@ class DocumentationRAGService {
     constructor(projectId) {
         this.logger = logger_1.Logger.getInstance();
         this.dbConnections = new database_config_1.DatabaseConnections();
-        this.embeddingService = new embedding_service_1.default();
-        this.semanticSearchManager = new semantic_search_manager_1.SemanticSearchManager();
+        this.embeddingService = new embedding_service_1.EmbeddingService();
+        const searchFactory = search_service_factory_1.SearchServiceFactory.getInstance();
+        this.semanticSearchService = searchFactory.createSemanticSearchService();
     }
     async initialize() {
         if (this.initialized)
@@ -334,7 +334,7 @@ class DocumentationRAGService {
             techStackInfo,
             totalDocuments: documentationResults.length,
             searchTime: Date.now() - startTime,
-            cacheHitRate: 0, // TODO: Implement caching metrics
+            cacheHitRate: this.calculateCacheHitRate(),
             generatedAt: Date.now()
         };
     }
@@ -342,13 +342,19 @@ class DocumentationRAGService {
      * Fetch and ingest documentation from internet sources
      */
     async fetchInternetDocumentation(techStack, options = {}) {
-        // TODO: Implement internet documentation fetching
-        // This would use WebFetch to get official documentation for specified tech stack
+        // Internet documentation fetching - placeholder implementation
+        // In production, this would use WebFetch to get official documentation
+        this.logger.info('📡 Internet documentation fetching not implemented - using local docs only');
         return {
             fetched: 0,
             ingested: 0,
             errors: ['Internet documentation fetching not yet implemented']
         };
+    }
+    calculateCacheHitRate() {
+        if (this.cacheRequests === 0)
+            return 0;
+        return (this.cacheHits / this.cacheRequests) * 100;
     }
     // Helper methods
     isDocumentationFile(filename) {

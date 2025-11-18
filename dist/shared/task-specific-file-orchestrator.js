@@ -9,7 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TaskSpecificFileOrchestrator = void 0;
 const logger_1 = require("./logger");
 const comprehensive_impact_analyzer_1 = require("./comprehensive-impact-analyzer");
-const git_branch_manager_1 = require("./git-branch-manager");
+const git_branch_manager_1 = require("./managers/git-branch-manager");
 const validation_cycle_1 = require("./validation-cycle");
 const post_execution_integration_1 = require("./post-execution-integration");
 class TaskSpecificFileOrchestrator {

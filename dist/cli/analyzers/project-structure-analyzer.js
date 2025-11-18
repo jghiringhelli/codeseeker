@@ -60,7 +60,7 @@ Config Files (${structure.configFiles.length}): ${structure.configFiles.join(', 
 Total Files: ${structure.totalFiles}`;
         }
         catch (error) {
-            return `Error analyzing project structure: ${error.message}`;
+            return `Error analyzing project structure: ${error instanceof Error ? error.message : 'Unknown error'}`;
         }
     }
 }

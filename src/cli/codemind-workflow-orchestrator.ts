@@ -16,10 +16,10 @@
 
 import { Logger } from '../utils/logger';
 import { SemanticEnhancementEngine, EnhancementContext } from '../shared/semantic-enhancement-engine';
-import { ClaudeCodeIntegration } from './claude-code-integration';
+import { ClaudeCodeIntegration } from './../integrations/claude/claude-cli-integration';
 import { TaskDecomposer } from './integration/task-decomposer';
 import { TaskExecutor } from './integration/task-executor';
-import { QualityToolManager } from './services/quality/quality-tool-manager';
+import { QualityToolManager } from '../services/managers/quality-manager';
 
 export interface UserFeatureRequest {
   query: string;
@@ -177,8 +177,18 @@ export class CodeMindWorkflowOrchestrator {
   private async analyzeIntentAndSelectTools(request: UserFeatureRequest): Promise<ProcessedIntent> {
     this.logger.info('🎯 Analyzing user intent with Claude Code CLI...');
 
-    // Use the real Claude Code integration for intent analysis
-    const intentResult = await this.claudeIntegration.detectUserIntent(request.query);
+    // Use the simple, more reliable intent detection
+    const simpleIntentResult = await this.claudeIntegration.detectUserIntentSimple(request.query);
+
+    // Convert to legacy format
+    const intentResult = {
+      category: simpleIntentResult.category,
+      confidence: simpleIntentResult.confidence,
+      params: {
+        requiresModifications: simpleIntentResult.requiresModifications,
+        reasoning: simpleIntentResult.reasoning
+      }
+    };
 
     // Transform ClaudeCodeIntegration result to ProcessedIntent format
     return {
@@ -360,28 +370,70 @@ export class CodeMindWorkflowOrchestrator {
   }
 
   private buildTaskContext(context: EnhancementContext, task: SubTask): string {
-    // Build focused context for the specific task
-    const relevantFiles = context.primaryFiles
-      .filter(f => task.files.includes(f.filePath))
-      .slice(0, 3);
-
+    // Build enhanced context with actual file content
     const contextParts = [
-      `# Task Context: ${task.description}`,
-      `## Relevant Files:`,
-      ...relevantFiles.map(f => `- ${f.filePath} (relevance: ${f.relevanceScore})`),
-      `## Related Files:`,
-      ...context.relatedFiles.slice(0, 2).map(f => `- ${f.filePath} (${f.relationshipType})`),
-      `## Task Files Focus:`,
-      ...task.files.map(f => `- ${f}`)
+      `# Enhanced Task Context: ${task.description}`,
+      ``,
+      `## Semantic Search Results`,
+      `Found ${context.primaryFiles.length} primary files and ${context.relatedFiles.length} related files`,
+      `Total context size: ${Math.round(context.contextSize/1000)}KB`,
+      ``,
+      `## Primary Files (Most Relevant):`
     ];
+
+    // Include top 3 most relevant files with their content
+    const topFiles = context.primaryFiles.slice(0, 3);
+    for (const file of topFiles) {
+      contextParts.push(`### ${file.filePath} (relevance: ${file.relevanceScore})`);
+      if (file.content && file.content.length > 0) {
+        // Include file content (truncated if too long)
+        const content = file.content.length > 2000
+          ? file.content.substring(0, 2000) + '\n... (content truncated)'
+          : file.content;
+        contextParts.push('```');
+        contextParts.push(content);
+        contextParts.push('```');
+      } else {
+        contextParts.push('*File content not available in context*');
+      }
+      contextParts.push('');
+    }
+
+    // Include related files summary
+    if (context.relatedFiles.length > 0) {
+      contextParts.push(`## Related Files:`);
+      context.relatedFiles.slice(0, 5).forEach(f => {
+        contextParts.push(`- ${f.filePath} (${f.relationshipType})`);
+      });
+      contextParts.push('');
+    }
+
+    // Include task-specific files if different from semantic search results
+    if (task.files.length > 0) {
+      contextParts.push(`## Task Target Files:`);
+      task.files.forEach(f => {
+        contextParts.push(`- ${f}`);
+      });
+      contextParts.push('');
+    }
+
+    contextParts.push(`## Instructions`);
+    contextParts.push(`- You are working in project directory: ${process.env.CODEMIND_USER_CWD || process.cwd()}`);
+    contextParts.push(`- You have full access to read and modify files in this project`);
+    contextParts.push(`- Focus on the task: "${task.description}"`);
+    contextParts.push(`- Provide clear explanations of any changes you make`);
+    contextParts.push(`- Follow the project's existing patterns and conventions`);
 
     return contextParts.join('\n');
   }
 
   private needsClaudeCodeExecution(task: SubTask): boolean {
-    // Determine which tasks need actual Claude Code CLI execution
-    const claudeRequiredTasks = ['refactor', 'analyze', 'general', 'report', 'plan', 'validate'];
-    return claudeRequiredTasks.some(type => task.description.toLowerCase().includes(type));
+    // Almost all tasks need Claude Code execution except for very simple internal operations
+    const internalOnlyTasks = ['database', 'git', 'file-scan', 'config'];
+    const isInternalTask = internalOnlyTasks.some(type => task.description.toLowerCase().includes(type));
+
+    // Return true for all tasks except internal-only operations
+    return !isInternalTask;
   }
 
   private async executeTaskWithClaude(task: SubTask, context: EnhancementContext): Promise<any> {
@@ -399,79 +451,179 @@ export class CodeMindWorkflowOrchestrator {
       }
     );
 
+    const modifiedFiles = this.extractModifiedFiles(result.data);
+    const claudeSummary = this.extractClaudeCodeSummary(result.data);
+
+    // Report file changes transparently to user
+    if (modifiedFiles.length > 0) {
+      console.log(`📝 Files modified by Claude Code:`);
+      modifiedFiles.forEach(file => {
+        console.log(`   • ${file}`);
+      });
+    }
+
+    // Display Claude's summary
+    console.log(`📋 Claude Code Summary: ${claudeSummary}`);
+
     return {
       success: result.success,
       output: result.data,
       error: result.error,
       tokensUsed: result.tokensUsed,
-      filesModified: this.extractModifiedFiles(result.data),
-      summary: `Claude Code execution: ${task.description}`
+      filesModified: modifiedFiles,
+      summary: claudeSummary,
+      claudeFullOutput: result.data // Keep full output for debugging
     };
   }
 
   private buildClaudePrompt(task: SubTask, context: EnhancementContext): string {
     const taskType = task.description.toLowerCase();
 
-    if (taskType.includes('analyze')) {
-      return `Analyze the following code files for: ${task.description}
+    // Build enhanced prompt with semantic search context
+    let prompt = '';
 
-Focus on:
+    if (taskType.includes('analyze')) {
+      prompt = `Analyze the following code files for: ${task.description}
+
+## Context from Semantic Search
+Found ${context.primaryFiles.length} relevant files and ${context.relatedFiles.length} related files.
+
+## Files to Analyze
+${context.primaryFiles.slice(0, 5).map(f => `- ${f.filePath} (relevance: ${f.relevanceScore})`).join('\n')}
+
+## Analysis Requirements
 - Code structure and patterns
 - Dependencies and relationships
 - Quality metrics and issues
-- Recommendations for improvement
+- Specific recommendations for improvement
+- SOLID principles compliance
 
-Provide detailed analysis with specific examples and actionable recommendations.`;
-    }
+Please provide detailed analysis with specific examples and actionable recommendations.
+If you need to modify files, use standard file editing tools.`;
 
-    if (taskType.includes('refactor')) {
-      return `Refactor the following code for: ${task.description}
+    } else if (taskType.includes('refactor')) {
+      prompt = `Refactor the following code for: ${task.description}
 
-Requirements:
+## Files Available for Refactoring
+${context.primaryFiles.slice(0, 3).map(f => `- ${f.filePath}`).join('\n')}
+
+## Refactoring Requirements
 - Maintain existing functionality
 - Improve code quality and readability
 - Follow SOLID principles
+- Make actual file modifications where beneficial
 - Provide clear explanations for changes
 
-Show both the original and refactored code with explanations.`;
-    }
+Please modify the actual files and explain your changes.`;
 
-    if (taskType.includes('report')) {
-      return `Generate a comprehensive report for: ${task.description}
+    } else if (taskType.includes('report')) {
+      prompt = `Generate a comprehensive report for: ${task.description}
 
-Include:
+## Available Context
+- ${context.primaryFiles.length} primary files analyzed
+- ${context.relatedFiles.length} related files in dependency graph
+- ${Math.round(context.contextSize/1000)}KB of code context
+
+## Report Requirements
 - Executive summary
 - Key findings and metrics
+- Code quality assessment
 - Recommendations with priority levels
 - Next steps and action items
 
 Format as structured markdown with clear sections.`;
+
+    } else {
+      // Default enhanced prompt
+      prompt = `Complete the following task: ${task.description}
+
+## Available Context
+${context.primaryFiles.length} relevant files found through semantic search:
+${context.primaryFiles.slice(0, 3).map(f => `- ${f.filePath} (${f.relevanceScore} relevance)`).join('\n')}
+
+## Task Context
+This is part of an intelligent CodeMind workflow with enhanced context.
+
+## Instructions
+- Analyze the provided code files
+- Make actual modifications if the task requires code changes
+- Provide detailed explanations of your approach
+- Include specific recommendations for improvement
+- Consider SOLID principles and best practices
+
+You have full access to modify project files as needed.`;
     }
 
-    // Default prompt for general tasks
-    return `Complete the following task: ${task.description}
-
-Context: This is part of a larger workflow to improve code quality and functionality.
-
-Please provide:
-- Detailed analysis or implementation
-- Clear explanations of your approach
-- Any recommendations for improvement
-- Potential risks or considerations`;
+    return prompt;
   }
 
   private extractModifiedFiles(claudeOutput: any): string[] {
     // Extract file paths that Claude Code might have modified
+    const modifiedFiles: string[] = [];
+
     if (typeof claudeOutput === 'string') {
-      const fileMatches = claudeOutput.match(/(?:modified?|updated?|changed?|created?)[\s:]*([^\s]+\.[a-zA-Z]+)/gi);
-      return fileMatches ? [...new Set(fileMatches.map(m => m.split(/[\s:]+/).pop()).filter(Boolean))] : [];
+      // Look for various file modification patterns
+      const patterns = [
+        /(?:modified|updated|changed|created|edited|wrote to|saved)[\s:]*([^\s\n]+\.[a-zA-Z]+)/gi,
+        /(?:File|file)[\s:]+([^\s\n]+\.[a-zA-Z]+)[\s]*(?:has been|was|is)[\s]*(?:modified|updated|changed|created)/gi,
+        /\[([^\]]+\.[a-zA-Z]+)\]/gi, // File paths in brackets
+        /(?:Write|Edit|Create).*?([a-zA-Z0-9_-]+\/[^\s\n]+\.[a-zA-Z]+)/gi // Paths with directories
+      ];
+
+      for (const pattern of patterns) {
+        const matches = [...claudeOutput.matchAll(pattern)];
+        matches.forEach(match => {
+          if (match[1]) {
+            modifiedFiles.push(match[1]);
+          }
+        });
+      }
     }
 
     if (claudeOutput && typeof claudeOutput === 'object' && claudeOutput.filesModified) {
-      return Array.isArray(claudeOutput.filesModified) ? claudeOutput.filesModified : [];
+      const files = Array.isArray(claudeOutput.filesModified) ? claudeOutput.filesModified : [claudeOutput.filesModified];
+      modifiedFiles.push(...files);
     }
 
-    return [];
+    // Remove duplicates and filter out invalid paths
+    return [...new Set(modifiedFiles)]
+      .filter(file => file && file.length > 0 && !file.includes(' ') && file.includes('.'));
+  }
+
+  /**
+   * Extract and format Claude Code's summary for user display
+   */
+  private extractClaudeCodeSummary(claudeOutput: any): string {
+    if (typeof claudeOutput === 'string') {
+      // For responses shorter than 1000 characters, return the full response
+      if (claudeOutput.length <= 1000) {
+        return claudeOutput;
+      }
+
+      // Try to extract a summary section for longer responses
+      const summaryPatterns = [
+        /(?:Summary|SUMMARY)[\s:]*([^#\n]+(?:\n[^#\n]+)*)/i,
+        /(?:Analysis|ANALYSIS)[\s:]*([^#\n]+(?:\n[^#\n]+)*)/i,
+        /(?:Changes made|CHANGES)[\s:]*([^#\n]+(?:\n[^#\n]+)*)/i
+      ];
+
+      for (const pattern of summaryPatterns) {
+        const match = claudeOutput.match(pattern);
+        if (match && match[1]) {
+          return match[1].trim();
+        }
+      }
+
+      // If no specific summary section, return first meaningful portion
+      const lines = claudeOutput.split('\n').filter(line => line.trim().length > 0);
+      if (lines.length > 0) {
+        // For longer responses, use first few paragraphs (up to 500 chars)
+        const summary = lines.slice(0, Math.min(5, lines.length)).join('\n');
+        return summary.length > 500 ? summary.substring(0, 500) + '...' : summary;
+      }
+    }
+
+    return 'Claude Code completed the task successfully.';
   }
 
   private async runQualityChecks(subTaskResults: any[]): Promise<QualityCheckResult> {
@@ -500,13 +652,16 @@ Please provide:
     // Commit and merge if quality is good, otherwise rollback
     if (qualityResult.overallScore >= 80 && qualityResult.compilation.success) {
       await this.gitManager.commitAndMerge(gitBranch, 'Feature implementation with quality checks passed');
+      const allModifiedFiles = subTaskResults.flatMap(r => r.filesModified || []);
+      const claudeSummaries = subTaskResults.map(r => r.summary).filter(s => s && s.length > 0);
+
       return {
         success: true,
-        filesModified: subTaskResults.flatMap(r => r.filesModified || []),
+        filesModified: allModifiedFiles,
         qualityScore: qualityResult.overallScore,
         gitBranch,
         databases: await this.calculateDatabaseUpdates(subTaskResults),
-        summary: `Successfully implemented feature with ${qualityResult.overallScore}% quality score`
+        summary: `✅ Task completed successfully!\n\n📊 Results:\n• ${allModifiedFiles.length} files modified\n• Quality score: ${qualityResult.overallScore}%\n\n📋 Claude Code Summary:\n${claudeSummaries.join('\n\n')}`
       };
     } else {
       await this.gitManager.rollbackBranch(gitBranch);
@@ -560,7 +715,7 @@ class QualityChecker {
     const qualityResults = await this.toolManager.runQualityChecks(projectPath, {
       categories: ['linting', 'security', 'testing', 'compilation', 'complexity'],
       languages: [], // Auto-detect
-      enableUserInteraction: true,
+      enableUserInteraction: false,
       skipOnFailure: true
     });
 

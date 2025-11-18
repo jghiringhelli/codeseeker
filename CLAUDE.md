@@ -62,6 +62,122 @@ Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/suggest-questions/$env:PROJ
 4. **When debugging** use error context for common issues and solutions
 5. **For user requirements** use smart questions to gather focused information
 
+## CodeMind Core Cycle - WORKING ✅
+
+**Status**: Fully implemented and tested (2025-11-15)
+
+The CodeMind Core Cycle is the heart of the intelligent Claude Code enhancement system. When a user provides natural language input, CodeMind executes an 8-step workflow to enhance Claude Code's capabilities.
+
+### How to Trigger the Core Cycle
+
+Use natural language queries with CodeMind CLI:
+
+```bash
+# Example natural language queries that trigger the core cycle
+codemind -c "add authentication middleware to the API routes"
+codemind -c "create a new API endpoint for user registration"
+codemind -c "can you help me understand what this project does"
+codemind -c "implement error handling for database operations"
+```
+
+### The 8-Step Core Cycle
+
+**1️⃣ Query Analysis**
+- Analyzes user input for assumptions and ambiguities
+- Detects intent (create, modify, analyze, etc.)
+- Calculates confidence level
+- Identifies potential clarification needs
+
+**2️⃣ User Clarification (Optional)**
+- Prompts user for clarification when assumptions/ambiguities detected
+- Generates smart questions based on detected patterns
+- Enhances the original query with user responses
+
+**3️⃣ Semantic Search**
+- Searches codebase for files relevant to the query
+- Uses vector embeddings for semantic similarity
+- Returns ranked list of relevant files with similarity scores
+
+**4️⃣ Code Relationship Analysis**
+- Analyzes relationships between relevant files
+- Identifies classes, functions, and dependencies
+- Maps package structure and component relationships
+
+**5️⃣ Enhanced Context Building**
+- Combines original query, clarifications, semantic results, and relationships
+- Creates comprehensive context prompt for Claude Code
+- Optimizes for token efficiency while maintaining completeness
+
+**6️⃣ Claude Code Execution**
+- Passes enhanced context to Claude Code CLI
+- Falls back to simulation mode if Claude Code unavailable
+- Captures Claude's response and recommendations
+
+**7️⃣ File Modification Approval**
+- Shows user which files Claude intends to modify
+- Provides approval options: Yes, No, or "Don't ask again"
+- Ensures user maintains control over code changes
+
+**8️⃣ Execution Summary**
+- Displays comprehensive summary of what was accomplished
+- Shows analysis statistics (files found, relationships discovered, etc.)
+- Provides performance metrics for the enhancement process
+
+### Technical Implementation (SOLID Architecture)
+
+The core cycle is implemented using SOLID principles with these services:
+
+- **NaturalLanguageProcessor**: Query analysis and intent detection
+- **SemanticSearchOrchestrator**: File discovery and relevance ranking
+- **GraphAnalysisService**: Code relationship mapping
+- **ContextBuilder**: Enhanced prompt generation
+- **UserInteractionService**: User prompts and Claude Code execution
+- **WorkflowOrchestrator**: Coordinates all services and manages the 8-step flow
+
+### Example Core Cycle Output
+
+```
+🧠 Starting CodeMind workflow...
+
+1️⃣ Analyzing query for assumptions and ambiguities...
+   Intent: create (confidence: 85.0%)
+   Assumptions detected: 1
+   • Assuming REST API structure exists
+
+2️⃣ Requesting user clarifications...
+   [User clarification prompts appear here]
+
+3️⃣ Performing semantic search...
+   Found 3 relevant files
+
+4️⃣ Analyzing code relationships...
+   Found 2 relationships between components
+
+5️⃣ Building enhanced context...
+   Enhanced prompt: 926 characters
+
+6️⃣ Executing Claude Code...
+   [Claude Code execution with enhanced context]
+
+7️⃣ Requesting file modification approval...
+   [File modification confirmation dialog]
+
+8️⃣ Displaying execution summary...
+   📊 Analysis Statistics:
+   • Files analyzed: 3
+   • Relationships found: 2
+   • Assumptions detected: 1
+   • Clarifications provided: 1
+```
+
+### Key Benefits
+
+- **Enhanced Context**: Claude gets much more relevant information about your codebase
+- **Intelligent Analysis**: Automatically detects patterns and relationships
+- **User Control**: Always confirms before making changes
+- **Comprehensive Results**: Provides detailed feedback on what was accomplished
+- **Token Optimization**: Maximizes information density while respecting token limits
+
 ### Smart Questions for User Interaction
 
 When you need to gather requirements, consider asking:
@@ -103,6 +219,25 @@ When you need to gather requirements, consider asking:
 - Implement proper interfaces and abstractions
 - Avoid tight coupling between components
 - Follow the established three-layer architecture (CLI/Orchestrator/Shared)
+
+**SOLID Architecture Refactoring Completed** (2025-11-15):
+The command routing system has been fully refactored to follow SOLID principles:
+- ✅ **CommandRouter**: Reduced from 921 lines to ~200 lines, focused only on routing
+- ✅ **Service Layer**: Created 6 focused services following single responsibility principle
+- ✅ **Dependency Injection**: Implemented constructor injection for all dependencies
+- ✅ **Interface Segregation**: Created specific interfaces for each service contract
+- ✅ **Workflow Orchestration**: Complete 8-step natural language processing pipeline
+
+**Service Architecture:**
+```
+src/cli/commands/services/
+├── natural-language-processor.ts    # Query analysis and intent detection
+├── semantic-search-orchestrator.ts  # File discovery and relevance ranking
+├── graph-analysis-service.ts        # Code relationship mapping
+├── context-builder.ts               # Enhanced prompt generation
+├── user-interaction-service.ts      # User prompts and Claude Code execution
+└── workflow-orchestrator.ts         # Master coordinator service
+```
 
 ### Class Naming Convention Enforcement
 **MANDATORY**: All classes MUST follow dash-style naming in file names:
@@ -256,3 +391,93 @@ After major changes to CodeMind codebase:
 - NEVER proactively create documentation files (*.md) or README files unless explicitly requested
 - NEVER create new versions of files with adjectives (no "file-enhanced.js", "file-improved.js", "file-v2.js")
 - Always modify the existing file directly instead of creating variations
+
+## Recursive Folder Organization Structure
+
+**Updated**: 2025-10-28 - Implemented recursive folder organization following logical dependencies
+
+### CLI Services Organization
+CodeMind CLI services are now organized by functionality domain:
+
+```
+src/cli/services/
+├── data/                      # Data processing and storage services
+│   ├── embedding/             # Vector embeddings and semantic analysis
+│   ├── semantic-graph/        # Neo4j graph management and queries
+│   │   ├── builders/          # Node and relationship builders
+│   │   └── parsers/           # Language-specific code parsers
+│   ├── database/              # PostgreSQL database services
+│   ├── content-processing/    # Content analysis and processing
+│   ├── code-relationship-parser.ts
+│   └── documentation-service.ts
+├── analysis/                  # Code analysis and quality services
+│   ├── deduplication/         # Duplicate code detection and consolidation
+│   ├── solid/                 # SOLID principles analysis
+│   └── user-intentions/       # LLM-based intention detection
+├── search/                    # Search and discovery services
+│   └── semantic-search/       # Vector-based semantic search
+├── monitoring/                # System monitoring and tracking
+│   ├── file-scanning/         # File discovery and type detection
+│   ├── initialization/        # Project initialization tracking
+│   └── file-watcher-service.ts
+└── integration/               # External system integrations
+    ├── workflow-integration/   # Claude Code workflow enhancement
+    └── codemind-instruction-service.ts
+```
+
+### CLI Features Organization
+Features are grouped by functional domain:
+
+```
+src/cli/features/
+├── analysis/                  # Code analysis features
+│   ├── code-graph/           # Complete code graph building
+│   ├── duplication/          # Duplication detection
+│   ├── solid-principles/     # SOLID analysis
+│   └── centralization/       # Code centralization detection
+├── search/                   # Search and navigation features
+│   ├── search/               # Semantic search capabilities
+│   ├── tree-navigation/      # Project tree navigation
+│   └── ui-navigation/        # UI component navigation
+├── quality/                  # Quality and verification
+│   ├── compilation/          # Code compilation verification
+│   └── use-cases/           # Use case analysis
+└── data/                    # Data management features
+    ├── database/            # Database schema and documentation
+    ├── documentation/       # Documentation analysis
+    └── semantic-graph/      # Semantic graph tools
+```
+
+### Shared Services Organization
+Shared services follow responsibility-based organization:
+
+```
+src/shared/
+├── core/                    # Core shared functionality (future)
+├── data/                    # Data management (future)
+├── intelligence/            # AI and smart features (future)
+├── analysis/                # Analysis systems (future)
+├── integration/             # Integration support (future)
+├── tools/                   # Tool management (future)
+├── cache/                   # Caching systems (future)
+└── managers/                # Service managers
+    ├── semantic-search-manager.ts
+    ├── git-branch-manager.ts
+    ├── cache-manager.ts
+    ├── container-manager.ts
+    └── database-update-manager.ts
+```
+
+### Benefits of New Structure
+1. **Logical Grouping**: Related functionality is grouped together
+2. **Clear Dependencies**: Folder structure reflects dependency hierarchy
+3. **Easier Navigation**: Find related files quickly
+4. **Scalability**: Easy to add new functionality to appropriate domains
+5. **Maintenance**: Clear separation of concerns
+
+### Import Path Changes
+After reorganization, import paths have been updated:
+- `../services/embedding/` → `../services/data/embedding/`
+- `../services/deduplication/` → `../services/analysis/deduplication/`
+- `../services/semantic-search/` → `../services/search/semantic-search/`
+- `../services/file-scanner/` → `../services/monitoring/file-scanning/`

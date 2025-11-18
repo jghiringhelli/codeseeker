@@ -53,7 +53,7 @@ const sequential_workflow_orchestrator_1 = __importDefault(require("./sequential
 const redis_queue_1 = __importDefault(require("./messaging/redis-queue"));
 const postgresql_1 = require("../database/adapters/postgresql");
 const logger_1 = require("../utils/logger");
-const external_tool_manager_1 = require("./external-tool-manager");
+const external_tool_manager_1 = require("../services/managers/external-tool-manager");
 const semantic_orchestrator_1 = require("./semantic-orchestrator");
 const tool_management_api_1 = require("./tool-management-api");
 class OrchestratorServer {

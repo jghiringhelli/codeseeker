@@ -1,15 +1,19 @@
 "use strict";
 /**
- * Enhanced Document Map Analyzer with Semantic Graph Integration
+ * Document Map Analyzer with Semantic Graph Integration
  * Combines documentation analysis with graph-based semantic search
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EnhancedDocumentMapAnalyzer = exports.DocumentMapAnalyzer = void 0;
+exports.DocumentMapAnalyzer = void 0;
 // Import the base analyzer from a proper location or define it inline
 // For now, let's define basic interfaces to resolve the circular import
-const semantic_graph_1 = require("../../services/semantic-graph");
+const semantic_graph_1 = require("../../services/data/semantic-graph/semantic-graph");
 const logger_1 = require("../../../utils/logger");
 class DocumentMapAnalyzer {
+    semanticGraph;
+    constructor(semanticGraph) {
+        this.semanticGraph = semanticGraph || new semantic_graph_1.SemanticGraphService();
+    }
     async analyzeDocumentation(params) {
         // Basic implementation - this would be expanded in real use
         return {
@@ -19,21 +23,13 @@ class DocumentMapAnalyzer {
             crossReferences: []
         };
     }
-}
-exports.DocumentMapAnalyzer = DocumentMapAnalyzer;
-class EnhancedDocumentMapAnalyzer extends DocumentMapAnalyzer {
-    semanticGraph;
-    constructor(semanticGraph) {
-        super();
-        this.semanticGraph = semanticGraph || new semantic_graph_1.SemanticGraphService();
-    }
     async analyzeDocumentationWithSemantics(params) {
         const startTime = Date.now();
         const logger = logger_1.Logger.getInstance();
         try {
             logger.info('📚🔗 Starting enhanced documentation analysis with semantic graph...');
             // 1. Run base documentation analysis
-            const baseResult = await super.analyzeDocumentation(params);
+            const baseResult = await this.analyzeDocumentation(params);
             // 2. Initialize semantic graph if needed
             await this.semanticGraph.initialize();
             // 3. Populate semantic graph with documentation data
@@ -311,6 +307,6 @@ class EnhancedDocumentMapAnalyzer extends DocumentMapAnalyzer {
         return Math.min(sharedResources / 10, 1.0);
     }
 }
-exports.EnhancedDocumentMapAnalyzer = EnhancedDocumentMapAnalyzer;
-exports.default = EnhancedDocumentMapAnalyzer;
+exports.DocumentMapAnalyzer = DocumentMapAnalyzer;
+exports.default = DocumentMapAnalyzer;
 //# sourceMappingURL=map-analyzer.js.map

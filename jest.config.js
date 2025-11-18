@@ -24,5 +24,15 @@ module.exports = {
       statements: 80
     }
   },
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  // Configuration to fix IDE Jest worker issues
+  maxWorkers: 1,
+  workerIdleMemoryLimit: '512MB',
+  testTimeout: 30000,
+  forceExit: true,
+  detectOpenHandles: true,
+  // Fix for Jest 30.x compatibility
+  transformIgnorePatterns: [
+    'node_modules/(?!(chalk|ora)/)'
+  ]
 };

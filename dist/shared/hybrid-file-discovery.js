@@ -8,15 +8,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HybridFileDiscovery = void 0;
-const semantic_search_complete_1 = require("../cli/features/search/semantic-search-complete");
-const semantic_graph_1 = __importDefault(require("../cli/services/semantic-graph"));
+const semantic_graph_1 = __importDefault(require("../cli/services/data/semantic-graph/semantic-graph"));
 const logger_1 = require("../utils/logger");
 class HybridFileDiscovery {
     vectorSearch;
     semanticGraph;
     logger = logger_1.Logger.getInstance();
     constructor() {
-        this.vectorSearch = new semantic_search_complete_1.SemanticSearchTool();
+        const searchFactory = require('../core/factories/search-service-factory').SearchServiceFactory;
+        this.vectorSearch = searchFactory.getInstance().createSemanticSearchService();
         this.semanticGraph = new semantic_graph_1.default();
     }
     async initialize() {

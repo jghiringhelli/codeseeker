@@ -3,7 +3,7 @@
  * Simplified tests for the embedding service
  */
 
-import { EmbeddingService } from './embedding-service';
+import { EmbeddingService } from '../../../src/cli/services/data/embedding/embedding-service';
 
 describe('EmbeddingService', () => {
   let service: EmbeddingService;

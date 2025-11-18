@@ -1,8 +1,8 @@
 "use strict";
 /**
- * Workflow Orchestration Adapter
+ * Workflow Orchestration Adapter - SOLID Principles Compliant
  * Bridges the CLI CommandProcessor to the sophisticated CodeMindWorkflowOrchestrator
- * Implements the expected ClaudeCodeOrchestrator interface while delegating to the full workflow
+ * Implements the IRequestProcessor interface following Dependency Inversion Principle
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkflowOrchestrationAdapter = void 0;

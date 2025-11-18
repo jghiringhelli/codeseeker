@@ -43,7 +43,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostgreSQLInitializer = void 0;
 const logger_1 = require("../../../utils/logger");
 const database_config_1 = require("../../../config/database-config");
-const embedding_service_1 = require("../embedding-service");
+const embedding_service_1 = require("../embedding/embedding-service");
 const fast_glob_1 = __importDefault(require("fast-glob"));
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
@@ -203,22 +203,17 @@ class PostgreSQLInitializer {
         this.logger.info('🔍 Generating semantic embeddings with lightweight local algorithm...');
         const codeFiles = await this.discoverCodeFiles(projectPath);
         // Use EmbeddingService for efficient batch processing
-        const embeddingResult = await this.embeddingService.generateProjectEmbeddings(projectId, codeFiles, (progress, currentFile) => {
-            // Update progress in real-time
-            const adjustedProgress = 25 + Math.round((progress / 100) * 50);
-            this.updateProgress(projectId, 'semantic_embeddings', adjustedProgress).catch(() => {
-                // Ignore progress update errors
-            });
-            result.progress.percentage = adjustedProgress;
-            // Log every 10% progress
-            if (progress % 10 === 0) {
-                this.logger.info(`📊 Embedding progress: ${progress}% (${currentFile})`);
-            }
-        });
+        const embeddingResult = await this.embeddingService.generateProjectEmbeddings(projectId, codeFiles);
         // Update result with actual numbers from EmbeddingService
-        result.embeddings.created = embeddingResult.success;
+        result.embeddings.created = embeddingResult.embeddings;
         result.embeddings.errors = embeddingResult.errors;
-        this.logger.info(`✅ Generated ${result.embeddings.created} semantic embeddings (${embeddingResult.skipped} skipped, ${embeddingResult.errors} errors)`);
+        // Update progress
+        const adjustedProgress = 75;
+        this.updateProgress(projectId, 'semantic_embeddings', adjustedProgress).catch(() => {
+            // Ignore progress update errors
+        });
+        result.progress.percentage = adjustedProgress;
+        this.logger.info(`✅ Generated ${result.embeddings.created} semantic embeddings (${embeddingResult.errors} errors)`);
     }
     /**
      * Run file analysis for patterns, dependencies, quality

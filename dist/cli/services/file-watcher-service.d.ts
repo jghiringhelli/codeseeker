@@ -4,7 +4,7 @@
  * Provides intelligent debouncing and change filtering
  */
 import { EventEmitter } from 'events';
-import { SyncManagerService } from './sync-manager-service';
+import { SyncManagerService } from '../../services/managers/sync-manager';
 export interface FileChangeEvent {
     type: 'created' | 'modified' | 'deleted';
     filePath: string;

@@ -3,8 +3,8 @@
  * Combines vector search (intent-based) + semantic graph (structure-based) for intelligent file discovery
  */
 
-import { SemanticSearchTool } from '../cli/features/search/semantic-search-complete';
-import SemanticGraphService from '../cli/services/semantic-graph';
+import { SemanticSearchService } from '../cli/services/search/semantic-search';
+import SemanticGraphService from '../cli/services/data/semantic-graph/semantic-graph';
 import { Logger } from '../utils/logger';
 
 export interface FileDiscoveryRequest {
@@ -40,12 +40,13 @@ export interface FileDiscoveryResult {
 }
 
 export class HybridFileDiscovery {
-  private vectorSearch: SemanticSearchTool;
+  private vectorSearch: SemanticSearchService;
   private semanticGraph: SemanticGraphService;
   private logger = Logger.getInstance();
 
   constructor() {
-    this.vectorSearch = new SemanticSearchTool();
+    const searchFactory = require('../core/factories/search-service-factory').SearchServiceFactory;
+    this.vectorSearch = searchFactory.getInstance().createSemanticSearchService();
     this.semanticGraph = new SemanticGraphService();
   }
 

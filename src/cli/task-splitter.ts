@@ -4,9 +4,9 @@
  */
 
 import { Logger } from '../utils/logger';
-import { ProcessedIntent } from './intent-analyzer';
+import { ProcessedIntent } from './services/analysis/user-intentions/intent-analyzer';
 import { EnhancementContext } from '../shared/semantic-enhancement-engine';
-import { ClaudeCodeIntegration } from './claude-code-integration';
+import { ClaudeCodeIntegration } from './../integrations/claude/claude-cli-integration';
 
 export interface UserFeatureRequest {
   query: string;

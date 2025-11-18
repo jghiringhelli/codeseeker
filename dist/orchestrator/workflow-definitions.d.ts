@@ -1,12 +1,9 @@
-import { WorkflowDAG } from './types';
-export declare class WorkflowDefinitions {
-    static createFeatureDevelopmentWorkflow(): WorkflowDAG;
-    static createDefectResolutionWorkflow(): WorkflowDAG;
-    static createTechDebtWorkflow(): WorkflowDAG;
-    static createHotfixWorkflow(): WorkflowDAG;
-    static createSimpleDevelopmentWorkflow(): WorkflowDAG;
-    static createPrototypeDevelopmentWorkflow(): WorkflowDAG;
-    static createNonFunctionalImprovementsWorkflow(): WorkflowDAG;
-    static getAllWorkflows(): WorkflowDAG[];
-}
+/**
+ * Workflow Definitions for CodeMind Orchestrator
+ */
+import { WorkflowDefinition } from './types';
+export declare const WORKFLOW_DEFINITIONS: Record<string, WorkflowDefinition>;
+export declare function getWorkflowDefinition(workflowId: string): WorkflowDefinition | undefined;
+export declare function listWorkflows(): string[];
+export declare function validateWorkflow(workflow: WorkflowDefinition): boolean;
 //# sourceMappingURL=workflow-definitions.d.ts.map

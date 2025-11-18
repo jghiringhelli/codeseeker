@@ -45,25 +45,25 @@ export class Logger implements ILogger {
     }
   }
 
-  debug(message: string, meta?: any): void {
+  debug(message: string, meta?: unknown): void {
     if (this.level <= LogLevel.DEBUG) {
       this?.log('DEBUG', message, meta);
     }
   }
 
-  info(message: string, meta?: any): void {
+  info(message: string, meta?: unknown): void {
     if (this.level <= LogLevel.INFO) {
       this?.log('INFO', message, meta);
     }
   }
 
-  warn(message: string, meta?: any): void {
+  warn(message: string, meta?: unknown): void {
     if (this.level <= LogLevel.WARN) {
       this?.log('WARN', message, meta);
     }
   }
 
-  error(message: string, error?: Error, meta?: any): void {
+  error(message: string, error?: Error, meta?: unknown): void {
     if (this.level <= LogLevel.ERROR) {
       const errorInfo = error ? {
         message: error.message,
@@ -71,7 +71,7 @@ export class Logger implements ILogger {
         name: error.name
       } : undefined;
 
-      this?.log('ERROR', message, { error: errorInfo, ...meta });
+      this?.log('ERROR', message, { error: errorInfo, ...(meta && typeof meta === 'object' ? meta as Record<string, unknown> : {}) });
     }
   }
 
@@ -80,12 +80,12 @@ export class Logger implements ILogger {
     return new Logger(this.level, childContext);
   }
 
-  private log(level: string, message: string, meta?: any): void {
+  private log(level: string, message: string, meta?: unknown): void {
     const timestamp = new Date().toISOString();
     const contextStr = this.context ? ` [${this.context}]` : '';
     const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
 
-    console?.log(`${timestamp} ${level}${contextStr}: ${message}${metaStr}`);
+    console.log(`${timestamp} ${level}${contextStr}: ${message}${metaStr}`);
   }
 }
 

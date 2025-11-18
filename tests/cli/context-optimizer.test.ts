@@ -3,7 +3,7 @@
  * Simplified tests that don't rely on actual implementation details
  */
 
-import { ContextOptimizer } from './context-optimizer';
+import { ContextOptimizer } from '../../src/cli/context-optimizer';
 
 describe('ContextOptimizer', () => {
   let optimizer: ContextOptimizer;

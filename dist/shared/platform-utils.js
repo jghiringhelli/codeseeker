@@ -94,27 +94,31 @@ class PlatformUtils {
      * Detect if running inside Claude Code environment
      */
     static isRunningInClaudeCode() {
-        // Check for various Claude Code environment indicators
+        // Only check for explicit CodeMind-in-Claude indicators
+        // Don't check CLAUDE_CODE_SSE_PORT as it can be set in regular shells
         return !!(process.env.CLAUDE_CLI_SESSION ||
             process.env.ANTHROPIC_CLI_SESSION ||
             process.env.CLAUDE_CODE_SESSION ||
             process.env.CLAUDECODE ||
-            process.env.CLAUDE_CODE_SSE_PORT ||
-            process.env.CLAUDE_CODE_ENTRYPOINT ||
-            // Check if parent process might be Claude Code
-            process.env._ && process.env._.includes('claude') ||
-            // Check process title for Claude
-            process.title && process.title.includes('claude'));
+            // Only check if we're ACTUALLY inside Claude's execution context
+            (process.env.CLAUDE_CODE_ENTRYPOINT && process.env.CLAUDE_CODE_CONTEXT));
     }
     /**
      * Get the appropriate file reading command for the platform
      */
     static getFileReadCommand() {
-        // For Windows, even in Git Bash, prefer a more compatible approach
         if (this.isWindows()) {
-            // In Git Bash, 'cat' should be available, but let's be explicit
-            // Try cat first (works in Git Bash), fallback to type (native Windows)
-            return 'cat';
+            // Check if we're in Git Bash environment
+            const shell = process.env.SHELL || process.env.ComSpec || '';
+            const isGitBash = shell.includes('bash') || !!process.env.MSYSTEM;
+            if (isGitBash) {
+                // In Git Bash, use cat
+                return 'cat';
+            }
+            else {
+                // In Windows CMD/PowerShell, use type
+                return 'type';
+            }
         }
         else {
             // True Unix environments (macOS, Linux)
@@ -167,8 +171,11 @@ class PlatformUtils {
      * Note: Environment variables should be set via execOptions.env in Node.js, not via export/set commands
      */
     static getClaudeCodeCommand(inputFile) {
-        // If running inside Claude Code, use fallback approach
-        if (this.isRunningInClaudeCode()) {
+        // Allow override for testing/development
+        if (process.env.CODEMIND_FORCE_CLAUDE_CLI === 'true') {
+            console.log('🔧 Forcing Claude CLI usage (CODEMIND_FORCE_CLAUDE_CLI=true)');
+        }
+        else if (this.isRunningInClaudeCode()) {
             console.log('🔄 Detected CodeMind running inside Claude Code - using fallback mode');
             return this.getClaudeCodeFallbackCommand(inputFile);
         }
@@ -181,23 +188,24 @@ class PlatformUtils {
                 // In Git Bash, convert Windows path to Git Bash format
                 let unixPath = inputFile.replace(/\\/g, '/');
                 // Convert C:\path to /c/path format
-                unixPath = unixPath.replace(/^([A-Z]):/i, (match, drive) => `/${drive.toLowerCase()}`);
-                return `${readCmd} "${unixPath}" | claude --print`;
+                unixPath = unixPath.replace(/^([A-Z]):/i, (_, drive) => `/${drive.toLowerCase()}`);
+                return `cat "${unixPath}" | claude -p`;
             }
             else {
-                // In Windows CMD/PowerShell, use Windows path format
-                return `${readCmd} "${inputFile}" | claude --print`;
+                // In Windows CMD/PowerShell, use type with proper quoting
+                const escapedPath = inputFile.replace(/"/g, '""'); // Escape quotes for Windows
+                return `type "${escapedPath}" | claude -p`;
             }
         }
         else {
             // Unix environments (macOS, Linux)
-            return `${readCmd} "${inputFile}" | claude --print`;
+            return `${readCmd} "${inputFile}" | claude -p`;
         }
     }
     /**
      * Fallback command when running inside Claude Code (to avoid recursion)
      */
-    static getClaudeCodeFallbackCommand(inputFile) {
+    static getClaudeCodeFallbackCommand(_inputFile) {
         // Instead of calling Claude CLI, just echo a fallback message
         // This prevents the infinite hang while still allowing CodeMind to continue
         return `echo "CodeMind is running inside Claude Code environment. Fallback mode activated."`;

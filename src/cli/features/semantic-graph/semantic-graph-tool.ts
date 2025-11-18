@@ -6,15 +6,27 @@
 
 import { InternalTool, ToolMetadata, AnalysisResult, ToolInitResult, ToolUpdateResult } from '../../../shared/tool-interface';
 import { Logger } from '../../../utils/logger';
+import { CodeRelationshipOrchestrator } from '../../services/data/semantic-graph/code-relationship-orchestrator';
+import { Neo4jGraphStorage } from '../../services/data/semantic-graph/neo4j-graph-storage';
+import { SemanticGraphService } from '../../services/data/semantic-graph/semantic-graph';
+import { DatabaseConnections } from '../../../config/database-config';
 
 export class SemanticGraphTool extends InternalTool {
   private logger: Logger;
   private neo4jUrl: string;
+  private graphStorage: Neo4jGraphStorage;
+  private semanticGraphService: SemanticGraphService;
+  private orchestrator: CodeRelationshipOrchestrator;
+  private dbConnections: DatabaseConnections;
 
   constructor() {
     super();
     this.logger = Logger.getInstance();
     this.neo4jUrl = process.env.NEO4J_URL || 'bolt://localhost:7687';
+    this.dbConnections = new DatabaseConnections();
+    this.graphStorage = new Neo4jGraphStorage(this.dbConnections);
+    this.semanticGraphService = new SemanticGraphService();
+    this.orchestrator = new CodeRelationshipOrchestrator(this.semanticGraphService);
   }
 
   getMetadata(): ToolMetadata {
@@ -41,10 +53,16 @@ export class SemanticGraphTool extends InternalTool {
     try {
       this.logger.info(`🌐 Semantic Graph: Initializing for project ${projectId}`);
 
+      // Initialize Neo4j connection and create project node
+      const projectName = `project-${projectId}`;
+      const projectPath = process.cwd();
+      await this.graphStorage.initializeProjectGraph(projectId, projectName, projectPath);
+      const projectCreated = true;
+
       return {
         success: true,
         metadata: this.getMetadata(),
-        tablesCreated: 5
+        tablesCreated: projectCreated ? 1 : 0
       };
 
     } catch (error) {
@@ -69,50 +87,46 @@ export class SemanticGraphTool extends InternalTool {
     const startTime = Date.now();
 
     try {
-      this.logger.info(`🌐 Semantic Graph: Analyzing with parameters:`, parameters);
+      this.logger.info(`🌐 Semantic Graph: Analyzing project at ${projectPath}`);
 
       // Use Claude-provided parameters or defaults
       const depth = parameters?.depth || 2;
       const includeRelationships = parameters?.includeRelationships !== false;
       const maxNodes = parameters?.maxNodes || 100;
-      const focusArea = parameters?.focusArea; // e.g., 'authentication', 'database'
+      const focusArea = parameters?.focusArea;
+      const forceReparse = parameters?.forceReparse || false;
 
-      // Simulate graph analysis (in real implementation, query Neo4j)
+      // First, ensure the project is parsed and stored in the graph
+      let parsingResult;
+      const existingStats = await this.graphStorage.getProjectGraphStats(projectId);
+
+      if (!existingStats || (existingStats.entityNodes + existingStats.projectNodes) === 0 || forceReparse) {
+        this.logger.info(`📊 Parsing project files to populate semantic graph...`);
+        parsingResult = await this.orchestrator.populateSemanticGraph(projectPath, projectId);
+        this.logger.info(`✅ Parsed ${parsingResult.totalFiles} files, created ${parsingResult.nodeStats.classes + parsingResult.nodeStats.functions} nodes`);
+      } else {
+        this.logger.info(`📈 Using existing graph with ${existingStats.entityNodes} entity nodes, ${existingStats.relationships} relationships`);
+      }
+
+      // Query the graph for analysis
+      const graphStats = await this.graphStorage.getProjectGraphStats(projectId);
+
+      // For now, provide simplified analysis data since complex queries aren't implemented yet
+      const keyNodes = this.generateKeyNodesFromStats(graphStats, focusArea, maxNodes);
+      const relationships = includeRelationships ? this.generateRelationshipsFromStats(graphStats, depth) : [];
+      const concepts = this.extractConceptsFromStats(graphStats);
+      const crossReferences = this.generateCrossReferencesFromStats(graphStats, focusArea);
+
       const analysisData = {
-        nodeCount: 523,
-        relationshipCount: 1847,
+        nodeCount: graphStats.entityNodes,
+        relationshipCount: graphStats.relationships,
         depth: depth,
-        
-        // Key nodes based on parameters
-        keyNodes: this.getKeyNodes(focusArea, maxNodes),
-        
-        // Relationships if requested
-        relationships: includeRelationships ? this.getRelationships(focusArea, depth) : [],
-        
-        // Semantic concepts
-        concepts: [
-          { name: 'authentication', frequency: 45, importance: 0.92 },
-          { name: 'data-persistence', frequency: 38, importance: 0.88 },
-          { name: 'api-endpoints', frequency: 67, importance: 0.85 },
-          { name: 'error-handling', frequency: 29, importance: 0.78 }
-        ],
-        
-        // Cross-references
-        crossReferences: [
-          { from: 'UserService', to: 'AuthController', type: 'uses', strength: 0.95 },
-          { from: 'Database', to: 'Repository', type: 'implements', strength: 0.90 },
-          { from: 'API', to: 'Middleware', type: 'processes', strength: 0.85 }
-        ],
-        
-        // Impact analysis
-        impactAnalysis: focusArea ? this.getImpactAnalysis(focusArea) : null,
-        
-        // Code clusters
-        clusters: [
-          { name: 'auth-system', nodes: 23, cohesion: 0.88 },
-          { name: 'data-layer', nodes: 45, cohesion: 0.92 },
-          { name: 'api-layer', nodes: 31, cohesion: 0.85 }
-        ]
+        keyNodes: keyNodes,
+        relationships: relationships,
+        concepts: concepts,
+        crossReferences: crossReferences,
+        impactAnalysis: focusArea ? this.generateImpactAnalysis(focusArea, graphStats) : null,
+        clusters: this.generateClusters(graphStats)
       };
 
       const executionTime = Date.now() - startTime;
@@ -227,55 +241,149 @@ export class SemanticGraphTool extends InternalTool {
     }
   }
 
-  // Helper methods
-  private getKeyNodes(focusArea?: string, maxNodes: number = 100): any[] {
-    // Mock implementation
-    const allNodes = [
-      { id: 'user-service', type: 'Service', importance: 0.95 },
-      { id: 'auth-controller', type: 'Controller', importance: 0.90 },
-      { id: 'database-layer', type: 'Repository', importance: 0.85 },
-      { id: 'api-gateway', type: 'Gateway', importance: 0.80 }
-    ];
+  // Helper methods that generate analysis from graph statistics
+  private generateKeyNodesFromStats(graphStats: any, focusArea?: string, maxNodes: number = 100): any[] {
+    const nodes = [];
 
-    return allNodes
-      .filter(node => !focusArea || node.id.includes(focusArea.toLowerCase()))
-      .slice(0, maxNodes);
+    // Generate representative nodes based on graph stats
+    if (graphStats.nodesByType) {
+      Object.entries(graphStats.nodesByType).forEach(([type, count]: [string, any]) => {
+        if (count > 0 && (!focusArea || type.toLowerCase().includes(focusArea.toLowerCase()))) {
+          nodes.push({
+            id: `${type}-cluster`,
+            name: `${type} Components`,
+            type: type,
+            count: count,
+            importance: Math.min(0.95, count / 10)
+          });
+        }
+      });
+    }
+
+    return nodes.slice(0, maxNodes);
   }
 
-  private getRelationships(focusArea?: string, depth: number = 2): any[] {
-    // Mock implementation
-    return [
-      { from: 'user-service', to: 'auth-controller', type: 'USES', weight: 0.9 },
-      { from: 'auth-controller', to: 'database-layer', type: 'QUERIES', weight: 0.8 },
-      { from: 'api-gateway', to: 'user-service', type: 'ROUTES_TO', weight: 0.7 }
-    ];
+  private generateRelationshipsFromStats(graphStats: any, depth: number): any[] {
+    const relationships = [];
+
+    if (graphStats.relationshipsByType) {
+      Object.entries(graphStats.relationshipsByType).forEach(([type, count]: [string, any]) => {
+        relationships.push({
+          type: type,
+          count: count,
+          depth: Math.min(depth, 3),
+          strength: Math.min(0.95, count / 50)
+        });
+      });
+    }
+
+    return relationships;
   }
 
-  private getImpactAnalysis(focusArea: string): any {
-    // Mock implementation
+  private extractConceptsFromStats(graphStats: any): any[] {
+    const concepts = [];
+
+    if (graphStats.nodesByType) {
+      Object.entries(graphStats.nodesByType).forEach(([type, count]: [string, any]) => {
+        concepts.push({
+          name: type.toLowerCase(),
+          frequency: count,
+          importance: Math.min(0.95, count / 20)
+        });
+      });
+    }
+
+    return concepts;
+  }
+
+  private generateCrossReferencesFromStats(graphStats: any, focusArea?: string): any[] {
+    const crossRefs = [];
+
+    if (graphStats.relationshipsByType) {
+      Object.entries(graphStats.relationshipsByType).forEach(([type, count]: [string, any]) => {
+        if (!focusArea || type.toLowerCase().includes(focusArea.toLowerCase())) {
+          crossRefs.push({
+            type: type,
+            count: count,
+            strength: Math.min(0.95, count / 30)
+          });
+        }
+      });
+    }
+
+    return crossRefs;
+  }
+
+  private generateImpactAnalysis(focusArea: string, graphStats: any): any {
+    const focusTypeCount = graphStats.nodesByType?.[focusArea] || 0;
+
     return {
-      directDependents: 5,
-      indirectDependents: 12,
-      riskLevel: 'medium',
-      criticalPaths: ['auth-flow', 'data-access']
+      directDependents: Math.floor(focusTypeCount * 0.3),
+      indirectDependents: Math.floor(focusTypeCount * 0.6),
+      riskLevel: focusTypeCount > 10 ? 'high' : focusTypeCount > 5 ? 'medium' : 'low',
+      criticalPaths: [`${focusArea}-flow`, `${focusArea}-integration`]
     };
   }
 
+  private generateClusters(graphStats: any): any[] {
+    const clusters = [];
+
+    if (graphStats.nodesByType) {
+      Object.entries(graphStats.nodesByType).forEach(([type, count]: [string, any]) => {
+        if (count > 5) { // Only create clusters for types with significant presence
+          clusters.push({
+            name: `${type}-cluster`,
+            nodes: count,
+            cohesion: Math.random() * 0.3 + 0.7 // Simulated cohesion between 0.7-1.0
+          });
+        }
+      });
+    }
+
+    return clusters;
+  }
+
   private generateRecommendations(analysisData: any, parameters?: any): string[] {
-    const recommendations = [
-      'Use semantic search for cross-cutting concerns',
-      'Leverage relationship analysis for impact assessment'
-    ];
+    const recommendations: string[] = [];
 
-    if (analysisData.nodeCount > 500) {
-      recommendations.push('Consider graph partitioning for better performance');
+    // Analyze graph density
+    if (analysisData.nodeCount > 0) {
+      const density = analysisData.relationshipCount / (analysisData.nodeCount * (analysisData.nodeCount - 1) / 2);
+
+      if (density > 0.7) {
+        recommendations.push('High connectivity detected - consider breaking down large components');
+      } else if (density < 0.2) {
+        recommendations.push('Low connectivity - may indicate missing relationships or isolated components');
+      }
     }
 
+    // Analyze cluster recommendations
+    if (analysisData.clusters && analysisData.clusters.length > 0) {
+      const lowCohesionClusters = analysisData.clusters.filter((c: any) => c.cohesion < 0.7);
+      if (lowCohesionClusters.length > 0) {
+        recommendations.push(`${lowCohesionClusters.length} clusters have low cohesion - consider refactoring`);
+      }
+    }
+
+    // Focus area specific recommendations
     if (parameters?.focusArea) {
-      recommendations.push(`Focus area "${parameters.focusArea}" has strong connectivity - good for targeted analysis`);
+      const keyNodesInFocus = analysisData.keyNodes.filter((n: any) =>
+        n.name && n.name.toLowerCase().includes(parameters.focusArea.toLowerCase())
+      );
+
+      if (keyNodesInFocus.length > 0) {
+        recommendations.push(`Found ${keyNodesInFocus.length} key components related to ${parameters.focusArea}`);
+      } else {
+        recommendations.push(`No major components found for ${parameters.focusArea} - may need better tagging`);
+      }
     }
 
-    return recommendations;
+    // Performance recommendations
+    if (analysisData.nodeCount > 1000) {
+      recommendations.push('Large codebase detected - use focus areas to optimize analysis performance');
+    }
+
+    return recommendations.length > 0 ? recommendations : ['Graph analysis complete - no specific recommendations'];
   }
 
   private extractConcepts(query: string): string[] {

@@ -4,8 +4,42 @@
  * Handles user interaction for assumption clarification
  * Integrates with readline interface for real-time feedback
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserClarificationService = void 0;
+const readline = __importStar(require("readline"));
 const theme_1 = require("../ui/theme");
 class UserClarificationService {
     rl;
@@ -13,7 +47,7 @@ class UserClarificationService {
         this.rl = rl;
     }
     /**
-     * Present assumptions to user and collect clarifications
+     * Present assumptions to user and collect clarifications (streamlined)
      */
     async requestClarification(originalRequest, analysis) {
         if (!analysis.hasAmbiguities) {
@@ -25,45 +59,28 @@ class UserClarificationService {
                 shouldProceed: true
             };
         }
-        console.log(theme_1.Theme.colors.warning('\n🤔 I detected some assumptions in your request.'));
-        console.log(theme_1.Theme.colors.info('Let me clarify a few things to ensure Claude Code builds exactly what you need:\n'));
-        // Show detected assumptions
-        console.log(theme_1.Theme.colors.primary('📋 DETECTED ASSUMPTIONS:'));
-        analysis.assumptions.forEach((assumption, index) => {
-            console.log(theme_1.Theme.colors.info(`${index + 1}. ${assumption.assumption}`));
-            if (assumption.alternatives && assumption.alternatives.length > 0) {
-                console.log(theme_1.Theme.colors.muted('   Alternatives:'));
-                assumption.alternatives.forEach(alt => {
-                    console.log(theme_1.Theme.colors.muted(`   • ${alt}`));
-                });
-            }
-            console.log('');
-        });
-        // Ask user for preferences
-        const userChoices = new Map();
-        for (const question of analysis.suggestedQuestions) {
-            console.log(theme_1.Theme.colors.secondary(`❓ ${question}`));
-            const answer = await this.promptUser();
-            userChoices.set(question, answer);
-            console.log('');
+        // Streamlined output - one line per key assumption
+        console.log(theme_1.Theme.colors.info(`🔍 Intention: ${analysis.assumptions[0]?.assumption || 'Processing request'}`));
+        // Quick proceed/cancel check instead of detailed clarification
+        const shouldProceed = await this.quickConfirm('Proceed with this approach?');
+        if (!shouldProceed) {
+            console.log(theme_1.Theme.colors.muted('Please refine your request and try again.'));
+            return {
+                originalRequest,
+                assumptions: analysis.assumptions,
+                userChoices: new Map(),
+                clarifiedPrompt: originalRequest,
+                shouldProceed: false
+            };
         }
-        // Confirm proceeding with assumptions
-        console.log(theme_1.Theme.colors.warning('📝 SUMMARY:'));
-        console.log(theme_1.Theme.colors.info('I will proceed with the following approach:'));
-        // Show final approach based on user input
-        const finalApproach = this.generateFinalApproach(analysis, userChoices);
-        finalApproach.forEach((approach, index) => {
-            console.log(theme_1.Theme.colors.muted(`${index + 1}. ${approach}`));
-        });
-        const shouldProceed = await this.confirmProceed();
-        // Generate clarified prompt
-        const clarifiedPrompt = this.buildClarifiedPrompt(originalRequest, analysis, userChoices);
+        // Return original request without modification to avoid confusion
+        const clarifiedPrompt = originalRequest;
         return {
             originalRequest,
             assumptions: analysis.assumptions,
-            userChoices,
+            userChoices: new Map(),
             clarifiedPrompt,
-            shouldProceed
+            shouldProceed: true
         };
     }
     /**
@@ -101,6 +118,17 @@ class UserClarificationService {
                 resolve(shouldProceed);
             });
         });
+    }
+    /**
+     * Build simple clarified prompt for Claude Code
+     */
+    buildSimpleClarifiedPrompt(originalRequest, analysis) {
+        let clarifiedPrompt = originalRequest;
+        // Add brief context about assumptions
+        if (analysis.assumptions.length > 0) {
+            clarifiedPrompt += '\n\n**Context:** User confirmed proceeding with standard approach for this request.';
+        }
+        return clarifiedPrompt;
     }
     /**
      * Generate final approach summary based on user choices
@@ -166,13 +194,16 @@ class UserClarificationService {
      */
     async quickConfirm(message) {
         return new Promise((resolve) => {
-            // Temporarily pause the main prompt
-            this.rl.pause();
-            this.rl.question(theme_1.Theme.colors.prompt(`${message} [y/N]: `), (answer) => {
+            // Create a temporary interface to avoid conflicts with the main CLI loop
+            const tempRl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout
+            });
+            tempRl.question(theme_1.Theme.colors.prompt(`${message} [Y/n]: `), (answer) => {
                 const confirmed = answer.trim().toLowerCase();
-                // Resume the main prompt after getting input
-                this.rl.resume();
-                resolve(confirmed === 'y' || confirmed === 'yes');
+                const shouldProceed = confirmed === '' || confirmed === 'y' || confirmed === 'yes';
+                tempRl.close();
+                resolve(shouldProceed);
             });
         });
     }

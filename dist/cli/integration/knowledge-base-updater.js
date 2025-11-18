@@ -72,7 +72,7 @@ class KnowledgeBaseUpdater {
         if (changedFiles.length === 0)
             return;
         try {
-            const { EmbeddingService } = await Promise.resolve().then(() => __importStar(require('../services/embedding-service')));
+            const { EmbeddingService } = await Promise.resolve().then(() => __importStar(require('../services/data/embedding/embedding-service')));
             const embeddingService = new EmbeddingService();
             await embeddingService.generateProjectEmbeddings(analysis.projectId, changedFiles);
             console.log('✅ Semantic search embeddings updated');
@@ -86,7 +86,7 @@ class KnowledgeBaseUpdater {
         if (changedFiles.length === 0 || !analysis.projectPath)
             return;
         try {
-            const { default: SemanticGraphService } = await Promise.resolve().then(() => __importStar(require('../services/semantic-graph')));
+            const { SemanticGraphService } = await Promise.resolve().then(() => __importStar(require('../services/data/semantic-graph/semantic-graph')));
             const semanticGraph = new SemanticGraphService();
             // Update semantic graph with new file relationships
             for (const file of changedFiles) {

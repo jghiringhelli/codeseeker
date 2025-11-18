@@ -1,20 +1,20 @@
 /**
- * Workflow Orchestration Adapter
+ * Workflow Orchestration Adapter - SOLID Principles Compliant
  * Bridges the CLI CommandProcessor to the sophisticated CodeMindWorkflowOrchestrator
- * Implements the expected ClaudeCodeOrchestrator interface while delegating to the full workflow
+ * Implements the IRequestProcessor interface following Dependency Inversion Principle
  */
 
-import { CodeMindWorkflowOrchestrator, UserFeatureRequest, WorkflowResult } from '../codemind-workflow-orchestrator';
+import { CodeMindWorkflowOrchestrator } from '../codemind-workflow-orchestrator';
 import { Theme } from '../ui/theme';
 import { Logger } from '../../utils/logger';
+import {
+  IRequestProcessor,
+  UserFeatureRequest,
+  WorkflowResult,
+  ProcessRequestResult
+} from '../../core/interfaces/orchestrator-interfaces';
 
-export interface ProcessRequestResult {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
-
-export class WorkflowOrchestrationAdapter {
+export class WorkflowOrchestrationAdapter implements IRequestProcessor {
   private workflowOrchestrator: CodeMindWorkflowOrchestrator;
   private logger = Logger.getInstance();
 

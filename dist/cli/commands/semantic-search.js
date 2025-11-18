@@ -44,8 +44,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createSemanticSearchCommand = createSemanticSearchCommand;
 const commander_1 = require("commander");
 const logger_1 = require("../../utils/logger");
-const semantic_search_complete_1 = require("../features/search/semantic-search-complete");
-const embedding_service_1 = __importDefault(require("../services/embedding-service"));
+const embedding_service_1 = require("../services/data/embedding/embedding-service");
 const path_1 = __importDefault(require("path"));
 const logger = new logger_1.Logger(logger_1.LogLevel.INFO, 'SemanticSearchCLI');
 function createSemanticSearchCommand() {
@@ -75,7 +74,8 @@ function createSemanticSearchCommand() {
             }
             logger.info(`Using project ID: ${projectId}`);
             // Initialize semantic search tool
-            const searchTool = new semantic_search_complete_1.SemanticSearchTool();
+            const searchFactory = require('../../core/factories/search-service-factory').SearchServiceFactory;
+            const searchTool = searchFactory.getInstance().createSemanticSearchService();
             if (options.index) {
                 // Index the codebase
                 console.log('🔄 Indexing codebase for semantic search...');
@@ -118,7 +118,7 @@ function createSemanticSearchCommand() {
                 console.log(`🔍 Searching for: "${options.query}"`);
                 try {
                     // Initialize embedding service with Xenova transformers
-                    const embeddingService = new embedding_service_1.default({
+                    const embeddingService = new embedding_service_1.EmbeddingService({
                         provider: 'xenova',
                         model: 'Xenova/all-MiniLM-L6-v2',
                         chunkSize: 8000,

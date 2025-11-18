@@ -3,7 +3,7 @@
  * Single Responsibility: Execute semantic searches using vector similarity
  * Uses fast-cosine-similarity library for optimized performance
  */
-import { ContentChunk, EmbeddingVector } from '../content-processing/content-processor';
+import { ContentChunk } from '../content-processing/content-processor';
 export interface SearchQuery {
     text: string;
     filters?: {
@@ -85,7 +85,7 @@ export declare class VectorSearchEngine {
     /**
      * Index content chunks with their embeddings
      */
-    indexContent(chunks: ContentChunk[], embeddings: EmbeddingVector[]): Promise<void>;
+    indexContent(chunks: ContentChunk[], embeddings: any[]): Promise<void>;
     /**
      * Perform semantic search using vector similarity
      */

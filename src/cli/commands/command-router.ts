@@ -1,14 +1,15 @@
 /**
- * Command Router
+ * Command Router - Refactored for SOLID Principles
  * Single Responsibility: Route commands to appropriate handlers
  * Open/Closed Principle: Easy to add new command handlers without modification
- * Dependency Inversion: Depends on abstractions (BaseCommandHandler)
+ * Dependency Inversion: Depends on abstractions and uses dependency injection
  */
 
 import * as readline from 'readline';
 import { BaseCommandHandler } from './base-command-handler';
 import { CommandContext, CommandResult } from './command-context';
 import { Theme } from '../ui/theme';
+import { WorkflowOrchestrator } from './services/workflow-orchestrator';
 
 // Import command handlers
 import { SetupCommandHandler } from './handlers/setup-command-handler';
@@ -26,9 +27,14 @@ export class CommandRouter {
   private context: CommandContext;
   private handlers: Map<string, BaseCommandHandler> = new Map();
   private rl?: readline.Interface;
+  private workflowOrchestrator: WorkflowOrchestrator;
 
-  constructor(context: CommandContext) {
+  constructor(
+    context: CommandContext,
+    workflowOrchestrator?: WorkflowOrchestrator
+  ) {
     this.context = context;
+    this.workflowOrchestrator = workflowOrchestrator || WorkflowOrchestrator.create();
     this.initializeHandlers();
   }
 
@@ -68,7 +74,12 @@ export class CommandRouter {
       return { success: false, message: 'Empty command' };
     }
 
-    // Parse command and arguments
+    // First, check if this looks like natural language before parsing as commands
+    if (this.workflowOrchestrator.shouldUseWorkflow(trimmedInput)) {
+      return await this.handleNaturalLanguage(trimmedInput);
+    }
+
+    // Parse command and arguments for traditional commands
     const [command, ...argParts] = trimmedInput.split(' ');
     const args = argParts.join(' ');
 
@@ -139,6 +150,12 @@ ${Theme.colors.success('Synchronization:')}
 ${Theme.colors.success('General:')}
   help                   Show this help message
   exit, quit             Exit CodeMind
+
+${Theme.colors.info('Natural Language:')}
+  You can also use natural language queries like:
+  "add authentication middleware to the API routes"
+  "search for database connection code"
+  "analyze the project structure"
     `;
 
     console.log(helpText);
@@ -181,6 +198,10 @@ ${Theme.colors.success('General:')}
       console.log(Theme.colors.warning('\nNo project loaded. Run "init" to setup a project.'));
     }
 
+    // Workflow orchestrator status
+    console.log(Theme.colors.primary('\nWorkflow Services:'));
+    console.log(Theme.colors.result(`  • Services initialized: ${this.workflowOrchestrator.validateServices() ? 'Yes' : 'No'}`));
+
     return { success: true, message: 'Status displayed' };
   }
 
@@ -189,5 +210,53 @@ ${Theme.colors.success('General:')}
    */
   getAvailableCommands(): string[] {
     return Array.from(this.handlers.keys()).concat(['help', 'exit', 'quit', 'status']);
+  }
+
+  /**
+   * Handle natural language queries using the workflow orchestrator
+   * Delegates to WorkflowOrchestrator following SOLID principles
+   */
+  private async handleNaturalLanguage(input: string): Promise<CommandResult> {
+    try {
+      const projectPath = this.context.currentProject?.projectPath || process.cwd();
+
+      const workflowResult = await this.workflowOrchestrator.executeWorkflow(input, projectPath);
+
+      if (workflowResult.success) {
+        const stats = this.workflowOrchestrator.getWorkflowStats(workflowResult);
+
+        return {
+          success: true,
+          message: 'Enhanced query processed successfully',
+          data: {
+            workflowResult,
+            stats
+          }
+        };
+      } else {
+        return {
+          success: false,
+          message: workflowResult.error || 'Workflow execution failed'
+        };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log(Theme.colors.error('❌ Error in natural language processing: ' + errorMessage));
+      return { success: false, message: errorMessage };
+    }
+  }
+
+  /**
+   * Get the workflow orchestrator instance for testing
+   */
+  getWorkflowOrchestrator(): WorkflowOrchestrator {
+    return this.workflowOrchestrator;
+  }
+
+  /**
+   * Set a new workflow orchestrator (for testing or different configurations)
+   */
+  setWorkflowOrchestrator(orchestrator: WorkflowOrchestrator): void {
+    this.workflowOrchestrator = orchestrator;
   }
 }

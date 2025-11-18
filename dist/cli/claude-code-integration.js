@@ -139,7 +139,7 @@ Return your analysis as structured JSON with the exact schema provided.
 `;
         const response = await this.executeClaudeCode(analysisPrompt, context, {
             projectPath,
-            maxTokens: 8000,
+            maxTokens: 12000, // Increased for comprehensive intent analysis
             resumeToken
         });
         if (!response.success) {
@@ -157,9 +157,18 @@ Return your analysis as structured JSON with the exact schema provided.
     async processRequest(userRequest, projectPath, options = {}) {
         console.log('🎯 Processing request through AI pipeline...');
         try {
-            // Step 1: Intent Detection
-            const intent = await this.detectUserIntent(userRequest);
-            console.log(`📋 Detected intent: ${intent.category} (confidence: ${intent.confidence})`);
+            // Step 1: Simple Intent Detection (more reliable)
+            const simpleIntent = await this.detectUserIntentSimple(userRequest);
+            console.log(`📋 Detected intent: ${simpleIntent.category} (confidence: ${simpleIntent.confidence}) - ${simpleIntent.reasoning}`);
+            // Convert to legacy format for compatibility
+            const intent = {
+                category: simpleIntent.category,
+                confidence: simpleIntent.confidence,
+                params: {
+                    requiresModifications: simpleIntent.requiresModifications,
+                    reasoning: simpleIntent.reasoning
+                }
+            };
             // Step 2: Semantic Search for relevant context
             const relevantFiles = await this.performSemanticSearch(userRequest, projectPath);
             console.log(`📁 Found ${relevantFiles.length} relevant files`);
@@ -231,7 +240,120 @@ Return your analysis as structured JSON with the exact schema provided.
         return context.join('\n---\n');
     }
     /**
-     * Detect user intent using AI
+     * Simple, reliable intent detection (primary method)
+     */
+    async detectUserIntentSimple(userRequest) {
+        const intentPrompt = `
+INTENT ANALYSIS:
+
+Analyze this user request: "${userRequest}"
+
+TASK: Determine the primary intent category with high confidence.
+
+INTENT CATEGORIES:
+- report: Informational queries, explanations, documentation requests (no code changes)
+- feature_request: Adding new functionality or capabilities
+- bug_fix: Fixing existing issues or errors
+- refactoring: Improving code structure without changing functionality
+- documentation: Adding/updating documentation files
+- testing: Adding/improving tests
+- optimization: Performance improvements
+
+ANALYSIS CRITERIA:
+- Focus on what the user is asking for, not how to implement it
+- Consider whether the request requires code modifications
+- Identify the primary goal (users often have mixed requests)
+
+RESPOND WITH ONLY THIS EXACT JSON FORMAT (no markdown, no explanations):
+{
+  "category": "report",
+  "confidence": 0.95,
+  "requiresModifications": false,
+  "reasoning": "Brief explanation of why this category was chosen"
+}
+
+Response:`;
+        try {
+            const response = await this.executeClaudeCode(intentPrompt, '', {
+                projectPath: '',
+                maxTokens: 4000 // Much smaller response needed
+            });
+            if (!response.success) {
+                throw new Error(`Intent detection failed: ${response.error}`);
+            }
+            // Parse the simple JSON response
+            const cleanedResponse = response.data
+                .replace(/```json/g, '')
+                .replace(/```/g, '')
+                .replace(/^[^{]*/, '')
+                .replace(/[^}]*$/, '')
+                .trim();
+            try {
+                const parsed = JSON.parse(cleanedResponse);
+                console.log(`✅ Simple intent detection successful: ${parsed.category} (${parsed.confidence})`);
+                return parsed;
+            }
+            catch (parseError) {
+                console.log(`❌ Simple JSON parsing failed: ${parseError.message}`);
+                // Enhanced fallback with user request analysis
+                const userRequestLower = userRequest.toLowerCase();
+                if (userRequestLower.includes('what is') ||
+                    userRequestLower.includes('describe') ||
+                    userRequestLower.includes('explain') ||
+                    userRequestLower.includes('about') ||
+                    userRequestLower.includes('how does') ||
+                    userRequestLower.includes('show me')) {
+                    return {
+                        category: 'report',
+                        confidence: 0.8,
+                        requiresModifications: false,
+                        reasoning: 'Detected informational query via fallback analysis'
+                    };
+                }
+                if (userRequestLower.includes('add') ||
+                    userRequestLower.includes('implement') ||
+                    userRequestLower.includes('create') ||
+                    userRequestLower.includes('build')) {
+                    return {
+                        category: 'feature_request',
+                        confidence: 0.7,
+                        requiresModifications: true,
+                        reasoning: 'Detected feature request via fallback analysis'
+                    };
+                }
+                if (userRequestLower.includes('fix') ||
+                    userRequestLower.includes('bug') ||
+                    userRequestLower.includes('error') ||
+                    userRequestLower.includes('issue')) {
+                    return {
+                        category: 'bug_fix',
+                        confidence: 0.7,
+                        requiresModifications: true,
+                        reasoning: 'Detected bug fix via fallback analysis'
+                    };
+                }
+                // Default fallback
+                return {
+                    category: 'report',
+                    confidence: 0.5,
+                    requiresModifications: false,
+                    reasoning: 'Default fallback - treating as informational request'
+                };
+            }
+        }
+        catch (error) {
+            console.log(`⚠️ Intent detection error: ${error.message}`);
+            // Final fallback
+            return {
+                category: 'report',
+                confidence: 0.5,
+                requiresModifications: false,
+                reasoning: 'Error fallback - treating as informational request'
+            };
+        }
+    }
+    /**
+     * Comprehensive intent detection with task breakdown (legacy method)
      */
     async detectUserIntent(userRequest) {
         const intentPrompt = `
@@ -302,18 +424,16 @@ Response:`;
                 let cleanedResponse = response.data.trim();
                 // Remove any markdown code blocks
                 cleanedResponse = cleanedResponse.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1');
-                // Enhanced JSON extraction with multiple patterns for comprehensive response
+                // Enhanced JSON extraction with more robust patterns
                 const patterns = [
-                    // Complete multiline JSON with proper brace matching (most comprehensive)
-                    /\{[\s\S]*?"intent"[\s\S]*?"taskGroups"[\s\S]*?\}(?:\s*\])?(?:\s*\})?/,
+                    // Complete comprehensive format - more flexible brace matching
+                    /\{[\s\S]*?"intent"[\s\S]*?"category"[\s\S]*?"taskGroups"[\s\S]*?\]/,
                     // Legacy category format (fallback)
-                    /\{[^{}]*"category"[^{}]*\}/,
-                    // Shorter comprehensive format
-                    /\{[^{}]*"intent"[^{}]*"taskGroups"[^{}]*\}/s,
-                    // JSON in any format (more permissive)
-                    /\{.*?"intent".*?\}/s,
-                    // Legacy confidence field format
-                    /\{[^}]*"category"[^}]*"confidence"[^}]*\}/
+                    /\{[^{}]*"category"[^{}]*"confidence"[^{}]*\}/,
+                    // Simple intent format without taskGroups
+                    /\{[^{}]*"intent"[^{}]*"category"[^{}]*\}/,
+                    // Minimal JSON with category
+                    /\{[^}]*"category"[^}]*\}/
                 ];
                 for (let i = 0; i < patterns.length; i++) {
                     const jsonMatch = cleanedResponse.match(patterns[i]);
@@ -338,13 +458,14 @@ Response:`;
                         }
                     }
                 }
-                // Advanced brace matching for complex nested JSON
+                // Advanced brace matching with truncation handling
                 const jsonStart = cleanedResponse.indexOf('{');
                 if (jsonStart >= 0) {
                     let braceCount = 0;
                     let inString = false;
                     let escapeNext = false;
                     let jsonEnd = jsonStart;
+                    let hasClosedProperly = false;
                     for (let i = jsonStart; i < cleanedResponse.length; i++) {
                         const char = cleanedResponse[i];
                         if (escapeNext) {
@@ -366,8 +487,44 @@ Response:`;
                                 braceCount--;
                                 if (braceCount === 0) {
                                     jsonEnd = i + 1;
+                                    hasClosedProperly = true;
                                     break;
                                 }
+                            }
+                        }
+                    }
+                    // If JSON appears truncated, try to complete it
+                    if (!hasClosedProperly && braceCount > 0) {
+                        console.log(`⚠️ JSON appears truncated (${braceCount} unclosed braces), attempting repair...`);
+                        // Try to find a reasonable stopping point for partial JSON
+                        let lastValidPosition = jsonStart;
+                        let tempBraceCount = 0;
+                        for (let i = jsonStart; i < cleanedResponse.length; i++) {
+                            const char = cleanedResponse[i];
+                            if (char === '{')
+                                tempBraceCount++;
+                            else if (char === '}')
+                                tempBraceCount--;
+                            // Look for complete property definitions
+                            if (char === ',' && tempBraceCount === 1) {
+                                lastValidPosition = i;
+                            }
+                        }
+                        // Construct a completed JSON by closing at the last valid position
+                        if (lastValidPosition > jsonStart) {
+                            jsonEnd = lastValidPosition;
+                            const partialJson = cleanedResponse.substring(jsonStart, jsonEnd);
+                            const repairedJson = partialJson + '}'; // Close the main object
+                            console.log(`🔧 Attempting to parse repaired JSON (${repairedJson.length} chars)`);
+                            try {
+                                const parsed = JSON.parse(repairedJson);
+                                if (parsed.intent || parsed.category) {
+                                    console.log(`✅ Successfully parsed repaired JSON`);
+                                    return parsed.intent ? this.transformComprehensiveResponse(parsed) : parsed;
+                                }
+                            }
+                            catch (repairError) {
+                                console.log(`❌ Repaired JSON also failed: ${repairError.message}`);
                             }
                         }
                     }
@@ -400,12 +557,17 @@ Response:`;
                 console.log(`🔍 Raw Claude Code response: ${response.data}`);
                 // Enhanced text analysis for intent detection
                 const responseText = response.data.toLowerCase();
-                // Look for specific intent indicators in the response
+                // Look for specific intent indicators in the response and original request
+                const userRequestLower = userRequest.toLowerCase();
                 if (responseText.includes('report') ||
                     responseText.includes('what is') ||
                     responseText.includes('describe') ||
                     responseText.includes('about') ||
-                    responseText.includes('explain')) {
+                    responseText.includes('explain') ||
+                    userRequestLower.includes('what is this project about') ||
+                    userRequestLower.includes('what is') ||
+                    userRequestLower.includes('describe') ||
+                    userRequestLower.includes('about')) {
                     console.log('📋 Detected report intent from text analysis');
                     return { category: 'report', confidence: 0.8, params: {} };
                 }

@@ -36,9 +36,41 @@ export declare class ClaudeConversationManager {
      */
     private buildConversationContext;
     /**
+     * Execute Claude Code CLI with interactive session support
+     */
+    private executeSimpleClaudeCommand;
+    /**
+     * Execute interactive Claude Code session with permission handling
+     */
+    private executeInteractiveClaudeSession;
+    /**
+     * Fallback to simple Claude Code commands
+     */
+    private executeSimpleClaudeCommands;
+    /**
      * Execute Claude Code CLI with the conversation context
      */
     private executeClaudeCode;
+    /**
+     * Check if Claude Code output contains a permission request
+     */
+    private isPermissionRequest;
+    /**
+     * Extract the question/permission request from Claude Code output
+     */
+    private extractQuestion;
+    /**
+     * Prompt user for permission through CodeMind interface
+     */
+    private promptUserForPermission;
+    /**
+     * Get automatic response for command mode (non-interactive)
+     */
+    private getAutomaticResponse;
+    /**
+     * Get smart response options based on the question
+     */
+    private getSmartOptions;
     /**
      * Strategy 1: Execute with completely clean environment (no Claude Code vars)
      */

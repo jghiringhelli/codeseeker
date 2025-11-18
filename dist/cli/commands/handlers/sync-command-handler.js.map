@@ -1,0 +1,1 @@
+{"version":3,"file":"sync-command-handler.js","sourceRoot":"","sources":["../../../../src/cli/commands/handlers/sync-command-handler.ts"],"names":[],"mappings":";AAAA;;;GAGG;;;AAEH,kEAA6D;AAG7D,MAAa,kBAAmB,SAAQ,yCAAkB;IACxD,KAAK,CAAC,MAAM,CAAC,IAAY;QACvB,8DAA8D;QAC9D,OAAO;YACL,OAAO,EAAE,KAAK;YACd,OAAO,EAAE,2EAA2E;SACrF,CAAC;IACJ,CAAC;CACF;AARD,gDAQC"}

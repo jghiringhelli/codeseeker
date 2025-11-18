@@ -1,83 +1,44 @@
 /**
- * ProjectManager - Handles all project-related operations
- * Single Responsibility: Project initialization, detection, configuration
+ * ProjectManager - SOLID Principles Compliant
+ * Uses dependency injection and single responsibility services
+ * Now includes proper error handling following SOLID principles
  */
-export interface ProjectConfig {
-    projectId: string;
-    projectName: string;
-    projectPath: string;
-    projectType?: string;
-    languages: string[];
-    primaryLanguage?: string;
-    installedParsers?: string[];
-    frameworks?: string[];
-    features?: string[];
-    createdAt: string;
-    lastUpdated?: string;
-}
-export interface ProjectInitOptions {
-    projectName: string;
-    projectType: string;
-    features: string[];
-    resumeToken?: string;
-}
-export interface LanguageSetupResult {
-    detectedLanguages: string[];
-    selectedLanguages: string[];
-    installedPackages: string[];
-    errors: string[];
-}
+import { ProjectConfig, ProjectInitOptions, IProjectDetector, ILanguageDetector, IProjectRegistry } from '../../core/interfaces/project-interfaces';
 export declare class ProjectManager {
-    private dbConnections;
+    private projectDetector;
+    private languageManager;
+    private projectRegistry;
     private currentProjectPath;
-    constructor();
+    constructor(projectDetector: IProjectDetector, languageManager: ILanguageDetector, projectRegistry: IProjectRegistry);
     /**
-     * Set the current project path
+     * Initialize a new project using dependency-injected services
      */
-    setProjectPath(projectPath: string): void;
-    /**
-     * Detect if current directory is a CodeMind project
-     */
-    detectProject(projectPath: string): ProjectConfig | null;
-    /**
-     * Initialize a new CodeMind project with full AI analysis
-     */
-    initializeProject(projectPath: string, options: ProjectInitOptions, syncMode?: boolean): Promise<{
+    initializeProject(projectPath: string, options: ProjectInitOptions, _syncMode?: boolean): Promise<{
         success: boolean;
         config?: ProjectConfig;
         error?: string;
     }>;
     /**
-     * Switch between projects
+     * Switch to a different project
      */
     switchProject(targetPath: string): Promise<ProjectConfig | null>;
     /**
-     * Get project information and statistics
+     * Get project information from registry
      */
-    getProjectInfo(projectId: string): Promise<any>;
-    private verifyInfrastructure;
-    private verifyProjectInDatabase;
-    private registerInDatabases;
+    getProjectInfo(projectId: string): Promise<ProjectConfig | null>;
+    /**
+     * Scan project files using detector service
+     */
+    scanProjectFiles(projectPath: string): Promise<ProjectConfig | null>;
+    /**
+     * Compatibility methods for existing code
+     */
+    detectProject(projectPath?: string): Promise<ProjectConfig | null>;
+    setProjectPath(projectPath: string): void;
+    getCurrentProjectPath(): string;
     private createLocalConfig;
-    /**
-     * Detect languages and setup project environment
-     */
-    private detectLanguagesAndSetup;
-    /**
-     * Scan project files using SOLID file scanner
-     */
-    scanProjectFiles(projectPath: string): Promise<any>;
-    /**
-     * Perform complete project analysis using SOLID file scanner
-     */
-    private performCompleteAnalysis;
-    /**
-     * Populate databases with complete analysis data using status tracking
-     */
-    private populateDatabases;
-    private detectArchitectureType;
-    private extractArchitecturePatterns;
+    private determinePrimaryLanguage;
     private detectFrameworks;
-    private extractUseCases;
 }
+export { ProjectInitOptions } from '../../core/interfaces/project-interfaces';
 //# sourceMappingURL=project-manager.d.ts.map

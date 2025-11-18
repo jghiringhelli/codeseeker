@@ -45,50 +45,23 @@ const readline = __importStar(require("readline"));
 const dotenv = __importStar(require("dotenv"));
 const theme_1 = require("./ui/theme");
 const welcome_display_1 = require("./ui/welcome-display");
-const project_manager_1 = require("./managers/project-manager");
+const command_service_factory_1 = require("../core/factories/command-service-factory");
 const command_processor_1 = require("./managers/command-processor");
-const workflow_orchestration_adapter_1 = require("./managers/workflow-orchestration-adapter");
 const database_manager_1 = require("./managers/database-manager");
-const user_interface_1 = require("./managers/user-interface");
 const platform_utils_1 = require("../shared/platform-utils");
-const codemind_instruction_service_1 = require("./services/codemind-instruction-service");
-const interrupt_manager_1 = require("./managers/interrupt-manager");
-const claude_code_forwarder_1 = require("./managers/claude-code-forwarder");
 // Environment variables will be loaded in start() method based on current working directory
 class CodeMindCLI {
     rl;
-    projectManager;
     commandProcessor;
-    databaseManager;
-    userInterface;
-    instructionService;
-    interruptManager;
-    claudeForwarder;
+    context;
     currentProject = null;
     activeOperations = new Set();
+    currentAbortController;
     constructor() {
-        // Initialize all components following SOLID dependency injection
-        this.projectManager = new project_manager_1.ProjectManager();
-        this.databaseManager = new database_manager_1.DatabaseManager();
-        this.userInterface = new user_interface_1.UserInterface();
-        this.instructionService = new codemind_instruction_service_1.CodeMindInstructionService();
-        this.interruptManager = interrupt_manager_1.InterruptManager.getInstance();
-        this.claudeForwarder = new claude_code_forwarder_1.ClaudeCodeForwarder({
-            showTimestamps: false,
-            prefixLines: true
-        });
-        // Create command processor with context including workflow orchestrator
-        const workflowOrchestrator = new workflow_orchestration_adapter_1.WorkflowOrchestrationAdapter();
-        const context = {
-            projectManager: this.projectManager,
-            claudeOrchestrator: workflowOrchestrator, // Workflow orchestrator adapter
-            databaseManager: this.databaseManager,
-            userInterface: this.userInterface,
-            instructionService: this.instructionService,
-            interruptManager: this.interruptManager,
-            claudeForwarder: this.claudeForwarder
-        };
-        this.commandProcessor = new command_processor_1.CommandProcessor(context);
+        // Initialize all components using SOLID dependency injection factory
+        const commandServiceFactory = command_service_factory_1.CommandServiceFactory.getInstance();
+        this.context = commandServiceFactory.createCommandContext();
+        this.commandProcessor = new command_processor_1.CommandProcessor(this.context);
         // Setup readline interface
         this.rl = readline.createInterface({
             input: process.stdin,
@@ -101,14 +74,14 @@ class CodeMindCLI {
         this.commandProcessor.setReadlineInterface(this.rl);
         this.setupEventHandlers();
         // Setup cleanup on exit - with immediate exit option
-        process.on('exit', () => this.cleanup());
+        process.on('exit', () => void this.cleanup());
         // Enhanced SIGINT handling for Ctrl+C
         let sigintCount = 0;
         process.on('SIGINT', () => {
             sigintCount++;
             if (sigintCount === 1) {
                 console.log(theme_1.Theme.colors.warning('\n\n⚠ Interrupt received. Press Ctrl+C again to force exit.'));
-                this.cleanup();
+                void this.cleanup();
                 // Give cleanup 3 seconds to complete
                 setTimeout(() => {
                     if (sigintCount === 1) {
@@ -121,7 +94,7 @@ class CodeMindCLI {
                 process.exit(1);
             }
         });
-        process.on('SIGTERM', () => this.cleanup());
+        process.on('SIGTERM', () => void this.cleanup());
         // Handle uncaught exceptions to prevent CLI from freezing
         process.on('uncaughtException', (error) => {
             console.error(theme_1.Theme.colors.error(`\n❌ Uncaught exception: ${error.message}`));
@@ -130,13 +103,41 @@ class CodeMindCLI {
                 this.rl.prompt();
             }
         });
-        process.on('unhandledRejection', (reason, promise) => {
-            console.error(theme_1.Theme.colors.error(`\n❌ Unhandled promise rejection: ${reason}`));
+        process.on('unhandledRejection', (reason) => {
+            console.error(theme_1.Theme.colors.error(`\n❌ Unhandled promise rejection: ${String(reason)}`));
             console.error(theme_1.Theme.colors.muted('CLI will attempt to continue. Type "/help" if you need assistance.'));
             if (this.rl) {
                 this.rl.prompt();
             }
         });
+    }
+    /**
+     * Start silently for command mode (no welcome, no interactive prompt)
+     */
+    async startSilent() {
+        try {
+            // Get user's original working directory (set by bin/codemind.js)
+            const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
+            // Load environment variables from user's working directory (not CodeMind installation)
+            // Suppress dotenv logs during init for cleaner output
+            const originalStderr = process.stderr.write.bind(process.stderr);
+            try {
+                // Temporarily suppress stderr to hide dotenv injection logs
+                process.stderr.write = () => true;
+                dotenv.config({ path: userCwd + '/.env' });
+            }
+            finally {
+                // Restore stderr
+                process.stderr.write = originalStderr;
+            }
+            // Auto-detect project in background (non-blocking)
+            await this.autoDetectProjectSilent();
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(theme_1.Theme.colors.error(`Failed to start CLI: ${errorMessage}`));
+            process.exit(1);
+        }
     }
     /**
      * Start the CLI - SOLID implementation with immediate prompt
@@ -146,13 +147,28 @@ class CodeMindCLI {
             // Get user's original working directory (set by bin/codemind.js)
             const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
             // Load environment variables from user's working directory (not CodeMind installation)
-            dotenv.config({ path: userCwd + '/.env' });
+            // Suppress dotenv logs during init for cleaner output
+            const originalStderr = process.stderr.write.bind(process.stderr);
+            try {
+                // Temporarily suppress stderr to hide dotenv injection logs
+                process.stderr.write = () => true;
+                dotenv.config({ path: userCwd + '/.env' });
+            }
+            finally {
+                // Restore stderr
+                process.stderr.write = originalStderr;
+            }
             // Display welcome message
             welcome_display_1.WelcomeDisplay.displayWelcome();
             // Show platform information for debugging
             const platformInfo = platform_utils_1.PlatformUtils.getPlatformInfo();
             console.log(theme_1.Theme.colors.muted(`\n💻 Platform: ${platformInfo.platform} (${platformInfo.arch}) Node ${platformInfo.nodeVersion}`));
             console.log(theme_1.Theme.colors.muted(`🐚 Shell: ${platformInfo.shell} | File Command: ${platformInfo.fileCommand}${platformInfo.isGitBash ? ' (Git Bash)' : ''}${platformInfo.isWSL ? ' (WSL)' : ''}`));
+            // Check database connections on startup (non-blocking)
+            this.checkDatabaseConnections().catch((error) => {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.log(theme_1.Theme.colors.warning(`\n⚠️  Database check failed: ${errorMessage}`));
+            });
             // Start interactive session immediately (fixes the exit issue)
             console.log(theme_1.Theme.colors.primary('\n🎯 CodeMind CLI is ready! You can now:'));
             console.log(theme_1.Theme.colors.muted('   • Type /help to see available commands'));
@@ -162,13 +178,15 @@ class CodeMindCLI {
             console.log(theme_1.Theme.colors.muted('   • Press Ctrl+C twice to force exit\n'));
             this.rl.prompt();
             // Auto-detect project in background (non-blocking)
-            this.autoDetectProject().catch(error => {
-                console.log(theme_1.Theme.colors.warning(`\n⚠ Project detection failed: ${error.message}`));
+            this.autoDetectProject().catch((error) => {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.log(theme_1.Theme.colors.warning(`\n⚠ Project detection failed: ${errorMessage}`));
                 this.rl.prompt();
             });
         }
         catch (error) {
-            console.error(theme_1.Theme.colors.error(`Failed to start CLI: ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(theme_1.Theme.colors.error(`Failed to start CLI: ${errorMessage}`));
             process.exit(1);
         }
     }
@@ -185,7 +203,8 @@ class CodeMindCLI {
             }
             catch (error) {
                 // Ensure errors don't break the readline interface
-                console.error(theme_1.Theme.colors.error(`❌ Unexpected error: ${error.message}`));
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(theme_1.Theme.colors.error(`❌ Unexpected error: ${errorMessage}`));
                 console.error(theme_1.Theme.colors.muted('CLI will continue running. Type "/help" for available commands.'));
             }
             finally {
@@ -202,9 +221,8 @@ class CodeMindCLI {
                 // The interrupt manager tracks operations but doesn't have a public interrupt method
                 // We'll rely on the abort controller and clearing operations
                 // Abort the current operation if available
-                const abortController = this.currentAbortController;
-                if (abortController) {
-                    abortController.abort();
+                if (this.currentAbortController) {
+                    this.currentAbortController.abort();
                 }
                 // Clear active operations
                 this.activeOperations.clear();
@@ -241,6 +259,8 @@ class CodeMindCLI {
      * Process user input through command processor - Single Responsibility
      */
     async processInput(input) {
+        // Update command context with current project (only when it changes)
+        this.syncProjectContext();
         // Create operation promise for tracking
         const operation = this.processInputOperation(input);
         this.activeOperations.add(operation);
@@ -252,25 +272,38 @@ class CodeMindCLI {
         }
     }
     /**
+     * Sync project context with command processor (optimized)
+     */
+    syncProjectContext() {
+        const processorContext = this.commandProcessor.context;
+        if (processorContext.currentProject !== this.currentProject) {
+            processorContext.currentProject = this.currentProject;
+        }
+    }
+    /**
+     * Create a timeout promise with abort controller support
+     */
+    createTimeoutPromise(abortController, timeoutMs = 5 * 60 * 1000) {
+        return new Promise((_, reject) => {
+            const timeout = setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs / 1000} seconds`)), timeoutMs);
+            // Cancel timeout if operation is aborted
+            abortController.signal.addEventListener('abort', () => {
+                clearTimeout(timeout);
+                reject(new Error('Operation cancelled by user'));
+            });
+        });
+    }
+    /**
      * Internal operation handler to be tracked
      */
     async processInputOperation(input) {
         try {
-            // Update command context with current project
-            this.commandProcessor.context.currentProject = this.currentProject;
-            // Create an AbortController for cancellation
-            const abortController = new AbortController();
-            // Store the abort controller so it can be triggered by Ctrl+Z
-            this.currentAbortController = abortController;
-            // Add timeout protection to prevent hanging operations
-            const timeoutPromise = new Promise((_, reject) => {
-                const timeout = setTimeout(() => reject(new Error('Operation timed out after 5 minutes')), 5 * 60 * 1000);
-                // Cancel timeout if operation is aborted
-                abortController.signal.addEventListener('abort', () => {
-                    clearTimeout(timeout);
-                    reject(new Error('Operation cancelled by user'));
-                });
-            });
+            // Create an AbortController for cancellation (reuse if possible)
+            if (!this.currentAbortController || this.currentAbortController.signal.aborted) {
+                this.currentAbortController = new AbortController();
+            }
+            // Create timeout promise using utility method
+            const timeoutPromise = this.createTimeoutPromise(this.currentAbortController);
             // Process input through command processor (SOLID delegation) with timeout and abort
             const result = await Promise.race([
                 this.commandProcessor.processInput(input),
@@ -278,29 +311,47 @@ class CodeMindCLI {
             ]);
             // Handle results through UserInterface (SOLID separation)
             if (!result.success && result.message) {
-                this.userInterface.showError(result.message);
+                this.context.userInterface.showError(result.message);
             }
             else if (result.success && result.message) {
-                this.userInterface.showSuccess(result.message);
+                this.context.userInterface.showSuccess(result.message);
             }
             // Update current project if it changed
-            if (result.data && result.data.projectId) {
+            if (result.data?.projectId) {
                 this.currentProject = result.data;
             }
-            console.log(theme_1.Theme.colors.success('🎯 Command completed - returning to prompt...'));
+            // Don't show redundant completion message - commands show their own success/failure
+            // Add a small delay to ensure all output is flushed before prompt
+            await new Promise(resolve => setTimeout(resolve, 50));
         }
         catch (error) {
             // Enhanced error handling with more context
-            console.error(theme_1.Theme.colors.error(`❌ Command processing failed: ${error.message}`));
-            if (error.stack && !error.message.includes('timed out')) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(theme_1.Theme.colors.error(`❌ Command processing failed: ${errorMessage}`));
+            if (error instanceof Error && error.stack && !errorMessage.includes('timed out')) {
                 console.error(theme_1.Theme.colors.muted('Stack trace:'));
                 console.error(theme_1.Theme.colors.muted(error.stack));
             }
-            if (error.message.includes('timed out')) {
+            if (errorMessage.includes('timed out')) {
                 console.error(theme_1.Theme.colors.warning('⏰ The operation took too long and was cancelled to prevent CLI hanging.'));
                 console.error(theme_1.Theme.colors.muted('Try breaking down complex requests into smaller parts.'));
             }
             console.error(theme_1.Theme.colors.muted('The CLI will continue running. Try again or type "/help" for assistance.'));
+        }
+        finally {
+            // Always show prompt, even if there was an error
+            this.rl.prompt();
+        }
+    }
+    /**
+     * Auto-detect CodeMind project silently (no output)
+     */
+    async autoDetectProjectSilent() {
+        const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
+        const projectConfig = await this.context.projectManager.detectProject(userCwd);
+        if (projectConfig) {
+            this.currentProject = projectConfig;
+            // Skip instruction loading in silent mode to avoid authentication issues
         }
     }
     /**
@@ -308,13 +359,13 @@ class CodeMindCLI {
      */
     async autoDetectProject() {
         const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
-        const projectConfig = this.projectManager.detectProject(userCwd);
+        const projectConfig = await this.context.projectManager.detectProject(userCwd);
         if (projectConfig) {
             this.currentProject = projectConfig;
             console.log(theme_1.Theme.colors.success(`✓ Project loaded: ${projectConfig.projectName}`));
             // Load CODEMIND.md instructions
             try {
-                const instructionsSummary = await this.instructionService.getInstructionsSummary(userCwd);
+                const instructionsSummary = await this.context.instructionService.getInstructionsSummary(userCwd);
                 if (instructionsSummary.length > 1 || instructionsSummary[0] !== 'No CODEMIND.md instructions found') {
                     console.log(theme_1.Theme.colors.info(`📋 Loaded instructions:`));
                     instructionsSummary.forEach(summary => {
@@ -323,7 +374,8 @@ class CodeMindCLI {
                 }
             }
             catch (error) {
-                console.log(theme_1.Theme.colors.warning(`⚠ Failed to load instructions: ${error.message}`));
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.log(theme_1.Theme.colors.warning(`⚠ Failed to load instructions: ${errorMessage}`));
             }
         }
         else {
@@ -337,7 +389,47 @@ class CodeMindCLI {
      * Set project path programmatically (for command-line options)
      */
     setProjectPath(projectPath) {
-        this.projectManager.setProjectPath(projectPath);
+        this.context.projectManager.setProjectPath(projectPath);
+    }
+    /**
+     * Check database connections on startup
+     */
+    async checkDatabaseConnections() {
+        console.log(theme_1.Theme.colors.muted('\n🔍 Checking database connections...'));
+        try {
+            const databaseManager = new database_manager_1.DatabaseManager();
+            // Quick connection test with short timeout
+            const connectionPromise = databaseManager.getDatabaseStatus();
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout (3s)')), 3000));
+            const status = await Promise.race([connectionPromise, timeoutPromise]);
+            // Check each database
+            const postgresStatus = status.postgresql?.available ? '✅' : '❌';
+            const redisStatus = status.redis?.available ? '✅' : '❌';
+            const neo4jStatus = status.neo4j?.available ? '✅' : '❌';
+            console.log(theme_1.Theme.colors.muted(`   • PostgreSQL: ${postgresStatus}`));
+            console.log(theme_1.Theme.colors.muted(`   • Redis: ${redisStatus}`));
+            console.log(theme_1.Theme.colors.muted(`   • Neo4j: ${neo4jStatus}`));
+            // Show warnings for failed connections
+            const failedDatabases = [];
+            if (!status.postgresql?.available)
+                failedDatabases.push('PostgreSQL');
+            if (!status.redis?.available)
+                failedDatabases.push('Redis');
+            if (!status.neo4j?.available)
+                failedDatabases.push('Neo4j');
+            if (failedDatabases.length > 0) {
+                console.log(theme_1.Theme.colors.warning(`\n⚠️  Warning: ${failedDatabases.join(', ')} ${failedDatabases.length === 1 ? 'is' : 'are'} not available`));
+                console.log(theme_1.Theme.colors.muted('   Some features may be limited. Use /init to set up databases.'));
+            }
+            else {
+                console.log(theme_1.Theme.colors.success('\n✅ All databases connected successfully'));
+            }
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.log(theme_1.Theme.colors.warning(`\n⚠️  Database connection check failed: ${errorMessage}`));
+            console.log(theme_1.Theme.colors.muted('   CodeMind will work with limited functionality. Use /init to set up databases.'));
+        }
     }
     /**
      * Cleanup resources on exit
@@ -348,14 +440,14 @@ class CodeMindCLI {
             // Cleanup with timeout protection
             const cleanupPromise = async () => {
                 // Cleanup interrupt manager
-                this.interruptManager.cleanup();
+                this.context.interruptManager.cleanup();
                 // Cleanup Claude Code forwarder
-                this.claudeForwarder.stopForwarding();
+                this.context.claudeForwarder.stopForwarding();
                 // Cleanup database connections
-                if (this.databaseManager) {
+                if (this.context.databaseManager) {
                     try {
                         await Promise.race([
-                            this.databaseManager.cleanup?.(),
+                            this.context.databaseManager.cleanup?.(),
                             new Promise(resolve => setTimeout(resolve, 1000)) // 1 second timeout
                         ]);
                     }
@@ -376,7 +468,8 @@ class CodeMindCLI {
             console.log(theme_1.Theme.colors.muted('✅ Cleanup complete'));
         }
         catch (error) {
-            console.error(theme_1.Theme.colors.error(`❌ Cleanup error: ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(theme_1.Theme.colors.error(`❌ Cleanup error: ${errorMessage}`));
         }
     }
 }
@@ -394,7 +487,7 @@ async function main() {
 ${theme_1.Theme.colors.primary('CodeMind Interactive CLI - Intelligent Code Assistant')}
 
 ${theme_1.Theme.colors.secondary('Usage:')}
-  codemind [options]
+  codemind [options] [command]
 
 ${theme_1.Theme.colors.secondary('Options:')}
   -V, --version         output the version number
@@ -407,6 +500,7 @@ ${theme_1.Theme.colors.secondary('Examples:')}
   codemind                    Start interactive mode in current directory
   codemind -p /path/to/proj   Start with specific project path
   codemind -c "analyze main"  Execute single command and exit
+  codemind "what is this project about"  Execute direct command and exit
 `);
         return;
     }
@@ -426,11 +520,40 @@ ${theme_1.Theme.colors.secondary('Examples:')}
     if (hasCommand) {
         const commandIndex = args.findIndex(arg => arg === '-c' || arg === '--command');
         if (commandIndex !== -1 && args[commandIndex + 1]) {
-            // Execute single command and exit
-            await cli.start();
-            await cli.processInput(args[commandIndex + 1]);
+            // Execute single command and exit (streamlined for non-interactive mode)
+            try {
+                await cli.startSilent();
+                await cli.processInput(args[commandIndex + 1]);
+                console.log(theme_1.Theme.colors.success('✅ Command completed'));
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(theme_1.Theme.colors.error(`❌ Command failed: ${errorMessage}`));
+                if (error instanceof Error && error.stack) {
+                    console.error(error.stack);
+                }
+            }
             process.exit(0);
         }
+    }
+    // Handle direct command (positional argument that's not a flag)
+    const commandStartIndex = args.findIndex(arg => !arg.startsWith('-') && !args[args.indexOf(arg) - 1]?.match(/^-[cp]|^--(?:command|project)$/));
+    if (commandStartIndex !== -1 && !hasCommand && !hasProject) {
+        // Execute direct command with all remaining arguments and exit
+        const fullCommand = args.slice(commandStartIndex).join(' ');
+        try {
+            await cli.startSilent();
+            await cli.processInput(fullCommand);
+            console.log(theme_1.Theme.colors.success('✅ Command completed'));
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(theme_1.Theme.colors.error(`❌ Command failed: ${errorMessage}`));
+            if (error instanceof Error && error.stack) {
+                console.error(error.stack);
+            }
+        }
+        process.exit(0);
     }
     // Start interactive mode
     await cli.start();
@@ -442,7 +565,7 @@ process.on('uncaughtException', (error) => {
     process.exit(1);
 });
 process.on('unhandledRejection', (error) => {
-    console.error(theme_1.Theme.colors.error(`\n❌ Unhandled rejection: ${error}`));
+    console.error(theme_1.Theme.colors.error(`\n❌ Unhandled rejection: ${String(error)}`));
     console.error('This error should be handled properly in the application code.');
     console.error('CodeMind will continue running, but this issue should be fixed.');
     // Don't exit immediately - let the application handle it
@@ -451,7 +574,8 @@ process.on('unhandledRejection', (error) => {
 // Start CLI if this is the main module
 if (require.main === module) {
     main().catch((error) => {
-        console.error(theme_1.Theme.colors.error(`\n❌ Failed to start CodeMind CLI: ${error.message}`));
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(theme_1.Theme.colors.error(`\n❌ Failed to start CodeMind CLI: ${errorMessage}`));
         process.exit(1);
     });
 }

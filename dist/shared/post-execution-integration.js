@@ -8,7 +8,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostExecutionIntegration = void 0;
 const logger_1 = require("./logger");
-const git_branch_manager_1 = require("./git-branch-manager");
+const git_branch_manager_1 = require("./managers/git-branch-manager");
 const validation_cycle_1 = require("./validation-cycle");
 const child_process_1 = require("child_process");
 const util_1 = require("util");

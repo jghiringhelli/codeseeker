@@ -37,16 +37,13 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SemanticSearchManager = void 0;
 const crypto = __importStar(require("crypto"));
 const fs = __importStar(require("fs/promises"));
 const logger_1 = require("../utils/logger");
 const database_config_1 = require("../config/database-config");
-const embedding_service_1 = __importDefault(require("../cli/services/embedding-service"));
+const embedding_service_1 = require("../cli/services/embedding-service");
 /**
  * Unified Semantic Search Manager
  * Single point of truth for all semantic search operations
@@ -64,7 +61,7 @@ class SemanticSearchManager {
     constructor() {
         this.logger = logger_1.Logger.getInstance();
         this.dbConnections = new database_config_1.DatabaseConnections();
-        this.embeddingService = new embedding_service_1.default({
+        this.embeddingService = new embedding_service_1.EmbeddingService({
             provider: 'xenova', // Use Xenova transformers for zero-cost, high-quality embeddings
             model: 'Xenova/all-MiniLM-L6-v2', // Use Xenova transformer model
             chunkSize: this.CHUNK_SIZE,
@@ -445,7 +442,9 @@ class SemanticSearchManager {
             const result = await pgClient.query(searchQuery, params);
             const results = [];
             for (const row of result.rows) {
-                const metadata = JSON.parse(row.metadata || '{}');
+                const metadata = typeof row.metadata === 'string'
+                    ? JSON.parse(row.metadata || '{}')
+                    : row.metadata || {};
                 const chunk = {
                     id: row.chunk_id,
                     filePath: row.file_path,

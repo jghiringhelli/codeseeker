@@ -6,7 +6,7 @@
 
 import { Command } from 'commander';
 import { Logger, LogLevel } from '../../utils/logger';
-import { SemanticSearchTool } from '../features/search/semantic-search-complete';
+import { SemanticSearchService } from '../services/search/semantic-search';
 import { EmbeddingService } from '../services/data/embedding/embedding-service';
 import path from 'path';
 
@@ -44,7 +44,8 @@ export function createSemanticSearchCommand(): Command {
         logger.info(`Using project ID: ${projectId}`);
 
         // Initialize semantic search tool
-        const searchTool = new SemanticSearchTool();
+        const searchFactory = require('../../core/factories/search-service-factory').SearchServiceFactory;
+        const searchTool = searchFactory.getInstance().createSemanticSearchService();
 
         if (options.index) {
           // Index the codebase

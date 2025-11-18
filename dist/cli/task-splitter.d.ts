@@ -2,7 +2,7 @@
  * Task Splitter - Breaks complex requests into manageable sub-tasks
  * Analyzes user requests and semantic context to create optimal task breakdown
  */
-import { ProcessedIntent } from './intent-analyzer';
+import { ProcessedIntent } from './services/analysis/user-intentions/intent-analyzer';
 import { EnhancementContext } from '../shared/semantic-enhancement-engine';
 export interface UserFeatureRequest {
     query: string;

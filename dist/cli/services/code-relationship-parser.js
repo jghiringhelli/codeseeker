@@ -41,7 +41,7 @@ exports.CodeRelationshipParser = void 0;
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const fast_glob_1 = require("fast-glob");
-const semantic_graph_1 = require("./semantic-graph");
+const semantic_graph_1 = require("./semantic-graph/semantic-graph");
 const logger_1 = require("../../utils/logger");
 class CodeRelationshipParser {
     logger = logger_1.Logger.getInstance();

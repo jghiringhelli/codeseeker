@@ -6,14 +6,14 @@
  */
 import { OrchestrationResult } from './task-specific-file-orchestrator';
 import { ContextualContinuation } from './codemind-memory-system';
-export interface MemoryEnhancedOrchestrationOptions {
+export interface MemoryOrchestrationOptions {
     useMemoryContext: boolean;
     learnFromInteractions: boolean;
     adaptToProjectPatterns: boolean;
     preserveInteractionHistory: boolean;
     enableSmartContinuation: boolean;
 }
-export interface MemoryEnhancedResult extends OrchestrationResult {
+export interface MemoryOrchestrationResult extends OrchestrationResult {
     memoryContext: {
         requestId: string;
         contextualContinuation: ContextualContinuation;
@@ -27,7 +27,7 @@ export interface MemoryEnhancedResult extends OrchestrationResult {
         futureOptimizations: string[];
     };
 }
-export declare class MemoryEnhancedOrchestrator {
+export declare class MemoryOrchestrator {
     private logger;
     private orchestrator;
     private memorySystem;
@@ -41,8 +41,8 @@ export declare class MemoryEnhancedOrchestrator {
         skipCycles?: boolean;
         dryRun?: boolean;
         autoRollback?: boolean;
-        memory?: MemoryEnhancedOrchestrationOptions;
-    }): Promise<MemoryEnhancedResult>;
+        memory?: MemoryOrchestrationOptions;
+    }): Promise<MemoryOrchestrationResult>;
     /**
      * Run orchestration with memory awareness and interaction tracking
      */
@@ -100,5 +100,5 @@ export declare class MemoryEnhancedOrchestrator {
     private generateImprovementSuggestions;
     private identifyFutureOptimizations;
 }
-export default MemoryEnhancedOrchestrator;
+export default MemoryOrchestrator;
 //# sourceMappingURL=memory-orchestrator-integration.d.ts.map

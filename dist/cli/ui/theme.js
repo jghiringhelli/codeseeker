@@ -11,22 +11,22 @@ exports.Theme = void 0;
 const chalk_1 = __importDefault(require("chalk"));
 class Theme {
     static colors = {
-        primary: chalk_1.default.cyan,
-        secondary: chalk_1.default.magenta,
-        success: chalk_1.default.green,
-        warning: chalk_1.default.yellow,
-        error: chalk_1.default.red,
-        info: chalk_1.default.blue,
-        muted: chalk_1.default.gray,
-        prompt: chalk_1.default.yellow,
-        result: chalk_1.default.white,
-        border: chalk_1.default.gray,
-        command: chalk_1.default.cyan,
-        highlight: chalk_1.default.cyan.bold,
-        claudeCode: chalk_1.default.hex('#FF6B35'), // Claude's distinctive orange
-        claudeCodeMuted: chalk_1.default.hex('#FF6B35').dim,
-        interrupt: chalk_1.default.red.bold,
-        accent: chalk_1.default.magenta.bold
+        primary: chalk_1.default.hex('#00CCFF'), // Bright cyan for dark backgrounds
+        secondary: chalk_1.default.hex('#FF66CC'), // Bright magenta
+        success: chalk_1.default.hex('#00FF88'), // Bright green
+        warning: chalk_1.default.hex('#FFD700'), // Bright yellow/gold
+        error: chalk_1.default.hex('#FF4444'), // Bright red
+        info: chalk_1.default.hex('#4488FF'), // Bright blue
+        muted: chalk_1.default.hex('#888888'), // Lighter gray that's more visible on black
+        prompt: chalk_1.default.hex('#FFD700'), // Bright yellow for prompts
+        result: chalk_1.default.hex('#FFFFFF'), // White for results
+        border: chalk_1.default.hex('#666666'), // Lighter border gray
+        command: chalk_1.default.hex('#00CCFF'), // Bright cyan for commands
+        highlight: chalk_1.default.hex('#00CCFF').bold, // Bold bright cyan for highlights
+        claudeCode: chalk_1.default.hex('#FF8C42'), // Slightly lighter Claude orange
+        claudeCodeMuted: chalk_1.default.hex('#CC6A2C'), // Muted but visible Claude color
+        interrupt: chalk_1.default.hex('#FF4444').bold, // Bright bold red for interrupts
+        accent: chalk_1.default.hex('#FF66CC').bold // Bright bold magenta for accents
     };
     /**
      * Get themed prompt text

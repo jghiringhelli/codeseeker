@@ -26,22 +26,22 @@ export interface ThemeColors {
 
 export class Theme {
   static readonly colors: ThemeColors = {
-    primary: chalk.cyan,
-    secondary: chalk.magenta,
-    success: chalk.green,
-    warning: chalk.yellow,
-    error: chalk.red,
-    info: chalk.blue,
-    muted: chalk.gray,
-    prompt: chalk.yellow,
-    result: chalk.white,
-    border: chalk.gray,
-    command: chalk.cyan,
-    highlight: chalk.cyan.bold,
-    claudeCode: chalk.hex('#FF6B35'), // Claude's distinctive orange
-    claudeCodeMuted: chalk.hex('#FF6B35').dim,
-    interrupt: chalk.red.bold,
-    accent: chalk.magenta.bold
+    primary: chalk.hex('#00CCFF'),        // Bright cyan for dark backgrounds
+    secondary: chalk.hex('#FF66CC'),      // Bright magenta
+    success: chalk.hex('#00FF88'),        // Bright green
+    warning: chalk.hex('#FFD700'),        // Bright yellow/gold
+    error: chalk.hex('#FF4444'),          // Bright red
+    info: chalk.hex('#4488FF'),           // Bright blue
+    muted: chalk.hex('#888888'),          // Lighter gray that's more visible on black
+    prompt: chalk.hex('#FFD700'),         // Bright yellow for prompts
+    result: chalk.hex('#FFFFFF'),         // White for results
+    border: chalk.hex('#666666'),         // Lighter border gray
+    command: chalk.hex('#00CCFF'),        // Bright cyan for commands
+    highlight: chalk.hex('#00CCFF').bold, // Bold bright cyan for highlights
+    claudeCode: chalk.hex('#FF8C42'),     // Slightly lighter Claude orange
+    claudeCodeMuted: chalk.hex('#CC6A2C'), // Muted but visible Claude color
+    interrupt: chalk.hex('#FF4444').bold, // Bright bold red for interrupts
+    accent: chalk.hex('#FF66CC').bold     // Bright bold magenta for accents
   };
 
   /**

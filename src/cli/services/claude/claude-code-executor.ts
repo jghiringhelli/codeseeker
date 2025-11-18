@@ -59,8 +59,8 @@ export class ClaudeCodeExecutor {
       await fs.writeFile(inputFile, prompt, 'utf8');
 
       try {
-        // Build command arguments
-        const args: string[] = ['--print']; // Always use --print for non-interactive mode
+        // Build command arguments - remove --print to allow interactive mode
+        const args: string[] = [];
 
         if (options.outputFormat === 'json') {
           args.push('--output-format', 'json');
@@ -74,29 +74,23 @@ export class ClaudeCodeExecutor {
           args.push('--system-prompt', options.systemPrompt);
         }
 
-        // Try multiple command approaches for reliability
-        const commands = [
-          // Primary approach: PowerShell with file input
-          `powershell -Command "Get-Content '${windowsInputFile}' -Raw | claude ${args.join(' ')}"`,
-          // Alternative: Direct file input
-          `claude ${args.join(' ')} < "${inputFile}"`,
-          // PowerShell with proper escaping
-          `powershell -Command "& { $content = Get-Content '${windowsInputFile}' -Raw; $content | claude ${args.join(' ')} }"`,
-          // Command prompt approach
-          `cmd /c "type \\"${windowsInputFile}\\" | claude ${args.join(' ')}"`,
-          // Fallback: Basic pipe approach - use original path for Unix commands
-          `cat "${inputFile}" | claude ${args.join(' ')}`
-        ];
+        // Use PlatformUtils for proper command generation
+        const primaryCommand = PlatformUtils.getClaudeCodeCommand(inputFile);
+        const commands = [primaryCommand];
 
         let lastError: any;
 
         for (const command of commands) {
           try {
-            console.log(`🔧 Trying: ${command.split('|')[0].trim()}...`);
-            console.log(`📁 File exists: ${await fs.access(inputFile).then(() => true).catch(() => false)}`);
-            console.log(`📄 File size: ${(await fs.stat(inputFile).catch(() => ({ size: 0 }))).size} bytes`);
+            // Only show debug info in verbose mode
+            if (process.env.CODEMIND_DEBUG) {
+              console.log(`🔧 Trying: ${command.split('|')[0].trim()}...`);
+              console.log(`📁 File exists: ${await fs.access(inputFile).then(() => true).catch(() => false)}`);
+              console.log(`📄 File size: ${(await fs.stat(inputFile).catch(() => ({ size: 0 }))).size} bytes`);
+            }
 
-            const execOptions: any = {
+            // Use platform-specific execution options
+            const baseOptions: any = {
               timeout,
               env: { ...process.env },
               maxBuffer: 1024 * 1024 * 10, // 10MB buffer
@@ -105,8 +99,10 @@ export class ClaudeCodeExecutor {
 
             // Set working directory if provided
             if (options.projectPath) {
-              execOptions.cwd = options.projectPath;
+              baseOptions.cwd = options.projectPath;
             }
+
+            const execOptions = PlatformUtils.getExecOptions(baseOptions);
 
             const { stdout, stderr } = await execAsync(command, execOptions);
 
@@ -119,7 +115,7 @@ export class ClaudeCodeExecutor {
               const responseData = String(stdout).trim();
               const tokensUsed = Math.ceil(responseData.length / 4); // Rough token estimate
 
-              console.log(`✅ Claude Code response received (${Math.ceil(responseData.length/1000)}KB)`);
+              console.log(`✅ Claude Code response received`);
 
               return {
                 success: true,
@@ -132,8 +128,11 @@ export class ClaudeCodeExecutor {
 
           } catch (error) {
             lastError = error;
-            console.log(`⚠️ Command failed: ${error.message || error}`);
-            console.log(`   Full command: ${command}`);
+            // Only show detailed error info in debug mode
+            if (process.env.CODEMIND_DEBUG) {
+              console.log(`⚠️ Command failed: ${error.message || error}`);
+              console.log(`   Full command: ${command}`);
+            }
             continue;
           }
         }

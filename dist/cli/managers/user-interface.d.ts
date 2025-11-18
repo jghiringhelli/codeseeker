@@ -2,8 +2,14 @@
  * UserInterface - Handles all user interaction, prompts, and display
  * Single Responsibility: User interface and interaction
  */
+import * as readline from 'readline';
 import { ProjectInitOptions } from './project-manager';
 export declare class UserInterface {
+    private rl?;
+    /**
+     * Set the readline interface for managing input during inquirer prompts
+     */
+    setReadlineInterface(rl: readline.Interface): void;
     /**
      * Get project initialization options from user
      */

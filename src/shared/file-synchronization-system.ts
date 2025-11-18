@@ -9,7 +9,7 @@ import * as crypto from 'crypto';
 import { glob } from 'fast-glob';
 import { Logger } from '../utils/logger';
 import { ToolDatabaseAPI } from '../orchestrator/tool-database-api';
-import EmbeddingService from '../cli/services/embedding-service';
+import { EmbeddingService } from '../cli/services/data/embedding/embedding-service';
 
 export interface FileHashEntry {
   filePath: string;
@@ -610,7 +610,7 @@ export class FileSynchronizationSystem {
     fileData: FileHashEntry
   ): Promise<void> {
     try {
-      const { CodeRelationshipParser } = await import('../cli/services/code-relationship-parser');
+      const { CodeRelationshipParser } = await import('../cli/services/data/code-relationship-parser');
       const parser = new CodeRelationshipParser();
       
       // Parse just this file and update its relationships

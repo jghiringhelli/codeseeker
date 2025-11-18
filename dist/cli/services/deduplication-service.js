@@ -7,18 +7,19 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DeduplicationService = void 0;
 const logger_1 = require("../../utils/logger");
-const granular_embedding_service_1 = require("./granular-embedding-service");
+const embedding_service_1 = require("./embedding-service");
+const database_config_1 = require("../../config/database-config");
 const code_relationship_parser_1 = require("./code-relationship-parser");
 const semantic_graph_1 = require("./semantic-graph");
 const theme_1 = require("../ui/theme");
 class DeduplicationService {
     logger;
-    granularEmbedding;
+    embeddingService;
     codeParser;
     semanticGraph;
     constructor() {
         this.logger = logger_1.Logger.getInstance();
-        this.granularEmbedding = new granular_embedding_service_1.GranularEmbeddingService();
+        this.embeddingService = new embedding_service_1.EmbeddingService({ granularMode: true });
         this.codeParser = new code_relationship_parser_1.CodeRelationshipParser();
         this.semanticGraph = new semantic_graph_1.SemanticGraphService();
     }
@@ -83,8 +84,8 @@ class DeduplicationService {
             if (processedMethods.has(method.method_id))
                 continue;
             // Find similar methods
-            const similarMethods = await this.granularEmbedding.findSimilarMethods(projectId, method.method_id, 0.7, // Lower threshold to catch more potential duplicates
-            10);
+            const similarMethods = await this.embeddingService.findSimilarMethods(method, 0.7 // Lower threshold to catch more potential duplicates
+            );
             if (similarMethods.length > 0) {
                 const group = await this.createDuplicateGroup('method', method, similarMethods);
                 if (group) {
@@ -107,8 +108,8 @@ class DeduplicationService {
             if (processedClasses.has(classItem.class_id))
                 continue;
             // Find similar classes
-            const similarClasses = await this.granularEmbedding.findSimilarClasses(projectId, classItem.class_id, 0.7, // Lower threshold to catch more potential duplicates
-            10);
+            const similarClasses = await this.embeddingService.findSimilarClasses(classItem, 0.7 // Lower threshold to catch more potential duplicates
+            );
             if (similarClasses.length > 0) {
                 const group = await this.createDuplicateGroup('class', classItem, similarClasses);
                 if (group) {
@@ -183,15 +184,14 @@ class DeduplicationService {
      */
     async convertToeDuplicateItems(similarItems) {
         return similarItems.map(item => {
-            const target = item.target;
             return {
-                id: item.targetId,
-                name: target.methodName || target.className,
-                filePath: target.filePath,
-                content: target.content,
-                startLine: target.metadata?.startLine || 1,
-                endLine: target.metadata?.endLine || 1,
-                metadata: target.metadata
+                id: item.id,
+                name: 'Similar Item',
+                filePath: '',
+                content: item.content,
+                startLine: 1,
+                endLine: 1,
+                metadata: {}
             };
         });
     }
@@ -337,7 +337,9 @@ class DeduplicationService {
     // Helper methods
     async ensureGranularEmbeddings(projectId) {
         // This would check if granular embeddings exist and generate them if needed
-        await this.granularEmbedding.initializeDatabase(projectId);
+        const dbConnections = new database_config_1.DatabaseConnections();
+        await this.embeddingService.initializeDatabase(dbConnections);
+        await dbConnections.closeAll();
     }
     async getAllMethodsAndClasses(projectId) {
         // This would query the database for all methods and classes

@@ -720,7 +720,7 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
             throw this?.handleError('archiveOldAnalysisResults', error);
         }
     }
-    // Generic query method for compatibility with ExternalToolManager
+    // Generic query method for database operations
     async query(sql, params) {
         if (!this.pool)
             throw new Error('Database not initialized');

@@ -7,6 +7,10 @@ import { InternalTool, ToolMetadata, AnalysisResult, ToolInitResult, ToolUpdateR
 export declare class SemanticGraphTool extends InternalTool {
     private logger;
     private neo4jUrl;
+    private graphStorage;
+    private semanticGraphService;
+    private orchestrator;
+    private dbConnections;
     constructor();
     getMetadata(): ToolMetadata;
     initialize(projectId: string): Promise<ToolInitResult>;
@@ -22,9 +26,12 @@ export declare class SemanticGraphTool extends InternalTool {
         recordCount?: number;
         health: 'healthy' | 'warning' | 'error';
     }>;
-    private getKeyNodes;
-    private getRelationships;
-    private getImpactAnalysis;
+    private generateKeyNodesFromStats;
+    private generateRelationshipsFromStats;
+    private extractConceptsFromStats;
+    private generateCrossReferencesFromStats;
+    private generateImpactAnalysis;
+    private generateClusters;
     private generateRecommendations;
     private extractConcepts;
 }

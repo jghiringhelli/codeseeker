@@ -2,7 +2,6 @@
 // Workflow Visualizer - DAG Visualization and Analysis
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkflowVisualizer = void 0;
-const types_1 = require("./types");
 class WorkflowVisualizer {
     static generateMermaidDiagram(workflow) {
         let mermaid = `graph TD\n`;
@@ -12,35 +11,37 @@ class WorkflowVisualizer {
         mermaid += `    classDef qualityGate fill:#fff3e0\n`;
         mermaid += `    classDef parallel fill:#fce4ec\n`;
         // Add nodes
-        for (const [nodeId, node] of workflow.nodes) {
-            const displayName = this?.formatNodeName(node.name, node.roleType);
-            mermaid += `    ${nodeId}[${displayName}]\n`;
+        for (const node of workflow.nodes) {
+            const extNode = node;
+            const displayName = this.formatNodeName(node.name, extNode.roleType);
+            mermaid += `    ${node.id}[${displayName}]\n`;
             // Add styling based on node type
-            if (workflow.entryPoints?.includes(nodeId)) {
-                mermaid += `    ${nodeId}:::entryPoint\n`;
+            if (workflow.entryPoints?.includes(node.id)) {
+                mermaid += `    ${node.id}:::entryPoint\n`;
             }
-            else if (workflow.exitPoints?.includes(nodeId)) {
-                mermaid += `    ${nodeId}:::exitPoint\n`;
+            else if (workflow.exitPoints?.includes(node.id)) {
+                mermaid += `    ${node.id}:::exitPoint\n`;
             }
-            else if (workflow.mergePoints?.includes(nodeId)) {
-                mermaid += `    ${nodeId}:::mergePoint\n`;
+            else if (workflow.mergePoints?.includes(node.id)) {
+                mermaid += `    ${node.id}:::mergePoint\n`;
             }
-            else if (node.qualityGates && node.qualityGates?.length > 0) {
-                mermaid += `    ${nodeId}:::qualityGate\n`;
+            else if (extNode.qualityGates && extNode.qualityGates.length > 0) {
+                mermaid += `    ${node.id}:::qualityGate\n`;
             }
-            else if (node.parallelWith && node.parallelWith?.length > 0) {
-                mermaid += `    ${nodeId}:::parallel\n`;
+            else if (extNode.parallelWith && extNode.parallelWith.length > 0) {
+                mermaid += `    ${node.id}:::parallel\n`;
             }
         }
         // Add edges
         for (const edge of workflow.edges) {
-            const label = edge.condition ? `|${edge.condition.type}|` : '';
+            const extEdge = edge;
+            const label = extEdge.condition ? `|${extEdge.condition.type}|` : '';
             mermaid += `    ${edge.from} -->${label} ${edge.to}\n`;
         }
         return mermaid;
     }
     static generateDotDiagram(workflow) {
-        let dot = `digraph "${workflow.name}" {\n`;
+        let dot = `digraph "${workflow.name || 'workflow'}" {\n`;
         dot += `    rankdir=TD;\n`;
         dot += `    node [shape=box, style=rounded];\n`;
         // Define styles
@@ -48,329 +49,306 @@ class WorkflowVisualizer {
         dot += `    node [fillcolor=lightgreen, style="rounded,filled"] exitNodes;\n`;
         dot += `    node [fillcolor=lightyellow, style="rounded,filled"] qualityGates;\n`;
         dot += `    node [fillcolor=lightpink, style="rounded,filled"] parallelNodes;\n`;
-        // Add subgraphs for parallel execution groups
-        const parallelGroups = this?.identifyParallelGroups(workflow);
-        parallelGroups?.forEach((nodeIds, groupIndex) => {
-            dot += `    subgraph cluster_${groupIndex} {\n`;
-            dot += `        label="Parallel Group ${groupIndex + 1}";\n`;
-            dot += `        style=dashed;\n`;
-            nodeIds?.forEach(nodeId => {
-                const node = workflow.nodes?.get(nodeId);
-                dot += `        "${nodeId}" [label="${this?.formatNodeName(node.name, node.roleType)}"];\n`;
-            });
-            dot += `    }\n`;
-        });
-        // Add regular nodes
-        for (const [nodeId, node] of workflow.nodes) {
-            if (!parallelGroups?.some(group => group?.includes(nodeId))) {
-                dot += `    "${nodeId}" [label="${this?.formatNodeName(node.name, node.roleType)}"];\n`;
-                // Add node styling
-                if (workflow.entryPoints?.includes(nodeId)) {
-                    dot += `    "${nodeId}" [fillcolor=lightblue];\n`;
-                }
-                else if (workflow.exitPoints?.includes(nodeId)) {
-                    dot += `    "${nodeId}" [fillcolor=lightgreen];\n`;
-                }
-                else if (node.qualityGates && node.qualityGates?.length > 0) {
-                    dot += `    "${nodeId}" [fillcolor=lightyellow];\n`;
-                }
-            }
+        // Create node map for quick lookup
+        const nodeMap = new Map();
+        for (const node of workflow.nodes) {
+            nodeMap.set(node.id, node);
+        }
+        // Add nodes with labels
+        for (const node of workflow.nodes) {
+            const extNode = node;
+            const label = this.formatNodeLabel(node.name, extNode.roleType, node.status);
+            const style = this.getNodeStyle(node.id, workflow, extNode);
+            dot += `    "${node.id}" [label="${label}", ${style}];\n`;
         }
         // Add edges
         for (const edge of workflow.edges) {
-            const label = edge.condition ? `[label="${edge.condition.type}"]` : '';
-            dot += `    "${edge.from}" -> "${edge.to}" ${label};\n`;
+            const extEdge = edge;
+            const edgeStyle = this.getEdgeStyle(extEdge);
+            dot += `    "${edge.from}" -> "${edge.to}" [${edgeStyle}];\n`;
+        }
+        // Define entry points
+        if (workflow.entryPoints) {
+            dot += `    { rank=source; ${workflow.entryPoints.map(id => `"${id}"`).join('; ')} }\n`;
+        }
+        // Define exit points
+        if (workflow.exitPoints) {
+            dot += `    { rank=sink; ${workflow.exitPoints.map(id => `"${id}"`).join('; ')} }\n`;
         }
         dot += `}\n`;
         return dot;
     }
-    static generateTextualFlow(workflow) {
-        let output = `\n📋 ${workflow.name} (${workflow.flowType})\n`;
-        output += `${'='.repeat(60)}\n`;
-        // Entry points
-        output += `\n🚀 Entry Points:\n`;
-        workflow.entryPoints?.forEach(nodeId => {
-            const node = workflow.nodes?.get(nodeId);
-            output += `   • ${node.name} (${node.roleType})\n`;
-        });
-        // Flow execution
-        output += `\n🔄 Execution Flow:\n`;
-        const executed = new Set();
-        const queue = [...workflow.entryPoints];
-        let level = 1;
-        while (queue?.length > 0) {
-            const currentLevelNodes = this?.getNodesAtLevel(workflow, queue, executed);
-            if (currentLevelNodes?.length === 0)
-                break;
-            output += `\nLevel ${level}:\n`;
-            // Group parallel nodes
-            const parallelGroups = this?.groupParallelNodes(workflow, currentLevelNodes);
-            parallelGroups?.forEach((group, index) => {
-                if (group?.length > 1) {
-                    output += `   🔀 Parallel Group ${index + 1}:\n`;
-                    group?.forEach(nodeId => {
-                        const node = workflow.nodes?.get(nodeId);
-                        output += `      ├─ ${node.name} (${node.roleType})\n`;
-                        output += `      │  ⏱️  Timeout: ${(node?.executionTimeoutMs / 60000).toFixed(1)}min\n`;
-                        if (node.qualityGates && node.qualityGates?.length > 0) {
-                            output += `      │  🚧 Quality Gates: ${node.qualityGates?.length}\n`;
-                        }
-                    });
+    static analyzeWorkflowComplexity(workflow) {
+        const nodeMap = new Map();
+        for (const node of workflow.nodes) {
+            nodeMap.set(node.id, node);
+        }
+        // Calculate cyclomatic complexity
+        const cyclomaticComplexity = workflow.edges.length - workflow.nodes.length + 2;
+        // Calculate depth
+        const depth = this.calculateDepth(workflow, nodeMap);
+        // Calculate parallelism
+        const parallelism = this.calculateMaxParallelism(workflow, nodeMap);
+        // Find critical path
+        const criticalPath = this.findCriticalPath(workflow, nodeMap);
+        return {
+            cyclomaticComplexity,
+            depth,
+            parallelism,
+            criticalPath
+        };
+    }
+    static calculateDepth(workflow, nodeMap) {
+        const depths = new Map();
+        const visited = new Set();
+        function dfs(nodeId) {
+            if (visited.has(nodeId)) {
+                return depths.get(nodeId) || 0;
+            }
+            visited.add(nodeId);
+            const incomingEdges = workflow.edges.filter(e => e.to === nodeId);
+            if (incomingEdges.length === 0) {
+                depths.set(nodeId, 0);
+                return 0;
+            }
+            const maxDepth = Math.max(...incomingEdges.map(e => dfs(e.from) + 1));
+            depths.set(nodeId, maxDepth);
+            return maxDepth;
+        }
+        let maxDepth = 0;
+        for (const node of workflow.nodes) {
+            maxDepth = Math.max(maxDepth, dfs(node.id));
+        }
+        return maxDepth;
+    }
+    static calculateMaxParallelism(workflow, nodeMap) {
+        const levels = new Map();
+        const depths = new Map();
+        // Calculate depth for each node
+        for (const node of workflow.nodes) {
+            const depth = this.getNodeDepth(node.id, workflow);
+            depths.set(node.id, depth);
+            if (!levels.has(depth)) {
+                levels.set(depth, []);
+            }
+            levels.get(depth).push(node.id);
+        }
+        // Find maximum parallelism
+        let maxParallelism = 0;
+        for (const [_, nodeIds] of levels) {
+            maxParallelism = Math.max(maxParallelism, nodeIds.length);
+        }
+        return maxParallelism;
+    }
+    static getNodeDepth(nodeId, workflow) {
+        const incomingEdges = workflow.edges.filter(e => e.to === nodeId);
+        if (incomingEdges.length === 0) {
+            return 0;
+        }
+        return Math.max(...incomingEdges.map(e => this.getNodeDepth(e.from, workflow) + 1));
+    }
+    static findCriticalPath(workflow, nodeMap) {
+        const distances = new Map();
+        const previous = new Map();
+        // Initialize distances
+        for (const node of workflow.nodes) {
+            distances.set(node.id, node.id === workflow.nodes[0]?.id ? 0 : -Infinity);
+        }
+        // Relax edges
+        for (let i = 0; i < workflow.nodes.length - 1; i++) {
+            for (const edge of workflow.edges) {
+                const fromDist = distances.get(edge.from) || -Infinity;
+                const toDist = distances.get(edge.to) || -Infinity;
+                if (fromDist + 1 > toDist) {
+                    distances.set(edge.to, fromDist + 1);
+                    previous.set(edge.to, edge.from);
                 }
-                else {
-                    const nodeId = group[0];
-                    const node = workflow.nodes?.get(nodeId);
-                    output += `   📦 ${node.name} (${node.roleType})\n`;
-                    output += `      ⏱️  Timeout: ${(node?.executionTimeoutMs / 60000).toFixed(1)}min\n`;
-                    if (node.qualityGates && node.qualityGates?.length > 0) {
-                        output += `      🚧 Quality Gates: ${node.qualityGates?.length}\n`;
+            }
+        }
+        // Find the node with maximum distance
+        let maxNode = '';
+        let maxDist = -Infinity;
+        for (const [nodeId, dist] of distances) {
+            if (dist > maxDist) {
+                maxDist = dist;
+                maxNode = nodeId;
+            }
+        }
+        // Reconstruct path
+        const path = [];
+        let current = maxNode;
+        while (current) {
+            path.unshift(current);
+            current = previous.get(current) || '';
+        }
+        return path;
+    }
+    static validateWorkflowStructure(workflow) {
+        const errors = [];
+        const warnings = [];
+        // Check for orphaned nodes
+        const connectedNodes = new Set();
+        for (const edge of workflow.edges) {
+            connectedNodes.add(edge.from);
+            connectedNodes.add(edge.to);
+        }
+        for (const node of workflow.nodes) {
+            if (!connectedNodes.has(node.id) && workflow.nodes.length > 1) {
+                warnings.push(`Node '${node.id}' is orphaned (not connected to any other node)`);
+            }
+        }
+        // Check for cycles
+        if (this.hasCycles(workflow)) {
+            errors.push('Workflow contains cycles');
+        }
+        // Check for duplicate edges
+        const edgeSet = new Set();
+        for (const edge of workflow.edges) {
+            const edgeKey = `${edge.from}->${edge.to}`;
+            if (edgeSet.has(edgeKey)) {
+                warnings.push(`Duplicate edge found: ${edgeKey}`);
+            }
+            edgeSet.add(edgeKey);
+        }
+        // Check for invalid node references in edges
+        const nodeIds = new Set(workflow.nodes.map(n => n.id));
+        for (const edge of workflow.edges) {
+            if (!nodeIds.has(edge.from)) {
+                errors.push(`Edge references non-existent source node: ${edge.from}`);
+            }
+            if (!nodeIds.has(edge.to)) {
+                errors.push(`Edge references non-existent target node: ${edge.to}`);
+            }
+        }
+        return {
+            valid: errors.length === 0,
+            errors,
+            warnings
+        };
+    }
+    static hasCycles(workflow) {
+        const visited = new Set();
+        const recursionStack = new Set();
+        const hasCycleDFS = (nodeId) => {
+            visited.add(nodeId);
+            recursionStack.add(nodeId);
+            const outgoingEdges = workflow.edges.filter(e => e.from === nodeId);
+            for (const edge of outgoingEdges) {
+                if (!visited.has(edge.to)) {
+                    if (hasCycleDFS(edge.to)) {
+                        return true;
                     }
                 }
-            });
-            // Mark as executed and add next nodes
-            currentLevelNodes?.forEach(nodeId => executed?.add(nodeId));
-            const nextNodes = this?.getNextNodes(workflow, currentLevelNodes);
-            nextNodes?.forEach(nodeId => {
-                if (!queue?.includes(nodeId) && !executed?.has(nodeId)) {
-                    queue?.push(nodeId);
+                else if (recursionStack.has(edge.to)) {
+                    return true;
                 }
-            });
-            // Remove current level nodes from queue
-            currentLevelNodes?.forEach(nodeId => {
-                const index = queue?.indexOf(nodeId);
-                if (index > -1)
-                    queue?.splice(index, 1);
-            });
-            level++;
-        }
-        // Merge points
-        output += `\n🔀 Quality Gate Merge Points:\n`;
-        workflow.mergePoints?.forEach(nodeId => {
-            const node = workflow.nodes?.get(nodeId);
-            output += `   • ${node.name} (${node.roleType})\n`;
-        });
-        // Exit points
-        output += `\n🏁 Exit Points:\n`;
-        workflow.exitPoints?.forEach(nodeId => {
-            const node = workflow.nodes?.get(nodeId);
-            output += `   • ${node.name} (${node.roleType})\n`;
-        });
-        // Backtrack rules
-        if (workflow.backtrackRules?.length > 0) {
-            output += `\n🔄 Backtrack Rules:\n`;
-            workflow.backtrackRules?.forEach(rule => {
-                output += `   • ${rule.trigger} → ${rule.targetNode} (Max attempts: ${rule.maxBacktrackCount})\n`;
-            });
-        }
-        // Statistics
-        const stats = this?.calculateWorkflowStatistics(workflow);
-        output += `\n📊 Workflow Statistics:\n`;
-        output += `   • Total Nodes: ${stats.totalNodes}\n`;
-        output += `   • Parallel Groups: ${stats.parallelGroups}\n`;
-        output += `   • Quality Gates: ${stats.qualityGates}\n`;
-        output += `   • Max Parallel Execution: ${stats.maxParallelNodes}\n`;
-        output += `   • Estimated Total Time: ${stats.estimatedTotalTimeHours?.toFixed(1)} hours\n`;
-        output += `   • Estimated Parallel Time: ${stats.estimatedParallelTimeHours?.toFixed(1)} hours\n`;
-        return output;
-    }
-    static generateExecutionReport(workflow, execution) {
-        let report = `\n📈 Execution Report: ${execution.id}\n`;
-        report += `${'='.repeat(60)}\n`;
-        report += `📋 Basic Information:\n`;
-        report += `   • Workflow: ${workflow.name}\n`;
-        report += `   • Work Item: ${execution.workItemId}\n`;
-        report += `   • Status: ${this?.getStatusEmoji(execution.status)} ${execution.status}\n`;
-        report += `   • Started: ${execution.startTime?.toLocaleString()}\n`;
-        if (execution.endTime) {
-            const duration = (execution.endTime?.getTime() - execution.startTime?.getTime()) / 1000 / 60;
-            report += `   • Completed: ${execution.endTime?.toLocaleString()}\n`;
-            report += `   • Duration: ${duration?.toFixed(1)} minutes\n`;
-        }
-        // Current progress
-        const totalNodes = workflow.nodes.size;
-        const completedNodes = execution.completedNodes?.length;
-        const progressPercentage = (completedNodes / totalNodes * 100).toFixed(1);
-        report += `\n📊 Progress:\n`;
-        report += `   • Completed: ${completedNodes}/${totalNodes} nodes (${progressPercentage}%)\n`;
-        report += `   • Current Node: ${execution.currentNode || 'None'}\n`;
-        if (execution.failedNodes?.length > 0) {
-            report += `   • Failed Nodes: ${execution.failedNodes?.join(', ')}\n`;
-        }
-        // Quality scores
-        if (execution.qualityScores.size > 0) {
-            report += `\n🏆 Quality Scores:\n`;
-            for (const [metric, score] of execution.qualityScores) {
-                const percentage = (score * 100).toFixed(1);
-                const emoji = score >= 0.9 ? '🟢' : score >= 0.7 ? '🟡' : '🔴';
-                report += `   ${emoji} ${metric}: ${percentage}%\n`;
+            }
+            recursionStack.delete(nodeId);
+            return false;
+        };
+        for (const node of workflow.nodes) {
+            if (!visited.has(node.id)) {
+                if (hasCycleDFS(node.id)) {
+                    return true;
+                }
             }
         }
-        // Branch information
-        if (execution.branchRefs.size > 0) {
-            report += `\n🌿 Git Branches:\n`;
-            for (const [nodeId, branchName] of execution.branchRefs) {
-                const node = workflow.nodes?.get(nodeId);
-                report += `   • ${node?.name || nodeId}: ${branchName}\n`;
-            }
-        }
-        // Backtrack history
-        if (execution.backtrackHistory?.length > 0) {
-            report += `\n🔄 Backtrack Events:\n`;
-            execution.backtrackHistory?.forEach((event, index) => {
-                report += `   ${index + 1}. ${event.reason}: ${event.fromNode} → ${event.toNode}\n`;
-                report += `      Time: ${event.timestamp?.toLocaleString()}\n`;
-                report += `      Attempts: ${event.attempts}\n`;
-            });
-        }
-        return report;
-    }
-    static generateRoleUtilizationReport(executions) {
-        let report = `\n👥 Role Utilization Report\n`;
-        report += `${'='.repeat(40)}\n`;
-        const roleStats = new Map();
-        // Initialize stats for all roles
-        Object.values(types_1.RoleType)?.forEach(roleType => {
-            roleStats?.set(roleType, {
-                totalExecutions: 0,
-                successfulExecutions: 0,
-                failedExecutions: 0,
-                avgDurationMs: 0,
-                totalDurationMs: 0
-            });
-        });
-        // Calculate statistics (simplified - would need actual node execution data)
-        executions?.forEach(execution => {
-            // This would be expanded with actual role execution data
-        });
-        for (const [roleType, stats] of roleStats) {
-            if (stats.totalExecutions > 0) {
-                const successRate = (stats?.successfulExecutions / stats?.totalExecutions * 100).toFixed(1);
-                const avgDurationMin = (stats?.avgDurationMs / 60000).toFixed(1);
-                report += `\n${roleType}:\n`;
-                report += `   • Total Executions: ${stats.totalExecutions}\n`;
-                report += `   • Success Rate: ${successRate}%\n`;
-                report += `   • Avg Duration: ${avgDurationMin} min\n`;
-            }
-        }
-        return report;
+        return false;
     }
     // Helper methods
     static formatNodeName(name, roleType) {
-        const emoji = this?.getRoleEmoji(roleType);
+        const emoji = roleType ? this.getRoleEmoji(roleType) : '📦';
         return `${emoji} ${name}`;
     }
     static getRoleEmoji(roleType) {
         const emojiMap = {
-            [types_1.RoleType.ORCHESTRATOR]: '🎭',
-            [types_1.RoleType.WORK_CLASSIFIER]: '📋',
-            [types_1.RoleType.REQUIREMENT_ANALYST]: '📝',
-            [types_1.RoleType.TEST_DESIGNER]: '🧪',
-            [types_1.RoleType.IMPLEMENTATION_DEVELOPER]: '💻',
-            [types_1.RoleType.CODE_REVIEWER]: '🔍',
-            [types_1.RoleType.COMPILER_BUILDER]: '🔨',
-            [types_1.RoleType.DEVOPS_ENGINEER]: '⚙️',
-            [types_1.RoleType.DEPLOYER]: '🚀',
-            [types_1.RoleType.UNIT_TEST_EXECUTOR]: '✅',
-            [types_1.RoleType.INTEGRATION_TEST_ENGINEER]: '🔗',
-            [types_1.RoleType.E2E_TEST_ENGINEER]: '🎭',
-            [types_1.RoleType.SECURITY_AUDITOR]: '🔒',
-            [types_1.RoleType.PERFORMANCE_AUDITOR]: '⚡',
-            [types_1.RoleType.QUALITY_AUDITOR]: '⭐',
-            [types_1.RoleType.TECHNICAL_DOCUMENTER]: '📚',
-            [types_1.RoleType.USER_DOCUMENTER]: '📖',
-            [types_1.RoleType.DOCUMENTATION_WRITER]: '📄',
-            [types_1.RoleType.RELEASE_MANAGER]: '🏷️',
-            [types_1.RoleType.COMMITTER]: '📝'
+            'orchestrator': '🎭',
+            'analyzer': '📋',
+            'validator': '🔍',
+            'executor': '💻',
+            'reporter': '📊'
         };
         return emojiMap[roleType] || '📦';
     }
     static getStatusEmoji(status) {
+        if (!status)
+            return '❓';
         const statusMap = {
-            [types_1.ExecutionStatus.PENDING]: '⏳',
-            [types_1.ExecutionStatus.RUNNING]: '⚡',
-            [types_1.ExecutionStatus.COMPLETED]: '✅',
-            [types_1.ExecutionStatus.FAILED]: '❌',
-            [types_1.ExecutionStatus.CANCELLED]: '⏹️',
-            [types_1.ExecutionStatus.BACKTRACKING]: '🔄'
+            'pending': '⏳',
+            'running': '⚡',
+            'completed': '✅',
+            'failed': '❌',
+            'cancelled': '⏹️',
+            'skipped': '⏭️'
         };
         return statusMap[status] || '❓';
     }
     static identifyParallelGroups(workflow) {
         const groups = [];
         const processed = new Set();
-        for (const [nodeId, node] of workflow.nodes) {
-            if (!processed?.has(nodeId) && node.parallelWith && node.parallelWith?.length > 0) {
-                const group = [nodeId, ...node.parallelWith];
-                groups?.push(group);
-                group?.forEach(id => processed?.add(id));
+        for (const node of workflow.nodes) {
+            const extNode = node;
+            if (!processed.has(node.id) && extNode.parallelWith) {
+                const group = [node.id, ...extNode.parallelWith];
+                groups.push(group);
+                group.forEach(id => processed.add(id));
             }
         }
         return groups;
     }
-    static getNodesAtLevel(workflow, queue, executed) {
-        const readyNodes = [];
-        for (const nodeId of queue) {
-            const node = workflow.nodes?.get(nodeId);
-            if (!node || executed?.has(nodeId))
-                continue;
-            const dependenciesSatisfied = node.dependencies?.every(depId => executed?.has(depId));
-            if (dependenciesSatisfied) {
-                readyNodes?.push(nodeId);
-            }
-        }
-        return readyNodes;
+    static formatNodeLabel(name, roleType, status) {
+        const statusEmoji = status ? this.getStatusEmoji(status) : '';
+        const roleEmoji = roleType ? this.getRoleEmoji(roleType) : '';
+        return `${statusEmoji} ${roleEmoji} ${name}`;
     }
-    static groupParallelNodes(workflow, nodeIds) {
-        const groups = [];
-        const processed = new Set();
-        for (const nodeId of nodeIds) {
-            if (processed?.has(nodeId))
-                continue;
-            const node = workflow.nodes?.get(nodeId);
-            if (node && node.parallelWith && node.parallelWith?.length > 0) {
-                const parallelNodes = node.parallelWith?.filter(id => nodeIds?.includes(id));
-                const group = [nodeId, ...parallelNodes];
-                groups?.push(group);
-                group?.forEach(id => processed?.add(id));
-            }
-            else {
-                groups?.push([nodeId]);
-                processed?.add(nodeId);
-            }
+    static getNodeStyle(nodeId, workflow, node) {
+        if (workflow.entryPoints?.includes(nodeId)) {
+            return 'fillcolor=lightblue';
         }
-        return groups;
+        else if (workflow.exitPoints?.includes(nodeId)) {
+            return 'fillcolor=lightgreen';
+        }
+        else if (node.qualityGates && node.qualityGates.length > 0) {
+            return 'fillcolor=lightyellow';
+        }
+        else if (node.parallelWith && node.parallelWith.length > 0) {
+            return 'fillcolor=lightpink';
+        }
+        return 'fillcolor=white';
     }
-    static getNextNodes(workflow, completedNodes) {
-        const nextNodes = [];
-        for (const edge of workflow.edges) {
-            if (completedNodes?.includes(edge.from)) {
-                nextNodes?.push(edge.to);
+    static getEdgeStyle(edge) {
+        if (edge.condition) {
+            return `label="${edge.condition.type}", style=dashed`;
+        }
+        return 'style=solid';
+    }
+    static summarizeExecution(execution, workflow) {
+        let summary = `Workflow: ${execution.workflowId}\n`;
+        summary += `Status: ${execution.status}\n`;
+        summary += `Started: ${execution.startTime}\n`;
+        if (execution.endTime) {
+            summary += `Ended: ${execution.endTime}\n`;
+            const duration = new Date(execution.endTime).getTime() - new Date(execution.startTime).getTime();
+            summary += `Duration: ${(duration / 1000).toFixed(2)}s\n`;
+        }
+        if (execution.currentStep) {
+            summary += `Current Step: ${execution.currentStep}\n`;
+        }
+        if (execution.error) {
+            summary += `Error: ${execution.error}\n`;
+        }
+        // Add workflow details if provided
+        if (workflow) {
+            summary += `\nWorkflow Details:\n`;
+            summary += `  Total Steps: ${workflow.steps.length}\n`;
+            if (workflow.qualityGates) {
+                summary += `  Quality Gates: ${workflow.qualityGates.length}\n`;
+            }
+            if (workflow.executionTimeoutMs) {
+                summary += `  Timeout: ${(workflow.executionTimeoutMs / 1000).toFixed(0)}s\n`;
             }
         }
-        return [...new Set(nextNodes)];
-    }
-    static calculateWorkflowStatistics(workflow) {
-        const totalNodes = workflow.nodes.size;
-        const parallelGroups = this?.identifyParallelGroups(workflow).length;
-        const qualityGates = Array.from(workflow.nodes?.values()).filter(node => node.qualityGates && node.qualityGates?.length > 0).length;
-        // Calculate max parallel nodes
-        let maxParallelNodes = 1;
-        const parallelGroupSizes = this?.identifyParallelGroups(workflow).map(group => group?.length);
-        if (parallelGroupSizes?.length > 0) {
-            maxParallelNodes = Math.max(...parallelGroupSizes);
-        }
-        // Estimate execution times
-        const totalTimeMs = Array.from(workflow.nodes?.values()).reduce((sum, node) => sum + node.executionTimeoutMs, 0);
-        // Simplified parallel time estimation (would need actual dependency analysis)
-        const parallelTimeMs = totalTimeMs * 0.4; // Rough estimate
-        return {
-            totalNodes,
-            parallelGroups,
-            qualityGates,
-            maxParallelNodes,
-            estimatedTotalTimeHours: totalTimeMs / 3600000,
-            estimatedParallelTimeHours: parallelTimeMs / 3600000
-        };
+        return summary;
     }
 }
 exports.WorkflowVisualizer = WorkflowVisualizer;

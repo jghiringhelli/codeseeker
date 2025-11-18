@@ -1,0 +1,48 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug CodeMind CLI (TypeScript)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/cli/codemind-cli.ts",
+      "args": [],
+      "runtimeArgs": ["-r", "ts-node/register"],
+      "env": {
+        "NODE_ENV": "development",
+        "CODEMIND_USER_CWD": "${workspaceFolder}"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true
+    },
+    {
+      "name": "Debug CodeMind CLI (Compiled)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/cli/codemind-cli.js",
+      "args": [],
+      "env": {
+        "NODE_ENV": "development",
+        "CODEMIND_USER_CWD": "${workspaceFolder}"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "build",
+      "sourceMaps": true
+    },
+    {
+      "name": "Debug CodeMind CLI (tsx)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/tsx/dist/cli.mjs",
+      "args": ["${workspaceFolder}/src/cli/codemind-cli.ts"],
+      "env": {
+        "NODE_ENV": "development",
+        "CODEMIND_USER_CWD": "${workspaceFolder}"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

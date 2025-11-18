@@ -11,6 +11,13 @@ exports.UserInterface = void 0;
 const inquirer_1 = __importDefault(require("inquirer"));
 const theme_1 = require("../ui/theme");
 class UserInterface {
+    rl;
+    /**
+     * Set the readline interface for managing input during inquirer prompts
+     */
+    setReadlineInterface(rl) {
+        this.rl = rl;
+    }
     /**
      * Get project initialization options from user
      */
@@ -19,6 +26,10 @@ class UserInterface {
         // Use user's original working directory (set by bin/codemind.js)
         const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
         const defaultProjectName = path.basename(userCwd);
+        // Pause readline if available to prevent conflicts with inquirer
+        if (this.rl) {
+            this.rl.pause();
+        }
         const answers = await inquirer_1.default.prompt([
             {
                 type: 'input',
@@ -55,6 +66,10 @@ class UserInterface {
                 ]
             }
         ]);
+        // Resume readline after inquirer is done
+        if (this.rl) {
+            this.rl.resume();
+        }
         return answers;
     }
     /**
@@ -133,6 +148,15 @@ class UserInterface {
      * Display processing results from Claude Code
      */
     displayProcessingResults(data) {
+        // If data is a string (raw Claude Code response), display it directly
+        if (typeof data === 'string') {
+            console.log(theme_1.Theme.colors.claudeCode('\n🤖 Claude Code Response:'));
+            console.log(theme_1.Theme.colors.border('─'.repeat(60)));
+            console.log(data);
+            console.log(theme_1.Theme.colors.border('─'.repeat(60)));
+            return;
+        }
+        // Handle structured data
         console.log(theme_1.Theme.colors.result('\n📋 Processing Results:'));
         if (data.files_modified && data.files_modified.length > 0) {
             console.log(theme_1.Theme.colors.success(`📝 Files Modified: ${data.files_modified.length}`));
@@ -284,6 +308,10 @@ class UserInterface {
      * Show a confirmation prompt to the user
      */
     async confirm(message) {
+        // Pause readline if available to prevent conflicts with inquirer
+        if (this.rl) {
+            this.rl.pause();
+        }
         const answer = await inquirer_1.default.prompt([
             {
                 type: 'confirm',
@@ -292,6 +320,10 @@ class UserInterface {
                 default: false
             }
         ]);
+        // Resume readline after inquirer is done
+        if (this.rl) {
+            this.rl.resume();
+        }
         return answer.confirmed;
     }
     /**
@@ -305,6 +337,10 @@ class UserInterface {
             { name: 'Skip - Keep existing data unchanged', value: 'skip' },
             { name: 'Reinitialize - Clear all data and start fresh', value: 'reinitialize' }
         ];
+        // Pause readline if available to prevent conflicts with inquirer
+        if (this.rl) {
+            this.rl.pause();
+        }
         const answer = await inquirer_1.default.prompt([
             {
                 type: 'list',
@@ -314,6 +350,10 @@ class UserInterface {
                 default: 'sync'
             }
         ]);
+        // Resume readline after inquirer is done
+        if (this.rl) {
+            this.rl.resume();
+        }
         console.log(theme_1.Theme.colors.info('\n💡 Tip: You can skip this prompt next time by using:'));
         console.log(theme_1.Theme.colors.muted(`   /init --${answer.action === 'reinitialize' ? 'reinit' : answer.action}`));
         return answer.action;

@@ -6,7 +6,7 @@
  */
 
 import { Logger } from './logger';
-import { GitBranchManager, FeatureBranch } from './git-branch-manager';
+import { GitBranchManager, FeatureBranch } from './managers/git-branch-manager';
 import { CodeMindValidationCycle, ProjectContext } from './validation-cycle';
 import { exec } from 'child_process';
 import { promisify } from 'util';

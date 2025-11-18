@@ -4,7 +4,7 @@
  * Ensures project compiles → tests pass → commits changes → merges branch → sets new snapshot
  * Automatically fixes compilation/test issues and manages the complete integration workflow
  */
-import { FeatureBranch } from './git-branch-manager';
+import { FeatureBranch } from './managers/git-branch-manager';
 export interface IntegrationResult {
     success: boolean;
     phase: 'compilation' | 'testing' | 'commit' | 'merge' | 'documentation' | 'cleanup';

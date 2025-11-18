@@ -6,10 +6,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TaskSplitter = void 0;
 const logger_1 = require("../utils/logger");
-const claude_code_integration_1 = require("./claude-code-integration");
+const claude_cli_integration_1 = require("./../integrations/claude/claude-cli-integration");
 class TaskSplitter {
     logger = logger_1.Logger.getInstance();
-    claudeIntegration = new claude_code_integration_1.ClaudeCodeIntegration();
+    claudeIntegration = new claude_cli_integration_1.ClaudeCodeIntegration();
     async createSubTasks(request, intent, context) {
         this.logger.info(`🔧 Splitting task: "${request.query}"`);
         try {

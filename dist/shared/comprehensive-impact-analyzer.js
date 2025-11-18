@@ -44,7 +44,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ComprehensiveImpactAnalyzer = void 0;
 const logger_1 = require("./logger");
-const semantic_graph_1 = __importDefault(require("../cli/services/semantic-graph"));
+const semantic_graph_1 = __importDefault(require("../cli/services/data/semantic-graph/semantic-graph"));
 const path = __importStar(require("path"));
 const fast_glob_1 = require("fast-glob");
 class ComprehensiveImpactAnalyzer {

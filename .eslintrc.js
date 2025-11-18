@@ -8,8 +8,8 @@ module.exports = {
   plugins: ['@typescript-eslint'],
   extends: [
     'eslint:recommended',
-    '@typescript-eslint/recommended',
-    '@typescript-eslint/recommended-requiring-type-checking'
+    'plugin:@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended-requiring-type-checking'
   ],
   env: {
     node: true,
@@ -21,7 +21,7 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/explicit-function-return-type': 'warn',
     '@typescript-eslint/no-floating-promises': 'error',
-    '@typescript-eslint/prefer-nullish-coalescing': 'error',
+    // '@typescript-eslint/prefer-nullish-coalescing': 'error', // Requires strictNullChecks
     '@typescript-eslint/prefer-optional-chain': 'error',
     'no-console': 'warn',
     'prefer-const': 'error'

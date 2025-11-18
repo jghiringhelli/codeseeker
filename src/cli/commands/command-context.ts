@@ -1,39 +1,35 @@
 /**
- * Command Context
+ * Command Context - SOLID Principles Compliant
  * Single Responsibility: Provide shared context for all command handlers
  * Interface Segregation: Clean interfaces for command requirements
  */
 
 import * as readline from 'readline';
 import { ProjectManager } from '../managers/project-manager';
-import { DatabaseManager } from '../managers/database-manager';
-import { UserInterface } from '../managers/user-interface';
-import { CodeMindInstructionService } from '../services/integration/codemind-instruction-service';
-import { InterruptManager } from '../managers/interrupt-manager';
-import { ClaudeCodeForwarder } from '../managers/claude-code-forwarder';
+import {
+  IDatabaseManager,
+  IUserInterface,
+  IInterruptManager,
+  IClaudeCodeForwarder,
+  IInstructionService
+} from '../../core/interfaces/command-interfaces';
+import { IRequestProcessor } from '../../core/interfaces/orchestrator-interfaces';
+import { IErrorHandler } from '../../core/interfaces/error-interfaces';
 
 export interface CommandContext {
   projectManager: ProjectManager;
-  claudeOrchestrator: any; // ClaudeCodeOrchestrator - excluded for core build
-  databaseManager: DatabaseManager;
-  userInterface: UserInterface;
-  instructionService: CodeMindInstructionService;
-  interruptManager: InterruptManager;
-  claudeForwarder: ClaudeCodeForwarder;
+  requestProcessor: IRequestProcessor; // Refactored from claudeOrchestrator
+  databaseManager: IDatabaseManager;
+  userInterface: IUserInterface;
+  instructionService: IInstructionService;
+  interruptManager: IInterruptManager;
+  claudeForwarder: IClaudeCodeForwarder;
+  errorHandler: IErrorHandler;
   currentProject?: any;
 }
 
-export interface CommandResult {
-  success: boolean;
-  message?: string;
-  data?: any;
-}
-
-export interface PathAnalysisOptions {
-  path: string;
-  recursive: boolean;
-  resolvedPath: string;
-}
+// Import centralized interfaces
+export { CommandResult, PathAnalysisOptions } from '../../core/interfaces/command-interfaces';
 
 export interface CommandHandlerDependencies {
   context: CommandContext;

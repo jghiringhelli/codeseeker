@@ -63,7 +63,7 @@ class Logger {
                 stack: error.stack,
                 name: error.name
             } : undefined;
-            this?.log('ERROR', message, { error: errorInfo, ...meta });
+            this?.log('ERROR', message, { error: errorInfo, ...(meta && typeof meta === 'object' ? meta : {}) });
         }
     }
     child(context) {
@@ -74,7 +74,7 @@ class Logger {
         const timestamp = new Date().toISOString();
         const contextStr = this.context ? ` [${this.context}]` : '';
         const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
-        console?.log(`${timestamp} ${level}${contextStr}: ${message}${metaStr}`);
+        console.log(`${timestamp} ${level}${contextStr}: ${message}${metaStr}`);
     }
 }
 exports.Logger = Logger;

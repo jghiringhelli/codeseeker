@@ -6,7 +6,6 @@
  */
 
 const { Pool } = require('pg');
-const { MongoClient } = require('mongodb');
 const neo4j = require('neo4j-driver');
 const Redis = require('ioredis');
 const fs = require('fs').promises;
@@ -21,10 +20,6 @@ const config = {
     database: process.env.DB_NAME || 'codemind',
     user: process.env.DB_USER || 'codemind',
     password: process.env.DB_PASSWORD || 'codemind123'
-  },
-  mongodb: {
-    uri: process.env.MONGO_URI || 
-      `mongodb://${process.env.MONGO_USER || 'codemind'}:${process.env.MONGO_PASSWORD || 'codemind123'}@${process.env.MONGO_HOST || 'localhost'}:${process.env.MONGO_PORT || 27017}/${process.env.MONGO_DB || 'codemind'}?authSource=admin`
   },
   neo4j: {
     uri: process.env.NEO4J_URI || 'bolt://localhost:7687',
@@ -42,37 +37,41 @@ const config = {
 async function testConnections() {
   const results = {
     postgres: false,
-    mongodb: false,
     neo4j: false,
     redis: false
   };
   
   // Test PostgreSQL
   try {
-    const pgClient = new Pool(config.postgres);
+    const pgConfig = {
+      ...config.postgres,
+      connectionTimeoutMillis: 5000,
+      query_timeout: 5000,
+      statement_timeout: 5000,
+      idle_in_transaction_session_timeout: 5000
+    };
+    const pgClient = new Pool(pgConfig);
     await pgClient.query('SELECT 1');
     await pgClient.end();
     results.postgres = true;
   } catch (err) {
-    // Connection failed
+    console.log(chalk.yellow(`    PostgreSQL: ${err.message}`));
+    if (err.code === 'ECONNREFUSED') {
+      console.log(chalk.gray(`      → Check if PostgreSQL is running on port ${config.postgres.port}`));
+    } else if (err.code === '28P01' || err.code === '28000') {
+      console.log(chalk.gray(`      → Check username/password: ${config.postgres.user}/${config.postgres.password}`));
+    }
   }
-  
-  // Test MongoDB
-  try {
-    const client = new MongoClient(config.mongodb.uri);
-    await client.connect();
-    await client.db().admin().ping();
-    await client.close();
-    results.mongodb = true;
-  } catch (err) {
-    // Connection failed
-  }
-  
+
   // Test Neo4j
   try {
     const driver = neo4j.driver(
       config.neo4j.uri,
-      neo4j.auth.basic(config.neo4j.user, config.neo4j.password)
+      neo4j.auth.basic(config.neo4j.user, config.neo4j.password),
+      {
+        connectionTimeout: 5000,
+        maxConnectionLifetime: 5000
+      }
     );
     const session = driver.session();
     await session.run('RETURN 1');
@@ -80,17 +79,21 @@ async function testConnections() {
     await driver.close();
     results.neo4j = true;
   } catch (err) {
-    // Connection failed
+    console.log(chalk.yellow(`    Neo4j: ${err.message}`));
   }
-  
+
   // Test Redis
   try {
-    const redis = new Redis(config.redis);
+    const redis = new Redis({
+      ...config.redis,
+      connectTimeout: 5000,
+      commandTimeout: 5000
+    });
     await redis.ping();
     redis.disconnect();
     results.redis = true;
   } catch (err) {
-    // Connection failed
+    console.log(chalk.yellow(`    Redis: ${err.message}`));
   }
   
   return results;
@@ -134,63 +137,7 @@ async function initializePostgreSQL() {
   }
 }
 
-// Initialize MongoDB with duplicate handling
-async function initializeMongoDB() {
-  const client = new MongoClient(config.mongodb.uri);
-  
-  try {
-    await client.connect();
-    const db = client.db('codemind');
-    
-    // Create collections (ignore if exists)
-    const collections = [
-      'tool_configs',
-      'analysis_results', 
-      'project_intelligence',
-      'knowledge_repository',
-      'workflow_states',
-      'templates'
-    ];
-    
-    for (const collectionName of collections) {
-      try {
-        await db.createCollection(collectionName);
-      } catch (err) {
-        if (err.code !== 48) { // Collection already exists
-          throw err;
-        }
-      }
-    }
-    
-    // Create indexes with duplicate handling
-    const indexOperations = [
-      () => db.collection('tool_configs').createIndex({ projectId: 1, toolName: 1 }, { unique: true }),
-      () => db.collection('analysis_results').createIndex({ projectId: 1, toolName: 1, timestamp: -1 }),
-      () => db.collection('analysis_results').createIndex({ summary: 'text' }),
-      () => db.collection('project_intelligence').createIndex({ projectId: 1 }, { unique: true }),
-      () => db.collection('knowledge_repository').createIndex({ 
-        title: 'text', 
-        content: 'text', 
-        searchableText: 'text' 
-      })
-    ];
-    
-    for (const operation of indexOperations) {
-      try {
-        await operation();
-      } catch (err) {
-        if (err.code !== 85) { // Index already exists
-          throw err;
-        }
-      }
-    }
-    
-    return { success: true };
-    
-  } finally {
-    await client.close();
-  }
-}
+// MongoDB initialization removed - no longer used
 
 // Initialize Neo4j
 async function initializeNeo4j() {
@@ -299,16 +246,7 @@ async function main() {
     }
   }
   
-  if (connections.mongodb) {
-    try {
-      await initializeMongoDB();
-      results.mongodb = { success: true };
-      console.log(chalk.green('✅ MongoDB initialized'));
-    } catch (error) {
-      results.mongodb = { success: false, error: error.message };
-      console.log(chalk.red('❌ MongoDB failed'));
-    }
-  }
+  // MongoDB removed from project
   
   if (connections.neo4j) {
     try {
@@ -349,7 +287,6 @@ module.exports = {
   main,
   testConnections,
   initializePostgreSQL,
-  initializeMongoDB,
   initializeNeo4j,
   initializeRedis,
   initializeDuckDB

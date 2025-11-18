@@ -80,7 +80,16 @@ export declare class ClaudeCodeIntegration {
      */
     private buildProjectContext;
     /**
-     * Detect user intent using AI
+     * Simple, reliable intent detection (primary method)
+     */
+    detectUserIntentSimple(userRequest: string): Promise<{
+        category: string;
+        confidence: number;
+        requiresModifications: boolean;
+        reasoning: string;
+    }>;
+    /**
+     * Comprehensive intent detection with task breakdown (legacy method)
      */
     detectUserIntent(userRequest: string): Promise<{
         category: string;
