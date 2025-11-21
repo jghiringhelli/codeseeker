@@ -13,6 +13,7 @@ import { WorkflowOrchestrator } from './services/workflow-orchestrator';
 
 // Import command handlers
 import { SetupCommandHandler } from './handlers/setup-command-handler';
+import { InfrastructureSetupHandler } from './handlers/infrastructure-setup-handler';
 import { ProjectCommandHandler } from './handlers/project-command-handler';
 import { SyncCommandHandler } from './handlers/sync-command-handler';
 import { SearchCommandHandler } from './handlers/search-command-handler';
@@ -50,8 +51,8 @@ export class CommandRouter {
    * Open/Closed: Add new handlers here without modifying existing code
    */
   private initializeHandlers(): void {
-    this.handlers.set('setup', new SetupCommandHandler(this.context));
-    this.handlers.set('init', new SetupCommandHandler(this.context)); // Alias
+    this.handlers.set('setup', new InfrastructureSetupHandler(this.context)); // Infrastructure setup
+    this.handlers.set('init', new SetupCommandHandler(this.context));         // Project initialization
     this.handlers.set('project', new ProjectCommandHandler(this.context));
     this.handlers.set('sync', new SyncCommandHandler(this.context));
     this.handlers.set('search', new SearchCommandHandler(this.context));
@@ -74,7 +75,27 @@ export class CommandRouter {
       return { success: false, message: 'Empty command' };
     }
 
-    // First, check if this looks like natural language before parsing as commands
+    // Handle slash commands (explicit commands)
+    if (trimmedInput.startsWith('/')) {
+      const commandWithoutSlash = trimmedInput.substring(1);
+      const [command, ...argParts] = commandWithoutSlash.split(' ');
+      const args = argParts.join(' ');
+
+      // Handle built-in slash commands
+      switch (command) {
+        case 'help':
+          return this.handleHelp(args);
+        case 'exit':
+        case 'quit':
+          return this.handleExit();
+        case 'status':
+          return this.handleStatus();
+        default:
+          return this.routeToHandler(command, args);
+      }
+    }
+
+    // Check if this looks like natural language before parsing as commands
     if (this.workflowOrchestrator.shouldUseWorkflow(trimmedInput)) {
       return await this.handleNaturalLanguage(trimmedInput);
     }
@@ -129,7 +150,10 @@ export class CommandRouter {
 ${Theme.colors.primary('CodeMind Commands:')}
 
 ${Theme.colors.success('Project Management:')}
-  init, setup [path]     Initialize or setup project
+  setup [--force] [--skip-docker] [--skip-db]  Setup infrastructure (Docker, databases)
+  setup --project-path <path>                  Setup from specific directory
+  init [--reset] [path]  Initialize project for analysis (includes indexing)
+  init --quick           Initialize project without indexing (faster setup)
   project [subcommand]   Manage project settings
   status                 Show current project status
 

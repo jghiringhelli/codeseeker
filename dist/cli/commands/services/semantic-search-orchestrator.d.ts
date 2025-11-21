@@ -51,5 +51,13 @@ export declare class SemanticSearchOrchestrator {
      * Discover relevant files in the project
      */
     private discoverFiles;
+    /**
+     * Analyze actual file content for class searches
+     */
+    private analyzeFileContent;
+    /**
+     * Get fallback results when no high-relevance files found
+     */
+    private getFallbackResults;
 }
 //# sourceMappingURL=semantic-search-orchestrator.d.ts.map

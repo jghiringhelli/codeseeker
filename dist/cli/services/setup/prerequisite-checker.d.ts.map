@@ -1,0 +1,1 @@
+{"version":3,"file":"prerequisite-checker.d.ts","sourceRoot":"","sources":["../../../../src/cli/services/setup/prerequisite-checker.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAIH,OAAO,EAAE,oBAAoB,EAAE,WAAW,EAAE,MAAM,+BAA+B,CAAC;AAElF,qBAAa,mBAAoB,YAAW,oBAAoB;IAExD,YAAY,CAAC,WAAW,CAAC,EAAE,MAAM,GAAG,OAAO,CAAC,WAAW,CAAC;IAiD9D,gBAAgB,IAAI,WAAW;CA+BhC"}

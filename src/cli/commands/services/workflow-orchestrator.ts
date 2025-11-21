@@ -67,6 +67,10 @@ export class WorkflowOrchestrator {
   private get userInteractionService(): UserInteractionService {
     if (!this._userInteractionService) {
       this._userInteractionService = new UserInteractionService();
+      // Set readline interface if available
+      if (this._readlineInterface) {
+        this._userInteractionService.setReadlineInterface(this._readlineInterface);
+      }
     }
     return this._userInteractionService;
   }
@@ -77,6 +81,20 @@ export class WorkflowOrchestrator {
   }
 
   /**
+   * Set readline interface for user interactions
+   */
+  setReadlineInterface(rl: any): void {
+    // Pass readline interface to user interaction service when it's created
+    if (this._userInteractionService) {
+      this._userInteractionService.setReadlineInterface(rl);
+    }
+    // Store for later use when service is created
+    this._readlineInterface = rl;
+  }
+
+  private _readlineInterface?: any;
+
+  /**
    * Execute the complete CodeMind workflow
    */
   async executeWorkflow(
@@ -85,34 +103,46 @@ export class WorkflowOrchestrator {
     options: WorkflowOptions = {}
   ): Promise<WorkflowResult> {
     try {
-      console.log('🧠 Starting CodeMind workflow...\n');
-
-      // Step 1: Analyze the user query for assumptions and ambiguities
-      console.log('1️⃣ Analyzing query for assumptions and ambiguities...');
+      // Analyze the query (silent for simple queries)
       const queryAnalysis = this.nlpProcessor.analyzeQuery(query);
-      this.logQueryAnalysis(queryAnalysis);
+      const isSimpleQuery = queryAnalysis.assumptions.length === 0 && queryAnalysis.ambiguities.length === 0;
 
-      // Step 2: Get user clarifications if needed
+      if (!isSimpleQuery) {
+        console.log('🧠 Starting CodeMind workflow...\n');
+        console.log('1️⃣ Analyzing query for assumptions and ambiguities...');
+        this.logQueryAnalysis(queryAnalysis);
+      }
+
+      // Get user clarifications if needed (only show if necessary)
       let userClarifications: string[] = [];
       if (!options.skipUserClarification && (queryAnalysis.assumptions.length > 0 || queryAnalysis.ambiguities.length > 0)) {
         console.log('\n2️⃣ Requesting user clarifications...');
         userClarifications = await this.userInteractionService.promptForClarifications(queryAnalysis);
-      } else {
-        console.log('\n2️⃣ No clarifications needed');
       }
 
-      // Step 3: Perform semantic search to find relevant files
-      console.log('\n3️⃣ Performing semantic search...');
+      // Perform semantic search (silent)
       const semanticResults = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
-      console.log(`   Found ${semanticResults.length} relevant files`);
 
-      // Step 4: Perform graph analysis to understand relationships
-      console.log('\n4️⃣ Analyzing code relationships...');
+      // Only show search results if we found files or it's a complex query
+      if (semanticResults.length > 0 || !isSimpleQuery) {
+        console.log(`\n📁 Found ${semanticResults.length} relevant files`);
+        if (semanticResults.length > 0) {
+          semanticResults.slice(0, 3).forEach((result, index) => {
+            console.log(`   ${index + 1}. ${result.file} (${result.type}, similarity: ${(result.similarity * 100).toFixed(0)}%)`);
+          });
+          if (semanticResults.length > 3) {
+            console.log(`   ... and ${semanticResults.length - 3} more files`);
+          }
+        }
+      }
+
+      // Perform graph analysis (silent unless relevant)
       const graphContext = await this.graphAnalysisService.performGraphAnalysis(query, semanticResults);
-      console.log(`   Found ${graphContext.relationships.length} relationships between components`);
+      if (graphContext.relationships.length > 0 && !isSimpleQuery) {
+        console.log(`\n🔗 Found ${graphContext.relationships.length} relationships between components`);
+      }
 
-      // Step 5: Build enhanced context for Claude
-      console.log('\n5️⃣ Building enhanced context...');
+      // Build enhanced context (silent)
       const enhancedContext = this.contextBuilder.buildEnhancedContext(
         query,
         queryAnalysis,
@@ -121,16 +151,20 @@ export class WorkflowOrchestrator {
         graphContext
       );
 
-      const contextStats = this.contextBuilder.getContextStats(enhancedContext);
-      console.log(`   Enhanced prompt: ${contextStats.promptLength} characters`);
-
-      // Step 6: Execute Claude Code with enhanced prompt
-      console.log('\n6️⃣ Executing Claude Code...');
+      // Execute Claude Code (only show if relevant)
+      if (!isSimpleQuery) {
+        console.log('\n🚀 Processing with enhanced context...');
+      }
       const claudeResponse = await this.userInteractionService.executeClaudeCode(enhancedContext.enhancedPrompt);
 
-      // Step 7: Show file modification confirmation
+      // Show file modification confirmation (fix the display)
       if (!options.skipFileConfirmation && claudeResponse.filesToModify.length > 0) {
-        console.log('\n7️⃣ Requesting file modification approval...');
+        console.log('\n📝 Changes to review:');
+        // Show actual diffs here instead of just file list
+        claudeResponse.filesToModify.forEach((file, index) => {
+          console.log(`   ${index + 1}. ${file}`);
+        });
+
         const confirmation = await this.userInteractionService.confirmFileModifications(claudeResponse.filesToModify);
 
         if (!confirmation.approved) {
@@ -150,9 +184,17 @@ export class WorkflowOrchestrator {
         }
       }
 
-      // Step 8: Display execution summary
-      console.log('\n8️⃣ Displaying execution summary...');
-      this.userInteractionService.displayExecutionSummary(claudeResponse.summary, contextStats);
+      // Display results (clean summary for simple queries)
+      if (isSimpleQuery && semanticResults.length > 0) {
+        console.log('\n✅ Results:\n');
+        // For simple class queries, show the classes found directly
+        semanticResults.forEach((result, index) => {
+          console.log(`${index + 1}. ${result.content}`);
+        });
+      } else if (!isSimpleQuery) {
+        const contextStats = this.contextBuilder.getContextStats(enhancedContext);
+        this.userInteractionService.displayExecutionSummary(claudeResponse.summary, contextStats);
+      }
 
       return {
         success: true,

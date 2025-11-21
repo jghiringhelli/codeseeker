@@ -3,6 +3,7 @@
  * Single Responsibility: Handle user interactions and Claude Code detection
  * Manages user clarification prompts and Claude Code command execution
  */
+import * as readline from 'readline';
 import { QueryAnalysis } from './natural-language-processor';
 export interface UserClarification {
     question: string;
@@ -15,7 +16,20 @@ export interface ClaudeResponse {
 }
 export declare class UserInteractionService {
     private tempDir;
+    private rl?;
     constructor();
+    /**
+     * Set the readline interface (passed from main CLI)
+     */
+    setReadlineInterface(rl: readline.Interface): void;
+    /**
+     * Pause readline before inquirer prompts to avoid conflicts
+     */
+    private pauseReadline;
+    /**
+     * Resume readline after inquirer prompts
+     */
+    private resumeReadline;
     /**
      * Prompt user for clarifications based on detected assumptions and ambiguities
      */
@@ -25,7 +39,7 @@ export declare class UserInteractionService {
      */
     executeClaudeCode(enhancedPrompt: string): Promise<ClaudeResponse>;
     /**
-     * Show file modification confirmation to user
+     * Show file analysis results (not actual modifications)
      */
     confirmFileModifications(filesToModify: string[]): Promise<{
         approved: boolean;
@@ -43,10 +57,6 @@ export declare class UserInteractionService {
      * Simulate user input for clarification questions
      */
     private getSimulatedUserInput;
-    /**
-     * Simulate user choice for file modifications
-     */
-    private getSimulatedUserChoice;
     /**
      * Simulate Claude Code response when running inside Claude Code environment
      */

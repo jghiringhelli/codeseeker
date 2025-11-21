@@ -37,6 +37,9 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserInteractionService = void 0;
 const platform_utils_1 = require("../../../shared/platform-utils");
@@ -44,11 +47,35 @@ const child_process_1 = require("child_process");
 const util_1 = require("util");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs/promises"));
+const inquirer_1 = __importDefault(require("inquirer"));
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
 class UserInteractionService {
     tempDir;
+    rl;
     constructor() {
         this.tempDir = platform_utils_1.PlatformUtils.getTempDir();
+    }
+    /**
+     * Set the readline interface (passed from main CLI)
+     */
+    setReadlineInterface(rl) {
+        this.rl = rl;
+    }
+    /**
+     * Pause readline before inquirer prompts to avoid conflicts
+     */
+    pauseReadline() {
+        if (this.rl) {
+            this.rl.pause();
+        }
+    }
+    /**
+     * Resume readline after inquirer prompts
+     */
+    resumeReadline() {
+        if (this.rl) {
+            this.rl.resume();
+        }
     }
     /**
      * Prompt user for clarifications based on detected assumptions and ambiguities
@@ -62,15 +89,25 @@ class UserInteractionService {
         }
         console.log('\n🤔 CodeMind detected some assumptions and ambiguities in your request.');
         console.log('Please help clarify the following:\n');
-        for (let i = 0; i < questions.length; i++) {
-            const question = questions[i];
-            console.log(`${i + 1}. ${question}`);
-            // In a real implementation, this would use readline or inquirer
-            // For now, we'll simulate user input or return reasonable defaults
-            const answer = await this.getSimulatedUserInput(question);
-            if (answer) {
-                clarifications.push(`${question} → ${answer}`);
+        this.pauseReadline();
+        try {
+            for (let i = 0; i < questions.length; i++) {
+                const question = questions[i];
+                const answer = await inquirer_1.default.prompt([
+                    {
+                        type: 'input',
+                        name: 'response',
+                        message: `${i + 1}. ${question}`,
+                        validate: (input) => input.trim().length > 0 || 'Please provide an answer or type "skip" to skip this question'
+                    }
+                ]);
+                if (answer.response && answer.response.toLowerCase() !== 'skip') {
+                    clarifications.push(`${question} → ${answer.response}`);
+                }
             }
+        }
+        finally {
+            this.resumeReadline();
         }
         return clarifications;
     }
@@ -111,27 +148,40 @@ class UserInteractionService {
         }
     }
     /**
-     * Show file modification confirmation to user
+     * Show file analysis results (not actual modifications)
      */
     async confirmFileModifications(filesToModify) {
         if (filesToModify.length === 0) {
             return { approved: true, dontAskAgain: false };
         }
-        console.log('\n📝 Claude Code will modify the following files:');
+        // NOTE: These are not actual modifications, just files found by search
+        // The current implementation is misleading - these are search results, not diffs
+        console.log('\n📁 Files found relevant to your request:');
         filesToModify.forEach((file, index) => {
             console.log(`  ${index + 1}. ${file}`);
         });
-        console.log('\nOptions:');
-        console.log('  [y] Yes, proceed with modifications');
-        console.log('  [n] No, cancel modifications');
-        console.log('  [a] Yes, and don\'t ask me again for this session');
-        // In a real implementation, this would use readline
-        // For now, simulate user approval
-        const choice = await this.getSimulatedUserChoice();
-        return {
-            approved: choice !== 'n',
-            dontAskAgain: choice === 'a'
-        };
+        this.pauseReadline();
+        try {
+            const answer = await inquirer_1.default.prompt([
+                {
+                    type: 'list',
+                    name: 'choice',
+                    message: 'Would you like to proceed with analysis of these files?',
+                    choices: [
+                        { name: 'Yes, continue analysis', value: 'y' },
+                        { name: 'No, skip analysis', value: 'n' },
+                        { name: 'Yes, and don\'t ask me again for this session', value: 'a' }
+                    ]
+                }
+            ]);
+            return {
+                approved: answer.choice !== 'n',
+                dontAskAgain: answer.choice === 'a'
+            };
+        }
+        finally {
+            this.resumeReadline();
+        }
     }
     /**
      * Display execution summary
@@ -212,14 +262,6 @@ class UserInteractionService {
             return 'Follow existing project patterns and conventions';
         }
         return 'Follow project standards and best practices';
-    }
-    /**
-     * Simulate user choice for file modifications
-     */
-    async getSimulatedUserChoice() {
-        // In a real implementation, this would use readline
-        // For now, default to 'y' (yes) to proceed with modifications
-        return 'y';
     }
     /**
      * Simulate Claude Code response when running inside Claude Code environment

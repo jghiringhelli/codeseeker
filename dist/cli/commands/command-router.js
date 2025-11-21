@@ -11,6 +11,7 @@ const theme_1 = require("../ui/theme");
 const workflow_orchestrator_1 = require("./services/workflow-orchestrator");
 // Import command handlers
 const setup_command_handler_1 = require("./handlers/setup-command-handler");
+const infrastructure_setup_handler_1 = require("./handlers/infrastructure-setup-handler");
 const project_command_handler_1 = require("./handlers/project-command-handler");
 const sync_command_handler_1 = require("./handlers/sync-command-handler");
 const search_command_handler_1 = require("./handlers/search-command-handler");
@@ -41,8 +42,8 @@ class CommandRouter {
      * Open/Closed: Add new handlers here without modifying existing code
      */
     initializeHandlers() {
-        this.handlers.set('setup', new setup_command_handler_1.SetupCommandHandler(this.context));
-        this.handlers.set('init', new setup_command_handler_1.SetupCommandHandler(this.context)); // Alias
+        this.handlers.set('setup', new infrastructure_setup_handler_1.InfrastructureSetupHandler(this.context)); // Infrastructure setup
+        this.handlers.set('init', new setup_command_handler_1.SetupCommandHandler(this.context)); // Project initialization
         this.handlers.set('project', new project_command_handler_1.ProjectCommandHandler(this.context));
         this.handlers.set('sync', new sync_command_handler_1.SyncCommandHandler(this.context));
         this.handlers.set('search', new search_command_handler_1.SearchCommandHandler(this.context));
@@ -62,7 +63,25 @@ class CommandRouter {
         if (!trimmedInput) {
             return { success: false, message: 'Empty command' };
         }
-        // First, check if this looks like natural language before parsing as commands
+        // Handle slash commands (explicit commands)
+        if (trimmedInput.startsWith('/')) {
+            const commandWithoutSlash = trimmedInput.substring(1);
+            const [command, ...argParts] = commandWithoutSlash.split(' ');
+            const args = argParts.join(' ');
+            // Handle built-in slash commands
+            switch (command) {
+                case 'help':
+                    return this.handleHelp(args);
+                case 'exit':
+                case 'quit':
+                    return this.handleExit();
+                case 'status':
+                    return this.handleStatus();
+                default:
+                    return this.routeToHandler(command, args);
+            }
+        }
+        // Check if this looks like natural language before parsing as commands
         if (this.workflowOrchestrator.shouldUseWorkflow(trimmedInput)) {
             return await this.handleNaturalLanguage(trimmedInput);
         }
@@ -112,7 +131,10 @@ class CommandRouter {
 ${theme_1.Theme.colors.primary('CodeMind Commands:')}
 
 ${theme_1.Theme.colors.success('Project Management:')}
-  init, setup [path]     Initialize or setup project
+  setup [--force] [--skip-docker] [--skip-db]  Setup infrastructure (Docker, databases)
+  setup --project-path <path>                  Setup from specific directory
+  init [--reset] [path]  Initialize project for analysis (includes indexing)
+  init --quick           Initialize project without indexing (faster setup)
   project [subcommand]   Manage project settings
   status                 Show current project status
 

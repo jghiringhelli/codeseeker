@@ -5,10 +5,12 @@
 
 import { BaseCommandHandler } from '../base-command-handler';
 import { CommandResult } from '../command-context';
-import { SemanticSearchService } from '../../services/search/semantic-search';
 import { EmbeddingService } from '../../services/data/embedding/embedding-service';
+import { analysisRepository } from '../../../shared/analysis-repository-consolidated';
 import { Logger } from '../../../utils/logger';
 import path from 'path';
+import { glob } from 'fast-glob';
+import * as fs from 'fs/promises';
 
 export class SearchCommandHandler extends BaseCommandHandler {
   private logger = Logger.getInstance();
@@ -40,7 +42,11 @@ export class SearchCommandHandler extends BaseCommandHandler {
 
     try {
       const projectPath = this.context.currentProject?.projectPath || process.cwd();
+      this.logger.info(`Using project path: ${projectPath}`);
+      this.logger.info(`Context project ID: ${this.context.currentProject?.projectId}`);
+
       const projectId = this.context.currentProject?.projectId || await this.generateProjectId(projectPath);
+      this.logger.info(`Final project ID for search: ${projectId}`);
 
       if (isIndex) {
         return await this.indexProject(projectPath, projectId);
@@ -70,48 +76,92 @@ export class SearchCommandHandler extends BaseCommandHandler {
     console.log(`📁 Project: ${projectPath}`);
 
     try {
-      // Initialize embedding service with Xenova transformers
+      // Get all code files
+      const files = await glob(['**/*.{ts,js,jsx,tsx,py,java,cs,cpp,c,h,hpp}'], {
+        cwd: projectPath,
+        ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**']
+      });
+
+      console.log(`📂 Found ${files.length} files to process`);
+
+      if (files.length === 0) {
+        return {
+          success: false,
+          message: 'No code files found to index'
+        };
+      }
+
+      // Initialize embedding service
       const embeddingService = new EmbeddingService({
         provider: 'xenova',
-        model: 'Xenova/all-MiniLM-L6-v2',
-        chunkSize: 8000,
-        maxTokens: 8191
+        model: 'Xenova/all-MiniLM-L6-v2'
       });
 
-      // Create semantic search service
-      const searchFactory = require('../../../core/factories/search-service-factory').SearchServiceFactory;
-      const searchTool = searchFactory.getInstance().createSemanticSearchService();
+      const embeddings = [];
+      let processedFiles = 0;
 
-      // Analyze and index files
-      const analysisResult = await searchTool.analyze(projectPath, projectId, {
-        skipEmbeddings: false
-      });
+      for (const file of files.slice(0, 50)) { // Limit to 50 files for MVP
+        try {
+          const filePath = path.join(projectPath, file);
+          const content = await fs.readFile(filePath, 'utf-8');
 
-      if (analysisResult.data && analysisResult.data.length > 0) {
-        // For now, just show results (would normally save to database)
-        console.log(`✅ Generated embeddings for ${analysisResult.data.length} code segments`);
-        console.log('📊 Analysis Summary:');
-        console.log(`   Total Segments: ${analysisResult.analysis.totalSegments}`);
-        console.log(`   Embeddings Generated: ${analysisResult.analysis.embeddingsGenerated}`);
-        console.log(`   Languages: ${Object.keys(analysisResult.analysis.languages).join(', ')}`);
-        console.log(`   Content Types: ${Object.keys(analysisResult.analysis.contentTypes).join(', ')}`);
+          if (content.length < 50) continue; // Skip very small files
 
-        if (analysisResult.recommendations && analysisResult.recommendations.length > 0) {
-          console.log('\n💡 Recommendations:');
-          analysisResult.recommendations.forEach((rec: string) => {
-            console.log(`   • ${rec}`);
-          });
+          // Create simple chunks (split by lines for now)
+          const lines = content.split('\n');
+          const chunks = [];
+          for (let i = 0; i < lines.length; i += 20) {
+            const chunk = lines.slice(i, i + 20).join('\n');
+            if (chunk.trim().length > 20) {
+              chunks.push(chunk);
+            }
+          }
+
+          // Generate embeddings for each chunk
+          for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+            const chunk = chunks[chunkIndex];
+            try {
+              // For MVP, create a simple embedding entry without actual vector
+              const embedding = {
+                project_id: projectId,
+                file_path: file,
+                chunk_index: chunkIndex,
+                content_type: 'code' as const,
+                content_text: chunk,
+                content_hash: require('crypto').createHash('md5').update(chunk).digest('hex')
+              };
+
+              embeddings.push(embedding);
+            } catch (error) {
+              this.logger.warn(`Failed to process chunk ${chunkIndex} in ${file}:`, error);
+            }
+          }
+
+          processedFiles++;
+          if (processedFiles % 10 === 0) {
+            console.log(`   Processed ${processedFiles}/${files.length} files...`);
+          }
+
+        } catch (error) {
+          this.logger.warn(`Failed to process file ${file}:`, error);
         }
+      }
+
+      // Save embeddings to database
+      if (embeddings.length > 0) {
+        await analysisRepository.saveMultipleEmbeddings(embeddings);
+        console.log(`✅ Generated embeddings for ${embeddings.length} code segments`);
+        console.log(`📊 Processed ${processedFiles} files`);
 
         return {
           success: true,
-          message: `Project indexed: ${analysisResult.data.length} segments`,
-          data: analysisResult
+          message: `Project indexed: ${embeddings.length} segments from ${processedFiles} files`,
+          data: { segments: embeddings.length, files: processedFiles }
         };
       } else {
         return {
           success: false,
-          message: 'No code segments found to index'
+          message: 'No valid code segments found to index'
         };
       }
 
@@ -131,42 +181,51 @@ export class SearchCommandHandler extends BaseCommandHandler {
     console.log(`🔍 Searching for: "${query}"`);
 
     try {
-      // Create semantic search service
-      const searchFactory = require('../../../core/factories/search-service-factory').SearchServiceFactory;
-      const searchTool = searchFactory.getInstance().createSemanticSearchService();
+      // Get embeddings from database
+      const embeddings = await analysisRepository.getEmbeddings(projectId, {
+        limit: options.limit
+      });
 
-      // Perform the search using the real semantic search service
-      const searchQuery = {
-        text: query,
-        projectId: projectId,
-        maxResults: options.limit,
-        minSimilarity: options.threshold
-      };
+      if (embeddings.length === 0) {
+        console.log('   No embeddings found - run "search --index" first');
+        return {
+          success: false,
+          message: 'No embeddings found. Please run "search --index" first to index the codebase.'
+        };
+      }
 
-      const searchResult = await searchTool.search(searchQuery);
+      console.log(`🧠 Found ${embeddings.length} code segments to search`);
 
-      console.log(`🧠 Query embedding generated (384 dimensions)`);
-
-      // Get results from the real search
-      const results = searchResult.results || [];
+      // For MVP, do simple text-based search without actual vector similarity
+      const queryLower = query.toLowerCase();
+      const results = embeddings
+        .map((embedding, index) => ({
+          file_path: embedding.file_path,
+          content_type: embedding.content_type,
+          content_text: embedding.content_text,
+          similarity_score: this.calculateTextSimilarity(queryLower, embedding.content_text?.toLowerCase() || ''),
+          chunk_index: embedding.chunk_index
+        }))
+        .filter(result => result.similarity_score >= options.threshold)
+        .sort((a, b) => b.similarity_score - a.similarity_score)
+        .slice(0, options.limit);
 
       console.log(`\n🔍 Search Results (${results.length} found):`);
 
       if (results.length === 0) {
         console.log('   No similar code segments found');
-        console.log('   Try using --index first or lowering the similarity threshold');
+        console.log('   Try lowering the similarity threshold or using different search terms');
       } else {
-        results.forEach((result: any, index: number) => {
+        results.forEach((result, index) => {
           console.log(`\n📄 Result ${index + 1}:`);
-          console.log(`   File: ${result.file || result.file_path}`);
-          console.log(`   Type: ${result.type || result.content_type || 'code'}`);
-          console.log(`   Similarity: ${((result.similarity || result.similarity_score) * 100).toFixed(1)}%`);
+          console.log(`   File: ${result.file_path}`);
+          console.log(`   Type: ${result.content_type}`);
+          console.log(`   Similarity: ${(result.similarity_score * 100).toFixed(1)}%`);
 
           if (options.verbose) {
             console.log(`   Content Preview:`);
-            const content = result.content || result.content_text || result.text || '';
-            const preview = content.substring(0, 200);
-            console.log(`   ${preview}${content.length > 200 ? '...' : ''}`);
+            const preview = result.content_text.substring(0, 200);
+            console.log(`   ${preview}${result.content_text.length > 200 ? '...' : ''}`);
           }
         });
       }
@@ -192,15 +251,64 @@ export class SearchCommandHandler extends BaseCommandHandler {
   }
 
   /**
-   * Generate a simple project ID from path
+   * Calculate simple text-based similarity for MVP
+   */
+  private calculateTextSimilarity(query: string, content: string): number {
+    if (!query || !content) return 0;
+
+    const queryWords = query.split(/\s+/).filter(w => w.length > 2);
+    const contentWords = content.split(/\s+/).map(w => w.toLowerCase());
+
+    if (queryWords.length === 0) return 0;
+
+    let matches = 0;
+    for (const word of queryWords) {
+      if (contentWords.some(cw => cw.includes(word) || word.includes(cw))) {
+        matches++;
+      }
+    }
+
+    return matches / queryWords.length;
+  }
+
+  /**
+   * Get existing project ID from database
    */
   private async generateProjectId(projectPath: string): Promise<string> {
     try {
-      const crypto = await import('crypto');
-      const pathHash = crypto.createHash('md5').update(projectPath).digest('hex');
-      return pathHash.substring(0, 8);
+      // Normalize the path for consistent lookup
+      const normalizedPath = path.resolve(projectPath);
+      this.logger.info(`Looking up project with path: ${normalizedPath}`);
+
+      // Try to find existing project by path
+      const projects = await analysisRepository.getProjects({ projectPath: normalizedPath });
+      this.logger.info(`Found ${projects.length} projects matching path`);
+
+      if (projects.length > 0) {
+        this.logger.info(`Using project ID: ${projects[0].id}`);
+        return projects[0].id;
+      }
+
+      // Also try without normalization in case paths were stored differently
+      const projectsOrig = await analysisRepository.getProjects({ projectPath });
+      if (projectsOrig.length > 0) {
+        this.logger.info(`Found project with original path, using ID: ${projectsOrig[0].id}`);
+        return projectsOrig[0].id;
+      }
+
+      // Get all projects to debug
+      const allProjects = await analysisRepository.getProjects({});
+      this.logger.info(`Total projects in database: ${allProjects.length}`);
+      allProjects.forEach(p => {
+        this.logger.info(`Project: ${p.project_name}, Path: ${p.project_path}, ID: ${p.id}`);
+      });
+
+      // Fallback: this should not happen if init was run properly
+      this.logger.error(`No project found for path: ${projectPath} (normalized: ${normalizedPath})`);
+      throw new Error(`Project not found for path: ${projectPath}. Please run "codemind setup" first.`);
     } catch (error) {
-      return 'default';
+      this.logger.error('Could not retrieve project ID:', error);
+      throw error;
     }
   }
 

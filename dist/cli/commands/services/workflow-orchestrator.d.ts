@@ -37,6 +37,11 @@ export declare class WorkflowOrchestrator {
     private get userInteractionService();
     constructor(projectPath: string);
     /**
+     * Set readline interface for user interactions
+     */
+    setReadlineInterface(rl: any): void;
+    private _readlineInterface?;
+    /**
      * Execute the complete CodeMind workflow
      */
     executeWorkflow(query: string, projectPath: string, options?: WorkflowOptions): Promise<WorkflowResult>;

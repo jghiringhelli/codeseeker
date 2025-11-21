@@ -322,6 +322,12 @@ export class CodeMindCLI {
         this.context.userInterface.showSuccess(result.message);
       }
 
+      // Handle exit command
+      if (result.data?.shouldExit) {
+        await this.cleanup();
+        process.exit(0);
+      }
+
       // Update current project if it changed
       if (result.data?.projectId) {
         this.currentProject = result.data;

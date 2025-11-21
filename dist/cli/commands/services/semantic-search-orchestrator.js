@@ -69,28 +69,49 @@ class SemanticSearchOrchestrator {
             const lowerQuery = query.toLowerCase();
             // Use cached file discovery to avoid repeated file system operations
             const files = await this.discoverFilesCached(projectPath);
+            // Special handling for class searches - analyze actual content
+            const isClassSearch = lowerQuery.includes('class') || lowerQuery.includes('classes');
             // Parallel processing for better performance
             const relevancePromises = files.map(async (filePath) => {
-                const relevance = this.calculateFileRelevanceOptimized(filePath, lowerQuery);
-                if (relevance > 0.3) { // Lowered threshold for more results
+                let relevance;
+                let actualContent = '';
+                if (isClassSearch) {
+                    // For class searches, analyze actual file content
+                    const contentAnalysis = await this.analyzeFileContent(filePath, lowerQuery);
+                    relevance = contentAnalysis.relevance;
+                    actualContent = contentAnalysis.content;
+                }
+                else {
+                    // Use optimized pattern matching for other queries
+                    relevance = this.calculateFileRelevanceOptimized(filePath, lowerQuery);
+                    actualContent = await this.getFilePreviewCached(filePath);
+                }
+                if (relevance > 0.1) { // Very low threshold to ensure minimum results
                     const fileType = this.determineFileType(filePath);
-                    const content = await this.getFilePreviewCached(filePath);
                     return {
                         file: path.relative(projectPath, filePath),
                         type: fileType,
                         similarity: relevance,
-                        content: content,
+                        content: actualContent,
                         lineStart: 1,
-                        lineEnd: Math.min(50, content.split('\n').length)
+                        lineEnd: Math.min(50, actualContent.split('\n').length)
                     };
                 }
                 return null;
             });
             // Wait for all relevance calculations
             const allResults = await Promise.all(relevancePromises);
-            results.push(...allResults.filter(result => result !== null));
-            // Sort by relevance and limit results
+            const filteredResults = allResults.filter(result => result !== null);
+            results.push(...filteredResults);
+            // Sort by relevance
             results.sort((a, b) => b.similarity - a.similarity);
+            // Ensure minimum results - if we have very few high-relevance results,
+            // include some lower-relevance ones for user confirmation
+            if (results.length === 0) {
+                // Fallback: return at least the top 3 files, even with very low relevance
+                const fallbackResults = await this.getFallbackResults(files, projectPath, lowerQuery);
+                results.push(...fallbackResults);
+            }
             return results.slice(0, 10);
         }
         catch (error) {
@@ -295,6 +316,66 @@ class SemanticSearchOrchestrator {
             console.warn(`Failed to discover files in ${projectPath}:`, error);
         }
         return files;
+    }
+    /**
+     * Analyze actual file content for class searches
+     */
+    async analyzeFileContent(filePath, query) {
+        try {
+            const fileContent = await fs.readFile(filePath, 'utf-8');
+            const lines = fileContent.split('\n');
+            // Look for class declarations
+            const classMatches = fileContent.match(/class\s+\w+/g) || [];
+            const functionMatches = fileContent.match(/function\s+\w+|\w+\s*\(/g) || [];
+            const moduleMatches = fileContent.match(/export\s+(class|function|const)/g) || [];
+            let relevance = 0;
+            let description = `File: ${path.basename(filePath)}`;
+            if (classMatches.length > 0) {
+                relevance += 0.9; // High relevance for files with classes
+                description += ` - Contains ${classMatches.length} class(es): ${classMatches.join(', ')}`;
+            }
+            if (functionMatches.length > 0) {
+                relevance += 0.3; // Some relevance for files with functions
+                description += ` - ${functionMatches.length} function(s)`;
+            }
+            if (moduleMatches.length > 0) {
+                relevance += 0.5; // Good relevance for exported modules
+                description += ` - Exports: ${moduleMatches.length} item(s)`;
+            }
+            // Add first few lines as preview
+            const preview = lines.slice(0, 5).join('\n');
+            description += `\n\nPreview:\n${preview}`;
+            return {
+                relevance: Math.min(relevance, 1.0),
+                content: description
+            };
+        }
+        catch (error) {
+            return {
+                relevance: 0.1,
+                content: `File: ${path.basename(filePath)} - Unable to analyze content`
+            };
+        }
+    }
+    /**
+     * Get fallback results when no high-relevance files found
+     */
+    async getFallbackResults(files, projectPath, query) {
+        const fallbackResults = [];
+        // Take first few files and analyze them
+        for (let i = 0; i < Math.min(3, files.length); i++) {
+            const filePath = files[i];
+            const contentAnalysis = await this.analyzeFileContent(filePath, query);
+            fallbackResults.push({
+                file: path.relative(projectPath, filePath),
+                type: this.determineFileType(filePath),
+                similarity: contentAnalysis.relevance,
+                content: contentAnalysis.content + ' [Low similarity - please confirm relevance]',
+                lineStart: 1,
+                lineEnd: 20
+            });
+        }
+        return fallbackResults;
     }
 }
 exports.SemanticSearchOrchestrator = SemanticSearchOrchestrator;

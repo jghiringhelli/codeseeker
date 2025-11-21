@@ -16,7 +16,11 @@ export declare class SearchCommandHandler extends BaseCommandHandler {
      */
     private searchCode;
     /**
-     * Generate a simple project ID from path
+     * Calculate simple text-based similarity for MVP
+     */
+    private calculateTextSimilarity;
+    /**
+     * Get existing project ID from database
      */
     private generateProjectId;
 }

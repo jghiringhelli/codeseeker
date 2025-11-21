@@ -23,5 +23,13 @@ export declare class NaturalLanguageProcessor {
      */
     isNaturalLanguageQuery(input: string): boolean;
     private calculateConfidence;
+    /**
+     * Check if query is simple and clear, not needing clarification
+     */
+    private isSimpleClearQuery;
+    /**
+     * Detect intent of the query (extracted for reuse)
+     */
+    private detectIntent;
 }
 //# sourceMappingURL=natural-language-processor.d.ts.map

@@ -35,6 +35,15 @@ class NaturalLanguageProcessor {
     analyzeQuery(query) {
         const assumptions = [];
         const ambiguities = [];
+        // Skip clarification for simple, clear queries
+        if (this.isSimpleClearQuery(query)) {
+            return {
+                assumptions,
+                ambiguities,
+                intent: this.detectIntent(query),
+                confidence: 95.0 // High confidence for clear queries
+            };
+        }
         // Use cached patterns for better performance
         for (const { pattern, message } of NaturalLanguageProcessor.ASSUMPTION_PATTERNS) {
             if (pattern.test(query)) {
@@ -95,6 +104,44 @@ class NaturalLanguageProcessor {
         const technicalCount = technicalTerms.filter(term => lowerQuery.includes(term)).length;
         confidence += technicalCount * 0.05;
         return Math.max(0.1, Math.min(1.0, confidence));
+    }
+    /**
+     * Check if query is simple and clear, not needing clarification
+     */
+    isSimpleClearQuery(query) {
+        const lowerQuery = query.toLowerCase();
+        // Simple information requests that are self-explanatory
+        const simplePatterns = [
+            /show\s+me\s+(all\s+)?(the\s+)?(classes?|functions?|methods?|components?)/i,
+            /list\s+(all\s+)?(the\s+)?(classes?|functions?|methods?|files?)/i,
+            /what\s+(classes?|functions?|components?)\s+are\s+in/i,
+            /find\s+(all\s+)?(classes?|functions?|methods?)/i,
+            /display\s+(all\s+)?(classes?|functions?|methods?)/i,
+            /get\s+me\s+(all\s+)?(the\s+)?(classes?|functions?|methods?)/i
+        ];
+        return simplePatterns.some(pattern => pattern.test(query));
+    }
+    /**
+     * Detect intent of the query (extracted for reuse)
+     */
+    detectIntent(query) {
+        const lowerQuery = query.toLowerCase();
+        if (lowerQuery.includes('show') || lowerQuery.includes('list') || lowerQuery.includes('display') || lowerQuery.includes('find')) {
+            return 'analyze';
+        }
+        if (lowerQuery.includes('create') || lowerQuery.includes('add') || lowerQuery.includes('generate')) {
+            return 'create';
+        }
+        if (lowerQuery.includes('fix') || lowerQuery.includes('debug') || lowerQuery.includes('resolve')) {
+            return 'fix';
+        }
+        if (lowerQuery.includes('refactor') || lowerQuery.includes('improve') || lowerQuery.includes('optimize')) {
+            return 'improve';
+        }
+        if (lowerQuery.includes('test') || lowerQuery.includes('verify')) {
+            return 'test';
+        }
+        return 'general';
     }
 }
 exports.NaturalLanguageProcessor = NaturalLanguageProcessor;
