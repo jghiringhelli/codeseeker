@@ -327,16 +327,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Auto-update triggers
+-- Auto-update triggers (idempotent)
+DROP TRIGGER IF EXISTS update_projects_updated_at ON projects;
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_initialization_updated_at ON initialization_progress;
 CREATE TRIGGER update_initialization_updated_at BEFORE UPDATE ON initialization_progress
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_patterns_updated_at ON detected_patterns;
 CREATE TRIGGER update_patterns_updated_at BEFORE UPDATE ON detected_patterns
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_config_updated_at ON system_config;
 CREATE TRIGGER update_config_updated_at BEFORE UPDATE ON system_config
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -678,12 +682,15 @@ CREATE INDEX IF NOT EXISTS idx_workflow_dependencies ON workflow_nodes USING GIN
 -- MONITORING TRIGGERS
 -- ============================================
 
+DROP TRIGGER IF EXISTS update_orchestration_updated_at ON orchestration_processes;
 CREATE TRIGGER update_orchestration_updated_at BEFORE UPDATE ON orchestration_processes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_role_activities_updated_at ON ai_role_activities;
 CREATE TRIGGER update_role_activities_updated_at BEFORE UPDATE ON ai_role_activities
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_workflow_nodes_updated_at ON workflow_nodes;
 CREATE TRIGGER update_workflow_nodes_updated_at BEFORE UPDATE ON workflow_nodes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -966,6 +973,7 @@ CREATE INDEX IF NOT EXISTS idx_workflow_message_log_data ON workflow_message_log
 -- SEQUENTIAL WORKFLOW TRIGGERS
 -- ============================================
 
+DROP TRIGGER IF EXISTS update_sequential_workflows_updated_at ON sequential_workflows;
 CREATE TRIGGER update_sequential_workflows_updated_at BEFORE UPDATE ON sequential_workflows
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -1131,6 +1139,7 @@ CREATE INDEX IF NOT EXISTS idx_tech_stacks_technologies ON tech_stacks USING GIN
 CREATE INDEX IF NOT EXISTS idx_system_architectures_components ON system_architectures USING GIN (components);
 CREATE INDEX IF NOT EXISTS idx_workflow_specifications_steps ON workflow_specifications USING GIN (orchestration_steps);
 
+DROP TRIGGER IF EXISTS update_workflow_role_executions_updated_at ON workflow_role_executions;
 CREATE TRIGGER update_workflow_role_executions_updated_at BEFORE UPDATE ON workflow_role_executions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -1399,9 +1408,11 @@ CREATE INDEX IF NOT EXISTS idx_tech_stack_dependencies ON tech_stack_detections 
 -- EXTERNAL TOOLS TRIGGERS
 -- ============================================
 
+DROP TRIGGER IF EXISTS update_external_tools_updated_at ON external_tools;
 CREATE TRIGGER update_external_tools_updated_at BEFORE UPDATE ON external_tools
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_role_tool_permissions_updated_at ON role_tool_permissions;
 CREATE TRIGGER update_role_tool_permissions_updated_at BEFORE UPDATE ON role_tool_permissions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

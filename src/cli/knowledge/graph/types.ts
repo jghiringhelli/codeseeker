@@ -8,10 +8,11 @@
 export interface KnowledgeNode {
   id: string;
   type: NodeType;
-  name: string;
+  name?: string;
   namespace?: string;
   sourceLocation?: SourceLocation;
   metadata: NodeMetadata;
+  confidence?: number; // 0.0 to 1.0
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,9 +22,10 @@ export interface KnowledgeTriad {
   subject: string; // Node ID
   predicate: RelationType;
   object: string; // Node ID or literal value
-  confidence: number; // 0.0 to 1.0
+  confidence?: number; // 0.0 to 1.0
   source: TriadSource;
-  metadata: TriadMetadata;
+  evidenceType?: string;
+  metadata?: TriadMetadata;
   createdAt: Date;
 }
 
@@ -70,6 +72,8 @@ export enum RelationType {
   CONTAINS = 'contains',
   COMPOSED_OF = 'composed_of',
   PART_OF = 'part_of',
+  HAS_METHOD = 'has_method',
+  HAS_FIELD = 'has_field',
   
   // Behavioral Relationships
   CALLS = 'calls',
@@ -186,6 +190,14 @@ export interface GraphQuery {
   traversal?: TraversalQuery;
   limit?: number;
   offset?: number;
+  // Direct query properties for backward compatibility
+  nodeType?: string;
+  subject?: string;
+  predicate?: RelationType;
+  object?: string;
+  evidenceType?: string;
+  confidence?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface NodeQuery {
@@ -232,20 +244,28 @@ export interface GraphAnalysis {
 
 export interface SemanticCluster {
   id: string;
-  name: string;
   nodes: string[];
-  coherenceScore: number;
-  representativeTriads: KnowledgeTriad[];
+  triads: string[];
+  semanticScore: number;
+  density: number;
+  name?: string;
+  coherenceScore?: number;
+  representativeTriads?: KnowledgeTriad[];
   description?: string;
 }
 
 export interface ArchitecturalInsight {
-  type: InsightType;
+  type: string;
+  pattern?: string;
   confidence: number;
   description: string;
-  affectedNodes: string[];
-  recommendations: string[];
-  evidence: Evidence[];
+  nodes: string[];
+  reasoning?: string;
+  recommendation: string;
+  impact: 'low' | 'medium' | 'high';
+  affectedNodes?: string[];
+  recommendations?: string[];
+  evidence?: Evidence[];
 }
 
 export enum InsightType {

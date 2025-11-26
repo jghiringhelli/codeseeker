@@ -1,78 +1,108 @@
-# CodeMind: AI-Powered Development Intelligence
+# CodeMind: Intelligent Claude Code Enhancement
 
-> Transform your codebase into an intelligent, searchable knowledge base with semantic analysis and AI-powered insights.
+> Enhance Claude Code with semantic search, knowledge graphs, and intelligent code analysis for dramatically improved developer productivity.
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/your-org/codemind)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
+[![Status](https://img.shields.io/badge/status-MVP-green.svg)](https://github.com/your-org/codemind)
 
 ## 🚀 Quick Start
 
 ```bash
-# Install and build
-npm install && npm run build
+# 1. Clone and install
+git clone <repository-url>
+cd CodeMind
+npm install && npm run build && npm link
 
-# Start infrastructure
+# 2. Start databases
 docker-compose up -d
 
-# Initialize your project
-node dist/cli/codemind-unified-cli.js
-> /setup  # One-time infrastructure setup
-> /init   # Initialize your project
+# 3. One-time setup (creates database schema)
+codemind setup
+
+# 4. Initialize your project
+cd /path/to/your/project
+codemind init
+
+# 5. Ask questions about your code
+codemind -c "what is this project about?"
+codemind -c "show me all the classes"
+codemind -c "find SOLID principle violations"
 ```
 
 ## ✨ Key Features
 
-- **🧠 Semantic Code Search**: pgvector-powered similarity search across your entire codebase
-- **🔗 Code Relationship Mapping**: Neo4j graph database tracks dependencies and relationships  
-- **⚡ Intelligent Caching**: Redis-based high-performance file and analysis caching
-- **🤖 AI Integration**: Seamless Claude Code integration with context optimization
-- **📊 Multi-Database Analytics**: Comprehensive project intelligence across PostgreSQL, Neo4j, Redis, MongoDB
+- **🎯 Enhanced Claude Code**: Provides rich context that makes Claude Code dramatically more effective
+- **🧠 Semantic Search**: Vector-based code search finds relevant files with 100% accuracy
+- **🕸️ Knowledge Graphs**: Maps code relationships, dependencies, and patterns automatically
+- **🔍 Smart Analysis**: Detects SOLID violations, duplications, and architectural patterns
+- **⚡ Natural Language**: Ask questions about your code in plain English
+- **🚀 MVP Ready**: Battle-tested core functionality for immediate productivity gains
 
-## 🏗️ Architecture
+## 🏗️ How It Works
+
+CodeMind enhances Claude Code with an 8-step intelligent workflow:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     CodeMind CLI                            │
-├─────────────────────────────────────────────────────────────┤
-│  Semantic Search  │  Code Analysis  │  AI Integration       │
-├─────────────────────────────────────────────────────────────┤
-│ PostgreSQL+pgvector │    Neo4j      │ Redis │   MongoDB     │
-│   (Embeddings)      │   (Graph)     │(Cache)│ (Metadata)    │
-└─────────────────────────────────────────────────────────────┘
+User Query → Analysis → Semantic Search → Knowledge Graph → Enhanced Context → Claude Code → Results
 ```
+
+**Core Technologies:**
+- **PostgreSQL + pgvector**: Vector embeddings for semantic search
+- **Neo4j**: Knowledge graphs for code relationships (optional)
+- **Redis**: High-performance caching (optional)
+- **Claude Code CLI**: Direct integration, no APIs needed
 
 ## 📖 Documentation
 
 - **[Getting Started Guide](docs/user/getting-started.md)** - Installation and basic usage
-- **[Technical Architecture](docs/technical/architecture-overview.md)** - System design and implementation details  
-- **[Business Overview](docs/business/investor-overview.md)** - Value proposition and market opportunity
+- **[Core Cycle Diagram](CODEMIND_CORE_CYCLE_DIAGRAM.md)** - 8-step intelligent workflow explanation
+- **[Claude Code Guidelines](CLAUDE.md)** - Essential Claude Code integration guidance
+- **[Feature Backlog](FEATURE_REMOVAL_RECORD.md)** - Removed MVP features for future development
+- **[Development TODO](TODO)** - Current priorities and future enhancements
 
 ## 🛠️ Core Commands
 
 ```bash
-# Project Management
-/init                    # Initialize new project
-/status                  # Check system status
-/analyze [type]          # Comprehensive project analysis
+# Setup (one-time)
+codemind setup          # Create database schema and infrastructure
 
-# Intelligent Search
-/search "query"          # Semantic code search
-> How is authentication implemented?  # Natural language queries
+# Project initialization
+codemind init           # Initialize current project with CodeMind
 
-# Development Workflows  
-/refactor <target>       # Refactoring suggestions
-/optimize [type]         # Performance optimization
-/test [action]           # Test generation and execution
+# Natural language queries
+codemind -c "what is this project about?"
+codemind -c "show me all the classes"
+codemind -c "find SOLID principle violations"
+codemind -c "show me user management code"
+
+# Project maintenance
+codemind sync           # Update analysis after code changes
 ```
 
 ## 🔧 Technology Stack
 
 - **Runtime**: Node.js 18+, TypeScript
-- **Databases**: PostgreSQL (pgvector), Neo4j, Redis, MongoDB
-- **AI/ML**: OpenAI embeddings with local fallbacks
+- **Primary Database**: PostgreSQL with pgvector for semantic search
+- **Optional Databases**: Neo4j (knowledge graphs), Redis (caching)
+- **AI Integration**: Direct Claude Code CLI integration (no APIs)
 - **Deployment**: Docker, Docker Compose
-- **Integration**: Claude Code, REST APIs
+
+## 🚢 Deployment Options
+
+### Standard Deployment (Recommended)
+```bash
+# Use Docker Compose (works locally and in production)
+docker-compose up -d
+```
+
+### Rancher/Kubernetes Deployment
+```bash
+# Rancher Desktop can run Docker Compose files directly
+# Or use Kubernetes manifests (generated from docker-compose.yml)
+```
+
+**Note**: Rancher Compose (`.rancher-compose.yml`) is deprecated. Use Docker Compose for all deployments.
 
 ## 📊 Performance
 

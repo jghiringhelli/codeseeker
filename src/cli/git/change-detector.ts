@@ -4,7 +4,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { GitDiffResult } from './git-integration';
+import { GitDiffResult } from './interfaces';
 import { Logger } from '../../utils/logger';
 
 export interface ChangeSignificance {

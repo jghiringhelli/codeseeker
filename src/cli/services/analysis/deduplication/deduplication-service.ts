@@ -472,8 +472,9 @@ export class DeduplicationService {
 
   private async ensureGranularEmbeddings(projectId: string): Promise<void> {
     // This would check if granular embeddings exist and generate them if needed
+    // NOTE: Database tables should already exist from setup phase
     const dbConnections = new DatabaseConnections();
-    await this.embeddingService.initializeDatabase(dbConnections);
+    // await this.embeddingService.initializeDatabase(dbConnections); // Removed - should be done in setup
     await dbConnections.closeAll();
   }
 

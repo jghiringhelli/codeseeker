@@ -15,52 +15,84 @@ This file provides comprehensive guidance to Claude Code when working with this 
 **Business Value**: Provide reliable and scalable backend services
 **Quality Requirements**: High Performance, High Reliability, Secure
 
-## CodeMind Integration
+## Claude Code Integration Architecture
 
-This project uses the CodeMind Intelligent Code Auxiliary System for enhanced context and analysis.
+**CRITICAL**: CodeMind uses ONLY direct Claude Code CLI integration - NO APIs.
 
-### Token-Efficient API Usage
+### Main Coordination Class
+All Claude Code interactions are coordinated through:
+**`ClaudeCodeIntegration`** (`src/integrations/claude/claude-cli-integration.ts`)
 
-**Environment Setup:**
-`powershell
-$env:CODEMIND_API_URL = "http://localhost:3004"
-$env:PROJECT_PATH = "C:\workspace\claude\CodeMind"
-`
+This class provides:
+- `executeClaudeCode(prompt, context, options)` - Direct CLI execution
+- `analyzeProject(projectPath, resumeToken)` - Project analysis
+- `processRequest(userRequest, projectPath, options)` - User request processing
 
-### Intelligent Context Patterns
+### CLI-Only Approach
+- **NO fetch() calls** to external APIs
+- **NO HTTP requests** to Claude API
+- **Direct CLI execution** only via child_process.exec()
+- **All AI processing** goes through `claude` CLI command
+- **Fallback transparency**: When Claude CLI fails, CodeMind becomes transparent passthrough
 
-#### Before Any Changes (Overview - ~200 tokens)
-`powershell
-Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/context/$env:PROJECT_PATH?intent=overview"
-`
+### Integration Points
+- UserInteractionService → ClaudeCodeIntegration.executeClaudeCode()
+- Semantic Search → Local database + ClaudeCodeIntegration analysis
+- Graph Analysis → Local Neo4j + ClaudeCodeIntegration processing
+- Workflow Orchestrator → ClaudeCodeIntegration.processRequest()
 
-#### Before Coding (Development Context - ~500 tokens)
-`powershell
-Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/context/$env:PROJECT_PATH?intent=coding&maxTokens=800"
-`
+**Reference this class everywhere Claude Code interaction is needed.**
 
-#### For Architecture Decisions (Detailed Analysis - ~1000 tokens)
-`powershell
-Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/context/$env:PROJECT_PATH?intent=architecture&maxTokens=1500"
-`
+### CLI-Only Workflow Patterns
 
-#### When Debugging (Error Context - ~600 tokens)
-`powershell
-Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/context/$env:PROJECT_PATH?intent=debugging&maxTokens=1000"
-`
+#### Direct Claude Code Execution
+```typescript
+const claudeIntegration = new ClaudeCodeIntegration();
 
-#### For User Interaction (Smart Questions)
-`powershell
-Invoke-WebRequest -Uri "$env:CODEMIND_API_URL/claude/suggest-questions/$env:PROJECT_PATH?maxQuestions=3"
-`
+// For any Claude Code interaction:
+const result = await claudeIntegration.executeClaudeCode(
+  "Your prompt here",
+  "Additional context",
+  { projectPath: process.cwd() }
+);
+```
+
+#### Project Analysis
+```typescript
+// Analyze entire project
+const analysis = await claudeIntegration.analyzeProject("/path/to/project");
+```
+
+#### User Request Processing
+```typescript
+// Process user requests through complete pipeline
+const response = await claudeIntegration.processRequest(
+  "user request here",
+  "/path/to/project",
+  { maxTokens: 4000 }
+);
+```
+
+#### Error Handling Pattern
+```typescript
+try {
+  const result = await claudeIntegration.executeClaudeCode(prompt, context);
+  // Process successful result
+} catch (error) {
+  // Fallback to transparent mode - direct CLI passthrough
+  console.warn('Claude integration unavailable, using direct mode');
+  // Continue with local-only processing
+}
+```
 
 ### Project-Specific Workflow
 
-1. **Start every session** with overview context to understand current state
-2. **Before creating features** get coding context for patterns and standards
-3. **For architectural changes** use architecture context for design guidance
-4. **When debugging** use error context for common issues and solutions
-5. **For user requirements** use smart questions to gather focused information
+1. **All AI interactions** route through `ClaudeCodeIntegration` class
+2. **Semantic search** uses local database + Claude CLI analysis (no API calls)
+3. **Graph analysis** uses local Neo4j + Claude CLI processing (no API calls)
+4. **User clarifications** use `ClaudeCodeIntegration.processRequest()`
+5. **Fallback strategy**: When CLI fails → transparent passthrough mode
+6. **Error handling**: Always provide local fallback options
 
 ## CodeMind Core Cycle - WORKING ✅
 

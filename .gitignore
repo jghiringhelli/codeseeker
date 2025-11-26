@@ -1,1 +1,36 @@
-node_modules
+# Dependencies (regenerable)
+node_modules/
+package-lock.json
+
+# Build outputs (regenerable)
+dist/
+build/
+
+# Logs (regenerable)
+logs/
+*.log
+npm-debug.log*
+
+# Runtime data (regenerable)
+*.pid
+*.seed
+*.pid.lock
+
+# Local data (regenerable)
+local-data/
+
+# Environment files (keep .env.example, exclude actual .env)
+.env.local
+.env.*.local
+
+# IDE/Editor files
+.vscode/settings.json
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp

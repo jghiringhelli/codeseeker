@@ -5,7 +5,7 @@
 
 import express from 'express';
 import cors from 'cors';
-import toolDatabaseRouter from '../../orchestrator/tool-database-api';
+import { toolDatabaseRouter } from '../../orchestrator/tool-database-api';
 
 const app = express();
 const PORT = process.env.TOOL_API_PORT || 3003;
