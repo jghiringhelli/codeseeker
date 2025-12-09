@@ -110,8 +110,13 @@ class DatabaseInitializer {
                 password: this.config.redis.password,
                 connectTimeout: 5000,
                 commandTimeout: 5000,
-                maxRetriesPerRequest: 1
+                maxRetriesPerRequest: 1,
+                lazyConnect: true,
+                retryStrategy: () => null // Don't retry
             });
+            // Suppress error events to prevent console flooding
+            client.on('error', () => { });
+            await client.connect();
             await client.ping();
             await client.disconnect();
             results.redis = true;

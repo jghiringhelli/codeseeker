@@ -1,152 +1,85 @@
 /**
- * Claude Code Integration Service
- * Provides direct integration with Claude Code for AI-powered analysis
+ * Claude Code Integration Service (SOLID Refactored)
+ * SOLID Principles: Dependency Inversion - Coordinator depends on service abstractions
+ * Coordinates all Claude Code integration operations using focused services
  */
-export interface ClaudeCodeOptions {
-    projectPath?: string;
-    maxTokens?: number;
-    temperature?: number;
-    resumeToken?: string;
-}
-export interface AnalysisResult {
-    architecture: {
-        type: string;
-        patterns: string[];
-        frameworks: string[];
-        designPrinciples: string[];
-    };
-    dependencies: {
-        files: Array<{
-            file: string;
-            dependencies: string[];
-            type: 'import' | 'require' | 'reference';
-        }>;
-        relationships: Array<{
-            from: string;
-            to: string;
-            type: string;
-            strength: number;
-        }>;
-    };
-    useCases: Array<{
-        name: string;
-        description: string;
-        actors: string[];
-        preconditions: string[];
-        steps: string[];
-        postconditions: string[];
-        businessValue: string;
-    }>;
-    codeQuality: {
-        score: number;
-        issues: string[];
-        recommendations: string[];
-    };
-    resumeToken: string;
-}
-export interface ClaudeCodeResponse {
-    success: boolean;
-    data?: any;
-    error?: string;
-    tokensUsed?: number;
-    resumeToken?: string;
-}
-export declare class ClaudeCodeIntegration {
+import { ClaudeCodeOptions, ClaudeCodeResponse, AnalysisResult, ProjectContext, IClaudeExecutionService, IPromptProcessingService, IProjectAnalysisService, ISessionManagementService, IRequestProcessingService, IContextBuilderService, IResponseParsingService } from './interfaces/index';
+export { ClaudeCodeOptions, ClaudeCodeResponse, AnalysisResult, ProjectContext } from './interfaces/index';
+declare class ClaudeCodeIntegration {
+    private executionService?;
+    private promptService?;
+    private analysisService?;
+    private sessionManager?;
+    private requestProcessor?;
+    private contextBuilder?;
+    private responseParser?;
     private dbConnections;
-    private conversationManager;
-    private activeSessions;
-    constructor();
+    private logger;
+    private initialized;
+    constructor(executionService?: IClaudeExecutionService, promptService?: IPromptProcessingService, analysisService?: IProjectAnalysisService, sessionManager?: ISessionManagementService, requestProcessor?: IRequestProcessingService, contextBuilder?: IContextBuilderService, responseParser?: IResponseParsingService);
     /**
      * Execute Claude Code with a specific prompt and context using centralized command processor
      */
     executeClaudeCode(prompt: string, context: string, options?: ClaudeCodeOptions): Promise<ClaudeCodeResponse>;
     /**
-     * Get or create a conversation session for a project
-     */
-    private getSessionForProject;
-    /**
      * Perform comprehensive project analysis using Claude Code
      */
     analyzeProject(projectPath: string, resumeToken?: string): Promise<AnalysisResult>;
     /**
-     * Process user requests through the complete AI pipeline
+     * Process user request with enhanced context and prompt optimization
      */
-    processRequest(userRequest: string, projectPath: string, options?: {
-        maxTokens?: number;
-        projectId?: string;
-    }): Promise<ClaudeCodeResponse>;
+    processRequest(userRequest: string, projectPath: string, options?: ClaudeCodeOptions): Promise<ClaudeCodeResponse>;
     /**
      * Build comprehensive project context for Claude Code
      */
-    private buildProjectContext;
-    /**
-     * Simple, reliable intent detection (primary method)
-     */
-    detectUserIntentSimple(userRequest: string): Promise<{
+    buildProjectContext(projectPath: string): Promise<ProjectContext>;
+    getSessionForProject(projectPath: string): Promise<string>;
+    startNewSession(projectPath: string): Promise<string>;
+    endSession(sessionId: string): Promise<void>;
+    processBatchRequests(requests: Array<{
+        request: string;
+        projectPath: string;
+        options?: ClaudeCodeOptions;
+    }>, maxConcurrent?: number): Promise<ClaudeCodeResponse[]>;
+    testConnection(): Promise<{
+        connected: boolean;
+        version?: string;
+        error?: string;
+    }>;
+    extractUseCases(projectPath: string, context: string): Promise<AnalysisResult['useCases']>;
+    assessCodeQuality(projectPath: string, context: string): Promise<AnalysisResult['codeQuality']>;
+    detectUserIntentSimple(query: string): Promise<{
         category: string;
         confidence: number;
         requiresModifications: boolean;
         reasoning: string;
     }>;
-    /**
-     * Comprehensive intent detection with task breakdown (legacy method)
-     */
-    detectUserIntent(userRequest: string): Promise<{
-        category: string;
-        confidence: number;
-        params: Record<string, any>;
-    }>;
-    /**
-     * Transform comprehensive workflow response to legacy format for backwards compatibility
-     */
-    private transformComprehensiveResponse;
-    /**
-     * Analyze user request with comprehensive task breakdown (new optimized approach)
-     */
-    analyzeRequestWithTaskBreakdown(userRequest: string): Promise<{
-        intent: {
-            category: string;
-            confidence: number;
-            requiresModifications: boolean;
-        };
-        taskGroups: Array<{
-            groupId: string;
-            description: string;
-            tasks: string[];
-            requiresModifications: boolean;
-            complexity: 'simple' | 'medium' | 'complex';
-            riskLevel: 'low' | 'medium' | 'high';
-            estimatedMinutes: number;
-            primaryDomains: string[];
-        }>;
-        workflow: 'reporting' | 'development';
-        reasoning: string;
-    }>;
-    /**
-     * Perform semantic search to find relevant files
-     */
-    private performSemanticSearch;
-    /**
-     * Fallback file discovery when semantic search fails or returns no results
-     */
-    private fallbackFileDiscovery;
-    private buildClaudeCodeCommand;
-    /**
-     * Extract the original user request from a complex prompt for compression context
-     */
-    private extractOriginalRequest;
-    private parseAnalysisResponse;
-    private storeAnalysisResults;
-    private buildEnhancedContext;
-    private decomposeIntoTasks;
-    private executeTask;
-    private performQualityCheck;
-    private improveTaskResult;
-    private integrateResults;
-    private updateKnowledgeBase;
-    private getProjectStructure;
-    private getKeyConfigurations;
-    private getRecentChanges;
-    private getProjectDocumentation;
+    processLargePrompt(prompt: string, projectPath: string, originalRequest: string): Promise<any>;
+    validatePromptSize(prompt: string): {
+        valid: boolean;
+        size: number;
+        warning?: string;
+    };
+    initialize(): Promise<void>;
+    close(): Promise<void>;
+    getSessionStats(): any;
+    getExecutionStats(): any;
+    analyzeRequestComplexity(request: string): any;
+    private ensureInitialized;
+    static createWithServices(executionService: IClaudeExecutionService, promptService: IPromptProcessingService, analysisService: IProjectAnalysisService, sessionManager: ISessionManagementService, requestProcessor: IRequestProcessingService, contextBuilder: IContextBuilderService, responseParser: IResponseParsingService): ClaudeCodeIntegration;
+    static createDefault(): ClaudeCodeIntegration;
+    executeCommand(command: string, options?: any): Promise<any>;
+    validateRequest(request: string): {
+        valid: boolean;
+        error?: string;
+    };
+    sanitizeInput(input: string): string;
 }
+export default ClaudeCodeIntegration;
+export { ClaudeCodeIntegration };
+export { ClaudeExecutionService } from './services/claude-execution-service';
+export { PromptProcessingService } from './services/prompt-processing-service';
+export { ProjectAnalysisService } from './services/project-analysis-service';
+export { SessionManagementService } from './services/session-management-service';
+export { RequestProcessingService } from './services/request-processing-service';
 //# sourceMappingURL=claude-cli-integration.d.ts.map

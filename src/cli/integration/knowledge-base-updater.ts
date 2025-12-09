@@ -48,7 +48,11 @@ export class KnowledgeBaseUpdater {
 
     try {
       const { EmbeddingService } = await import('../services/data/embedding/embedding-service');
-      const embeddingService = new EmbeddingService();
+      const embeddingService = new EmbeddingService({
+        provider: 'local',
+        model: 'local',
+        batchSize: 100
+      });
       await embeddingService.generateProjectEmbeddings(analysis.projectId, changedFiles);
       console.log('✅ Semantic search embeddings updated');
     } catch (error) {

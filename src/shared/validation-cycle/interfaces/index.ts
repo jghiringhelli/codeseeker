@@ -83,6 +83,8 @@ export interface IValidationAggregatorService {
   aggregateResults(coreResult: CycleResult, qualityResult?: CycleResult): CycleResult;
   prioritizeIssues(results: CycleResult): CycleResult;
   generateRecommendations(results: CycleResult, context: ProjectContext): string[];
+  shouldBlockExecution(results: CycleResult): boolean;
+  getIssueSummary(results: CycleResult): { criticalErrors: number; blockingErrors: number; highPriorityWarnings: number; totalIssues: number; };
 }
 
 export interface IProjectAnalysisService {
@@ -100,4 +102,6 @@ export interface IValidationReportService {
   generateReport(result: CycleResult, context: ProjectContext): string;
   generateSummary(result: CycleResult): { status: string; summary: string };
   exportResults(result: CycleResult, format: 'json' | 'markdown' | 'text'): string;
+  generateQuickStatus(results: CycleResult): string;
+  generateMetrics(results: CycleResult): any;
 }

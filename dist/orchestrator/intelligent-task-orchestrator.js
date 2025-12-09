@@ -208,9 +208,7 @@ class IntelligentTaskOrchestrator {
                 const graphNodes = await this.findGraphNodesForFile(file);
                 for (const node of graphNodes) {
                     // Get related nodes based on relationship types
-                    const relatedNodes = await this.semanticGraph.findRelated(node.id, 3, [
-                        'IMPORTS', 'DEPENDS_ON', 'USES', 'IMPLEMENTS', 'TESTS', 'DEFINES', 'DESCRIBES'
-                    ]);
+                    const relatedNodes = await this.semanticGraph.findRelatedNodes(node.id, 3);
                     for (const relatedNode of relatedNodes) {
                         const relatedFile = relatedNode.properties.path || relatedNode.properties.file_path;
                         if (relatedFile) {
@@ -434,7 +432,7 @@ class IntelligentTaskOrchestrator {
     async findGraphNodesForFile(filePath) {
         try {
             const results = await this.semanticGraph.semanticSearch(filePath);
-            return results.map(r => r.node);
+            return results.flatMap(r => r.nodes);
         }
         catch (error) {
             return [];

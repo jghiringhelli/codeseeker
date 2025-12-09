@@ -23,7 +23,38 @@ export class TreeSitterProcessor implements IGraphProcessor {
     if (files.length === 0) return null;
     this.logger.info(`🌳 Processing ${files.length} files with Tree-sitter`);
     try {
-      return await this.treeSitterBuilder.buildSemanticGraph(files);
+      const result = await this.treeSitterBuilder.buildSemanticGraph(files);
+      // Convert CodeEntity[] to GraphNode[]
+      if (result) {
+        return {
+          ...result,
+          entities: result.entities.map(entity => ({
+            id: entity.id,
+            type: entity.type as any, // Convert to NodeType
+            properties: {
+              ...entity.metadata,
+              signature: entity.signature,
+              docstring: entity.docstring,
+              modifiers: entity.modifiers
+            },
+            name: entity.name,
+            filePath: entity.filePath,
+            startLine: entity.startLine,
+            endLine: entity.endLine
+          })),
+          relationships: result.relationships.map(rel => ({
+            fromId: rel.sourceEntity,
+            toId: rel.targetEntity,
+            type: rel.relationshipType as any,
+            properties: {
+              confidence: rel.confidence,
+              sourceFile: rel.sourceFile,
+              targetFile: rel.targetFile
+            }
+          }))
+        };
+      }
+      return null;
     } catch (error: any) {
       this.logger.warn(`Tree-sitter processing failed: ${error.message}`);
       return null;

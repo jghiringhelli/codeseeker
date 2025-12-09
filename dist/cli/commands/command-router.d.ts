@@ -7,16 +7,32 @@
 import * as readline from 'readline';
 import { CommandContext, CommandResult } from './command-context';
 import { WorkflowOrchestrator } from './services/workflow-orchestrator';
+export interface HistoryCallbacks {
+    getHistory: () => string[];
+    clearHistory: () => void;
+    getHistoryFile: () => string;
+}
 export declare class CommandRouter {
     private context;
     private handlers;
     private rl?;
     private workflowOrchestrator;
+    private transparentMode;
+    private historyCallbacks?;
     constructor(context: CommandContext, workflowOrchestrator?: WorkflowOrchestrator);
     /**
      * Set the readline interface for user interaction
+     * Passes it to the workflow orchestrator to avoid readline/inquirer conflicts
      */
     setReadlineInterface(rl: readline.Interface): void;
+    /**
+     * Set transparent mode (skip interactive prompts)
+     */
+    setTransparentMode(enabled: boolean): void;
+    /**
+     * Set history callbacks (for /history command)
+     */
+    setHistoryCallbacks(callbacks: HistoryCallbacks): void;
     /**
      * Initialize all command handlers
      * Open/Closed: Add new handlers here without modifying existing code
@@ -42,6 +58,10 @@ export declare class CommandRouter {
      * Handle status command
      */
     private handleStatus;
+    /**
+     * Handle history command
+     */
+    private handleHistory;
     /**
      * Get available commands
      */

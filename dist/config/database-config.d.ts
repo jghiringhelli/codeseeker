@@ -33,6 +33,8 @@ export declare class DatabaseConnections {
     getRedisConnection(): Promise<any>;
     getNeo4jConnection(): Promise<any>;
     closeAll(): Promise<void>;
+    initialize(): Promise<void>;
+    close(): Promise<void>;
 }
 export default DatabaseConnections;
 //# sourceMappingURL=database-config.d.ts.map

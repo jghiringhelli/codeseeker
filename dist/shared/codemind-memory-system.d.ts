@@ -1,286 +1,75 @@
 /**
- * CodeMind Memory System
+ * CodeMind Memory System (Legacy Facade)
+ * SOLID Principles: Facade Pattern - Provides simplified interface to memory subsystem
+ * SOLID Principles: Dependency Inversion Principle - depends on MemorySystem abstraction
  *
- * Comprehensive memory architecture for tracking CodeMind-Claude Code interactions,
- * preserving context across requests, and enabling intelligent continuation of work.
- *
- * Key Features:
- * - Multi-layered memory hierarchy (immediate, session, project, global)
- * - Interaction pattern learning between CodeMind and Claude Code
- * - Lossless compression with intelligent summarization
- * - Context continuity across requests and sessions
- * - Performance tracking and optimization insights
+ * This class provides backward compatibility for existing CodeMind memory operations
+ * while delegating all functionality to the new SOLID-based MemorySystem architecture.
  */
-export interface MemoryCompressionResult {
-    original: {
-        size: number;
-        interactionCount: number;
-        tokenCount: number;
-    };
-    compressed: {
-        size: number;
-        preservedInteractions: number;
-        compressionRatio: number;
-    };
-    summary: {
-        keyPatterns: string[];
-        importantOutcomes: string[];
-        criticalLearnings: string[];
-    };
-    lossless: boolean;
-}
-export interface InteractionMemory {
-    id: string;
-    timestamp: Date;
-    requestId: string;
-    sessionId: string;
-    codemindRequest: {
-        type: 'task' | 'validation' | 'fix' | 'analysis';
-        instruction: string;
-        context: any;
-        priority: 'critical' | 'high' | 'medium' | 'low';
-        expectedOutcome: string;
-    };
-    claudeResponse: {
-        success: boolean;
-        output: string;
-        duration: number;
-        tokensUsed: number;
-        errorDetails?: string;
-        metadata: any;
-    };
-    effectiveness: number;
-    patterns: string[];
-    improvements: string[];
-}
-export interface RequestMemory {
-    requestId: string;
-    sessionId: string;
-    userRequest: string;
-    projectPath: string;
-    timestamp: Date;
-    duration: number;
-    context: {
-        changedFiles: string[];
-        affectedFiles: string[];
-        requestType: 'code_modification' | 'analysis' | 'general';
-        complexity: number;
-        riskLevel: 'low' | 'medium' | 'high' | 'critical';
-    };
-    interactions: InteractionMemory[];
-    outcome: {
-        success: boolean;
-        tasksCompleted: number;
-        tasksFailed: number;
-        integrationResult: any;
-        branchMerged: boolean;
-        filesChanged: string[];
-    };
-    learnings: {
-        effectivePatterns: string[];
-        ineffectivePatterns: string[];
-        timeEstimateAccuracy: number;
-        surprisingChallenges: string[];
-        unexpectedSuccesses: string[];
-    };
-}
-export interface SessionMemory {
-    sessionId: string;
-    projectId: string;
-    userId?: string;
-    startTime: Date;
-    endTime?: Date;
-    context: {
-        projectState: any;
-        workingDirectory: string;
-        gitBranch: string;
-        lastSnapshot: string;
-    };
-    requests: RequestMemory[];
-    patterns: {
-        commonRequestTypes: string[];
-        workflowPreferences: any;
-        effectiveStrategies: string[];
-        recurringChallenges: string[];
-    };
-    summary: {
-        totalRequests: number;
-        successRate: number;
-        averageRequestTime: number;
-        majorChangesImplemented: string[];
-        keyLearnings: string[];
-    };
-}
-export interface ProjectMemory {
-    projectId: string;
-    projectPath: string;
-    profile: {
-        language: string;
-        framework: string;
-        architecture: string;
-        complexity: 'simple' | 'moderate' | 'complex' | 'enterprise';
-        domain: string;
-        teamSize?: number;
-    };
-    performance: {
-        totalRequests: number;
-        averageSuccessRate: number;
-        averageRequestTime: number;
-        commonFailurePoints: string[];
-        mostEffectivePatterns: string[];
-    };
-    evolution: {
-        majorMilestones: Array<{
-            date: Date;
-            description: string;
-            filesChanged: number;
-            impact: 'minor' | 'moderate' | 'major' | 'architectural';
-        }>;
-        architecturalChanges: Array<{
-            date: Date;
-            change: string;
-            reason: string;
-            impact: string;
-        }>;
-        dependencyEvolution: Array<{
-            date: Date;
-            added: string[];
-            removed: string[];
-            updated: string[];
-        }>;
-    };
-    knowledge: {
-        codingPatterns: Map<string, number>;
-        commonSolutions: Map<string, any>;
-        bestPractices: string[];
-        antiPatterns: string[];
-        projectSpecificKnowledge: any;
-    };
-}
-export interface MemoryCompressionResult {
-    original: {
-        size: number;
-        interactionCount: number;
-        tokenCount: number;
-    };
-    compressed: {
-        size: number;
-        preservedInteractions: number;
-        compressionRatio: number;
-    };
-    summary: {
-        keyPatterns: string[];
-        importantOutcomes: string[];
-        criticalLearnings: string[];
-    };
-    lossless: boolean;
-}
-export interface ContextualContinuation {
-    previousRequestContext: {
-        whatWasDone: string[];
-        howItWasDone: string[];
-        challengesEncountered: string[];
-        solutionsApplied: string[];
-    };
-    currentRequestContext: {
-        relatedToPrevious: boolean;
-        buildingUpon: string[];
-        potentialConflicts: string[];
-        suggestedApproach: string;
-    };
-    continuityInstructions: {
-        forCodeMind: string[];
-        forClaude: string[];
-        warningsAndCautions: string[];
-    };
-}
+import { MemorySystem } from './memory-system/memory-system';
+import { MemoryCompressionResult, InteractionMemory, RequestMemory, SessionMemory, ProjectMemory, ContextualContinuation, MemoryStats } from './memory-system/interfaces/index';
+export { MemoryCompressionResult, InteractionMemory, RequestMemory, SessionMemory, ProjectMemory, ContextualContinuation, MemoryStats };
 export declare class CodeMindMemorySystem {
     private logger;
-    private postgresql;
-    private neo4j;
-    private redis;
-    private activeInteractions;
-    private sessionCache;
-    private projectCache;
-    constructor();
+    private memorySystem;
+    private initialized;
+    private sessionId?;
+    constructor(memorySystem?: MemorySystem);
+    initialize(): Promise<void>;
+    close(): Promise<void>;
     /**
-     * Initialize memory system for a new request
+     * Store and retrieve interaction with context
+     * Main entry point for CodeMind → Claude Code interactions
      */
+    storeAndRetrieveInteraction(interaction: InteractionMemory): Promise<ContextualContinuation | null>;
+    storeInteraction(interaction: InteractionMemory): Promise<void>;
+    storeRequest(request: RequestMemory): Promise<void>;
+    storeSession(session: SessionMemory): Promise<void>;
+    storeProject(project: ProjectMemory): Promise<void>;
+    loadInteraction(id: string): Promise<InteractionMemory | null>;
+    loadRequest(requestId: string): Promise<RequestMemory | null>;
+    loadSession(sessionId: string): Promise<SessionMemory | null>;
+    loadProject(projectId: string): Promise<ProjectMemory | null>;
+    getContextForNewRequest(userRequest: string, projectPath: string, sessionId?: string): Promise<ContextualContinuation>;
+    findSimilarRequests(userRequest: string, projectMemory: ProjectMemory): Promise<RequestMemory[]>;
+    findRelevantPatterns(userRequest: string, projectPath: string): Promise<string[]>;
+    getProjectMemory(projectPath: string): Promise<ProjectMemory>;
+    getSessionMemory(sessionId: string): Promise<SessionMemory | null>;
+    updateInteractionEffectiveness(id: string, effectiveness: number): Promise<void>;
+    updateProjectKnowledge(projectId: string, knowledge: ProjectMemory['knowledge']): Promise<void>;
+    compressAndSummarize(interactions: InteractionMemory[], outcome: RequestMemory['outcome']): Promise<MemoryCompressionResult>;
+    getMemoryStats(): Promise<MemoryStats>;
+    analyzeTrends(projectId: string, timeRange: {
+        start: Date;
+        end: Date;
+    }): Promise<{
+        requestFrequency: number[];
+        successRateOverTime: number[];
+        complexityTrends: number[];
+        commonPatterns: string[];
+    }>;
+    generateInsights(projectId: string): Promise<{
+        strengths: string[];
+        improvements: string[];
+        recommendations: string[];
+    }>;
+    extractKeyPatterns(interactions: InteractionMemory[]): Promise<string[]>;
+    extractImportantOutcomes(interactions: InteractionMemory[], outcome: RequestMemory['outcome']): Promise<string[]>;
+    extractCriticalLearnings(interactions: InteractionMemory[]): Promise<string[]>;
+    calculateInteractionEffectiveness(interaction: InteractionMemory, finalOutcome: RequestMemory['outcome']): Promise<number>;
+    extractInteractionPatterns(interaction: InteractionMemory): Promise<string[]>;
+    suggestInteractionImprovements(interaction: InteractionMemory): Promise<string[]>;
+    optimizeMemoryUsage(): Promise<void>;
+    cleanupExpiredSessions(): Promise<void>;
+    compressOldInteractions(threshold: Date): Promise<void>;
     initializeRequestMemory(userRequest: string, projectPath: string, sessionId: string): Promise<{
         requestId: string;
         context: ContextualContinuation;
     }>;
-    /**
-     * Record interaction between CodeMind and Claude Code
-     */
-    recordInteraction(requestId: string, codemindRequest: InteractionMemory['codemindRequest'], claudeResponse: InteractionMemory['claudeResponse']): Promise<void>;
-    /**
-     * Complete request memory and perform intelligent summarization
-     */
-    finalizeRequestMemory(requestId: string, outcome: RequestMemory['outcome'], duration: number): Promise<MemoryCompressionResult>;
-    /**
-     * Retrieve contextual information for a new request
-     */
-    getContextForNewRequest(userRequest: string, projectPath: string, sessionId: string): Promise<{
-        similarPastRequests: RequestMemory[];
-        relevantPatterns: string[];
-        suggestedApproach: string;
-        potentialChallenges: string[];
-        estimatedComplexity: number;
-        estimatedDuration: number;
-    }>;
-    /**
-     * Get memory statistics and health metrics
-     */
-    getMemoryStats(): Promise<{
-        storage: {
-            activeInteractions: number;
-            cachedSessions: number;
-            cachedProjects: number;
-            totalRequests: number;
-            totalInteractions: number;
-        };
-        performance: {
-            averageCompressionRatio: number;
-            averageRetrievalTime: number;
-            cacheHitRate: number;
-            learningEffectiveness: number;
-        };
-        insights: {
-            mostEffectivePatterns: string[];
-            commonFailurePoints: string[];
-            improvementOpportunities: string[];
-        };
-    }>;
-    private generateRequestId;
-    private getSessionIdFromRequest;
-    private getOrCreateSessionMemory;
-    private getOrCreateProjectMemory;
-    private generateProjectId;
-    private classifyRequestType;
-    private estimateComplexity;
-    private generateContextualContinuation;
-    private calculateInteractionEffectiveness;
-    private extractInteractionPatterns;
-    private suggestInteractionImprovements;
-    private compressAndSummarize;
-    private extractKeyPatterns;
-    private extractImportantOutcomes;
-    private extractCriticalLearnings;
-    private summarizeRoutineInteractions;
-    private cacheRequestContext;
-    private updateInteractionPatterns;
-    private extractLearnings;
-    private storeRequestMemoryPersistent;
-    private updateProjectKnowledge;
-    private updateKnowledgeGraph;
-    private getProjectMemory;
-    private loadProjectMemoryFromDB;
-    private findSimilarRequests;
-    private findRelevantPatterns;
-    private suggestApproach;
-    private predictChallenges;
-    private estimateDuration;
+    recordInteraction(interaction: InteractionMemory): Promise<void>;
+    recordInteraction(requestId: string, codemindRequest: any, claudeResponse: any): Promise<void>;
+    finalizeRequestMemory(requestId: string, outcome: string, results: any): Promise<void>;
 }
 export default CodeMindMemorySystem;
+export { MemorySystem };
 //# sourceMappingURL=codemind-memory-system.d.ts.map

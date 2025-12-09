@@ -84,9 +84,10 @@ export class SemanticKnowledgeGraph {
       // Load existing data
       await this.stateManager!.loadState(this.databaseService!);
 
-      this.logger.info(`Knowledge graph initialized with ${this.stateManager!.getNodeCount()} nodes and ${this.stateManager!.getTriadCount()} triads`);
+      this.logger.debug(`Knowledge graph initialized with ${this.stateManager!.getNodeCount()} nodes and ${this.stateManager!.getTriadCount()} triads`);
     } catch (error) {
-      this.logger.error('Failed to initialize knowledge graph:', error);
+      // Don't log error - database service handles its own notification
+      this.logger.debug('Knowledge graph running in fallback mode (database unavailable)');
     }
   }
 

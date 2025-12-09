@@ -51,7 +51,7 @@ export interface IGraphStorage {
   close(): Promise<void>;
 }
 
-export class SemanticGraphService implements IGraphStorage {
+class SemanticGraphService implements IGraphStorage {
   private logger = Logger.getInstance();
   private initialized = false;
 
@@ -67,7 +67,7 @@ export class SemanticGraphService implements IGraphStorage {
   ) {
     // Initialize services with dependency injection
     this.storageService = this.storageService || new GraphStorageService(uri, username, password);
-    this.queryService = this.queryService || new GraphQueryService(this.storageService, qualityAnalyzer);
+    this.queryService = this.queryService || new GraphQueryService(this.storageService, qualityAnalyzer) as IGraphQueryService;
 
     const fullConfig: GraphBuilderConfig = {
       useTreeSitter: true,
@@ -230,7 +230,7 @@ export class SemanticGraphService implements IGraphStorage {
   }
 
   // Backward Compatibility Methods (Legacy API support)
-  async filterFiles(files: FileInfo[]): FileInfo[] {
+  async filterFiles(files: FileInfo[]): Promise<FileInfo[]> {
     return this.fileProcessingService!.filterFiles(files);
   }
 
@@ -245,11 +245,28 @@ export class SemanticGraphService implements IGraphStorage {
   calculateRelevanceScore(node: GraphNode, keywords: string[]): number {
     return (this.queryService as any).calculateRelevanceScore(node, keywords);
   }
+
+  // Missing methods needed for MVP build compatibility
+  async semanticSearch(query: string, context?: SearchContext): Promise<SearchResult[]> {
+    if (!this.queryService) {
+      this.logger.warn('Query service not initialized for semantic search');
+      return [];
+    }
+    return this.queryService.performSemanticSearch(query, context);
+  }
+
+  async findCrossReferences(nodeId: string): Promise<CrossReferenceResult[]> {
+    if (!this.queryService) {
+      this.logger.warn('Query service not initialized for cross-reference search');
+      return [];
+    }
+    return this.queryService.findCrossReferences(nodeId);
+  }
 }
 
 // Export the main class and convenience factory
-export default SemanticGraphService;
 export { SemanticGraphService };
+export default SemanticGraphService;
 
 // Re-export service classes for advanced usage
 export { FileProcessingService } from './services/file-processing-service';

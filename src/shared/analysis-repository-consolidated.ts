@@ -591,6 +591,67 @@ export class ConsolidatedAnalysisRepository {
     }
   }
 
+  /**
+   * Delete embeddings for multiple files (for incremental indexing)
+   */
+  async deleteEmbeddingsForFiles(projectId: string, filePaths: string[]): Promise<number> {
+    if (filePaths.length === 0) return 0;
+
+    try {
+      const result = await this.query(
+        'DELETE FROM semantic_search_embeddings WHERE project_id = $1 AND file_path = ANY($2)',
+        [projectId, filePaths]
+      );
+
+      this.logger.info(`Deleted embeddings for ${filePaths.length} files (${result.rowCount} rows)`);
+      return result.rowCount;
+    } catch (error) {
+      this.logger.error('Error deleting embeddings for files:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get file hashes for incremental indexing
+   * Returns a map of file_path -> full_file_hash from metadata (or content_hash as fallback)
+   */
+  async getFileHashes(projectId: string): Promise<Map<string, string>> {
+    const hashes = new Map<string, string>();
+
+    try {
+      // Get the full_file_hash from metadata for chunk_index = 0
+      // Fall back to content_hash if metadata doesn't have full_file_hash
+      const result = await this.query(`
+        SELECT DISTINCT ON (file_path)
+          file_path,
+          content_hash,
+          metadata->>'full_file_hash' as full_file_hash
+        FROM semantic_search_embeddings
+        WHERE project_id = $1 AND chunk_index = 0
+        ORDER BY file_path
+      `, [projectId]);
+
+      for (const row of result.rows) {
+        // Use full_file_hash from metadata if available, otherwise use content_hash
+        // This provides backward compatibility with existing data
+        const hash = row.full_file_hash || row.content_hash;
+        hashes.set(row.file_path, hash);
+      }
+
+      return hashes;
+    } catch (error) {
+      this.logger.error('Error getting file hashes:', error);
+      return hashes; // Return empty map on error to allow fresh indexing
+    }
+  }
+
+  /**
+   * Execute a raw query (for advanced use cases)
+   */
+  async executeQuery(text: string, params?: any[]): Promise<any> {
+    return this.query(text, params);
+  }
+
   // ============================================
   // MIGRATION UTILITIES
   // ============================================

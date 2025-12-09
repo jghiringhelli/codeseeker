@@ -182,7 +182,7 @@ class MemoryOrchestrator {
                 branchMerged: orchestrationResult.integrationResult?.branchMerged || false,
                 filesChanged: orchestrationResult.completedTasks.map(t => t.filePath)
             };
-            compressionResult = await this.memorySystem.finalizeRequestMemory(requestId, outcome, duration);
+            compressionResult = await this.memorySystem.finalizeRequestMemory(requestId, outcome.success ? 'completed' : 'failed', outcome);
             interactionsRecorded = compressionResult.original.interactionCount;
             patternsLearned = compressionResult.summary.keyPatterns;
         }
@@ -210,7 +210,7 @@ class MemoryOrchestrator {
                 similarRequests: context.similarPastRequests,
                 suggestedApproach: context.suggestedApproach,
                 potentialChallenges: context.potentialChallenges,
-                estimatedComplexity: context.estimatedComplexity,
+                estimatedComplexity: this.complexityToNumber(context.estimatedComplexity),
                 estimatedDuration: context.estimatedDuration
             };
         }
@@ -229,15 +229,41 @@ class MemoryOrchestrator {
     generateSessionId() {
         return `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     }
+    complexityToNumber(complexity) {
+        switch (complexity) {
+            case 'low': return 1;
+            case 'medium': return 2;
+            case 'high': return 3;
+            case 'critical': return 4;
+            default: return 2; // default to medium
+        }
+    }
     createEmptyContext() {
         return {
+            requestId: `empty_${Date.now()}`,
+            continuationContext: '',
+            suggestedApproach: '',
+            potentialChallenges: [],
+            estimatedDuration: 0,
+            estimatedComplexity: 'medium',
+            similarPastRequests: [],
+            relevantPatterns: [],
+            projectContext: {
+                recentChanges: [],
+                currentFocus: '',
+                upcomingMilestones: []
+            },
             previousRequestContext: {
                 whatWasDone: [],
                 howItWasDone: [],
-                challengesEncountered: [],
-                solutionsApplied: []
+                keyOutcomes: [],
+                lessonsLearned: []
             },
             currentRequestContext: {
+                userRequest: '',
+                projectPath: '',
+                sessionId: '',
+                startTime: new Date(),
                 relatedToPrevious: false,
                 buildingUpon: [],
                 potentialConflicts: [],
@@ -245,8 +271,7 @@ class MemoryOrchestrator {
             },
             continuityInstructions: {
                 forCodeMind: [],
-                forClaude: [],
-                warningsAndCautions: []
+                forClaude: []
             }
         };
     }

@@ -337,8 +337,9 @@ class DeduplicationService {
     // Helper methods
     async ensureGranularEmbeddings(projectId) {
         // This would check if granular embeddings exist and generate them if needed
+        // NOTE: Database tables should already exist from setup phase
         const dbConnections = new database_config_1.DatabaseConnections();
-        await this.embeddingService.initializeDatabase(dbConnections);
+        // await this.embeddingService.initializeDatabase(dbConnections); // Removed - should be done in setup
         await dbConnections.closeAll();
     }
     async getAllMethodsAndClasses(projectId) {

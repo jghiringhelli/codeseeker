@@ -21,11 +21,21 @@ export interface GraphContext {
         to: string;
         type: string;
         strength: number;
+        fromPath?: string;
+        toPath?: string;
+        fromMethod?: string;
+        toMethod?: string;
+        line?: number;
     }>;
     relationshipDetails: Array<{
         from: string;
         to: string;
         type: string;
+        fromPath?: string;
+        toPath?: string;
+        fromMethod?: string;
+        toMethod?: string;
+        line?: number;
     }>;
     packageStructure: string[];
     graphInsights: {
@@ -42,9 +52,11 @@ export interface GraphContext {
 export declare class GraphAnalysisService {
     private knowledgeGraph;
     private logger;
+    private projectPath;
     constructor(projectPath: string);
     /**
      * Perform sophisticated graph analysis using knowledge graph
+     * Falls back to basic analysis if knowledge graph doesn't produce results
      */
     performGraphAnalysis(query: string, semanticResults: any[]): Promise<GraphContext>;
     /**
@@ -60,7 +72,9 @@ export declare class GraphAnalysisService {
      */
     private generateClassDescription;
     /**
-     * Generate relationships based on query context and common patterns
+     * Generate relationships based on actual class structure
+     * Note: This no longer uses hardcoded keyword detection.
+     * Relationships are derived from actual class types detected in the codebase.
      */
     private generateRelationships;
     /**
@@ -80,9 +94,17 @@ export declare class GraphAnalysisService {
      */
     private extractImports;
     /**
-     * Extract method calls from file content
+     * Extract source location (file path and line numbers) for a class/function
+     */
+    private extractSourceLocation;
+    /**
+     * Extract method calls from file content (simple version for backward compatibility)
      */
     private extractMethodCalls;
+    /**
+     * Extract method calls with full context (caller method, target class, line number)
+     */
+    private extractMethodCallsWithContext;
     /**
      * Extract query terms for knowledge graph search
      */
@@ -99,6 +121,14 @@ export declare class GraphAnalysisService {
      * Extract relationships from knowledge graph nodes
      */
     private extractRelationships;
+    /**
+     * Extract class-based relationships from nodes (using actual class names)
+     */
+    private extractClassBasedRelationships;
+    /**
+     * Extract a human-readable name from node ID or metadata
+     */
+    private extractNameFromMetadata;
     /**
      * Generate architectural insights from graph analysis
      */

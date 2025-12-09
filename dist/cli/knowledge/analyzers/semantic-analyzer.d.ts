@@ -1,62 +1,27 @@
 /**
- * Semantic Analyzer for Knowledge Graph Construction
- *
- * Extracts semantic relationships and creates triads from code analysis.
- * Uses AST parsing, pattern recognition, and semantic similarity detection
- * to build comprehensive knowledge graphs.
+ * Semantic Analyzer - Refactored with SOLID Principles
+ * SOLID Principles: Single Responsibility, Dependency Inversion
+ * Reduced from 938 lines to ~150 lines using service extraction
  */
-import { SemanticKnowledgeGraph } from '../graph/knowledge-graph';
-export interface SemanticAnalysisConfig {
-    projectPath: string;
-    filePatterns: string[];
-    includeTests: boolean;
-    minConfidence: number;
-    enableSemanticSimilarity: boolean;
-    enablePatternDetection: boolean;
-}
-export interface AnalysisResult {
-    nodesExtracted: number;
-    triadsCreated: number;
-    patterns: SemanticPattern[];
-    insights: string[];
-}
-export interface SemanticPattern {
-    name: string;
-    type: string;
-    confidence: number;
-    nodes: string[];
-    description: string;
-}
+import { AnalysisResult, SemanticAnalysisConfig, IFileDiscoveryService, IASTAnalysisService, IPatternDetectionService } from './interfaces';
+/**
+ * Main Semantic Analyzer Coordinator
+ * Uses dependency injection for all analysis operations
+ */
 export declare class SemanticAnalyzer {
     private config;
+    private fileDiscovery?;
+    private astAnalysis?;
+    private patternDetection?;
     private logger;
-    private astAnalyzer;
     private knowledgeGraph;
-    private fileContents;
-    constructor(config: SemanticAnalysisConfig, knowledgeGraph: SemanticKnowledgeGraph);
+    constructor(config: SemanticAnalysisConfig, fileDiscovery?: IFileDiscoveryService, astAnalysis?: IASTAnalysisService, patternDetection?: IPatternDetectionService);
     analyzeProject(): Promise<AnalysisResult>;
-    private discoverFiles;
-    private loadFileContents;
-    private analyzeFile;
-    private createMethodCallTriads;
-    private createImportExportTriads;
-    private detectSemanticSimilarities;
-    private detectSemanticPatterns;
-    private createAbstractions;
-    private getLanguageFromPath;
+    private createNodesFromAnalysis;
+    private createFileTriads;
+    private addPatternToGraph;
+    private generateInsights;
     private extractNamespace;
     private extractTags;
-    private findOrCreateNode;
-    private inferNodeTypeFromName;
-    private calculateSimilarity;
-    private calculateStructuralSimilarity;
-    private stringSimilarity;
-    private levenshteinDistance;
-    private detectRepositoryPattern;
-    private detectServicePattern;
-    private detectFactoryPattern;
-    private detectObserverPattern;
-    private identifyFeatures;
-    private extractFeatureName;
 }
 //# sourceMappingURL=semantic-analyzer.d.ts.map

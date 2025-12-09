@@ -91,17 +91,50 @@ class PlatformUtils {
         return platform === 'macos' || platform === 'linux';
     }
     /**
-     * Detect if running inside Claude Code environment
+     * Detect if running inside Claude Code's TOOL EXECUTION context
+     * This is used to decide whether to output context for the current Claude instance
+     * or try to spawn a new Claude CLI process
+     *
+     * IMPORTANT: We only want to detect when CodeMind is being EXECUTED AS A TOOL by Claude Code,
+     * NOT just when Claude Code VSCode extension is installed or running in background.
+     *
+     * - CLAUDECODE and CLAUDE_CODE_ENTRYPOINT are set when VSCode extension is active
+     *   but do NOT indicate we're being run as a tool - ignore these
+     * - MCP_TOOL_CALL_ID indicates actual tool execution context
+     * - CLAUDE_CLI_SESSION / ANTHROPIC_CLI_SESSION indicate actual CLI session context
      */
     static isRunningInClaudeCode() {
-        // Only check for explicit CodeMind-in-Claude indicators
-        // Don't check CLAUDE_CODE_SSE_PORT as it can be set in regular shells
-        return !!(process.env.CLAUDE_CLI_SESSION ||
-            process.env.ANTHROPIC_CLI_SESSION ||
-            process.env.CLAUDE_CODE_SESSION ||
-            process.env.CLAUDECODE ||
-            // Only check if we're ACTUALLY inside Claude's execution context
-            (process.env.CLAUDE_CODE_ENTRYPOINT && process.env.CLAUDE_CODE_CONTEXT));
+        // Check for explicit CodeMind transparent mode flag (manual override)
+        if (process.env.CODEMIND_TRANSPARENT_MODE === 'true') {
+            return true;
+        }
+        // Check for MCP tool execution context - this is the most reliable indicator
+        // that we're being called AS A TOOL by Claude Code
+        if (process.env.MCP_TOOL_CALL_ID) {
+            return true;
+        }
+        // Check for actual Claude CLI session context (when spawned by Claude CLI)
+        if (process.env.CLAUDE_CLI_SESSION || process.env.ANTHROPIC_CLI_SESSION || process.env.CLAUDE_CODE_SESSION) {
+            return true;
+        }
+        // Note: We intentionally DO NOT check for:
+        // - CLAUDECODE - just means VSCode extension is installed
+        // - CLAUDE_CODE_ENTRYPOINT - just means VSCode extension is the entrypoint
+        // - CLAUDE_CODE_SSE_PORT - just means Claude is running somewhere
+        // These variables indicate Claude Code is AVAILABLE, not that we're being run BY it
+        return false;
+    }
+    /**
+     * Force transparent mode for testing or when running inside Claude Code
+     * Set CODEMIND_TRANSPARENT_MODE=true to force this behavior
+     */
+    static setTransparentMode(enabled) {
+        if (enabled) {
+            process.env.CODEMIND_TRANSPARENT_MODE = 'true';
+        }
+        else {
+            delete process.env.CODEMIND_TRANSPARENT_MODE;
+        }
     }
     /**
      * Get the appropriate file reading command for the platform

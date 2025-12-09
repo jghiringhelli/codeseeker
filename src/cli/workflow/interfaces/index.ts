@@ -90,6 +90,7 @@ export interface IContextGatheringService {
   gatherSemanticContext(query: string, intent: ProcessedIntent): Promise<EnhancementContext>;
   buildEnhancedContext(searchResults: any[], relationships: any[]): EnhancementContext;
   optimizeContextForTokens(context: EnhancementContext, maxTokens: number): EnhancementContext;
+  formatContextForClaude(context: EnhancementContext): string;
 }
 
 export interface IGitWorkflowService {
@@ -102,6 +103,7 @@ export interface IGitWorkflowService {
   ): Promise<WorkflowResult>;
   rollbackChanges(workflowId: string): Promise<void>;
   commitChanges(branch: string, message: string, files: string[]): Promise<void>;
+  getBranchStatus(): Promise<{ current: string; hasChanges: boolean; hasUncommittedChanges: boolean; ahead: number; behind: number }>;
 }
 
 export interface ITaskOrchestrationService {
@@ -130,6 +132,7 @@ export interface IDatabaseSyncService {
   updateNeo4jGraph(files: string[]): Promise<{ nodesCreated: number; relationshipsCreated: number }>;
   updateRedisCache(files: string[]): Promise<{ filesUpdated: number; hashesUpdated: number }>;
   updatePostgresRecords(files: string[]): Promise<{ recordsUpdated: number }>;
+  validateDatabaseConnections(): Promise<{ neo4j: boolean; redis: boolean; postgres: boolean }>;
 }
 
 export interface IWorkflowOrchestrator {

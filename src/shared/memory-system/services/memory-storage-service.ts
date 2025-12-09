@@ -5,6 +5,7 @@
 
 import { Logger } from '../../logger';
 import { SemanticGraphService } from '../../../cli/services/data/semantic-graph/semantic-graph';
+import { DatabaseFactory } from '../../../database/factory';
 import {
   IMemoryStorageService,
   InteractionMemory,
@@ -13,11 +14,7 @@ import {
   ProjectMemory
 } from '../interfaces/index';
 
-// Temporary stubs for missing services
-class PostgreSQLService {
-  async query() { return []; }
-  async insert() { return 'id'; }
-}
+// Use proper PostgreSQL adapter instead of stub
 
 class RedisService {
   async get(key: string) { return null; }
@@ -32,12 +29,13 @@ class RedisService {
 
 export class MemoryStorageService implements IMemoryStorageService {
   private logger = Logger.getInstance();
-  private postgres: PostgreSQLService;
+  private postgres: any; // DatabaseAdapter
   private redis: RedisService;
   private semanticGraph: SemanticGraphService;
 
   constructor() {
-    this.postgres = new PostgreSQLService();
+    const dbConfig = DatabaseFactory.parseConfigFromEnv();
+    this.postgres = DatabaseFactory.create(dbConfig, this.logger);
     this.redis = new RedisService();
     this.semanticGraph = new SemanticGraphService();
   }
@@ -187,7 +185,7 @@ export class MemoryStorageService implements IMemoryStorageService {
     try {
       // Update in PostgreSQL
       await this.postgres.query(
-        'UPDATE interactions SET effectiveness = ? WHERE id = ?',
+        'UPDATE interactions SET effectiveness = $1 WHERE id = $2',
         [effectiveness, id]
       );
 
@@ -213,7 +211,7 @@ export class MemoryStorageService implements IMemoryStorageService {
 
       // Update in PostgreSQL
       await this.postgres.query(
-        'UPDATE projects SET knowledge = ? WHERE project_id = ?',
+        'UPDATE projects SET knowledge = $1 WHERE project_id = $2',
         [JSON.stringify(serializedKnowledge), projectId]
       );
 
@@ -236,7 +234,7 @@ export class MemoryStorageService implements IMemoryStorageService {
     // Store interaction in PostgreSQL
     await this.postgres.query(`
       INSERT INTO interactions (id, timestamp, request_id, session_id, codemind_request, claude_response, effectiveness, patterns, improvements)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `, [
       interaction.id,
       interaction.timestamp,
@@ -269,7 +267,8 @@ export class MemoryStorageService implements IMemoryStorageService {
       });
 
       // Link to request if exists
-      const requestNodes = await this.semanticGraph.findNodes({ request_id: interaction.requestId });
+      const searchResult = await this.semanticGraph.searchNodes(`request_id:${interaction.requestId}`);
+      const requestNodes = searchResult.nodes;
       if (requestNodes.length > 0) {
         await this.semanticGraph.addRelationship(requestNodes[0].id, nodeId, 'CONTAINS');
       }
@@ -315,7 +314,8 @@ export class MemoryStorageService implements IMemoryStorageService {
       });
 
       // Link to project if exists
-      const projectNodes = await this.semanticGraph.findNodes({ project_path: request.projectPath });
+      const projectSearchResult = await this.semanticGraph.searchNodes(`project_path:${request.projectPath}`);
+      const projectNodes = projectSearchResult.nodes;
       if (projectNodes.length > 0) {
         await this.semanticGraph.addRelationship(projectNodes[0].id, nodeId, 'CONTAINS');
       }
@@ -416,10 +416,10 @@ export class MemoryStorageService implements IMemoryStorageService {
 
   private async loadInteractionFromDB(id: string): Promise<InteractionMemory | null> {
     const results = await this.postgres.query(
-      'SELECT * FROM interactions WHERE id = ?',
+      'SELECT * FROM interactions WHERE id = $1',
       [id]
     );
-    return results.length > 0 ? this.deserializeInteraction(results[0]) : null;
+    return results.rows.length > 0 ? this.deserializeInteraction(results.rows[0]) : null;
   }
 
   private async loadRequestFromDB(requestId: string): Promise<RequestMemory | null> {

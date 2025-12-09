@@ -73,7 +73,11 @@ class KnowledgeBaseUpdater {
             return;
         try {
             const { EmbeddingService } = await Promise.resolve().then(() => __importStar(require('../services/data/embedding/embedding-service')));
-            const embeddingService = new EmbeddingService();
+            const embeddingService = new EmbeddingService({
+                provider: 'local',
+                model: 'local',
+                batchSize: 100
+            });
             await embeddingService.generateProjectEmbeddings(analysis.projectId, changedFiles);
             console.log('✅ Semantic search embeddings updated');
         }

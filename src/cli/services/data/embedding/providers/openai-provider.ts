@@ -22,12 +22,14 @@ export class OpenAIEmbeddingProvider implements IEmbeddingProvider {
         throw new Error('OpenAI API key is required for OpenAI embeddings');
       }
 
-      // Dynamic import for OpenAI client
+      // Dynamic import for OpenAI client - disabled for MVP
       try {
-        const { OpenAI } = await import('openai');
-        this.openaiClient = new OpenAI({
-          apiKey: this.config.openaiApiKey
-        });
+        // TODO: Install openai package for production
+        // const { OpenAI } = await import('openai');
+        // this.openaiClient = new OpenAI({
+        //   apiKey: this.config.openaiApiKey
+        // });
+        throw new Error('OpenAI provider not available in MVP build');
         this.logger.info('✅ OpenAI client initialized');
       } catch (importError) {
         this.logger.warn('OpenAI package not available, install with: npm install openai');

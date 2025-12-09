@@ -44,4 +44,40 @@ export declare class Theme {
      */
     static formatInfo(message: string, icon?: string): string;
 }
+/**
+ * Spinner - Interactive thinking indicator
+ * Shows animated spinner while processing
+ */
+export declare class Spinner {
+    private static readonly frames;
+    private intervalId;
+    private frameIndex;
+    private message;
+    private stream;
+    constructor(message?: string);
+    /**
+     * Start the spinner animation
+     */
+    start(): void;
+    /**
+     * Update the spinner message
+     */
+    update(message: string): void;
+    /**
+     * Stop the spinner and show success
+     */
+    succeed(message?: string): void;
+    /**
+     * Stop the spinner and show failure
+     */
+    fail(message?: string): void;
+    /**
+     * Stop the spinner without message
+     */
+    stop(): void;
+    /**
+     * Static helper to create and start a spinner
+     */
+    static create(message: string): Spinner;
+}
 //# sourceMappingURL=theme.d.ts.map

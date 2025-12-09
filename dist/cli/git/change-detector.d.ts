@@ -1,7 +1,7 @@
 /**
  * Advanced change detection and significance scoring system
  */
-import { GitDiffResult } from './git-integration';
+import { GitDiffResult } from './interfaces';
 import { Logger } from '../../utils/logger';
 export interface ChangeSignificance {
     score: number;

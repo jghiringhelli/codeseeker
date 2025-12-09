@@ -65,7 +65,7 @@ export class ClaudeExecutionService implements IClaudeExecutionService {
       const result = await CommandProcessor.executeClaudeCode(command, {
         projectPath: options.projectPath || '.',
         maxTokens: options.maxTokens || 4000,
-        outputFormat: options.outputFormat || 'text',
+        outputFormat: (options.outputFormat as "json" | "text") || 'text',
         timeout: options.timeout || 120000
       });
 

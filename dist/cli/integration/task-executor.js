@@ -66,6 +66,11 @@ class TaskExecutor {
             status: 'success'
         };
     }
+    async executeTask(taskObj) {
+        // Handle object parameter format
+        const result = await this.execute({ description: taskObj.description }, taskObj.enhancedContext || '');
+        return { success: true, ...result };
+    }
 }
 exports.TaskExecutor = TaskExecutor;
 //# sourceMappingURL=task-executor.js.map

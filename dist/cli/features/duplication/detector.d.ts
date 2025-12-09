@@ -1,120 +1,28 @@
-export interface DuplicationScanRequest {
-    projectPath: string;
-    includeSemantic: boolean;
-    similarityThreshold: number;
-    includeRefactoringSuggestions: boolean;
-    filePatterns?: string[];
-    excludePatterns?: string[];
-}
-export interface DuplicationResult {
-    duplicates: DuplicationGroup[];
-    scanInfo: ScanInfo;
-    statistics: DuplicationStatistics;
-}
-export interface DuplicationGroup {
-    id: string;
-    type: DuplicationType;
-    similarity: number;
-    locations: CodeLocation[];
-    refactoring?: RefactoringAdvice;
-    metadata: {
-        linesOfCode: number;
-        tokenCount: number;
-        complexity: number;
-    };
-}
-export interface CodeLocation {
-    file: string;
-    startLine: number;
-    endLine: number;
-    startColumn?: number;
-    endColumn?: number;
-    codeSnippet: string;
-    hash: string;
-}
-export interface RefactoringAdvice {
-    approach: RefactoringApproach;
-    description: string;
-    estimatedEffort: EffortEstimate;
-    steps: string[];
-    example?: string;
-    impact: RefactoringImpact;
-}
-export interface ScanInfo {
-    totalFiles: number;
-    analyzedFiles: number;
-    skippedFiles: number;
-    processingTime: number;
-    timestamp: Date;
-}
-export interface DuplicationStatistics {
-    totalDuplicates: number;
-    byType: Record<DuplicationType, number>;
-    bySeverity: Record<'low' | 'medium' | 'high' | 'critical', number>;
-    estimatedTechnicalDebt: {
-        linesOfCode: number;
-        maintenanceHours: number;
-        riskScore: number;
-    };
-}
-export declare enum DuplicationType {
-    EXACT = "exact",
-    STRUCTURAL = "structural",
-    SEMANTIC = "semantic",
-    RENAMED = "renamed"
-}
-export declare enum RefactoringApproach {
-    EXTRACT_FUNCTION = "extract_function",
-    EXTRACT_CLASS = "extract_class",
-    EXTRACT_UTILITY = "extract_utility",
-    USE_INHERITANCE = "use_inheritance",
-    APPLY_STRATEGY_PATTERN = "apply_strategy_pattern",
-    CONSOLIDATE_CONFIGURATION = "consolidate_configuration"
-}
-export declare enum EffortEstimate {
-    LOW = "low",// < 30 minutes
-    MEDIUM = "medium",// 30 minutes - 2 hours
-    HIGH = "high",// 2-8 hours
-    VERY_HIGH = "very_high"
-}
-export interface RefactoringImpact {
-    maintainability: number;
-    testability: number;
-    reusability: number;
-    riskLevel: number;
-}
+/**
+ * Duplication Detector (SOLID Refactored)
+ * SOLID Principles: Dependency Inversion - Coordinator depends on abstractions
+ * Coordinates all duplication detection operations using service abstractions
+ */
+import { DuplicationScanRequest, DuplicationResult, DuplicationGroup, IFileAnalysisService, IDuplicationDetectionService, IRefactoringAdvisorService, IStatisticsService } from './interfaces/index';
+export { DuplicationScanRequest, DuplicationResult, DuplicationGroup, ScanInfo, DuplicationType, RefactoringApproach, EffortEstimate, RefactoringAdvice, RefactoringImpact, CodeLocation, DuplicationStatistics } from './interfaces/index';
 export declare class DuplicationDetector {
+    private fileAnalysisService?;
+    private detectionService?;
+    private advisorService?;
+    private statisticsService?;
     private logger;
-    private astAnalyzer;
+    constructor(fileAnalysisService?: IFileAnalysisService, detectionService?: IDuplicationDetectionService, advisorService?: IRefactoringAdvisorService, statisticsService?: IStatisticsService);
     findDuplicates(request: DuplicationScanRequest): Promise<DuplicationResult>;
-    private getProjectFiles;
-    private extractCodeBlocks;
-    private extractBlockContent;
-    private isSignificantBlock;
-    private calculateHash;
-    private tokenizeCode;
-    private calculateStructuralFingerprint;
-    private findDuplicateGroups;
-    private calculateSimilarity;
-    private calculateStructuralSimilarity;
-    private calculateTokenSimilarity;
-    private calculateSemanticSimilarity;
-    private extractVariableNames;
-    private extractFunctionCalls;
-    private determineDuplicationType;
-    private calculateAverageTokenSimilarity;
-    private calculateGroupSimilarity;
-    private generateRefactoringAdvice;
-    private getRefactoringDescription;
-    private getRefactoringSteps;
-    private calculateMaintainabilityImpact;
-    private calculateTestabilityImpact;
-    private calculateReusabilityImpact;
-    private calculateRiskLevel;
-    private generateExtractionExample;
-    private suggestFunctionName;
-    private calculateStatistics;
-    private getSeverity;
+    quickScan(projectPath: string): Promise<DuplicationResult>;
+    deepScan(projectPath: string): Promise<DuplicationResult>;
+    generateReport(result: DuplicationResult): Promise<string>;
+    getPriorityGroups(result: DuplicationResult, topN?: number): Promise<DuplicationGroup[]>;
+    private findAllDuplicateTypes;
+    private deduplicateAndPrioritize;
+    private hasSignificantLocationOverlap;
+    private locationsOverlap;
+    private calculateGroupPriority;
+    static createWithServices(fileAnalysisService: IFileAnalysisService, detectionService: IDuplicationDetectionService, advisorService: IRefactoringAdvisorService, statisticsService: IStatisticsService): DuplicationDetector;
+    static createDefault(): DuplicationDetector;
 }
-export default DuplicationDetector;
 //# sourceMappingURL=detector.d.ts.map

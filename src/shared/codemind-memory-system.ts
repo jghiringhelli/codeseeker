@@ -34,6 +34,7 @@ export class CodeMindMemorySystem {
   private logger: Logger;
   private memorySystem: MemorySystem;
   private initialized = false;
+  private sessionId?: string;
 
   constructor(memorySystem?: MemorySystem) {
     this.logger = Logger.getInstance();
@@ -215,6 +216,97 @@ export class CodeMindMemorySystem {
 
   async compressOldInteractions(threshold: Date): Promise<void> {
     return this.memorySystem.compressOldInteractions(threshold);
+  }
+
+  // Additional methods for orchestrator integration
+  async initializeRequestMemory(
+    userRequest: string,
+    projectPath: string,
+    sessionId: string
+  ): Promise<{ requestId: string; context: ContextualContinuation }> {
+    // Generate a unique request ID
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Initialize request memory
+    const request: RequestMemory = {
+      requestId,
+      sessionId,
+      userRequest: userRequest,
+      projectPath: projectPath,
+      timestamp: new Date(),
+      duration: 0,
+      type: 'general',
+      complexity: 1,
+      outcome: {
+        success: false,
+        result: 'pending',
+        filesModified: [],
+        errorsEncountered: [],
+        tokensUsed: 0
+      },
+      interactions: [],
+      learnings: {
+        effectivePatterns: [],
+        ineffectivePatterns: [],
+        timeEstimateAccuracy: 1.0,
+        surprisingChallenges: [],
+        unexpectedSuccesses: []
+      }
+    };
+    await this.memorySystem.storeRequest(request);
+
+    // Get contextual continuation
+    const contextualContinuation = await this.memorySystem.getContextForNewRequest(
+      userRequest,
+      projectPath,
+      sessionId
+    );
+
+    return { requestId, context: contextualContinuation };
+  }
+
+  async recordInteraction(interaction: InteractionMemory): Promise<void>;
+  async recordInteraction(
+    requestId: string,
+    codemindRequest: any,
+    claudeResponse: any
+  ): Promise<void>;
+  async recordInteraction(
+    interactionOrRequestId: InteractionMemory | string,
+    codemindRequest?: any,
+    claudeResponse?: any
+  ): Promise<void> {
+    if (typeof interactionOrRequestId === 'string') {
+      // Build InteractionMemory from parameters
+      const interaction: InteractionMemory = {
+        id: `int_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: new Date(),
+        requestId: interactionOrRequestId,
+        sessionId: this.sessionId || 'default',
+        codemindRequest: codemindRequest,
+        claudeResponse: claudeResponse,
+        effectiveness: 0.5,
+        patterns: [],
+        improvements: []
+      };
+      return this.memorySystem.storeInteraction(interaction);
+    } else {
+      return this.memorySystem.storeInteraction(interactionOrRequestId);
+    }
+  }
+
+  async finalizeRequestMemory(
+    requestId: string,
+    outcome: string,
+    results: any
+  ): Promise<void> {
+    // Update request with final outcome
+    const request = await this.memorySystem.loadRequest(requestId);
+    if (request) {
+      request.outcome = outcome as any;
+      request.duration = Date.now() - request.timestamp.getTime();
+      await this.memorySystem.storeRequest(request);
+    }
   }
 }
 

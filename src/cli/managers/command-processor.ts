@@ -5,7 +5,7 @@
  */
 
 import * as readline from 'readline';
-import { CommandRouter } from '../commands/command-router';
+import { CommandRouter, HistoryCallbacks } from '../commands/command-router';
 import { CommandContext, CommandResult } from '../commands/command-context';
 import { ClaudeCodeExecutor, ClaudeCodeExecutionOptions, ClaudeCodeExecutionResult } from '../services/claude/claude-code-executor';
 import { ProjectManager } from './project-manager';
@@ -19,6 +19,7 @@ import { Theme } from '../ui/theme';
 export class CommandProcessor {
   private router: CommandRouter;
   private context: CommandContext;
+  private transparentMode = false;
 
   constructor(context: CommandContext) {
     this.context = context;
@@ -30,6 +31,21 @@ export class CommandProcessor {
    */
   setReadlineInterface(rl: readline.Interface): void {
     this.router.setReadlineInterface(rl);
+  }
+
+  /**
+   * Set transparent mode (skip interactive prompts)
+   */
+  setTransparentMode(enabled: boolean): void {
+    this.transparentMode = enabled;
+    this.router.setTransparentMode(enabled);
+  }
+
+  /**
+   * Set history callbacks (for /history command)
+   */
+  setHistoryCallbacks(callbacks: HistoryCallbacks): void {
+    this.router.setHistoryCallbacks(callbacks);
   }
 
   /**

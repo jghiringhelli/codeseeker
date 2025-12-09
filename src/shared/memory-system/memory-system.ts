@@ -23,7 +23,7 @@ import { MemoryRetrievalService } from './services/memory-retrieval-service';
 import { MemoryOptimizationService } from './services/memory-optimization-service';
 import { MemoryAnalyticsService } from './services/memory-analytics-service';
 
-export class MemorySystem {
+class MemorySystem {
   private logger: Logger;
   private initialized = false;
 

@@ -126,6 +126,19 @@ export declare class ConsolidatedAnalysisRepository {
      */
     deleteEmbeddings(projectId: string, filePath?: string): Promise<number>;
     /**
+     * Delete embeddings for multiple files (for incremental indexing)
+     */
+    deleteEmbeddingsForFiles(projectId: string, filePaths: string[]): Promise<number>;
+    /**
+     * Get file hashes for incremental indexing
+     * Returns a map of file_path -> full_file_hash from metadata (or content_hash as fallback)
+     */
+    getFileHashes(projectId: string): Promise<Map<string, string>>;
+    /**
+     * Execute a raw query (for advanced use cases)
+     */
+    executeQuery(text: string, params?: any[]): Promise<any>;
+    /**
      * Migrate tool-specific data to consolidated format
      */
     migrateToolData(projectId: string, toolName: string, toolData: any[], analysisType: AnalysisType): Promise<void>;

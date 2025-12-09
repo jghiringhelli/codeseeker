@@ -10,7 +10,13 @@ export class EmbeddingGeneratorAdapter implements IEmbeddingGenerator {
   private embeddingService: EmbeddingService;
 
   constructor() {
-    this.embeddingService = new EmbeddingService();
+    // Default embedding configuration
+    const defaultConfig = {
+      provider: 'local' as const,
+      model: 'local' as const,
+      batchSize: 32
+    };
+    this.embeddingService = new EmbeddingService(defaultConfig);
   }
 
   async generateEmbeddings(chunks: SemanticChunk[]): Promise<number[][]> {

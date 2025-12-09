@@ -13,6 +13,7 @@ export enum LogLevel {
 
 export class Logger implements ILogger {
   private static instance: Logger;
+  private static muted: boolean = false;
   private level: LogLevel;
   private context?: string;
 
@@ -26,6 +27,27 @@ export class Logger implements ILogger {
       Logger.instance = new Logger();
     }
     return Logger.instance;
+  }
+
+  /**
+   * Mute all logging (useful during UI prompts to prevent log interference)
+   */
+  public static mute(): void {
+    Logger.muted = true;
+  }
+
+  /**
+   * Unmute logging
+   */
+  public static unmute(): void {
+    Logger.muted = false;
+  }
+
+  /**
+   * Check if logging is muted
+   */
+  public static isMuted(): boolean {
+    return Logger.muted;
   }
 
   public setLevel(level: 'debug' | 'info' | 'warn' | 'error'): void {
@@ -81,6 +103,11 @@ export class Logger implements ILogger {
   }
 
   private log(level: string, message: string, meta?: unknown): void {
+    // Skip logging when muted (during UI prompts)
+    if (Logger.muted) {
+      return;
+    }
+
     const timestamp = new Date().toISOString();
     const contextStr = this.context ? ` [${this.context}]` : '';
     const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';

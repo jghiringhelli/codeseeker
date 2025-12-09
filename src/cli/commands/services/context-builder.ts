@@ -17,11 +17,18 @@ export interface EnhancedContext {
     type: string;
     similarity: number;
     preview: string;
+    startLine?: number;
+    endLine?: number;
   }>;
   codeRelationships: Array<{
     from: string;
     to: string;
     type: string;
+    fromLocation?: string; // file:line format
+    toLocation?: string;   // file:line format
+    fromMethod?: string;   // Method that makes the call
+    toMethod?: string;     // Method being called
+    line?: number;         // Line number of the call
   }>;
   packageStructure: string[];
   enhancedPrompt: string;
@@ -38,11 +45,34 @@ export class ContextBuilder {
     semanticResults: SemanticResult[],
     graphContext: GraphContext
   ): EnhancedContext {
-    const relevantFiles = semanticResults.map(result => ({
-      path: result.file,
-      type: result.type,
-      similarity: result.similarity,
-      preview: this.createFilePreview(result)
+    // Map relevant files and find their line numbers from graphContext classes
+    const relevantFiles = semanticResults.map(result => {
+      // Try to find corresponding class info with line numbers
+      const classInfo = graphContext.classes?.find(c =>
+        c.filePath === result.file ||
+        result.file.includes(c.name.toLowerCase().replace(/([A-Z])/g, '-$1').toLowerCase())
+      );
+
+      return {
+        path: result.file,
+        type: result.type,
+        similarity: result.similarity,
+        preview: this.createFilePreview(result),
+        startLine: classInfo?.filePath ? this.extractLineFromMetadata(classInfo) : undefined,
+        endLine: classInfo?.filePath ? this.extractEndLineFromMetadata(classInfo) : undefined
+      };
+    });
+
+    // Build relationships with file:line format and method names
+    const codeRelationships = graphContext.relationshipDetails.map(rel => ({
+      from: rel.from,
+      to: rel.to,
+      type: rel.type,
+      fromLocation: this.formatLocation(rel.fromPath, graphContext.classes?.find(c => c.name === rel.from)),
+      toLocation: this.formatLocation(rel.toPath, graphContext.classes?.find(c => c.name === rel.to)),
+      fromMethod: rel.fromMethod,
+      toMethod: rel.toMethod,
+      line: rel.line
     }));
 
     const enhancedPrompt = this.createEnhancedPrompt(
@@ -58,10 +88,45 @@ export class ContextBuilder {
       clarifications: userClarifications,
       assumptions: queryAnalysis.assumptions,
       relevantFiles,
-      codeRelationships: graphContext.relationshipDetails,
+      codeRelationships,
       packageStructure: graphContext.packageStructure,
       enhancedPrompt
     };
+  }
+
+  /**
+   * Extract start line number from class metadata
+   */
+  private extractLineFromMetadata(classInfo: any): number | undefined {
+    // Check various locations where line number might be stored
+    if (classInfo.metadata?.startLine) return classInfo.metadata.startLine;
+    if (classInfo.sourceLocation?.startLine) return classInfo.sourceLocation.startLine;
+    return undefined;
+  }
+
+  /**
+   * Extract end line number from class metadata
+   */
+  private extractEndLineFromMetadata(classInfo: any): number | undefined {
+    if (classInfo.metadata?.endLine) return classInfo.metadata.endLine;
+    if (classInfo.sourceLocation?.endLine) return classInfo.sourceLocation.endLine;
+    return undefined;
+  }
+
+  /**
+   * Format location as file:line for Claude Code navigation
+   */
+  private formatLocation(filePath?: string, classInfo?: any): string | undefined {
+    if (!filePath) return undefined;
+
+    const startLine = classInfo ?
+      (classInfo.metadata?.startLine || classInfo.sourceLocation?.startLine) :
+      undefined;
+
+    if (startLine) {
+      return `${filePath}:${startLine}`;
+    }
+    return filePath;
   }
 
   /**
@@ -71,7 +136,7 @@ export class ContextBuilder {
     originalQuery: string,
     queryAnalysis: QueryAnalysis,
     userClarifications: string[],
-    relevantFiles: Array<{ path: string; type: string; similarity: number; preview: string }>,
+    relevantFiles: Array<{ path: string; type: string; similarity: number; preview: string; startLine?: number; endLine?: number }>,
     graphContext: GraphContext
   ): string {
     const sections: string[] = [];
@@ -89,22 +154,63 @@ export class ContextBuilder {
       sections.push(`# Detected Assumptions\n${queryAnalysis.assumptions.map(a => `- ${a}`).join('\n')}`);
     }
 
-    // Relevant files context
+    // Relevant files context with content previews and line numbers
     if (relevantFiles.length > 0) {
       sections.push(`# Relevant Files (${relevantFiles.length} found)`);
-      const fileList = relevantFiles
-        .slice(0, 8) // Limit to top 8 files to avoid token overflow
-        .map(file => `- **${file.path}** (${file.type}, similarity: ${(file.similarity * 100).toFixed(1)}%)`)
-        .join('\n');
-      sections.push(fileList);
+      const fileEntries = relevantFiles
+        .slice(0, 5) // Limit to top 5 files to avoid token overflow
+        .map(file => {
+          // Format location with line numbers if available
+          const location = file.startLine
+            ? `${file.path}:${file.startLine}${file.endLine ? `-${file.endLine}` : ''}`
+            : file.path;
+          let entry = `## ${location}\n- **Type**: ${file.type}\n- **Relevance**: ${(file.similarity * 100).toFixed(0)}%`;
+          if (file.preview && file.preview.trim()) {
+            entry += `\n\n\`\`\`\n${file.preview}\n\`\`\``;
+          }
+          return entry;
+        });
+      sections.push(fileEntries.join('\n\n'));
     }
 
-    // Code relationships
+    // Classes and Components with file:line locations
+    if (graphContext.classes && graphContext.classes.length > 0) {
+      sections.push(`# Classes & Components`);
+      const classEntries = graphContext.classes
+        .slice(0, 8)
+        .map(c => {
+          // Format as file:line for Claude Code navigation
+          const startLine = (c as any).metadata?.startLine || (c as any).sourceLocation?.startLine;
+          const location = c.filePath
+            ? `[${c.filePath}${startLine ? `:${startLine}` : ''}]`
+            : '';
+          return `- **${c.name}** (${c.type}) ${location}`;
+        })
+        .join('\n');
+      sections.push(classEntries);
+    }
+
+    // Code relationships with method names and file:line context
     if (graphContext.relationshipDetails.length > 0) {
       sections.push(`# Code Relationships`);
       const relationshipList = graphContext.relationshipDetails
-        .slice(0, 10) // Limit relationships
-        .map(rel => `- ${rel.from} → ${rel.to} (${rel.type})`)
+        .slice(0, 10)
+        .map(rel => {
+          // Format with method names: ClassName.methodName() → Target.targetMethod()
+          const fromDisplay = rel.fromMethod
+            ? `${rel.from}.${rel.fromMethod}()`
+            : rel.from;
+          const toDisplay = rel.toMethod
+            ? `${rel.to}.${rel.toMethod}()`
+            : rel.to;
+
+          // Include file:line if available
+          const lineLoc = rel.line ? `:${rel.line}` : '';
+          const fromLoc = rel.fromPath
+            ? ` [${rel.fromPath}${lineLoc}]`
+            : '';
+          return `- ${fromDisplay}${fromLoc} → ${toDisplay} (${rel.type})`;
+        })
         .join('\n');
       sections.push(relationshipList);
     }

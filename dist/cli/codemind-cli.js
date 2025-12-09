@@ -43,6 +43,10 @@ exports.CodeMindCLI = void 0;
 exports.main = main;
 const readline = __importStar(require("readline"));
 const dotenv = __importStar(require("dotenv"));
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
+const os = __importStar(require("os"));
+const crypto = __importStar(require("crypto"));
 const theme_1 = require("./ui/theme");
 const welcome_display_1 = require("./ui/welcome-display");
 const command_service_factory_1 = require("../core/factories/command-service-factory");
@@ -57,21 +61,46 @@ class CodeMindCLI {
     currentProject = null;
     activeOperations = new Set();
     currentAbortController;
+    transparentMode = false;
+    commandMode = false; // True when running single command with -c flag
+    commandModeCompleted = false; // True when command mode has finished
+    replMode = false; // True when in interactive REPL mode
+    explicitExitRequested = false; // True when user explicitly requests exit
+    commandHistory = [];
+    historyFile;
+    historyDir;
+    static MAX_HISTORY_SIZE = 100;
     constructor() {
         // Initialize all components using SOLID dependency injection factory
         const commandServiceFactory = command_service_factory_1.CommandServiceFactory.getInstance();
         this.context = commandServiceFactory.createCommandContext();
         this.commandProcessor = new command_processor_1.CommandProcessor(this.context);
-        // Setup readline interface
+        // Setup project-specific history directory in user's home
+        this.historyDir = path.join(os.homedir(), '.codemind', 'history');
+        this.ensureHistoryDir();
+        // Determine project-specific history file based on current working directory
+        const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
+        this.historyFile = this.getProjectHistoryFile(userCwd);
+        this.loadHistory();
+        // Setup readline interface with history support
         this.rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
-            prompt: theme_1.Theme.colors.prompt('codemind> ')
+            prompt: theme_1.Theme.colors.prompt('codemind> '),
+            historySize: CodeMindCLI.MAX_HISTORY_SIZE,
+            history: this.commandHistory
         });
-        // We'll handle escape through the interrupt manager instead of raw mode
-        // to avoid conflicts with readline
+        // Setup Escape key handling for interrupting operations
+        // We use stdin keypress events to capture Escape without conflicting with readline
+        this.setupEscapeKeyHandler();
         // Pass readline interface to command processor for assumption detection
         this.commandProcessor.setReadlineInterface(this.rl);
+        // Register history callbacks for /history command
+        this.commandProcessor.setHistoryCallbacks({
+            getHistory: () => this.getHistory(),
+            clearHistory: () => this.clearHistory(),
+            getHistoryFile: () => this.getHistoryFile()
+        });
         this.setupEventHandlers();
         // Setup cleanup on exit - with immediate exit option
         process.on('exit', () => void this.cleanup());
@@ -164,25 +193,25 @@ class CodeMindCLI {
             const platformInfo = platform_utils_1.PlatformUtils.getPlatformInfo();
             console.log(theme_1.Theme.colors.muted(`\n💻 Platform: ${platformInfo.platform} (${platformInfo.arch}) Node ${platformInfo.nodeVersion}`));
             console.log(theme_1.Theme.colors.muted(`🐚 Shell: ${platformInfo.shell} | File Command: ${platformInfo.fileCommand}${platformInfo.isGitBash ? ' (Git Bash)' : ''}${platformInfo.isWSL ? ' (WSL)' : ''}`));
-            // Check database connections on startup (non-blocking)
-            this.checkDatabaseConnections().catch((error) => {
+            // Check database connections on startup (wait for completion before prompt)
+            try {
+                await this.checkDatabaseConnections();
+            }
+            catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 console.log(theme_1.Theme.colors.warning(`\n⚠️  Database check failed: ${errorMessage}`));
-            });
-            // Start interactive session immediately (fixes the exit issue)
-            console.log(theme_1.Theme.colors.primary('\n🎯 CodeMind CLI is ready! You can now:'));
-            console.log(theme_1.Theme.colors.muted('   • Type /help to see available commands'));
-            console.log(theme_1.Theme.colors.muted('   • Ask natural language questions directly'));
-            console.log(theme_1.Theme.colors.muted('   • Use /init to initialize a new project'));
-            console.log(theme_1.Theme.colors.muted('   • Press Ctrl+Z to interrupt operations'));
-            console.log(theme_1.Theme.colors.muted('   • Press Ctrl+C twice to force exit\n'));
-            this.rl.prompt();
-            // Auto-detect project in background (non-blocking)
-            this.autoDetectProject().catch((error) => {
+            }
+            // Auto-detect project before showing ready message
+            try {
+                await this.autoDetectProject();
+            }
+            catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 console.log(theme_1.Theme.colors.warning(`\n⚠ Project detection failed: ${errorMessage}`));
-                this.rl.prompt();
-            });
+            }
+            // Show ready message and prompt AFTER all initialization is complete
+            console.log(theme_1.Theme.colors.primary('\n🎯 CodeMind CLI is ready! Type /help for commands or ask questions directly.\n'));
+            this.rl.prompt();
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -196,8 +225,12 @@ class CodeMindCLI {
     setupEventHandlers() {
         // Handle user input with robust error handling
         this.rl.on('line', async (input) => {
+            // Pause readline to prevent input during processing
+            this.rl.pause();
             try {
                 if (input.trim()) {
+                    // Add to history before processing
+                    this.addToHistory(input.trim());
                     await this.processInput(input.trim());
                 }
             }
@@ -207,10 +240,9 @@ class CodeMindCLI {
                 console.error(theme_1.Theme.colors.error(`❌ Unexpected error: ${errorMessage}`));
                 console.error(theme_1.Theme.colors.muted('CLI will continue running. Type "/help" for available commands.'));
             }
-            finally {
-                // Always show prompt, even if there was an error
-                this.rl.prompt();
-            }
+            // Resume and show prompt AFTER processing completes
+            this.rl.resume();
+            this.rl.prompt();
         });
         // Handle Ctrl+Z as an interrupt signal (similar to Escape in Claude Code)
         // Note: We use Ctrl+Z instead of Escape to avoid conflicts with readline
@@ -236,6 +268,22 @@ class CodeMindCLI {
         });
         // Handle CLI exit - wait for active operations
         this.rl.on('close', async () => {
+            // In command mode, ignore premature close events from inquirer
+            // The main() function will handle the exit after processInput completes
+            if (this.commandMode && !this.commandModeCompleted) {
+                // Recreate readline interface for continued use with inquirer
+                this.recreateReadlineInterface();
+                return;
+            }
+            // In REPL mode, only exit if explicitly requested
+            // This prevents accidental exit from inquirer prompts or EOF signals
+            if (this.replMode && !this.explicitExitRequested) {
+                // Recreate readline interface and continue
+                this.recreateReadlineInterface();
+                console.log(theme_1.Theme.colors.muted('\n✓ Ready for new command. Type /exit to quit.'));
+                this.rl.prompt();
+                return;
+            }
             console.log(theme_1.Theme.colors.primary('\n👋 Goodbye! Thank you for using CodeMind.'));
             // Wait for all active operations to complete
             if (this.activeOperations.size > 0) {
@@ -244,13 +292,21 @@ class CodeMindCLI {
             }
             process.exit(0);
         });
-        // Handle Ctrl+C gracefully
+        // Handle Ctrl+C gracefully with double-press detection
+        let lastCtrlCTime = 0;
         this.rl.on('SIGINT', () => {
+            const now = Date.now();
+            if (now - lastCtrlCTime < 2000) {
+                // Double Ctrl+C within 2 seconds - exit immediately
+                console.log(theme_1.Theme.colors.primary('\n👋 Goodbye!'));
+                process.exit(0);
+            }
+            lastCtrlCTime = now;
             if (this.activeOperations.size > 0) {
-                console.log(theme_1.Theme.colors.warning(`\n\n⚠ ${this.activeOperations.size} active operation(s) running. Use "/exit" to quit gracefully or Ctrl+C again to force exit.`));
+                console.log(theme_1.Theme.colors.warning(`\n⚠ ${this.activeOperations.size} active operation(s) running. Ctrl+C again to force exit.`));
             }
             else {
-                console.log(theme_1.Theme.colors.warning('\n\nUse "/exit" to quit or Ctrl+C again to force exit.'));
+                console.log(theme_1.Theme.colors.muted('\nCtrl+C again to exit, or type /exit'));
             }
             this.rl.prompt();
         });
@@ -281,20 +337,9 @@ class CodeMindCLI {
         }
     }
     /**
-     * Create a timeout promise with abort controller support
-     */
-    createTimeoutPromise(abortController, timeoutMs = 5 * 60 * 1000) {
-        return new Promise((_, reject) => {
-            const timeout = setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs / 1000} seconds`)), timeoutMs);
-            // Cancel timeout if operation is aborted
-            abortController.signal.addEventListener('abort', () => {
-                clearTimeout(timeout);
-                reject(new Error('Operation cancelled by user'));
-            });
-        });
-    }
-    /**
      * Internal operation handler to be tracked
+     * Note: No global timeout here - timeouts are handled at the service level
+     * (database connections, Claude CLI calls) to avoid timing out during user input
      */
     async processInputOperation(input) {
         try {
@@ -302,13 +347,10 @@ class CodeMindCLI {
             if (!this.currentAbortController || this.currentAbortController.signal.aborted) {
                 this.currentAbortController = new AbortController();
             }
-            // Create timeout promise using utility method
-            const timeoutPromise = this.createTimeoutPromise(this.currentAbortController);
-            // Process input through command processor (SOLID delegation) with timeout and abort
-            const result = await Promise.race([
-                this.commandProcessor.processInput(input),
-                timeoutPromise
-            ]);
+            // Process input through command processor (SOLID delegation)
+            // No global timeout - user prompts (inquirer) should wait indefinitely
+            // Individual operations (DB, Claude CLI) have their own timeouts
+            const result = await this.commandProcessor.processInput(input);
             // Handle results through UserInterface (SOLID separation)
             if (!result.success && result.message) {
                 this.context.userInterface.showError(result.message);
@@ -318,6 +360,7 @@ class CodeMindCLI {
             }
             // Handle exit command
             if (result.data?.shouldExit) {
+                this.explicitExitRequested = true;
                 await this.cleanup();
                 process.exit(0);
             }
@@ -387,14 +430,92 @@ class CodeMindCLI {
             console.log(theme_1.Theme.colors.warning('\n⚠ No CodeMind project found in current directory'));
             console.log(theme_1.Theme.colors.muted('Run "/init" to initialize this directory as a CodeMind project'));
         }
-        // Ensure prompt is shown after project detection messages
-        this.rl.prompt();
+        // Note: prompt is shown by caller after all initialization is complete
     }
     /**
      * Set project path programmatically (for command-line options)
      */
     setProjectPath(projectPath) {
         this.context.projectManager.setProjectPath(projectPath);
+    }
+    /**
+     * Set transparent mode (skip interactive prompts, output context directly)
+     */
+    setTransparentMode(enabled) {
+        this.transparentMode = enabled;
+        this.commandProcessor.setTransparentMode(enabled);
+    }
+    /**
+     * Set command mode (single command execution with -c flag)
+     * This prevents premature exit during inquirer prompts
+     */
+    setCommandMode(enabled) {
+        this.commandMode = enabled;
+    }
+    /**
+     * Set REPL mode (interactive mode)
+     * In REPL mode, the CLI only exits on explicit /exit or double Ctrl+C
+     */
+    setReplMode(enabled) {
+        this.replMode = enabled;
+    }
+    /**
+     * Request explicit exit (called by /exit command)
+     */
+    requestExit() {
+        this.explicitExitRequested = true;
+    }
+    /**
+     * Recreate readline interface after it's closed
+     * This is used to recover from inquirer prompts or EOF signals
+     */
+    recreateReadlineInterface() {
+        this.rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+            prompt: theme_1.Theme.colors.prompt('codemind> '),
+            historySize: CodeMindCLI.MAX_HISTORY_SIZE,
+            history: this.commandHistory
+        });
+        // Re-register event handlers
+        this.setupEventHandlers();
+        // Re-pass readline interface to command processor
+        this.commandProcessor.setReadlineInterface(this.rl);
+    }
+    /**
+     * Setup Escape key handler for interrupting operations
+     * Uses keypress events to detect Escape without conflicting with readline
+     */
+    setupEscapeKeyHandler() {
+        // Enable keypress events on stdin
+        if (process.stdin.isTTY) {
+            readline.emitKeypressEvents(process.stdin);
+            // Listen for keypress events
+            process.stdin.on('keypress', (_str, key) => {
+                // Escape key pressed (sequence is '\x1b' or '\u001b')
+                if (key && (key.name === 'escape' || key.sequence === '\x1b')) {
+                    this.handleEscapeKey();
+                }
+            });
+        }
+    }
+    /**
+     * Handle Escape key press - interrupt current operation
+     */
+    handleEscapeKey() {
+        if (this.activeOperations.size > 0) {
+            console.log(theme_1.Theme.colors.warning('\n\n⏸ Escape pressed - interrupting operation...'));
+            // Abort the current operation
+            if (this.currentAbortController) {
+                this.currentAbortController.abort();
+            }
+            // Clear active operations
+            this.activeOperations.clear();
+            console.log(theme_1.Theme.colors.muted('Operation cancelled. Ready for new input.'));
+            console.log(theme_1.Theme.colors.muted('💡 Tip: Use Ctrl+C twice to force exit, or /exit to quit gracefully.\n'));
+            this.rl.prompt();
+        }
+        // If no active operations, Escape is ignored (normal editing behavior)
     }
     /**
      * Check database connections on startup
@@ -434,6 +555,116 @@ class CodeMindCLI {
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.log(theme_1.Theme.colors.warning(`\n⚠️  Database connection check failed: ${errorMessage}`));
             console.log(theme_1.Theme.colors.muted('   CodeMind will work with limited functionality. Use /init to set up databases.'));
+        }
+    }
+    /**
+     * Load command history from file
+     */
+    loadHistory() {
+        try {
+            if (fs.existsSync(this.historyFile)) {
+                const content = fs.readFileSync(this.historyFile, 'utf-8');
+                this.commandHistory = content
+                    .split('\n')
+                    .filter(line => line.trim())
+                    .slice(-CodeMindCLI.MAX_HISTORY_SIZE);
+            }
+        }
+        catch {
+            // Silently ignore history load errors
+            this.commandHistory = [];
+        }
+    }
+    /**
+     * Save command history to file
+     */
+    saveHistory() {
+        try {
+            const historyContent = this.commandHistory
+                .slice(-CodeMindCLI.MAX_HISTORY_SIZE)
+                .join('\n');
+            fs.writeFileSync(this.historyFile, historyContent, 'utf-8');
+        }
+        catch {
+            // Silently ignore history save errors
+        }
+    }
+    /**
+     * Add command to history (avoid duplicates of last command)
+     */
+    addToHistory(command) {
+        const trimmed = command.trim();
+        if (!trimmed)
+            return;
+        // Don't add if it's the same as the last command
+        if (this.commandHistory.length > 0 &&
+            this.commandHistory[this.commandHistory.length - 1] === trimmed) {
+            return;
+        }
+        this.commandHistory.push(trimmed);
+        // Trim to max size
+        if (this.commandHistory.length > CodeMindCLI.MAX_HISTORY_SIZE) {
+            this.commandHistory = this.commandHistory.slice(-CodeMindCLI.MAX_HISTORY_SIZE);
+        }
+        // Save after each command for persistence
+        this.saveHistory();
+    }
+    /**
+     * Clear command history
+     */
+    clearHistory() {
+        this.commandHistory = [];
+        this.saveHistory();
+    }
+    /**
+     * Get current history file path
+     */
+    getHistoryFile() {
+        return this.historyFile;
+    }
+    /**
+     * Get command history array
+     */
+    getHistory() {
+        return [...this.commandHistory];
+    }
+    /**
+     * Ensure history directory exists
+     */
+    ensureHistoryDir() {
+        try {
+            if (!fs.existsSync(this.historyDir)) {
+                fs.mkdirSync(this.historyDir, { recursive: true });
+            }
+        }
+        catch {
+            // Fall back to home directory if we can't create the history dir
+        }
+    }
+    /**
+     * Get project-specific history file path
+     * Uses a hash of the project path to create unique history files per project
+     */
+    getProjectHistoryFile(projectPath) {
+        try {
+            // Normalize the path for consistent hashing
+            const normalizedPath = path.resolve(projectPath).toLowerCase();
+            // Create a short hash from the project path
+            const hash = crypto.createHash('md5')
+                .update(normalizedPath)
+                .digest('hex')
+                .substring(0, 12);
+            // Get the last folder name for readability
+            const projectName = path.basename(projectPath)
+                .replace(/[^a-zA-Z0-9-_]/g, '_')
+                .substring(0, 30);
+            // Create a readable filename: projectname-hash.history
+            const historyFileName = `${projectName}-${hash}.history`;
+            return path.join(this.historyDir, historyFileName);
+        }
+        catch {
+            // Fall back to global history file
+            return path.join(os.homedir(), '.codemind_history');
         }
     }
     /**
@@ -487,6 +718,7 @@ async function main() {
     const args = process.argv.slice(2);
     const hasCommand = args.includes('-c') || args.includes('--command');
     const hasProject = args.includes('-p') || args.includes('--project');
+    const hasTransparent = args.includes('-t') || args.includes('--transparent');
     if (args.includes('--help') || args.includes('-h')) {
         console.log(`
 ${theme_1.Theme.colors.primary('CodeMind Interactive CLI - Intelligent Code Assistant')}
@@ -498,6 +730,7 @@ ${theme_1.Theme.colors.secondary('Options:')}
   -V, --version         output the version number
   -p, --project <path>  Project path
   -c, --command <cmd>   Execute single command
+  -t, --transparent     Skip interactive prompts, output context directly
   --no-color            Disable colored output
   -h, --help            display help for command
 
@@ -505,6 +738,7 @@ ${theme_1.Theme.colors.secondary('Examples:')}
   codemind                    Start interactive mode in current directory
   codemind -p /path/to/proj   Start with specific project path
   codemind -c "analyze main"  Execute single command and exit
+  codemind -t -c "query"      Execute in transparent mode (no prompts)
   codemind "what is this project about"  Execute direct command and exit
 `);
         return;
@@ -514,6 +748,12 @@ ${theme_1.Theme.colors.secondary('Examples:')}
         return;
     }
     const cli = new CodeMindCLI();
+    // Auto-enable transparent mode when running inside Claude Code
+    const isInsideClaudeCode = platform_utils_1.PlatformUtils.isRunningInClaudeCode();
+    const useTransparentMode = hasTransparent || isInsideClaudeCode;
+    if (isInsideClaudeCode && !hasTransparent) {
+        // Silently enable transparent mode - don't spam output
+    }
     // Handle project path option
     if (hasProject) {
         const projectIndex = args.findIndex(arg => arg === '-p' || arg === '--project');
@@ -521,11 +761,17 @@ ${theme_1.Theme.colors.secondary('Examples:')}
             cli.setProjectPath(args[projectIndex + 1]);
         }
     }
+    // Set transparent mode if needed
+    if (useTransparentMode) {
+        cli.setTransparentMode(true);
+    }
     // Handle command option
     if (hasCommand) {
         const commandIndex = args.findIndex(arg => arg === '-c' || arg === '--command');
         if (commandIndex !== -1 && args[commandIndex + 1]) {
             // Execute single command and exit (streamlined for non-interactive mode)
+            // Set command mode to prevent premature exit during inquirer prompts
+            cli.setCommandMode(true);
             try {
                 await cli.startSilent();
                 await cli.processInput(args[commandIndex + 1]);
@@ -538,6 +784,8 @@ ${theme_1.Theme.colors.secondary('Examples:')}
                     console.error(error.stack);
                 }
             }
+            // Mark command mode as completed before exiting
+            cli.commandModeCompleted = true;
             process.exit(0);
         }
     }
@@ -545,6 +793,8 @@ ${theme_1.Theme.colors.secondary('Examples:')}
     const commandStartIndex = args.findIndex(arg => !arg.startsWith('-') && !args[args.indexOf(arg) - 1]?.match(/^-[cp]|^--(?:command|project)$/));
     if (commandStartIndex !== -1 && !hasCommand && !hasProject) {
         // Execute direct command with all remaining arguments and exit
+        // Set command mode to prevent premature exit during inquirer prompts
+        cli.setCommandMode(true);
         const fullCommand = args.slice(commandStartIndex).join(' ');
         try {
             await cli.startSilent();
@@ -558,9 +808,12 @@ ${theme_1.Theme.colors.secondary('Examples:')}
                 console.error(error.stack);
             }
         }
+        // Mark command mode as completed before exiting
+        cli.commandModeCompleted = true;
         process.exit(0);
     }
-    // Start interactive mode
+    // Start interactive mode (REPL)
+    cli.setReplMode(true);
     await cli.start();
 }
 // Error handling

@@ -98,7 +98,8 @@ class SearchCommandHandler extends base_command_handler_1.BaseCommandHandler {
         }
     }
     /**
-     * Index the current project for semantic search
+     * Index the current project for semantic search (incremental)
+     * Only reindexes files that have changed based on content hash
      */
     async indexProject(projectPath, projectId) {
         console.log('🔄 Indexing codebase for semantic search...');
@@ -109,13 +110,61 @@ class SearchCommandHandler extends base_command_handler_1.BaseCommandHandler {
                 cwd: projectPath,
                 ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**']
             });
-            console.log(`📂 Found ${files.length} files to process`);
+            console.log(`📂 Found ${files.length} files to scan`);
             if (files.length === 0) {
                 return {
                     success: false,
                     message: 'No code files found to index'
                 };
             }
+            // Get existing file hashes from database to enable incremental indexing
+            const existingHashes = await this.getExistingFileHashes(projectId);
+            console.log(`   📊 Found ${existingHashes.size} previously indexed files`);
+            // Compute current file hashes and determine what needs updating
+            const crypto = require('crypto');
+            const filesToProcess = [];
+            const filesToDelete = [];
+            const currentFiles = new Set();
+            for (const file of files) {
+                currentFiles.add(file);
+                const filePath = path_1.default.join(projectPath, file);
+                try {
+                    const content = await fs.readFile(filePath, 'utf-8');
+                    if (content.length < 50)
+                        continue; // Skip very small files
+                    const fileHash = crypto.createHash('md5').update(content).digest('hex');
+                    const existingHash = existingHashes.get(file);
+                    if (!existingHash || existingHash !== fileHash) {
+                        filesToProcess.push(file);
+                        if (existingHash) {
+                            filesToDelete.push(file); // File changed, delete old embeddings first
+                        }
+                    }
+                }
+                catch (error) {
+                    this.logger.warn(`Failed to read file ${file}:`, error);
+                }
+            }
+            // Find deleted files (in DB but not in current file system)
+            for (const [file] of existingHashes) {
+                if (!currentFiles.has(file)) {
+                    filesToDelete.push(file);
+                }
+            }
+            // Delete old embeddings for changed/deleted files
+            if (filesToDelete.length > 0) {
+                await this.deleteFileEmbeddings(projectId, filesToDelete);
+                console.log(`   🗑️  Removed embeddings for ${filesToDelete.length} changed/deleted files`);
+            }
+            if (filesToProcess.length === 0) {
+                console.log(`✅ All ${files.length} files are up to date - no reindexing needed`);
+                return {
+                    success: true,
+                    message: `Project already indexed: ${files.length} files up to date`,
+                    data: { segments: 0, files: 0, unchanged: files.length }
+                };
+            }
+            console.log(`   📝 Processing ${filesToProcess.length} new/changed files...`);
             // Initialize embedding service
             const embeddingService = new embedding_service_1.EmbeddingService({
                 provider: 'xenova',
@@ -123,12 +172,12 @@ class SearchCommandHandler extends base_command_handler_1.BaseCommandHandler {
             });
             const embeddings = [];
             let processedFiles = 0;
-            for (const file of files.slice(0, 50)) { // Limit to 50 files for MVP
+            for (const file of filesToProcess.slice(0, 50)) { // Limit to 50 files for MVP
                 try {
                     const filePath = path_1.default.join(projectPath, file);
                     const content = await fs.readFile(filePath, 'utf-8');
                     if (content.length < 50)
-                        continue; // Skip very small files
+                        continue;
                     // Create simple chunks (split by lines for now)
                     const lines = content.split('\n');
                     const chunks = [];
@@ -138,18 +187,24 @@ class SearchCommandHandler extends base_command_handler_1.BaseCommandHandler {
                             chunks.push(chunk);
                         }
                     }
+                    // Compute full file hash for incremental indexing comparison
+                    const fullFileHash = crypto.createHash('md5').update(content).digest('hex');
                     // Generate embeddings for each chunk
                     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
                         const chunk = chunks[chunkIndex];
                         try {
-                            // For MVP, create a simple embedding entry without actual vector
                             const embedding = {
                                 project_id: projectId,
                                 file_path: file,
                                 chunk_index: chunkIndex,
                                 content_type: 'code',
                                 content_text: chunk,
-                                content_hash: require('crypto').createHash('md5').update(chunk).digest('hex')
+                                content_hash: crypto.createHash('md5').update(chunk).digest('hex'),
+                                // Store full file hash in metadata for incremental indexing
+                                metadata: {
+                                    full_file_hash: fullFileHash,
+                                    total_chunks: chunks.length
+                                }
                             };
                             embeddings.push(embedding);
                         }
@@ -159,7 +214,7 @@ class SearchCommandHandler extends base_command_handler_1.BaseCommandHandler {
                     }
                     processedFiles++;
                     if (processedFiles % 10 === 0) {
-                        console.log(`   Processed ${processedFiles}/${files.length} files...`);
+                        console.log(`   Processed ${processedFiles}/${filesToProcess.length} files...`);
                     }
                 }
                 catch (error) {
@@ -170,17 +225,23 @@ class SearchCommandHandler extends base_command_handler_1.BaseCommandHandler {
             if (embeddings.length > 0) {
                 await analysis_repository_consolidated_1.analysisRepository.saveMultipleEmbeddings(embeddings);
                 console.log(`✅ Generated embeddings for ${embeddings.length} code segments`);
-                console.log(`📊 Processed ${processedFiles} files`);
+                console.log(`📊 Processed ${processedFiles} new/changed files (${files.length - filesToProcess.length} unchanged)`);
                 return {
                     success: true,
                     message: `Project indexed: ${embeddings.length} segments from ${processedFiles} files`,
-                    data: { segments: embeddings.length, files: processedFiles }
+                    data: {
+                        segments: embeddings.length,
+                        files: processedFiles,
+                        unchanged: files.length - filesToProcess.length,
+                        deleted: filesToDelete.length
+                    }
                 };
             }
             else {
                 return {
-                    success: false,
-                    message: 'No valid code segments found to index'
+                    success: true,
+                    message: 'No new code segments to index',
+                    data: { segments: 0, files: 0 }
                 };
             }
         }
@@ -190,6 +251,31 @@ class SearchCommandHandler extends base_command_handler_1.BaseCommandHandler {
                 success: false,
                 message: `Indexing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
             };
+        }
+    }
+    /**
+     * Get existing file hashes from database for incremental indexing
+     */
+    async getExistingFileHashes(projectId) {
+        try {
+            return await analysis_repository_consolidated_1.analysisRepository.getFileHashes(projectId);
+        }
+        catch (error) {
+            this.logger.warn('Could not get existing file hashes:', error);
+            return new Map();
+        }
+    }
+    /**
+     * Delete embeddings for specified files
+     */
+    async deleteFileEmbeddings(projectId, files) {
+        if (files.length === 0)
+            return;
+        try {
+            await analysis_repository_consolidated_1.analysisRepository.deleteEmbeddingsForFiles(projectId, files);
+        }
+        catch (error) {
+            this.logger.warn('Could not delete file embeddings:', error);
         }
     }
     /**

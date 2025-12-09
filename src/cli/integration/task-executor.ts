@@ -71,4 +71,13 @@ export class TaskExecutor {
       status: 'success'
     };
   }
+
+  async executeTask(taskObj: any): Promise<any> {
+    // Handle object parameter format
+    const result = await this.execute(
+      { description: taskObj.description },
+      taskObj.enhancedContext || ''
+    );
+    return { success: true, ...result };
+  }
 }

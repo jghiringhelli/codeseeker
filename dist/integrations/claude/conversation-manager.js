@@ -351,6 +351,16 @@ Provide a summary in 2-3 paragraphs that can serve as context for future message
         return this.sessions.get(sessionId);
     }
     /**
+     * End a session and clean up resources
+     */
+    endSession(sessionId) {
+        const session = this.sessions.get(sessionId);
+        if (session) {
+            this.sessions.delete(sessionId);
+            console.log(`🔚 Session ended: ${sessionId}`);
+        }
+    }
+    /**
      * Clean up old sessions
      */
     cleanupOldSessions(maxAgeMs = 24 * 60 * 60 * 1000) {

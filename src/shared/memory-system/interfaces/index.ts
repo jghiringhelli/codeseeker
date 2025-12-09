@@ -176,12 +176,35 @@ export interface ContextualContinuation {
   suggestedApproach: string;
   potentialChallenges: string[];
   estimatedDuration: number;
+  estimatedComplexity?: 'low' | 'medium' | 'high' | 'critical';
   similarPastRequests: RequestMemory[];
   relevantPatterns: string[];
+  continuityInstructions?: {
+    forClaude: string[];
+    forCodeMind: string[];
+  };
   projectContext: {
     recentChanges: string[];
     currentFocus: string;
     upcomingMilestones: string[];
+  };
+  previousRequestContext: {
+    whatWasDone: string[];
+    howItWasDone?: string[];
+    keyOutcomes: string[];
+    lessonsLearned: string[];
+  };
+  currentRequestContext: {
+    userRequest: string;
+    projectPath: string;
+    sessionId: string;
+    startTime: Date;
+    buildingUpon: string[];
+    potentialConflicts: string[];
+    suggestedApproach?: string;
+    challenges?: string[];
+    opportunities?: string[];
+    relatedToPrevious?: boolean;
   };
 }
 
@@ -211,6 +234,9 @@ export interface MemoryStats {
 
 // Service Interfaces (SOLID: Interface Segregation)
 export interface IMemoryStorageService {
+  initialize(): Promise<void>;
+  close(): Promise<void>;
+
   storeInteraction(interaction: InteractionMemory): Promise<void>;
   storeRequest(request: RequestMemory): Promise<void>;
   storeSession(session: SessionMemory): Promise<void>;

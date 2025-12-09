@@ -313,8 +313,8 @@ export class MemoryOrchestrator {
 
       compressionResult = await this.memorySystem.finalizeRequestMemory(
         requestId,
-        outcome,
-        duration
+        outcome.success ? 'completed' : 'failed',
+        outcome
       );
 
       interactionsRecorded = compressionResult.original.interactionCount;
@@ -362,7 +362,7 @@ export class MemoryOrchestrator {
         similarRequests: context.similarPastRequests,
         suggestedApproach: context.suggestedApproach,
         potentialChallenges: context.potentialChallenges,
-        estimatedComplexity: context.estimatedComplexity,
+        estimatedComplexity: this.complexityToNumber(context.estimatedComplexity),
         estimatedDuration: context.estimatedDuration
       };
 
@@ -385,15 +385,42 @@ export class MemoryOrchestrator {
     return `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   }
 
+  private complexityToNumber(complexity?: 'low' | 'medium' | 'high' | 'critical'): number {
+    switch (complexity) {
+      case 'low': return 1;
+      case 'medium': return 2;
+      case 'high': return 3;
+      case 'critical': return 4;
+      default: return 2; // default to medium
+    }
+  }
+
   private createEmptyContext(): ContextualContinuation {
     return {
+      requestId: `empty_${Date.now()}`,
+      continuationContext: '',
+      suggestedApproach: '',
+      potentialChallenges: [],
+      estimatedDuration: 0,
+      estimatedComplexity: 'medium',
+      similarPastRequests: [],
+      relevantPatterns: [],
+      projectContext: {
+        recentChanges: [],
+        currentFocus: '',
+        upcomingMilestones: []
+      },
       previousRequestContext: {
         whatWasDone: [],
         howItWasDone: [],
-        challengesEncountered: [],
-        solutionsApplied: []
+        keyOutcomes: [],
+        lessonsLearned: []
       },
       currentRequestContext: {
+        userRequest: '',
+        projectPath: '',
+        sessionId: '',
+        startTime: new Date(),
         relatedToPrevious: false,
         buildingUpon: [],
         potentialConflicts: [],
@@ -401,8 +428,7 @@ export class MemoryOrchestrator {
       },
       continuityInstructions: {
         forCodeMind: [],
-        forClaude: [],
-        warningsAndCautions: []
+        forClaude: []
       }
     };
   }

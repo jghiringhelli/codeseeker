@@ -293,4 +293,38 @@ export class GraphQueryService implements IGraphQueryService {
 
     return Math.min(100, score);
   }
+
+  // Additional methods required by interface
+  async performSemanticSearch(query: string, context?: SearchContext): Promise<SearchResult[]> {
+    try {
+      this.logger.debug(`🔍 Performing semantic search: "${query}"`);
+      const result = await this.searchNodes(query, context);
+      // Return array of single result for now
+      return [result];
+    } catch (error) {
+      this.logger.error(`Failed to perform semantic search:`, error);
+      return [];
+    }
+  }
+
+  async findCrossReferences(nodeId: string): Promise<CrossReferenceResult[]> {
+    try {
+      this.logger.debug(`🔗 Finding cross-references for node: ${nodeId}`);
+      const relatedNodes = await this.findRelatedNodes(nodeId, 2);
+
+      // Group related nodes by type and create cross-reference results
+      const crossRef: CrossReferenceResult = {
+        concept: relatedNodes[0] || { id: nodeId, type: 'BusinessConcept', properties: {}, name: nodeId },
+        relatedCode: this.filterByType(relatedNodes, 'Code'),
+        relatedDocs: this.filterByType(relatedNodes, 'Documentation'),
+        relatedUI: this.filterByType(relatedNodes, 'UIComponent'),
+        relatedTests: this.filterByType(relatedNodes, 'TestCase')
+      };
+
+      return [crossRef];
+    } catch (error) {
+      this.logger.error(`Failed to find cross-references:`, error);
+      return [];
+    }
+  }
 }

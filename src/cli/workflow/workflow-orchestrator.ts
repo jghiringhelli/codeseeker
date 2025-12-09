@@ -43,7 +43,7 @@ export class CodeMindWorkflowOrchestrator implements IWorkflowOrchestrator {
     // Initialize services with dependency injection
     this.intentAnalysisService = intentAnalysisService || new IntentAnalysisService();
     this.contextGatheringService = contextGatheringService || new ContextGatheringService();
-    this.gitWorkflowService = gitWorkflowService || new GitWorkflowService();
+    this.gitWorkflowService = gitWorkflowService || (new GitWorkflowService() as unknown as IGitWorkflowService);
     this.taskOrchestrationService = taskOrchestrationService || new TaskOrchestrationService();
     this.qualityAssuranceService = qualityAssuranceService || new QualityAssuranceService();
     this.databaseSyncService = databaseSyncService || new DatabaseSyncService();

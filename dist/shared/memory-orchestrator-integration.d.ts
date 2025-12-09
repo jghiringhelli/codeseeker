@@ -73,27 +73,9 @@ export declare class MemoryOrchestrator {
     /**
      * Get memory system statistics
      */
-    getMemoryStats(): Promise<{
-        storage: {
-            activeInteractions: number;
-            cachedSessions: number;
-            cachedProjects: number;
-            totalRequests: number;
-            totalInteractions: number;
-        };
-        performance: {
-            averageCompressionRatio: number;
-            averageRetrievalTime: number;
-            cacheHitRate: number;
-            learningEffectiveness: number;
-        };
-        insights: {
-            mostEffectivePatterns: string[];
-            commonFailurePoints: string[];
-            improvementOpportunities: string[];
-        };
-    }>;
+    getMemoryStats(): Promise<import("./codemind-memory-system").MemoryStats>;
     private generateSessionId;
+    private complexityToNumber;
     private createEmptyContext;
     private logContextualContinuation;
     private extractEffectivePatterns;

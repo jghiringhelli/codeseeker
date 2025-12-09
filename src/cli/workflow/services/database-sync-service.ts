@@ -205,7 +205,7 @@ export class DatabaseSyncService implements IDatabaseSyncService {
   private async checkRedisConnection(): Promise<boolean> {
     try {
       // Basic connection test
-      await this.databaseUpdater.testRedisConnection();
+      await this.databaseUpdater.testGraphConnection();
       return true;
     } catch {
       return false;
@@ -215,7 +215,7 @@ export class DatabaseSyncService implements IDatabaseSyncService {
   private async checkPostgresConnection(): Promise<boolean> {
     try {
       // Basic connection test
-      await this.databaseUpdater.testMainDatabaseConnection();
+      await this.databaseUpdater.testGraphConnection();
       return true;
     } catch {
       return false;

@@ -17,7 +17,7 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
     }
     async initialize() {
         try {
-            this.logger.info('Initializing PostgreSQL connection', {
+            this.logger.debug('Initializing PostgreSQL connection', {
                 host: this.config.host,
                 database: this.config.database,
                 port: this.config.port
@@ -39,7 +39,7 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
             const client = await this.pool?.connect();
             await client?.query('SELECT NOW()');
             client?.release();
-            this.logger.info('PostgreSQL connection established successfully');
+            this.logger.debug('PostgreSQL connection established');
             // Run migrations
             await this?.migrate();
         }
@@ -50,7 +50,7 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
     }
     async close() {
         if (this.pool) {
-            this.logger.info('Closing PostgreSQL connection pool');
+            this.logger.debug('Closing PostgreSQL connection pool');
             await this.pool?.end();
             this.pool = null;
         }
@@ -60,7 +60,7 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
             throw new Error('Database not initialized');
         }
         try {
-            this.logger.info('Running PostgreSQL migrations');
+            this.logger.debug('Running PostgreSQL migrations');
             // Try multiple possible paths for the schema file
             const possiblePaths = [
                 (0, path_1.join)(__dirname, '../../src/database/schema.postgres.sql'), // Docker path
@@ -73,7 +73,7 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 try {
                     schemaSql = (0, fs_1.readFileSync)(schemaPath, 'utf8');
                     schemaFound = true;
-                    this.logger.info(`Found schema file at: ${schemaPath}`);
+                    this.logger.debug(`Found schema file at: ${schemaPath}`);
                     break;
                 }
                 catch (error) {
@@ -89,13 +89,13 @@ class PostgreSQLAdapter extends base_1.DatabaseAdapter {
                 // Try to run schema - if it fails because objects already exist, that's OK
                 try {
                     await client?.query(schemaSql);
-                    this.logger.info('PostgreSQL migrations completed successfully');
+                    this.logger.debug('PostgreSQL migrations completed');
                 }
                 catch (migrationError) {
                     // Check if the error is just about existing objects
                     const errorMessage = migrationError.message;
                     if (errorMessage?.includes('already exists') || errorMessage?.includes('does not exist')) {
-                        this.logger.info('PostgreSQL schema already exists, skipping migration');
+                        this.logger.debug('PostgreSQL schema already exists');
                     }
                     else {
                         // Re-throw if it's a different error

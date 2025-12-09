@@ -92,3 +92,82 @@ export class Theme {
     return this.colors.info(`${icon} ${message}`);
   }
 }
+
+/**
+ * Spinner - Interactive thinking indicator
+ * Shows animated spinner while processing
+ */
+export class Spinner {
+  private static readonly frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  private intervalId: NodeJS.Timeout | null = null;
+  private frameIndex = 0;
+  private message: string;
+  private stream: NodeJS.WriteStream;
+
+  constructor(message: string = 'Processing') {
+    this.message = message;
+    this.stream = process.stdout;
+  }
+
+  /**
+   * Start the spinner animation
+   */
+  start(): void {
+    if (this.intervalId) return; // Already running
+
+    // Hide cursor
+    this.stream.write('\x1B[?25l');
+
+    this.intervalId = setInterval(() => {
+      const frame = Spinner.frames[this.frameIndex];
+      this.stream.write(`\r${Theme.colors.primary(frame)} ${Theme.colors.muted(this.message)}`);
+      this.frameIndex = (this.frameIndex + 1) % Spinner.frames.length;
+    }, 80);
+  }
+
+  /**
+   * Update the spinner message
+   */
+  update(message: string): void {
+    this.message = message;
+  }
+
+  /**
+   * Stop the spinner and show success
+   */
+  succeed(message?: string): void {
+    this.stop();
+    const finalMessage = message || this.message;
+    this.stream.write(`\r${Theme.colors.success('✓')} ${finalMessage}\n`);
+  }
+
+  /**
+   * Stop the spinner and show failure
+   */
+  fail(message?: string): void {
+    this.stop();
+    const finalMessage = message || this.message;
+    this.stream.write(`\r${Theme.colors.error('✗')} ${finalMessage}\n`);
+  }
+
+  /**
+   * Stop the spinner without message
+   */
+  stop(): void {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    // Clear line and show cursor
+    this.stream.write('\r\x1B[K\x1B[?25h');
+  }
+
+  /**
+   * Static helper to create and start a spinner
+   */
+  static create(message: string): Spinner {
+    const spinner = new Spinner(message);
+    spinner.start();
+    return spinner;
+  }
+}

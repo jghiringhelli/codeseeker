@@ -49,7 +49,17 @@ export class TaskSpecificFileOrchestrator {
     this.logger = Logger.getInstance();
     this.impactAnalyzer = new ComprehensiveImpactAnalyzer();
     this.branchManager = new GitBranchManager(projectPath);
-    this.validationCycle = new CodeMindValidationCycle();
+    const config = {
+      enableCoreCycle: true,
+      enableQualityCycle: true,
+      maxDuration: 300000,
+      qualityThresholds: {
+        solidMinScore: 0.8,
+        maxDuplicationLines: 100,
+        maxComplexityPerFunction: 10
+      }
+    };
+    this.validationCycle = new CodeMindValidationCycle(config);
     this.postExecutionIntegration = new PostExecutionIntegration(projectPath);
   }
 

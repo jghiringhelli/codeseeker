@@ -138,9 +138,8 @@ class ComprehensiveImpactAnalyzer {
                     });
                     let dependentFiles = [];
                     if (searchResults.length > 0) {
-                        const nodeId = searchResults[0].node.id;
-                        const relatedNodes = await this.semanticGraph.findRelated(nodeId, 5, // maxDepth
-                        ['IMPORTS', 'DEPENDS_ON', 'USES', 'IMPLEMENTS'] // RelationshipType[]
+                        const nodeId = searchResults[0].nodes[0].id;
+                        const relatedNodes = await this.semanticGraph.findRelatedNodes(nodeId, 5 // maxDepth
                         );
                         dependentFiles = relatedNodes;
                     }

@@ -1,73 +1,17 @@
 /**
  * Code Relationship Parser
+ * SOLID Principles: Dependency Inversion - Coordinator depends on abstractions
  * Parses project files to extract relationships for the semantic graph
  */
-interface ParsedMethod {
-    name: string;
-    visibility: 'public' | 'private' | 'protected';
-    isStatic: boolean;
-    isAsync: boolean;
-    parameters: Array<{
-        name: string;
-        type?: string;
-    }>;
-    returnType?: string;
-    startLine: number;
-    endLine: number;
-    complexity: number;
-    callsTo: string[];
-}
-interface ParsedClass {
-    name: string;
-    extends?: string;
-    implements: string[];
-    methods: ParsedMethod[];
-    properties: Array<{
-        name: string;
-        type?: string;
-        visibility: string;
-    }>;
-    startLine: number;
-    endLine: number;
-}
-interface ParsedFunction {
-    name: string;
-    isAsync: boolean;
-    parameters: Array<{
-        name: string;
-        type?: string;
-    }>;
-    returnType?: string;
-    startLine: number;
-    endLine: number;
-    complexity: number;
-    callsTo: string[];
-}
-interface ParsedFile {
-    filePath: string;
-    language: string;
-    exports: string[];
-    imports: Array<{
-        name: string;
-        from: string;
-    }>;
-    classes: ParsedClass[];
-    functions: ParsedFunction[];
-    interfaces: string[];
-    dependencies: string[];
-    constants: Array<{
-        name: string;
-        type?: string;
-    }>;
-    enums: Array<{
-        name: string;
-        values: string[];
-    }>;
-}
+import { ParsedFile, ProjectStructure, IFileParsingService, IProjectStructureService, IGraphPopulationService } from './code-parsing/interfaces/index';
+export { ParsedFile, ProjectStructure } from './code-parsing/interfaces/index';
 export declare class CodeRelationshipParser {
+    private fileParsingService?;
+    private projectStructureService?;
+    private graphPopulationService?;
     private logger;
     private semanticGraph;
-    constructor();
+    constructor(fileParsingService?: IFileParsingService, projectStructureService?: IProjectStructureService, graphPopulationService?: IGraphPopulationService);
     initialize(): Promise<void>;
     /**
      * Parse individual file (public wrapper for parseCodeFile)
@@ -78,82 +22,37 @@ export declare class CodeRelationshipParser {
      */
     parseAndPopulateProject(projectPath: string, projectId: string): Promise<void>;
     /**
-     * Parse all files in the project to extract structure
+     * Analyze project structure without populating the graph
      */
-    private parseProjectStructure;
+    analyzeProjectStructure(projectPath: string): Promise<ProjectStructure>;
     /**
-     * Parse individual code file
+     * Get parsing statistics for a project
      */
-    private parseCodeFile;
-    /**
-     * Parse JavaScript/TypeScript files with detailed analysis
-     */
-    private parseJavaScriptFile;
-    /**
-     * Parse Python files with detailed analysis
-     */
-    private parsePythonFile;
-    /**
-     * Parse Java files
-     */
-    private parseJavaFile;
-    /**
-     * Parse generic files (fallback)
-     */
-    private parseGenericFile;
-    /**
-     * Extract Python methods from class body
-     */
-    private extractPythonMethods;
-    /**
-     * Extract Python properties from class body
-     */
-    private extractPythonProperties;
-    /**
-     * Parse Python function parameters
-     */
-    private parsePythonParameters;
-    /**
-     * Create detailed nodes in Neo4j graph
-     */
-    private createGraphNodes;
-    /**
-     * Create detailed relationships in Neo4j graph
-     */
-    private createGraphRelationships;
-    /**
-     * Extract business concepts from code
-     */
-    private extractBusinessConcepts;
-    /**
-     * Resolve import path to actual file path
-     */
-    private resolveImportPath;
-    /**
-     * Detect programming language from file extension
-     */
-    private detectLanguage;
-    /**
-     * Extract methods from class body
-     */
-    private extractMethods;
-    /**
-     * Extract properties from class body
-     */
-    private extractProperties;
-    /**
-     * Parse function parameters
-     */
-    private parseParameters;
-    /**
-     * Extract function calls from code body
-     */
-    private extractFunctionCalls;
-    /**
-     * Calculate cyclomatic complexity (simplified)
-     */
-    private calculateComplexity;
+    getProjectStatistics(structure: ProjectStructure): {
+        files: number;
+        relationships: number;
+        languages: {
+            [language: string]: number;
+        };
+        classes: number;
+        functions: number;
+        interfaces: number;
+        complexity: {
+            average: number;
+            max: number;
+            total: number;
+        };
+        patterns: {
+            patterns: string[];
+            layered: boolean;
+            modular: boolean;
+            suggestions: string[];
+        };
+    };
+    private generateProjectSummary;
+    private calculateLanguageStatistics;
+    private calculateComplexityStatistics;
     close(): Promise<void>;
 }
-export {};
+export default CodeRelationshipParser;
 //# sourceMappingURL=code-relationship-parser.d.ts.map

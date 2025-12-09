@@ -47,9 +47,29 @@ class DatabaseConnections {
                 port: this.config.postgres.port,
                 database: this.config.postgres.database,
                 user: this.config.postgres.user,
-                password: this.config.postgres.password
+                password: this.config.postgres.password,
+                connectionTimeoutMillis: 5000, // 5 second connection timeout
+                query_timeout: 30000, // 30 second query timeout
+                statement_timeout: 30000 // 30 second statement timeout
             });
-            await this.pgClient.connect();
+            // Connect with timeout protection
+            const connectPromise = this.pgClient.connect();
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('PostgreSQL connection timeout')), 5000);
+            });
+            try {
+                await Promise.race([connectPromise, timeoutPromise]);
+            }
+            catch (error) {
+                this.pgClient = undefined;
+                if (error.message.includes('ECONNREFUSED')) {
+                    throw new Error('PostgreSQL is not running');
+                }
+                else if (error.message.includes('timeout')) {
+                    throw new Error('PostgreSQL connection timed out');
+                }
+                throw new Error(`PostgreSQL connection failed: ${error.message}`);
+            }
         }
         return this.pgClient;
     }
@@ -113,7 +133,31 @@ class DatabaseConnections {
     }
     async getNeo4jConnection() {
         if (!this.neo4jDriver) {
-            this.neo4jDriver = neo4j_driver_1.default.driver(this.config.neo4j.uri, neo4j_driver_1.default.auth.basic(this.config.neo4j.user, this.config.neo4j.password));
+            this.neo4jDriver = neo4j_driver_1.default.driver(this.config.neo4j.uri, neo4j_driver_1.default.auth.basic(this.config.neo4j.user, this.config.neo4j.password), {
+                connectionTimeout: 5000, // 5 second connection timeout
+                maxConnectionLifetime: 60000,
+                connectionAcquisitionTimeout: 5000
+            });
+            // Verify the connection works with timeout
+            const session = this.neo4jDriver.session();
+            const verifyPromise = session.run('RETURN 1').finally(() => session.close());
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Neo4j connection timeout')), 5000);
+            });
+            try {
+                await Promise.race([verifyPromise, timeoutPromise]);
+            }
+            catch (error) {
+                await this.neo4jDriver.close();
+                this.neo4jDriver = undefined;
+                if (error.message.includes('ECONNREFUSED')) {
+                    throw new Error('Neo4j is not running');
+                }
+                else if (error.message.includes('timeout')) {
+                    throw new Error('Neo4j connection timed out');
+                }
+                throw new Error(`Neo4j connection failed: ${error.message}`);
+            }
         }
         return this.neo4jDriver;
     }
@@ -129,6 +173,18 @@ class DatabaseConnections {
             promises.push(this.neo4jDriver.close());
         }
         await Promise.allSettled(promises);
+    }
+    // Additional methods for integration compatibility
+    async initialize() {
+        // Initialize all connections
+        await Promise.all([
+            this.getPostgresConnection(),
+            this.getRedisConnection(),
+            this.getNeo4jConnection()
+        ]);
+    }
+    async close() {
+        await this.closeAll();
     }
 }
 exports.DatabaseConnections = DatabaseConnections;

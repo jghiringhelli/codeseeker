@@ -5,7 +5,7 @@
 
 // Import the base analyzer from a proper location or define it inline
 // For now, let's define basic interfaces to resolve the circular import
-import { SemanticGraphService, NodeType, RelationshipType } from '../../services/data/semantic-graph/semantic-graph';
+import { SemanticGraphService, RelationshipType, NodeType } from '../../services/data/semantic-graph/semantic-graph';
 import { Logger } from '../../../utils/logger';
 
 export interface DocumentMapResult {
@@ -124,15 +124,15 @@ export class DocumentMapAnalyzer {
       logger.info(`✅ Enhanced documentation analysis completed in ${duration}ms`, {
         documentsFound: baseResult.documents.length,
         conceptClusters: conceptClusters.length,
-        graphNodes: graphStats.total_nodes,
-        graphRelationships: graphStats.total_relationships
+        graphNodes: graphStats.nodeCount,
+        graphRelationships: graphStats.relationshipCount
       });
 
       return {
         ...baseResult,
         semanticGraph: {
-          totalNodes: graphStats.total_nodes,
-          totalRelationships: graphStats.total_relationships,
+          totalNodes: graphStats.nodeCount,
+          totalRelationships: graphStats.relationshipCount,
           conceptClusters
         },
         crossDomainInsights
@@ -164,17 +164,21 @@ export class DocumentMapAnalyzer {
       });
 
       return searchResults
-        .filter(result => result.node.labels.includes('Documentation'))
-        .map(result => ({
-          document: result.node.properties,
-          relatedConcepts: result.relatedNodes
-            .filter(rel => rel.node.labels.includes('BusinessConcept'))
-            .map(rel => rel.node.properties.name),
-          relatedCode: result.relatedNodes
-            .filter(rel => rel.node.labels.includes('Code'))
-            .map(rel => rel.node.properties.path),
-          relevanceScore: result.relevanceScore
-        }))
+        .filter(result => result.nodes.length > 0 && ['Documentation', 'BusinessConcept'].includes(result.nodes[0].type))
+        .map(result => {
+          const node = result.nodes[0];
+          const relatedNodes = result.nodes.slice(1); // Related nodes are the rest
+          return {
+            document: node.properties,
+            relatedConcepts: relatedNodes
+              .filter(rel => rel.type === 'BusinessConcept')
+              .map(rel => rel.properties.name || rel.name),
+            relatedCode: relatedNodes
+              .filter(rel => rel.type === 'Code')
+              .map(rel => rel.properties.path || rel.filePath),
+            relevanceScore: result.stats?.relevantNodes || 0
+          };
+        })
         .slice(0, context?.maxResults || 10);
 
     } catch (error) {
@@ -323,11 +327,16 @@ export class DocumentMapAnalyzer {
       try {
         const crossRefs = await this.semanticGraph.findCrossReferences(topic.topic);
         
+        // Combine all cross-reference results
+        const allRelatedDocs = crossRefs.flatMap(ref => ref.relatedDocs);
+        const allRelatedCode = crossRefs.flatMap(ref => ref.relatedCode);
+        const allRelatedUI = crossRefs.flatMap(ref => ref.relatedUI);
+
         clusters.push({
           conceptName: topic.topic,
-          relatedDocs: crossRefs.relatedDocs.map(node => node.properties.path),
-          relatedCode: crossRefs.relatedCode.map(node => node.properties.name),
-          relatedUI: crossRefs.relatedUI.map(node => node.properties.name),
+          relatedDocs: allRelatedDocs.map(node => node.properties.path || node.filePath),
+          relatedCode: allRelatedCode.map(node => node.properties.name || node.name),
+          relatedUI: allRelatedUI.map(node => node.properties.name || node.name),
           strength: this.calculateClusterStrength(crossRefs)
         });
       } catch (error) {

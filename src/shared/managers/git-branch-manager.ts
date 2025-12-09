@@ -458,14 +458,7 @@ export class GitBranchManager {
     }
   }
 
-  private async getCurrentBranch(): Promise<string> {
-    try {
-      const { stdout } = await this.execGit('rev-parse --abbrev-ref HEAD');
-      return stdout.trim();
-    } catch (error) {
-      return 'main'; // Default fallback
-    }
-  }
+  // getCurrentBranch moved to public methods section
 
   private async ensureCleanWorkingDirectory(): Promise<void> {
     try {
@@ -499,6 +492,76 @@ export class GitBranchManager {
       return stdout.trim().split('\n').filter(line => line.trim());
     } catch (error) {
       return [];
+    }
+  }
+
+  // Additional methods for workflow service compatibility
+  async createBranch(branchName: string): Promise<void> {
+    await this.execGit(`checkout -b ${branchName}`);
+  }
+
+  async checkoutBranch(branchName: string): Promise<void> {
+    await this.execGit(`checkout ${branchName}`);
+  }
+
+  async listBranches(): Promise<string[]> {
+    try {
+      const { stdout } = await this.execGit('branch --list');
+      return stdout.split('\n')
+        .map(line => line.trim().replace(/^\*\s*/, ''))
+        .filter(line => line.length > 0);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async deleteBranch(branchName: string, force: boolean = false): Promise<void> {
+    const flag = force ? '-D' : '-d';
+    await this.execGit(`branch ${flag} ${branchName}`);
+  }
+
+  async resetHard(commit?: string): Promise<void> {
+    const target = commit || 'HEAD';
+    await this.execGit(`reset --hard ${target}`);
+  }
+
+  async stageFile(filePath: string): Promise<void> {
+    await this.execGit(`add "${filePath}"`);
+  }
+
+  async stageAllChanges(): Promise<void> {
+    await this.execGit('add .');
+  }
+
+  async commit(message: string): Promise<void> {
+    await this.execGit(`commit -m "${message}"`);
+  }
+
+  async mergeBranch(branchName: string): Promise<void> {
+    await this.execGit(`merge ${branchName}`);
+  }
+
+  async stashChanges(message?: string): Promise<void> {
+    const cmd = message ? `stash push -m "${message}"` : 'stash push';
+    await this.execGit(cmd);
+  }
+
+  async getStatus(): Promise<string> {
+    try {
+      const { stdout } = await this.execGit('status --porcelain');
+      return stdout;
+    } catch (error) {
+      return '';
+    }
+  }
+
+  // Make getCurrentBranch public for workflow service
+  async getCurrentBranch(): Promise<string> {
+    try {
+      const { stdout } = await this.execGit('branch --show-current');
+      return stdout.trim() || 'main';
+    } catch (error) {
+      return 'main';
     }
   }
 }

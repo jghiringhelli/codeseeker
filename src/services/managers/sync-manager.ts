@@ -573,7 +573,8 @@ export class SyncManagerService {
   private async updateEmbeddings(files: FileHashEntry[], projectPath: string): Promise<number> {
     try {
       const { EmbeddingService } = await import('../../cli/services/data/embedding/embedding-service');
-      const embeddingService = new EmbeddingService();
+      const defaultConfig = { provider: 'local' as const, model: 'local' as const, batchSize: 32 };
+      const embeddingService = new EmbeddingService(defaultConfig);
 
       console.log(Theme.colors.muted(`   Processing ${files.length} files for embedding updates...`));
 

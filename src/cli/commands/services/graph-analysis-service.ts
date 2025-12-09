@@ -28,11 +28,21 @@ export interface GraphContext {
     to: string;
     type: string;
     strength: number;
+    fromPath?: string;
+    toPath?: string;
+    fromMethod?: string;  // Method that makes the call
+    toMethod?: string;    // Method being called
+    line?: number;        // Line number of the call
   }>;
   relationshipDetails: Array<{
     from: string;
     to: string;
     type: string;
+    fromPath?: string;
+    toPath?: string;
+    fromMethod?: string;
+    toMethod?: string;
+    line?: number;
   }>;
   packageStructure: string[];
   graphInsights: {
@@ -50,14 +60,17 @@ export interface GraphContext {
 export class GraphAnalysisService {
   private knowledgeGraph: SemanticKnowledgeGraph;
   private logger: Logger;
+  private projectPath: string;
 
   constructor(projectPath: string) {
+    this.projectPath = projectPath;
     this.knowledgeGraph = new SemanticKnowledgeGraph(projectPath);
     this.logger = Logger.getInstance().child('GraphAnalysis');
   }
 
   /**
    * Perform sophisticated graph analysis using knowledge graph
+   * Falls back to basic analysis if knowledge graph doesn't produce results
    */
   async performGraphAnalysis(query: string, semanticResults: any[]): Promise<GraphContext> {
     try {
@@ -71,6 +84,13 @@ export class GraphAnalysisService {
         },
         limit: 20
       });
+
+      // If knowledge graph returns no nodes, fallback to basic analysis
+      // This ensures we always have classes to display
+      if (relevantNodes.length === 0) {
+        this.logger.debug('Knowledge graph returned no nodes, using basic analysis');
+        return this.performBasicAnalysis(query, semanticResults);
+      }
 
       const graphAnalysis = {
         nodeCount: relevantNodes.length,
@@ -88,6 +108,12 @@ export class GraphAnalysisService {
 
       // Generate architectural insights
       const graphInsights = await this.generateGraphInsights(graphAnalysis);
+
+      // If conversion produced no classes, fallback to basic analysis
+      if (classes.length === 0) {
+        this.logger.debug('Knowledge graph conversion produced no classes, using basic analysis');
+        return this.performBasicAnalysis(query, semanticResults);
+      }
 
       return {
         classes,
@@ -185,45 +211,66 @@ export class GraphAnalysisService {
   }
 
   /**
-   * Generate relationships based on query context and common patterns
+   * Generate relationships based on actual class structure
+   * Note: This no longer uses hardcoded keyword detection.
+   * Relationships are derived from actual class types detected in the codebase.
    */
   private generateRelationships(query: string, classes: any[]): Array<{ from: string; to: string; type: string }> {
-    const relationships = [];
-    const lowerQuery = query.toLowerCase();
+    const relationships: Array<{ from: string; to: string; type: string }> = [];
 
-    // Generate contextual relationships based on query
-    if (lowerQuery.includes('auth') || lowerQuery.includes('login')) {
-      relationships.push(
-        { from: 'AuthService', to: 'UserCredentials', type: 'validates' },
-        { from: 'AuthMiddleware', to: 'SecuredRoutes', type: 'protects' }
-      );
-    }
+    // Generate relationships based on actual detected class types
+    // Group classes by type
+    const services = classes.filter(c => c.type === 'service');
+    const controllers = classes.filter(c => c.type === 'controller' || c.type === 'handler');
+    const repositories = classes.filter(c => c.type === 'repository');
+    const models = classes.filter(c => c.type === 'model');
 
-    if (lowerQuery.includes('api') || lowerQuery.includes('endpoint')) {
-      relationships.push(
-        { from: 'APIRouter', to: 'ServiceLayer', type: 'routes_to' },
-        { from: 'RequestHandler', to: 'BusinessLogic', type: 'delegates_to' }
-      );
-    }
-
-    if (lowerQuery.includes('database') || lowerQuery.includes('db')) {
-      relationships.push(
-        { from: 'ServiceLayer', to: 'DatabaseAccess', type: 'persists_via' },
-        { from: 'Repository', to: 'DataModel', type: 'manages' }
-      );
-    }
-
-    // Add relationships based on detected classes
-    for (const classInfo of classes) {
-      if (classInfo.type === 'service' && classInfo.name.includes('Auth')) {
-        relationships.push(
-          { from: classInfo.name, to: 'UserRepository', type: 'uses' }
-        );
+    // Create relationships based on common architectural patterns
+    // Controller -> Service relationships
+    for (const controller of controllers) {
+      for (const service of services) {
+        // Check if they might be related by name similarity
+        const controllerBase = controller.name.replace(/Controller|Handler/gi, '');
+        const serviceBase = service.name.replace(/Service/gi, '');
+        if (controllerBase.toLowerCase().includes(serviceBase.toLowerCase()) ||
+            serviceBase.toLowerCase().includes(controllerBase.toLowerCase())) {
+          relationships.push({
+            from: controller.name,
+            to: service.name,
+            type: 'uses'
+          });
+        }
       }
-      if (classInfo.type === 'controller') {
-        relationships.push(
-          { from: classInfo.name, to: 'ServiceLayer', type: 'coordinates' }
-        );
+    }
+
+    // Service -> Repository relationships
+    for (const service of services) {
+      for (const repository of repositories) {
+        const serviceBase = service.name.replace(/Service/gi, '');
+        const repoBase = repository.name.replace(/Repository/gi, '');
+        if (serviceBase.toLowerCase().includes(repoBase.toLowerCase()) ||
+            repoBase.toLowerCase().includes(serviceBase.toLowerCase())) {
+          relationships.push({
+            from: service.name,
+            to: repository.name,
+            type: 'uses'
+          });
+        }
+      }
+    }
+
+    // Repository -> Model relationships
+    for (const repository of repositories) {
+      for (const model of models) {
+        const repoBase = repository.name.replace(/Repository/gi, '');
+        if (repoBase.toLowerCase().includes(model.name.toLowerCase()) ||
+            model.name.toLowerCase().includes(repoBase.toLowerCase())) {
+          relationships.push({
+            from: repository.name,
+            to: model.name,
+            type: 'manages'
+          });
+        }
       }
     }
 
@@ -237,20 +284,19 @@ export class GraphAnalysisService {
     for (const result of semanticResults) {
       const className = this.extractClassNameFromFile(result.file);
       if (className) {
+        // Extract actual line numbers from file content
+        const sourceLocation = await this.extractSourceLocation(result.file, className);
+
         // Add node to knowledge graph
         const nodeId = await this.knowledgeGraph.addNode({
           type: this.mapToNodeType(result.type || 'class'),
           name: className,
           namespace: this.extractPackageFromFile(result.file),
-          sourceLocation: {
-            filePath: result.file,
-            startLine: 1,
-            endLine: 1,
-            startColumn: 1,
-            endColumn: 1
-          },
+          sourceLocation,
           metadata: {
             filePath: result.file,
+            startLine: sourceLocation.startLine,
+            endLine: sourceLocation.endLine,
             description: this.generateClassDescription(result.file, result.type),
             similarity: result.similarity || 0.5,
             lastModified: new Date(),
@@ -288,7 +334,11 @@ export class GraphAnalysisService {
    */
   private async addStructuralRelationships(nodeId: string, filePath: string, className: string): Promise<void> {
     try {
-      const fileContent = await fs.readFile(filePath, 'utf-8');
+      // Resolve full path - filePath may be relative
+      const fullPath = path.isAbsolute(filePath)
+        ? filePath
+        : path.join(this.projectPath, filePath);
+      const fileContent = await fs.readFile(fullPath, 'utf-8');
 
       // Extract imports and add dependency relationships
       const imports = this.extractImports(fileContent);
@@ -311,19 +361,23 @@ export class GraphAnalysisService {
           source: TriadSource.AST_PARSER,
           metadata: {
             relationship: 'dependency',
-            importance: 0.8
+            importance: 0.8,
+            fromName: className,
+            toName: importName
           }
         });
       }
 
-      // Extract method calls and add behavioral relationships
-      const methodCalls = this.extractMethodCalls(fileContent);
-      for (const methodCall of methodCalls) {
+      // Extract method calls with caller context and add behavioral relationships
+      const methodCallsWithContext = this.extractMethodCallsWithContext(fileContent, className);
+      for (const callInfo of methodCallsWithContext) {
         const methodNodeId = await this.knowledgeGraph.addNode({
           type: NodeType.METHOD,
-          name: methodCall,
+          name: callInfo.calledMethod,
           metadata: {
             caller: className,
+            callerMethod: callInfo.callerMethod,
+            targetClass: callInfo.targetClass,
             lastModified: new Date(),
             tags: ['method', 'call']
           }
@@ -337,12 +391,18 @@ export class GraphAnalysisService {
           source: TriadSource.STATIC_ANALYZER,
           metadata: {
             relationship: 'method_call',
-            importance: 0.6
+            importance: 0.6,
+            fromName: className,
+            fromMethod: callInfo.callerMethod,
+            toName: callInfo.targetClass || callInfo.calledMethod,
+            toMethod: callInfo.calledMethod,
+            line: callInfo.line
           }
         });
       }
     } catch (error) {
-      this.logger.warn(`Failed to analyze file structure for ${filePath}`, error as Error);
+      // Use debug level - file not found is expected for non-code files
+      this.logger.debug(`Failed to analyze file structure for ${filePath}`);
     }
   }
 
@@ -373,11 +433,82 @@ export class GraphAnalysisService {
   }
 
   /**
-   * Extract method calls from file content
+   * Extract source location (file path and line numbers) for a class/function
+   */
+  private async extractSourceLocation(filePath: string, entityName: string): Promise<{
+    filePath: string;
+    startLine: number;
+    endLine: number;
+    startColumn?: number;
+    endColumn?: number;
+  }> {
+    try {
+      const fullPath = path.isAbsolute(filePath)
+        ? filePath
+        : path.join(this.projectPath, filePath);
+      const content = await fs.readFile(fullPath, 'utf-8');
+      const lines = content.split('\n');
+
+      // Patterns to find class/function/interface definitions
+      const patterns = [
+        new RegExp(`^\\s*(export\\s+)?(class|interface|type|enum)\\s+${entityName}\\b`, 'i'),
+        new RegExp(`^\\s*(export\\s+)?(async\\s+)?function\\s+${entityName}\\b`, 'i'),
+        new RegExp(`^\\s*(export\\s+)?(const|let|var)\\s+${entityName}\\s*=`, 'i'),
+        // Also try kebab-to-pascal matching
+        new RegExp(`^\\s*(export\\s+)?(class|interface)\\s+\\w*${entityName.replace(/([A-Z])/g, '.*$1')}\\w*\\b`, 'i')
+      ];
+
+      let startLine = 1;
+      let endLine = 1;
+
+      for (let i = 0; i < lines.length; i++) {
+        for (const pattern of patterns) {
+          if (pattern.test(lines[i])) {
+            startLine = i + 1; // 1-indexed
+
+            // Find the end of the class/function (look for closing brace at same indent level)
+            const indent = lines[i].match(/^(\s*)/)?.[1]?.length || 0;
+            endLine = startLine;
+
+            // Count braces to find the end
+            let braceCount = 0;
+            let foundFirstBrace = false;
+            for (let j = i; j < lines.length; j++) {
+              const line = lines[j];
+              for (const char of line) {
+                if (char === '{') {
+                  braceCount++;
+                  foundFirstBrace = true;
+                } else if (char === '}') {
+                  braceCount--;
+                }
+              }
+              if (foundFirstBrace && braceCount === 0) {
+                endLine = j + 1;
+                break;
+              }
+            }
+            if (endLine === startLine) {
+              endLine = Math.min(startLine + 50, lines.length); // Default span
+            }
+
+            return { filePath, startLine, endLine };
+          }
+        }
+      }
+
+      // If no match found, return file start
+      return { filePath, startLine: 1, endLine: Math.min(50, lines.length) };
+    } catch (error) {
+      return { filePath, startLine: 1, endLine: 1 };
+    }
+  }
+
+  /**
+   * Extract method calls from file content (simple version for backward compatibility)
    */
   private extractMethodCalls(content: string): string[] {
     const methodRegex = /\.(\w+)\s*\(/g;
-    const functionRegex = /\b(\w+)\s*\(/g;
 
     const methods: string[] = [];
     let match;
@@ -389,6 +520,64 @@ export class GraphAnalysisService {
     }
 
     return [...new Set(methods)].slice(0, 10); // Limit to prevent noise
+  }
+
+  /**
+   * Extract method calls with full context (caller method, target class, line number)
+   */
+  private extractMethodCallsWithContext(content: string, className: string): Array<{
+    callerMethod: string;
+    calledMethod: string;
+    targetClass?: string;
+    line: number;
+  }> {
+    const lines = content.split('\n');
+    const calls: Array<{
+      callerMethod: string;
+      calledMethod: string;
+      targetClass?: string;
+      line: number;
+    }> = [];
+
+    let currentMethod = 'constructor';
+    const methodDefRegex = /^\s*(?:async\s+)?(?:private\s+|public\s+|protected\s+)?(\w+)\s*\([^)]*\)\s*[:{]/;
+    const methodCallRegex = /(?:this\.(\w+)|(\w+))\.(\w+)\s*\(/g;
+    const ignoreMethods = ['log', 'error', 'warn', 'info', 'debug', 'toString', 'valueOf', 'hasOwnProperty'];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Track which method we're inside
+      const methodMatch = line.match(methodDefRegex);
+      if (methodMatch && methodMatch[1]) {
+        currentMethod = methodMatch[1];
+      }
+
+      // Find method calls in this line
+      let callMatch;
+      while ((callMatch = methodCallRegex.exec(line)) !== null) {
+        const targetClass = callMatch[1] ? className : callMatch[2]; // this.x or SomeClass.x
+        const calledMethod = callMatch[3];
+
+        if (calledMethod && !ignoreMethods.includes(calledMethod)) {
+          calls.push({
+            callerMethod: currentMethod,
+            calledMethod,
+            targetClass: targetClass !== 'this' ? targetClass : className,
+            line: i + 1
+          });
+        }
+      }
+    }
+
+    // Deduplicate and limit
+    const seen = new Set<string>();
+    return calls.filter(c => {
+      const key = `${c.callerMethod}->${c.targetClass}.${c.calledMethod}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 15);
   }
 
   /**
@@ -410,9 +599,13 @@ export class GraphAnalysisService {
     const classes = [];
 
     for (const node of nodes) {
+      // Skip nodes without names
+      if (!node.name) continue;
+
       // Find corresponding semantic result for file path
       const semanticResult = semanticResults.find(result =>
-        result.file.includes(node.name.toLowerCase().replace(/([A-Z])/g, '-$1').toLowerCase())
+        result.file && node.name &&
+        result.file.toLowerCase().includes(node.name.toLowerCase().replace(/([A-Z])/g, '-$1').toLowerCase())
       );
 
       const nodeRelationships = await this.getNodeRelationships(node.id);
@@ -455,7 +648,7 @@ export class GraphAnalysisService {
    * Extract relationships from knowledge graph nodes
    */
   private async extractRelationships(nodes: any[]): Promise<GraphContext['relationships']> {
-    const relationships = [];
+    const relationships: GraphContext['relationships'] = [];
 
     try {
       const triads = await this.knowledgeGraph.queryTriads({
@@ -468,12 +661,39 @@ export class GraphAnalysisService {
         const fromNode = nodes.find(n => n.id === triad.subject);
         const toNode = nodes.find(n => n.id === triad.object);
 
-        if (fromNode && toNode) {
+        // Get actual names from nodes, or from triad metadata
+        const fromName = fromNode?.name ||
+          triad.metadata?.fromName ||
+          this.extractNameFromMetadata(triad.subject);
+        const toName = toNode?.name ||
+          triad.metadata?.toName ||
+          this.extractNameFromMetadata(triad.object);
+
+        // Get file paths from nodes or metadata
+        const fromPath = fromNode?.metadata?.filePath ||
+          triad.metadata?.fromPath ||
+          fromNode?.sourceLocation?.filePath;
+        const toPath = toNode?.metadata?.filePath ||
+          triad.metadata?.toPath ||
+          toNode?.sourceLocation?.filePath;
+
+        // Get method names from triad metadata (for method-level relationships)
+        const fromMethod = triad.metadata?.fromMethod;
+        const toMethod = triad.metadata?.toMethod;
+        const line = triad.metadata?.line;
+
+        // Only include relationships with valid names
+        if (fromName && toName) {
           relationships.push({
-            from: fromNode.name,
-            to: toNode.name,
+            from: fromName,
+            to: toName,
             type: triad.predicate,
-            strength: triad.confidence
+            strength: triad.confidence,
+            fromPath,
+            toPath,
+            fromMethod,
+            toMethod,
+            line
           });
         }
       }
@@ -481,7 +701,63 @@ export class GraphAnalysisService {
       this.logger.warn('Failed to extract relationships from knowledge graph', error as Error);
     }
 
+    // Also add relationships detected from semantic results (class-based)
+    const classBasedRels = this.extractClassBasedRelationships(nodes);
+    relationships.push(...classBasedRels);
+
     return relationships;
+  }
+
+  /**
+   * Extract class-based relationships from nodes (using actual class names)
+   */
+  private extractClassBasedRelationships(nodes: any[]): GraphContext['relationships'] {
+    const relationships: GraphContext['relationships'] = [];
+
+    for (const node of nodes) {
+      if (!node.name) continue;
+
+      const nodePath = node.metadata?.filePath || node.sourceLocation?.filePath;
+
+      // Get relationships stored in node metadata
+      const nodeRels = node.metadata?.relationships || node.relationships || [];
+      for (const rel of nodeRels) {
+        if (rel.target && rel.relation) {
+          relationships.push({
+            from: node.name,
+            to: rel.target,
+            type: rel.relation,
+            strength: rel.confidence || 0.8,
+            fromPath: nodePath,
+            toPath: rel.targetPath
+          });
+        }
+      }
+    }
+
+    return relationships;
+  }
+
+  /**
+   * Extract a human-readable name from node ID or metadata
+   */
+  private extractNameFromMetadata(nodeIdOrName: string): string | undefined {
+    if (!nodeIdOrName) return undefined;
+
+    // If it looks like an actual name (has uppercase or is a known pattern), use it
+    if (/[A-Z]/.test(nodeIdOrName) && !nodeIdOrName.includes('_')) {
+      return nodeIdOrName;
+    }
+
+    // Node IDs are typically like "class_xyz123" - extract more context if possible
+    const parts = nodeIdOrName.split('_');
+    if (parts.length >= 2) {
+      // Try to create a meaningful name from the parts
+      const type = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      return type;
+    }
+
+    return nodeIdOrName;
   }
 
   /**

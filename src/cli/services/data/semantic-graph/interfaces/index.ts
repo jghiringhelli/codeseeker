@@ -6,7 +6,7 @@
 import { FileInfo } from '../../../monitoring/file-scanning/file-scanner-interfaces';
 
 // Core graph types
-export type NodeType = 'Code' | 'Documentation' | 'BusinessConcept' | 'UIComponent' | 'TestCase';
+export type NodeType = 'Code' | 'Documentation' | 'BusinessConcept' | 'UIComponent' | 'TestCase' | 'Interaction' | 'Session' | 'Project' | 'Request';
 export type RelationshipType =
   | 'IMPORTS' | 'USES' | 'IMPLEMENTS' | 'DESCRIBES' | 'TESTS' | 'DEFINES'
   | 'RELATES_TO' | 'DEPENDS_ON' | 'CONTAINS' | 'EXTENDS' | 'CONFIGURES'
@@ -116,6 +116,7 @@ export interface IFileProcessingService {
 }
 
 export interface IGraphStorageService {
+  initialize(): Promise<void>;
   addNode(type: NodeType, properties: Record<string, any>): Promise<string>;
   addRelationship(fromId: string, toId: string, type: RelationshipType, properties?: Record<string, any>): Promise<void>;
   batchCreateNodes(nodes: Array<{ type: NodeType; properties: Record<string, any> }>): Promise<string[]>;
@@ -131,6 +132,8 @@ export interface IGraphQueryService {
   getNodesByType(type: NodeType): Promise<GraphNode[]>;
   analyzeImpact(nodeId: string): Promise<ImpactAnalysisResult>;
   performCrossReference(concept: string): Promise<CrossReferenceResult>;
+  performSemanticSearch(query: string, context?: SearchContext): Promise<SearchResult[]>;
+  findCrossReferences(nodeId: string): Promise<CrossReferenceResult[]>;
 }
 
 export interface IGraphProcessor {

@@ -165,4 +165,9 @@ export class SOLIDPrinciplesAnalyzer {
 
     return suggestions;
   }
+
+  // Additional method for validation cycle compatibility
+  async analyzeProject(projectPath: string): Promise<SOLIDAnalysisResult> {
+    return this.analyzeSOLID({ projectPath });
+  }
 }

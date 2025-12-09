@@ -35,4 +35,10 @@ export class TaskDecomposer {
 
     return tasks;
   }
+
+  async decomposeRequest(requestObj: any): Promise<{ tasks: any[] }> {
+    // Handle object parameter format
+    const tasks = await this.decompose(requestObj.userRequest, { category: requestObj.intent });
+    return { tasks };
+  }
 }

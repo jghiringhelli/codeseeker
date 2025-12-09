@@ -10,6 +10,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserInterface = void 0;
 const inquirer_1 = __importDefault(require("inquirer"));
 const theme_1 = require("../ui/theme");
+const logger_1 = require("../../utils/logger");
 class UserInterface {
     rl;
     /**
@@ -30,47 +31,68 @@ class UserInterface {
         if (this.rl) {
             this.rl.pause();
         }
-        const answers = await inquirer_1.default.prompt([
-            {
-                type: 'input',
-                name: 'projectName',
-                message: 'Project name:',
-                default: defaultProjectName,
-                validate: (input) => input.trim().length > 0 || 'Project name is required'
-            },
-            {
-                type: 'list',
-                name: 'projectType',
-                message: 'Project type:',
-                choices: [
-                    { name: 'Web Application', value: 'web_app' },
-                    { name: 'Mobile Application', value: 'mobile_app' },
-                    { name: 'Desktop Application', value: 'desktop_app' },
-                    { name: 'Library/Framework', value: 'library' },
-                    { name: 'API/Microservice', value: 'api' },
-                    { name: 'CLI Tool', value: 'cli' },
-                    { name: 'Other', value: 'other' }
-                ]
-            },
-            {
-                type: 'checkbox',
-                name: 'features',
-                message: 'Select features to enable:',
-                choices: [
-                    { name: 'Semantic Search', value: 'semantic_search', checked: true },
-                    { name: 'Architecture Analysis', value: 'architecture', checked: true },
-                    { name: 'Use Cases Inference', value: 'usecases', checked: true },
-                    { name: 'Code Quality Analysis', value: 'quality', checked: true },
-                    { name: 'Dependency Graph', value: 'dependencies', checked: true },
-                    { name: 'Performance Monitoring', value: 'performance' }
-                ]
+        logger_1.Logger.mute();
+        try {
+            const answers = await inquirer_1.default.prompt([
+                {
+                    type: 'input',
+                    name: 'projectName',
+                    message: 'Project name:',
+                    default: defaultProjectName,
+                    validate: (input) => input.trim().length > 0 || 'Project name is required'
+                },
+                {
+                    type: 'list',
+                    name: 'projectType',
+                    message: 'Project type:',
+                    choices: [
+                        { name: 'Web Application', value: 'web_app' },
+                        { name: 'Mobile Application', value: 'mobile_app' },
+                        { name: 'Desktop Application', value: 'desktop_app' },
+                        { name: 'Library/Framework', value: 'library' },
+                        { name: 'API/Microservice', value: 'api' },
+                        { name: 'CLI Tool', value: 'cli' },
+                        { name: 'Other', value: 'other' }
+                    ]
+                },
+                {
+                    type: 'checkbox',
+                    name: 'features',
+                    message: 'Select features to enable:',
+                    choices: [
+                        { name: 'Semantic Search', value: 'semantic_search', checked: true },
+                        { name: 'Architecture Analysis', value: 'architecture', checked: true },
+                        { name: 'Use Cases Inference', value: 'usecases', checked: true },
+                        { name: 'Code Quality Analysis', value: 'quality', checked: true },
+                        { name: 'Dependency Graph', value: 'dependencies', checked: true },
+                        { name: 'Performance Monitoring', value: 'performance' }
+                    ]
+                }
+            ]);
+            // Resume readline after inquirer is done
+            logger_1.Logger.unmute();
+            if (this.rl) {
+                this.rl.resume();
             }
-        ]);
-        // Resume readline after inquirer is done
-        if (this.rl) {
-            this.rl.resume();
+            return answers;
         }
-        return answers;
+        catch (error) {
+            // Unmute logger and resume readline before handling error
+            logger_1.Logger.unmute();
+            if (this.rl) {
+                this.rl.resume();
+            }
+            // Handle Ctrl+C gracefully - return default options
+            if (error.name === 'ExitPromptError' || error.message?.includes('force closed')) {
+                console.log('\n⚠️  Prompt cancelled - using defaults');
+                return {
+                    projectName: defaultProjectName,
+                    projectType: 'other',
+                    features: ['semantic_search', 'architecture']
+                };
+            }
+            throw error;
+        }
     }
     /**
      * Display comprehensive help information
@@ -312,19 +334,36 @@ class UserInterface {
         if (this.rl) {
             this.rl.pause();
         }
-        const answer = await inquirer_1.default.prompt([
-            {
-                type: 'confirm',
-                name: 'confirmed',
-                message: message,
-                default: false
+        logger_1.Logger.mute();
+        try {
+            const answer = await inquirer_1.default.prompt([
+                {
+                    type: 'confirm',
+                    name: 'confirmed',
+                    message: message,
+                    default: false
+                }
+            ]);
+            // Resume readline after inquirer is done
+            logger_1.Logger.unmute();
+            if (this.rl) {
+                this.rl.resume();
             }
-        ]);
-        // Resume readline after inquirer is done
-        if (this.rl) {
-            this.rl.resume();
+            return answer.confirmed;
         }
-        return answer.confirmed;
+        catch (error) {
+            // Unmute logger and resume readline before handling error
+            logger_1.Logger.unmute();
+            if (this.rl) {
+                this.rl.resume();
+            }
+            // Handle Ctrl+C gracefully - treat as "no"
+            if (error.name === 'ExitPromptError' || error.message?.includes('force closed')) {
+                console.log('\n⚠️  Prompt cancelled');
+                return false;
+            }
+            throw error;
+        }
     }
     /**
      * Ask user to choose from multiple options when project is already initialized
@@ -341,22 +380,39 @@ class UserInterface {
         if (this.rl) {
             this.rl.pause();
         }
-        const answer = await inquirer_1.default.prompt([
-            {
-                type: 'list',
-                name: 'action',
-                message: 'Choose an action:',
-                choices,
-                default: 'sync'
+        logger_1.Logger.mute();
+        try {
+            const answer = await inquirer_1.default.prompt([
+                {
+                    type: 'list',
+                    name: 'action',
+                    message: 'Choose an action:',
+                    choices,
+                    default: 'sync'
+                }
+            ]);
+            // Resume readline after inquirer is done
+            logger_1.Logger.unmute();
+            if (this.rl) {
+                this.rl.resume();
             }
-        ]);
-        // Resume readline after inquirer is done
-        if (this.rl) {
-            this.rl.resume();
+            console.log(theme_1.Theme.colors.info('\n💡 Tip: You can skip this prompt next time by using:'));
+            console.log(theme_1.Theme.colors.muted(`   /init --${answer.action === 'reinitialize' ? 'reinit' : answer.action}`));
+            return answer.action;
         }
-        console.log(theme_1.Theme.colors.info('\n💡 Tip: You can skip this prompt next time by using:'));
-        console.log(theme_1.Theme.colors.muted(`   /init --${answer.action === 'reinitialize' ? 'reinit' : answer.action}`));
-        return answer.action;
+        catch (error) {
+            // Unmute logger and resume readline before handling error
+            logger_1.Logger.unmute();
+            if (this.rl) {
+                this.rl.resume();
+            }
+            // Handle Ctrl+C gracefully - default to skip
+            if (error.name === 'ExitPromptError' || error.message?.includes('force closed')) {
+                console.log('\n⚠️  Prompt cancelled - skipping initialization');
+                return 'skip';
+            }
+            throw error;
+        }
     }
     /**
      * Display deduplication report with detailed findings

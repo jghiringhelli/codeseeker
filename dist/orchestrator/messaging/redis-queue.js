@@ -22,14 +22,20 @@ class RedisQueue {
             port: parseInt(process.env.REDIS_PORT || '6379'),
             password: process.env.REDIS_PASSWORD,
             maxRetriesPerRequest: 3,
-            lazyConnect: true
+            lazyConnect: true,
+            retryStrategy: () => null // Don't retry - fail fast
         });
+        // Suppress error events to prevent console flooding
+        this.redis.on('error', () => { });
         this.subscriber = new ioredis_1.default({
             host: process.env.REDIS_HOST || 'localhost',
             port: parseInt(process.env.REDIS_PORT || '6379'),
             password: process.env.REDIS_PASSWORD,
-            lazyConnect: true
+            lazyConnect: true,
+            retryStrategy: () => null
         });
+        // Suppress error events
+        this.subscriber.on('error', () => { });
         this.setupEventHandlers();
     }
     setupEventHandlers() {

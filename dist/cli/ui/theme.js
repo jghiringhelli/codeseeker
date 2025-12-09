@@ -7,7 +7,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Theme = void 0;
+exports.Spinner = exports.Theme = void 0;
 const chalk_1 = __importDefault(require("chalk"));
 class Theme {
     static colors = {
@@ -73,4 +73,75 @@ class Theme {
     }
 }
 exports.Theme = Theme;
+/**
+ * Spinner - Interactive thinking indicator
+ * Shows animated spinner while processing
+ */
+class Spinner {
+    static frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    intervalId = null;
+    frameIndex = 0;
+    message;
+    stream;
+    constructor(message = 'Processing') {
+        this.message = message;
+        this.stream = process.stdout;
+    }
+    /**
+     * Start the spinner animation
+     */
+    start() {
+        if (this.intervalId)
+            return; // Already running
+        // Hide cursor
+        this.stream.write('\x1B[?25l');
+        this.intervalId = setInterval(() => {
+            const frame = Spinner.frames[this.frameIndex];
+            this.stream.write(`\r${Theme.colors.primary(frame)} ${Theme.colors.muted(this.message)}`);
+            this.frameIndex = (this.frameIndex + 1) % Spinner.frames.length;
+        }, 80);
+    }
+    /**
+     * Update the spinner message
+     */
+    update(message) {
+        this.message = message;
+    }
+    /**
+     * Stop the spinner and show success
+     */
+    succeed(message) {
+        this.stop();
+        const finalMessage = message || this.message;
+        this.stream.write(`\r${Theme.colors.success('✓')} ${finalMessage}\n`);
+    }
+    /**
+     * Stop the spinner and show failure
+     */
+    fail(message) {
+        this.stop();
+        const finalMessage = message || this.message;
+        this.stream.write(`\r${Theme.colors.error('✗')} ${finalMessage}\n`);
+    }
+    /**
+     * Stop the spinner without message
+     */
+    stop() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+        }
+        // Clear line and show cursor
+        this.stream.write('\r\x1B[K\x1B[?25h');
+    }
+    /**
+     * Static helper to create and start a spinner
+     */
+    static create(message) {
+        const spinner = new Spinner(message);
+        spinner.start();
+        return spinner;
+    }
+}
+exports.Spinner = Spinner;
 //# sourceMappingURL=theme.js.map

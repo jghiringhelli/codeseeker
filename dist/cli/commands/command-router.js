@@ -26,16 +26,32 @@ class CommandRouter {
     handlers = new Map();
     rl;
     workflowOrchestrator;
+    transparentMode = false;
+    historyCallbacks;
     constructor(context, workflowOrchestrator) {
         this.context = context;
-        this.workflowOrchestrator = workflowOrchestrator || new workflow_orchestrator_1.WorkflowOrchestrator(context.currentProject?.path || process.cwd());
+        this.workflowOrchestrator = workflowOrchestrator || new workflow_orchestrator_1.WorkflowOrchestrator(context.currentProject?.projectPath || process.cwd(), context.currentProject?.projectId);
         this.initializeHandlers();
     }
     /**
      * Set the readline interface for user interaction
+     * Passes it to the workflow orchestrator to avoid readline/inquirer conflicts
      */
     setReadlineInterface(rl) {
         this.rl = rl;
+        this.workflowOrchestrator.setReadlineInterface(rl);
+    }
+    /**
+     * Set transparent mode (skip interactive prompts)
+     */
+    setTransparentMode(enabled) {
+        this.transparentMode = enabled;
+    }
+    /**
+     * Set history callbacks (for /history command)
+     */
+    setHistoryCallbacks(callbacks) {
+        this.historyCallbacks = callbacks;
     }
     /**
      * Initialize all command handlers
@@ -77,6 +93,8 @@ class CommandRouter {
                     return this.handleExit();
                 case 'status':
                     return this.handleStatus();
+                case 'history':
+                    return this.handleHistory(args);
                 default:
                     return this.routeToHandler(command, args);
             }
@@ -97,6 +115,8 @@ class CommandRouter {
                 return this.handleExit();
             case 'status':
                 return this.handleStatus();
+            case 'history':
+                return this.handleHistory(args);
             default:
                 return this.routeToHandler(command, args);
         }
@@ -154,6 +174,7 @@ ${theme_1.Theme.colors.success('Synchronization:')}
 
 ${theme_1.Theme.colors.success('General:')}
   help                   Show this help message
+  history                View/clear command history
   exit, quit             Exit CodeMind
 
 ${theme_1.Theme.colors.info('Natural Language:')}
@@ -205,10 +226,62 @@ ${theme_1.Theme.colors.info('Natural Language:')}
         return { success: true, message: 'Status displayed' };
     }
     /**
+     * Handle history command
+     */
+    handleHistory(args) {
+        if (!this.historyCallbacks) {
+            return { success: false, message: 'History callbacks not configured' };
+        }
+        const subcommand = args.trim().toLowerCase();
+        const history = this.historyCallbacks.getHistory();
+        const historyFile = this.historyCallbacks.getHistoryFile();
+        switch (subcommand) {
+            case '':
+            case 'show':
+                // Show history
+                if (history.length === 0) {
+                    console.log(theme_1.Theme.colors.muted('\n📜 No command history yet.\n'));
+                }
+                else {
+                    console.log(theme_1.Theme.colors.primary(`\n📜 Command History (${history.length} entries):`));
+                    console.log(theme_1.Theme.colors.muted(`   File: ${historyFile}\n`));
+                    // Show last 20 entries (most recent at bottom for readability)
+                    const displayHistory = history.slice(-20);
+                    const startIndex = Math.max(0, history.length - 20);
+                    displayHistory.forEach((cmd, i) => {
+                        const num = String(startIndex + i + 1).padStart(3, ' ');
+                        console.log(theme_1.Theme.colors.muted(`  ${num}. `) + theme_1.Theme.colors.result(cmd));
+                    });
+                    if (history.length > 20) {
+                        console.log(theme_1.Theme.colors.muted(`\n  ... ${history.length - 20} older entries not shown`));
+                    }
+                    console.log('');
+                }
+                return { success: true, message: 'History displayed' };
+            case 'clear':
+                // Clear all history
+                this.historyCallbacks.clearHistory();
+                console.log(theme_1.Theme.colors.success('\n✓ Command history cleared.\n'));
+                return { success: true, message: 'History cleared' };
+            case 'help':
+                console.log(`
+${theme_1.Theme.colors.primary('History Command:')}
+
+  /history              Show recent command history
+  /history show         Show recent command history
+  /history clear        Clear all command history
+  /history help         Show this help message
+`);
+                return { success: true, message: 'History help displayed' };
+            default:
+                return { success: false, message: `Unknown history subcommand: ${subcommand}. Try /history help` };
+        }
+    }
+    /**
      * Get available commands
      */
     getAvailableCommands() {
-        return Array.from(this.handlers.keys()).concat(['help', 'exit', 'quit', 'status']);
+        return Array.from(this.handlers.keys()).concat(['help', 'exit', 'quit', 'status', 'history']);
     }
     /**
      * Handle natural language queries using the workflow orchestrator
@@ -217,7 +290,11 @@ ${theme_1.Theme.colors.info('Natural Language:')}
     async handleNaturalLanguage(input) {
         try {
             const projectPath = this.context.currentProject?.projectPath || process.cwd();
-            const workflowResult = await this.workflowOrchestrator.executeWorkflow(input, projectPath);
+            const projectId = this.context.currentProject?.projectId;
+            const workflowResult = await this.workflowOrchestrator.executeWorkflow(input, projectPath, {
+                projectId,
+                transparentMode: this.transparentMode
+            });
             if (workflowResult.success) {
                 const stats = this.workflowOrchestrator.getWorkflowStats(workflowResult);
                 return {

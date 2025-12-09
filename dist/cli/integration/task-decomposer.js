@@ -22,6 +22,11 @@ class TaskDecomposer {
         }
         return tasks;
     }
+    async decomposeRequest(requestObj) {
+        // Handle object parameter format
+        const tasks = await this.decompose(requestObj.userRequest, { category: requestObj.intent });
+        return { tasks };
+    }
 }
 exports.TaskDecomposer = TaskDecomposer;
 //# sourceMappingURL=task-decomposer.js.map

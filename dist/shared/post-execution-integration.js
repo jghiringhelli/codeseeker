@@ -22,7 +22,17 @@ class PostExecutionIntegration {
         this.logger = logger_1.Logger.getInstance();
         this.projectPath = projectPath;
         this.branchManager = new git_branch_manager_1.GitBranchManager(projectPath);
-        this.validationCycle = new validation_cycle_1.CodeMindValidationCycle();
+        const config = {
+            enableCoreCycle: true,
+            enableQualityCycle: true,
+            maxDuration: 300000,
+            qualityThresholds: {
+                solidMinScore: 0.8,
+                maxDuplicationLines: 100,
+                maxComplexityPerFunction: 10
+            }
+        };
+        this.validationCycle = new validation_cycle_1.CodeMindValidationCycle(config);
     }
     /**
      * Complete post-execution integration workflow

@@ -148,4 +148,6 @@ export interface IStatisticsService {
   };
   categorizeByType(duplicates: DuplicationGroup[]): Record<DuplicationType, number>;
   categorizeBySeverity(duplicates: DuplicationGroup[]): Record<'low' | 'medium' | 'high' | 'critical', number>;
+  generateSummaryReport(duplicates: DuplicationGroup[]): string;
+  identifyPriorityGroups(duplicates: DuplicationGroup[], topN?: number): DuplicationGroup[];
 }

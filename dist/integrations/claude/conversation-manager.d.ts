@@ -69,6 +69,10 @@ export declare class ClaudeConversationManager {
      */
     getSession(sessionId: string): ConversationSession | undefined;
     /**
+     * End a session and clean up resources
+     */
+    endSession(sessionId: string): void;
+    /**
      * Clean up old sessions
      */
     cleanupOldSessions(maxAgeMs?: number): void;

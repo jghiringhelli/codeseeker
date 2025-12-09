@@ -142,7 +142,7 @@ class HybridFileDiscovery {
     async findGraphNodesForFile(filePath) {
         // Search for Code nodes with matching path property
         const results = await this.semanticGraph.semanticSearch(filePath, {});
-        return results.map(r => r.node);
+        return results.flatMap(r => r.nodes);
     }
     /**
      * Get related nodes based on user intent
@@ -150,7 +150,7 @@ class HybridFileDiscovery {
     async getRelatedNodesByIntent(nodeId, intent) {
         const relationshipTypes = this.getRelationshipTypesForIntent(intent);
         const maxDepth = this.getTraversalDepthForIntent(intent);
-        return await this.semanticGraph.findRelated(nodeId, maxDepth, relationshipTypes);
+        return await this.semanticGraph.findRelatedNodes(nodeId, maxDepth);
     }
     /**
      * Map intent to relevant relationship types for graph traversal

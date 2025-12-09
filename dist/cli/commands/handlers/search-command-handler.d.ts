@@ -8,9 +8,18 @@ export declare class SearchCommandHandler extends BaseCommandHandler {
     private logger;
     handle(args: string): Promise<CommandResult>;
     /**
-     * Index the current project for semantic search
+     * Index the current project for semantic search (incremental)
+     * Only reindexes files that have changed based on content hash
      */
     private indexProject;
+    /**
+     * Get existing file hashes from database for incremental indexing
+     */
+    private getExistingFileHashes;
+    /**
+     * Delete embeddings for specified files
+     */
+    private deleteFileEmbeddings;
     /**
      * Search for code using semantic similarity
      */

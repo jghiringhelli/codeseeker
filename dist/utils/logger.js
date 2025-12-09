@@ -13,6 +13,7 @@ var LogLevel;
 })(LogLevel || (exports.LogLevel = LogLevel = {}));
 class Logger {
     static instance;
+    static muted = false;
     level;
     context;
     constructor(level = LogLevel.INFO, context) {
@@ -24,6 +25,24 @@ class Logger {
             Logger.instance = new Logger();
         }
         return Logger.instance;
+    }
+    /**
+     * Mute all logging (useful during UI prompts to prevent log interference)
+     */
+    static mute() {
+        Logger.muted = true;
+    }
+    /**
+     * Unmute logging
+     */
+    static unmute() {
+        Logger.muted = false;
+    }
+    /**
+     * Check if logging is muted
+     */
+    static isMuted() {
+        return Logger.muted;
     }
     setLevel(level) {
         switch (level) {
@@ -71,6 +90,10 @@ class Logger {
         return new Logger(this.level, childContext);
     }
     log(level, message, meta) {
+        // Skip logging when muted (during UI prompts)
+        if (Logger.muted) {
+            return;
+        }
         const timestamp = new Date().toISOString();
         const contextStr = this.context ? ` [${this.context}]` : '';
         const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';

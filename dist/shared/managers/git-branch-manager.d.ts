@@ -83,11 +83,22 @@ export declare class GitBranchManager {
     private generateBranchName;
     private generateCommitMessage;
     private execGit;
-    private getCurrentBranch;
     private ensureCleanWorkingDirectory;
     private getParentBranchCommit;
     private getAllChangedFiles;
     private getChangedFilesBetweenCommits;
+    createBranch(branchName: string): Promise<void>;
+    checkoutBranch(branchName: string): Promise<void>;
+    listBranches(): Promise<string[]>;
+    deleteBranch(branchName: string, force?: boolean): Promise<void>;
+    resetHard(commit?: string): Promise<void>;
+    stageFile(filePath: string): Promise<void>;
+    stageAllChanges(): Promise<void>;
+    commit(message: string): Promise<void>;
+    mergeBranch(branchName: string): Promise<void>;
+    stashChanges(message?: string): Promise<void>;
+    getStatus(): Promise<string>;
+    getCurrentBranch(): Promise<string>;
 }
 export default GitBranchManager;
 //# sourceMappingURL=git-branch-manager.d.ts.map

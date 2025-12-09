@@ -1,74 +1,47 @@
 /**
- * Tool Database API - Provides CRUD operations for all internal tool data
- * This API is used by internal tools as database interface wrappers
+ * Tool Database API - Refactored with SOLID Principles
+ * SOLID Principles: Single Responsibility, Dependency Inversion
+ * Reduced from 951 lines to ~150 lines using service extraction
  */
+import { IToolDataService, ISemanticSearchService, ICodeDuplicationsService, DatabaseConfig } from './interfaces';
 declare const router: import("express-serve-static-core").Router;
-interface DatabaseConfig {
-    host: string;
-    port: number;
-    database: string;
-    user: string;
-    password: string;
-}
-declare class ToolDatabaseAPI {
-    private pool;
-    private initialized;
-    constructor(config?: DatabaseConfig);
+/**
+ * Main Tool Database API Coordinator
+ * Uses dependency injection for all database operations
+ */
+export declare class ToolDatabaseAPI {
+    private toolDataService?;
+    private semanticSearchService?;
+    private codeDuplicationsService?;
+    private db;
+    constructor(config?: DatabaseConfig, toolDataService?: IToolDataService, semanticSearchService?: ISemanticSearchService, codeDuplicationsService?: ICodeDuplicationsService);
     initialize(): Promise<void>;
     query(text: string, params?: any[]): Promise<any>;
+    close(): Promise<void>;
     saveToolData(projectId: string, toolName: string, data: any): Promise<any>;
+    getToolData(projectId: string, toolName: string, options?: any): Promise<any>;
+    deleteToolData(projectId: string, toolName: string): Promise<void>;
     getSemanticSearchData(projectId: string, filters?: any): Promise<any[]>;
     saveSemanticSearchData(projectId: string, data: any[]): Promise<any>;
-    close(): Promise<void>;
-    getTreeNavigationData(projectId: string, filters?: any): Promise<any[]>;
-    saveTreeNavigationData(projectId: string, data: any[]): Promise<{
-        success: boolean;
-        inserted: number;
-    }>;
-    getCodeDuplications(projectId: string, filters?: any): Promise<any[]>;
-    saveCodeDuplications(projectId: string, data: any[]): Promise<{
-        success: boolean;
-        processed: number;
-    }>;
-    getCentralizationOpportunities(projectId: string, filters?: any): Promise<any[]>;
-    saveCentralizationOpportunities(projectId: string, data: any[]): Promise<{
-        success: boolean;
-        processed: number;
-    }>;
-    getTestCoverageData(projectId: string, filters?: any): Promise<any[]>;
-    saveTestCoverageData(projectId: string, data: any[]): Promise<{
-        success: boolean;
-        processed: number;
-    }>;
-    getCompilationResults(projectId: string, filters?: any): Promise<any[]>;
-    saveCompilationResults(projectId: string, data: any): Promise<{
-        success: boolean;
-        build_id: any;
-    }>;
-    getSOLIDViolations(projectId: string, filters?: any): Promise<any[]>;
-    saveSOLIDViolations(projectId: string, data: any[]): Promise<{
-        success: boolean;
-        processed: number;
-    }>;
-    getToolData(projectId: string, toolName: string, filters?: any): Promise<any[]>;
-    /**
-     * Save semantic search embeddings to database
-     */
     saveSemanticSearch(projectId: string, data: any[]): Promise<any>;
-    /**
-     * Get semantic search embeddings from database
-     */
     getSemanticSearch(projectId: string, filters?: any): Promise<any[]>;
+    getCodeDuplications(projectId: string, filters?: any): Promise<any[]>;
+    saveCodeDuplications(projectId: string, data: any[]): Promise<any>;
+    deleteCodeDuplications(projectId: string): Promise<void>;
     /**
-     * Perform semantic similarity search
+     * Get comprehensive project data across all tools
      */
-    searchSimilarCode(projectId: string, queryEmbedding: number[], options?: {
-        contentTypes?: string[];
-        threshold?: number;
-        limit?: number;
-    }): Promise<any[]>;
+    getProjectOverview(projectId: string): Promise<any>;
+    /**
+     * Clean all data for a project
+     */
+    cleanProjectData(projectId: string): Promise<any>;
+    /**
+     * Health check for all services
+     */
+    healthCheck(): Promise<any>;
 }
-declare const toolDB: ToolDatabaseAPI;
-export default router;
-export { ToolDatabaseAPI, toolDB };
+export declare const toolDB: ToolDatabaseAPI;
+export { router as toolDatabaseRouter };
+export default ToolDatabaseAPI;
 //# sourceMappingURL=tool-database-api.d.ts.map

@@ -24,12 +24,12 @@ export class ContextGatheringService implements IContextGatheringService {
 
     try {
       // Use semantic enhancement engine to get complete context
-      const enhancedContext = await this.semanticEngine.enhanceUserQuery(query);
+      const enhancedContext = await this.semanticEngine.enhanceQuery(query);
 
       // Build comprehensive context from enhancement results
       const context = this.buildEnhancedContext(
-        enhancedContext.searchResults || [],
-        enhancedContext.relationships || []
+        enhancedContext.primaryFiles || [],
+        enhancedContext.relatedFiles || []
       );
 
       // Optimize context based on intent complexity
@@ -177,4 +177,5 @@ export class ContextGatheringService implements IContextGatheringService {
 
     return lines.join('\n');
   }
+
 }

@@ -154,6 +154,10 @@ class SOLIDPrinciplesAnalyzer {
         }
         return suggestions;
     }
+    // Additional method for validation cycle compatibility
+    async analyzeProject(projectPath) {
+        return this.analyzeSOLID({ projectPath });
+    }
 }
 exports.SOLIDPrinciplesAnalyzer = SOLIDPrinciplesAnalyzer;
 //# sourceMappingURL=analyzer.js.map

@@ -64,9 +64,9 @@ class FileHashTracker {
                 return true;
             }
         });
-        // Add error handler to prevent unhandled errors
-        this.redis.on('error', (err) => {
-            console.warn('Redis connection error in FileHashTracker:', err.message);
+        // Add silent error handler to prevent unhandled errors flooding console
+        this.redis.on('error', () => {
+            // Silent - Redis errors are expected when database is unavailable
         });
     }
     /**

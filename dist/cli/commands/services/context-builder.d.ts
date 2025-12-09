@@ -15,11 +15,18 @@ export interface EnhancedContext {
         type: string;
         similarity: number;
         preview: string;
+        startLine?: number;
+        endLine?: number;
     }>;
     codeRelationships: Array<{
         from: string;
         to: string;
         type: string;
+        fromLocation?: string;
+        toLocation?: string;
+        fromMethod?: string;
+        toMethod?: string;
+        line?: number;
     }>;
     packageStructure: string[];
     enhancedPrompt: string;
@@ -29,6 +36,18 @@ export declare class ContextBuilder {
      * Build enhanced context from all analysis results
      */
     buildEnhancedContext(originalQuery: string, queryAnalysis: QueryAnalysis, userClarifications: string[], semanticResults: SemanticResult[], graphContext: GraphContext): EnhancedContext;
+    /**
+     * Extract start line number from class metadata
+     */
+    private extractLineFromMetadata;
+    /**
+     * Extract end line number from class metadata
+     */
+    private extractEndLineFromMetadata;
+    /**
+     * Format location as file:line for Claude Code navigation
+     */
+    private formatLocation;
     /**
      * Create enhanced prompt for Claude Code
      */

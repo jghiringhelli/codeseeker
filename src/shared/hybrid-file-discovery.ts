@@ -193,7 +193,7 @@ export class HybridFileDiscovery {
   private async findGraphNodesForFile(filePath: string): Promise<any[]> {
     // Search for Code nodes with matching path property
     const results = await this.semanticGraph.semanticSearch(filePath, {});
-    return results.map(r => r.node);
+    return results.flatMap(r => r.nodes);
   }
 
   /**
@@ -203,7 +203,7 @@ export class HybridFileDiscovery {
     const relationshipTypes = this.getRelationshipTypesForIntent(intent);
     const maxDepth = this.getTraversalDepthForIntent(intent);
     
-    return await this.semanticGraph.findRelated(nodeId, maxDepth, relationshipTypes as any[]);
+    return await this.semanticGraph.findRelatedNodes(nodeId, maxDepth);
   }
 
   /**

@@ -112,7 +112,7 @@ codemind -c "can you help me understand what this project does"
 codemind -c "implement error handling for database operations"
 ```
 
-### The 8-Step Core Cycle
+### The 11-Step Core Cycle (with Task Decomposition)
 
 **1️⃣ Query Analysis**
 - Analyzes user input for assumptions and ambiguities
@@ -120,51 +120,70 @@ codemind -c "implement error handling for database operations"
 - Calculates confidence level
 - Identifies potential clarification needs
 
-**2️⃣ User Clarification (Optional)**
+**2️⃣ Task Decomposition**
+- Detects if query is complex (multiple actions, numbered steps, etc.)
+- Splits complex queries into focused sub-tasks
+- Assigns task types (analyze, create, modify, test, etc.)
+- Creates execution plan with dependency ordering
+
+**3️⃣ User Clarification (Optional)**
 - Prompts user for clarification when assumptions/ambiguities detected
 - Generates smart questions based on detected patterns
 - Enhances the original query with user responses
 
-**3️⃣ Semantic Search**
-- Searches codebase for files relevant to the query
-- Uses vector embeddings for semantic similarity
-- Returns ranked list of relevant files with similarity scores
+**4️⃣ Hybrid Search**
+- Executes **true hybrid search** running multiple methods in parallel
+- **Full-Text Search (FTS)**: PostgreSQL `tsvector`/`tsquery` for keyword and term matching
+- **Pattern Matching (ILIKE)**: Full phrase pattern matching for exact query terms
+- **Weighted Merge**: Combines results with configurable weights (FTS: 0.6, ILIKE: 0.4)
+- Results found by both methods get combined weighted scores for higher relevance
 
-**4️⃣ Code Relationship Analysis**
+**5️⃣ Code Relationship Analysis**
 - Analyzes relationships between relevant files
 - Identifies classes, functions, and dependencies
 - Maps package structure and component relationships
 
-**5️⃣ Enhanced Context Building**
+**6️⃣ Sub-Task Context Generation**
+- For complex queries: generates tailored context per sub-task
+- Filters relevant files based on task type
+- Applies context limits to optimize token usage
+
+**7️⃣ Enhanced Context Building**
 - Combines original query, clarifications, semantic results, and relationships
 - Creates comprehensive context prompt for Claude Code
 - Optimizes for token efficiency while maintaining completeness
 
-**6️⃣ Claude Code Execution**
-- Passes enhanced context to Claude Code CLI
-- Falls back to simulation mode if Claude Code unavailable
-- Captures Claude's response and recommendations
+**8️⃣ Claude Code Execution**
+- For complex queries: executes each sub-task with tailored context
+- For simple queries: executes directly with full context
+- Aggregates responses from sub-tasks into coherent output
 
-**7️⃣ File Modification Approval**
+**9️⃣ File Modification Approval**
 - Shows user which files Claude intends to modify
 - Provides approval options: Yes, No, or "Don't ask again"
 - Ensures user maintains control over code changes
 
-**8️⃣ Execution Summary**
-- Displays comprehensive summary of what was accomplished
-- Shows analysis statistics (files found, relationships discovered, etc.)
-- Provides performance metrics for the enhancement process
+**🔟 Build/Test Verification**
+- Runs build to verify code compiles
+- Runs tests to ensure no regressions
+- Reports errors for user attention
+
+**1️⃣1️⃣ Database Sync**
+- Updates PostgreSQL semantic search embeddings
+- Updates knowledge graph with new relationships
+- Refreshes cache for modified files
 
 ### Technical Implementation (SOLID Architecture)
 
 The core cycle is implemented using SOLID principles with these services:
 
 - **NaturalLanguageProcessor**: Query analysis and intent detection
-- **SemanticSearchOrchestrator**: File discovery and relevance ranking
-- **GraphAnalysisService**: Code relationship mapping
-- **ContextBuilder**: Enhanced prompt generation
+- **TaskDecompositionService**: Complex query splitting and sub-task context filtering
+- **SemanticSearchOrchestrator**: Hybrid search (FTS + ILIKE) with weighted merge
+- **GraphAnalysisService**: Code relationship mapping via knowledge graph
+- **ContextBuilder**: Enhanced prompt generation with token optimization
 - **UserInteractionService**: User prompts and Claude Code execution
-- **WorkflowOrchestrator**: Coordinates all services and manages the 8-step flow
+- **WorkflowOrchestrator**: Coordinates all services and manages the 11-step flow
 
 ### Example Core Cycle Output
 
@@ -218,6 +237,134 @@ When you need to gather requirements, consider asking:
 - How should I structure the test files?
 - What quality metrics are most important?
 
+## Hybrid Search Architecture
+
+**Updated**: 2025-12-03 - True hybrid search with parallel execution
+
+The semantic search system uses a **true hybrid approach** that runs multiple search methods in parallel and merges results with weighted scoring.
+
+### Why Hybrid Search?
+
+Traditional keyword extraction (stop word removal) fails for natural language queries like "what does this project do" - extracting only "project" loses the semantic meaning. The full phrase carries more meaning than individual words.
+
+### Search Methods (Run in Parallel)
+
+1. **PostgreSQL Full-Text Search (FTS)**
+   - Uses `tsvector` and `tsquery` for linguistic analysis
+   - Provides stemming, stop word handling, and ranking
+   - Indexed with GIN for fast lookups
+   - Weight: **60%** of combined score
+
+2. **ILIKE Pattern Matching**
+   - Full phrase matching preserving the complete query
+   - Catches exact matches FTS might miss
+   - Weight: **40%** of combined score
+
+### Weighted Merge Algorithm
+
+```typescript
+// Results found by BOTH methods get combined weighted score
+if (ftsResult && ilikeResult) {
+  combinedScore = (ftsScore * 0.6) + (ilikeScore * 0.4);
+}
+// Single-method results get boosted weight
+else if (ftsResult) {
+  combinedScore = ftsScore * 0.6 * 1.2; // Semantic boost
+} else {
+  combinedScore = ilikeScore * 0.4 * 1.2;
+}
+```
+
+### Database Schema Enhancement
+
+The `semantic_search_embeddings` table includes:
+```sql
+-- Full-text search column
+content_tsvector TSVECTOR
+
+-- Weighted tsvector generation
+setweight(to_tsvector('english', file_path), 'A') ||  -- File paths highest
+setweight(to_tsvector('english', content_text), 'B') || -- Content medium
+setweight(to_tsvector('english', metadata::text), 'C')  -- Metadata lowest
+```
+
+### Key Files
+
+- `src/database/hybrid-search-schema.sql` - FTS schema and functions
+- `src/database/semantic-search-schema.sql` - Vector embedding schema
+- `src/cli/commands/services/semantic-search-orchestrator.ts` - Hybrid search implementation
+
+## Task Decomposition Architecture - IMPLEMENTED ✅
+
+**Status**: Fully implemented (2025-12-03)
+
+CodeMind now includes intelligent task decomposition where complex queries are automatically split into focused sub-tasks, each receiving tailored context.
+
+### How It Works
+
+When you submit a complex query, CodeMind:
+
+1. **Analyzes Task Complexity**: Detects patterns indicating multi-part requests
+2. **Decomposes into Sub-tasks**: Splits into focused, atomic operations
+3. **Filters Context per Sub-task**: Each sub-task gets only relevant files/relationships
+4. **Executes Sequentially**: Runs sub-tasks respecting dependencies
+5. **Aggregates Results**: Combines outputs into coherent response
+
+### Complexity Detection Patterns
+
+Queries are detected as complex if they contain:
+- Conjunctions with sequencing: "and also", "then", "after", "before"
+- Multiple distinct actions: "create...and test", "fix...and document"
+- Numbered steps: "1. First...", "2. Then..."
+- Multi-part keywords: "multiple", "several", "all"
+
+### Sub-Task Types
+
+| Type | Description | Context Filter |
+|------|-------------|----------------|
+| `analyze` | Understanding/reading code | All relationships, max 15 files |
+| `create` | Creating new components | Existing patterns, max 10 files |
+| `modify` | Modifying existing code | Target files + dependencies |
+| `refactor` | Restructuring code | Import/export relationships |
+| `test` | Writing/running tests | Test files, max 8 files |
+| `fix` | Bug fixes | Error-related files |
+| `document` | Documentation updates | MD files, max 5 files |
+| `configure` | Configuration changes | Config files, max 6 files |
+
+### Example Output
+
+```
+✓ Query analyzed (intent: create)
+✓ Complex query: 3 sub-tasks identified
+
+┌─ Task Decomposition ─────────────────────────────────────┐
+│ Query split into 3 sub-tasks:
+│ 1. [analyze] Analyze existing API structure...
+│ 2. [create] Implement authentication middleware...
+│ 3. [test] Create authentication tests... (after: 2)
+│
+│ Execution: 2 phase(s)
+└──────────────────────────────────────────────────────────┘
+
+🔄 Executing 3 sub-tasks...
+
+  📌 Sub-task 1: Analyze existing API structure...
+  📌 Sub-task 2: Implement authentication middleware...
+  📌 Sub-task 3: Create authentication tests...
+```
+
+### Key Implementation Files
+
+- `src/cli/commands/services/task-decomposition-service.ts` - Core decomposition logic
+- `src/cli/commands/services/workflow-orchestrator.ts` - Integration with workflow
+
+### Benefits
+
+- **Better Focus**: Claude concentrates on one thing at a time
+- **Optimized Context**: Each sub-task gets precisely relevant files
+- **Reduced Token Usage**: No wasted tokens on irrelevant context
+- **Improved Accuracy**: Smaller, focused tasks produce better results
+- **Dependency Handling**: Tests run after implementation, docs after code changes
 
 ## Development Guidelines
 
@@ -258,17 +405,18 @@ The command routing system has been fully refactored to follow SOLID principles:
 - ✅ **Service Layer**: Created 6 focused services following single responsibility principle
 - ✅ **Dependency Injection**: Implemented constructor injection for all dependencies
 - ✅ **Interface Segregation**: Created specific interfaces for each service contract
-- ✅ **Workflow Orchestration**: Complete 8-step natural language processing pipeline
+- ✅ **Workflow Orchestration**: Complete 11-step natural language processing pipeline with task decomposition
 
 **Service Architecture:**
 ```
 src/cli/commands/services/
-├── natural-language-processor.ts    # Query analysis and intent detection
-├── semantic-search-orchestrator.ts  # File discovery and relevance ranking
-├── graph-analysis-service.ts        # Code relationship mapping
-├── context-builder.ts               # Enhanced prompt generation
-├── user-interaction-service.ts      # User prompts and Claude Code execution
-└── workflow-orchestrator.ts         # Master coordinator service
+├── natural-language-processor.ts     # Query analysis and intent detection
+├── task-decomposition-service.ts     # Complex query splitting and sub-task context
+├── semantic-search-orchestrator.ts   # Hybrid search (FTS + ILIKE)
+├── graph-analysis-service.ts         # Code relationship mapping
+├── context-builder.ts                # Enhanced prompt generation
+├── user-interaction-service.ts       # User prompts and Claude Code execution
+└── workflow-orchestrator.ts          # Master coordinator (11-step flow)
 ```
 
 ### Class Naming Convention Enforcement

@@ -9,7 +9,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const tool_database_api_1 = __importDefault(require("../../orchestrator/tool-database-api"));
+const tool_database_api_1 = require("../../orchestrator/tool-database-api");
 const app = (0, express_1.default)();
 const PORT = process.env.TOOL_API_PORT || 3003;
 // Middleware
@@ -25,7 +25,7 @@ app.get('/api/health', (req, res) => {
     });
 });
 // Mount tool database API routes
-app.use('/api/tools', tool_database_api_1.default);
+app.use('/api/tools', tool_database_api_1.toolDatabaseRouter);
 // Error handling
 app.use((err, req, res, next) => {
     console.error('API Error:', err);

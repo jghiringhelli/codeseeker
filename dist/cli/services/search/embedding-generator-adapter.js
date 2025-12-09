@@ -9,7 +9,13 @@ const embedding_service_1 = require("../data/embedding/embedding-service");
 class EmbeddingGeneratorAdapter {
     embeddingService;
     constructor() {
-        this.embeddingService = new embedding_service_1.EmbeddingService();
+        // Default embedding configuration
+        const defaultConfig = {
+            provider: 'local',
+            model: 'local',
+            batchSize: 32
+        };
+        this.embeddingService = new embedding_service_1.EmbeddingService(defaultConfig);
     }
     async generateEmbeddings(chunks) {
         const embeddings = [];

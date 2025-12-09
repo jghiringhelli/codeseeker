@@ -26,9 +26,24 @@ export declare class PlatformUtils {
      */
     static isUnix(): boolean;
     /**
-     * Detect if running inside Claude Code environment
+     * Detect if running inside Claude Code's TOOL EXECUTION context
+     * This is used to decide whether to output context for the current Claude instance
+     * or try to spawn a new Claude CLI process
+     *
+     * IMPORTANT: We only want to detect when CodeMind is being EXECUTED AS A TOOL by Claude Code,
+     * NOT just when Claude Code VSCode extension is installed or running in background.
+     *
+     * - CLAUDECODE and CLAUDE_CODE_ENTRYPOINT are set when VSCode extension is active
+     *   but do NOT indicate we're being run as a tool - ignore these
+     * - MCP_TOOL_CALL_ID indicates actual tool execution context
+     * - CLAUDE_CLI_SESSION / ANTHROPIC_CLI_SESSION indicate actual CLI session context
      */
     static isRunningInClaudeCode(): boolean;
+    /**
+     * Force transparent mode for testing or when running inside Claude Code
+     * Set CODEMIND_TRANSPARENT_MODE=true to force this behavior
+     */
+    static setTransparentMode(enabled: boolean): void;
     /**
      * Get the appropriate file reading command for the platform
      */

@@ -137,6 +137,15 @@ export class IntelligentCycleFeatures {
       { start: startLine, end: endLine }
     );
   }
+
+  // Additional method for validation cycle compatibility
+  async performSemanticDeduplication(
+    userIntent: string,
+    projectPath: string,
+    language?: string
+  ): Promise<SemanticDeduplicationResult> {
+    return this.checkSemanticDuplication(projectPath, userIntent, language ? [language] : undefined);
+  }
 }
 
 export default IntelligentCycleFeatures;

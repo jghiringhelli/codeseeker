@@ -334,15 +334,7 @@ class GitBranchManager {
             throw new Error(`Git command failed: ${command}\n${error.message}`);
         }
     }
-    async getCurrentBranch() {
-        try {
-            const { stdout } = await this.execGit('rev-parse --abbrev-ref HEAD');
-            return stdout.trim();
-        }
-        catch (error) {
-            return 'main'; // Default fallback
-        }
-    }
+    // getCurrentBranch moved to public methods section
     async ensureCleanWorkingDirectory() {
         try {
             const { stdout } = await this.execGit('status --porcelain');
@@ -374,6 +366,67 @@ class GitBranchManager {
         }
         catch (error) {
             return [];
+        }
+    }
+    // Additional methods for workflow service compatibility
+    async createBranch(branchName) {
+        await this.execGit(`checkout -b ${branchName}`);
+    }
+    async checkoutBranch(branchName) {
+        await this.execGit(`checkout ${branchName}`);
+    }
+    async listBranches() {
+        try {
+            const { stdout } = await this.execGit('branch --list');
+            return stdout.split('\n')
+                .map(line => line.trim().replace(/^\*\s*/, ''))
+                .filter(line => line.length > 0);
+        }
+        catch (error) {
+            return [];
+        }
+    }
+    async deleteBranch(branchName, force = false) {
+        const flag = force ? '-D' : '-d';
+        await this.execGit(`branch ${flag} ${branchName}`);
+    }
+    async resetHard(commit) {
+        const target = commit || 'HEAD';
+        await this.execGit(`reset --hard ${target}`);
+    }
+    async stageFile(filePath) {
+        await this.execGit(`add "${filePath}"`);
+    }
+    async stageAllChanges() {
+        await this.execGit('add .');
+    }
+    async commit(message) {
+        await this.execGit(`commit -m "${message}"`);
+    }
+    async mergeBranch(branchName) {
+        await this.execGit(`merge ${branchName}`);
+    }
+    async stashChanges(message) {
+        const cmd = message ? `stash push -m "${message}"` : 'stash push';
+        await this.execGit(cmd);
+    }
+    async getStatus() {
+        try {
+            const { stdout } = await this.execGit('status --porcelain');
+            return stdout;
+        }
+        catch (error) {
+            return '';
+        }
+    }
+    // Make getCurrentBranch public for workflow service
+    async getCurrentBranch() {
+        try {
+            const { stdout } = await this.execGit('branch --show-current');
+            return stdout.trim() || 'main';
+        }
+        catch (error) {
+            return 'main';
         }
     }
 }

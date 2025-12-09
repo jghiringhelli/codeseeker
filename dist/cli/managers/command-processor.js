@@ -12,6 +12,7 @@ const theme_1 = require("../ui/theme");
 class CommandProcessor {
     router;
     context;
+    transparentMode = false;
     constructor(context) {
         this.context = context;
         this.router = new command_router_1.CommandRouter(context);
@@ -21,6 +22,19 @@ class CommandProcessor {
      */
     setReadlineInterface(rl) {
         this.router.setReadlineInterface(rl);
+    }
+    /**
+     * Set transparent mode (skip interactive prompts)
+     */
+    setTransparentMode(enabled) {
+        this.transparentMode = enabled;
+        this.router.setTransparentMode(enabled);
+    }
+    /**
+     * Set history callbacks (for /history command)
+     */
+    setHistoryCallbacks(callbacks) {
+        this.router.setHistoryCallbacks(callbacks);
     }
     /**
      * Process user input and route to appropriate handler

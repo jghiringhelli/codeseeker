@@ -35,5 +35,6 @@ export declare class SOLIDPrinciplesAnalyzer {
      * Generate improvement suggestions based on violations
      */
     private generateSuggestions;
+    analyzeProject(projectPath: string): Promise<SOLIDAnalysisResult>;
 }
 //# sourceMappingURL=analyzer.d.ts.map

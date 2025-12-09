@@ -66,7 +66,8 @@ class DocumentationRAGService {
     constructor(projectId) {
         this.logger = logger_1.Logger.getInstance();
         this.dbConnections = new database_config_1.DatabaseConnections();
-        this.embeddingService = new embedding_service_1.EmbeddingService();
+        const defaultConfig = { provider: 'local', model: 'local', batchSize: 32 };
+        this.embeddingService = new embedding_service_1.EmbeddingService(defaultConfig);
         const searchFactory = search_service_factory_1.SearchServiceFactory.getInstance();
         this.semanticSearchService = searchFactory.createSemanticSearchService();
     }

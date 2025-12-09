@@ -272,7 +272,7 @@ export class FileAnalysisService implements IFileAnalysisService {
       // Try to get AST info
       let astInfo;
       try {
-        astInfo = await this.astAnalyzer.analyze(trimmedContent);
+        astInfo = await this.astAnalyzer.analyzeFile(filePath);
       } catch {
         // AST analysis failed, continue without it
       }

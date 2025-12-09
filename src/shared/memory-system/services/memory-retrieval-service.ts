@@ -52,9 +52,25 @@ export class MemoryRetrievalService implements IMemoryRetrievalService {
         suggestedApproach,
         potentialChallenges,
         estimatedDuration,
+        estimatedComplexity: 'medium',
         similarPastRequests: similarRequests.slice(0, 5), // Top 5 most similar
         relevantPatterns,
-        projectContext
+        projectContext,
+        previousRequestContext: {
+          whatWasDone: [],
+          howItWasDone: [],
+          keyOutcomes: [],
+          lessonsLearned: []
+        },
+        currentRequestContext: {
+          userRequest,
+          projectPath,
+          sessionId,
+          startTime: new Date(),
+          buildingUpon: [],
+          potentialConflicts: [],
+          relatedToPrevious: false
+        }
       };
 
       this.logger.debug(`Generated context with ${similarRequests.length} similar requests and ${relevantPatterns.length} patterns`);
@@ -433,12 +449,28 @@ export class MemoryRetrievalService implements IMemoryRetrievalService {
       suggestedApproach: this.generateGenericApproach(userRequest, []),
       potentialChallenges: ['Unfamiliar codebase', 'Dependency complexity'],
       estimatedDuration: 300,
+      estimatedComplexity: 'medium',
       similarPastRequests: [],
       relevantPatterns: [],
       projectContext: {
         recentChanges: [],
         currentFocus: 'Development',
         upcomingMilestones: []
+      },
+      previousRequestContext: {
+        whatWasDone: [],
+        howItWasDone: [],
+        keyOutcomes: [],
+        lessonsLearned: []
+      },
+      currentRequestContext: {
+        userRequest,
+        projectPath,
+        sessionId: 'default',
+        startTime: new Date(),
+        buildingUpon: [],
+        potentialConflicts: [],
+        relatedToPrevious: false
       }
     };
   }

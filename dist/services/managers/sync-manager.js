@@ -468,7 +468,8 @@ class SyncManagerService {
     async updateEmbeddings(files, projectPath) {
         try {
             const { EmbeddingService } = await Promise.resolve().then(() => __importStar(require('../../cli/services/data/embedding/embedding-service')));
-            const embeddingService = new EmbeddingService();
+            const defaultConfig = { provider: 'local', model: 'local', batchSize: 32 };
+            const embeddingService = new EmbeddingService(defaultConfig);
             console.log(theme_1.Theme.colors.muted(`   Processing ${files.length} files for embedding updates...`));
             let processed = 0;
             for (const file of files) {

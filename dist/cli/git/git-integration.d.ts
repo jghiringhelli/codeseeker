@@ -1,107 +1,53 @@
-export interface GitCommitInfo {
-    hash: string;
-    shortHash: string;
-    message: string;
-    author: string;
-    date: Date;
-    changedFiles: string[];
-    additions: number;
-    deletions: number;
-}
-export interface GitDiffResult {
-    file: string;
-    status: 'added' | 'modified' | 'deleted' | 'renamed';
-    linesAdded?: number;
-    linesDeleted?: number;
-    patch?: string;
-    changes?: GitFileChange[];
-}
-export interface GitFileChange {
-    type: 'added' | 'removed' | 'modified';
-    lineNumber: number;
-    content: string;
-    context?: string;
-}
-export interface ChangeSignificance {
-    score: number;
-    factors: SignificanceFactor[];
-    shouldAutoCommit: boolean;
-    commitMessage?: string;
-}
-export interface SignificanceFactor {
-    type: 'file_count' | 'line_changes' | 'new_features' | 'tests' | 'config' | 'dependencies';
-    impact: number;
-    description: string;
-}
-export interface AutoCommitRules {
-    enabled: boolean;
-    minSignificanceScore?: number;
-    requiresCompilation?: boolean;
-    watchPatterns?: string[];
-    maxCommitFrequency?: number;
-}
-export interface CommitAnalysis {
-    commit: GitCommitInfo;
-    significance: ChangeSignificance;
-    codeAnalysis?: {
-        duplicationsChanged: number;
-        dependenciesChanged: number;
-        complexityDelta: number;
-        newPatterns: string[];
-    };
-}
+/**
+ * Git Integration - Refactored with SOLID Principles
+ * SOLID Principles: Single Responsibility, Dependency Inversion
+ * Reduced from 1006 lines to ~150 lines using service extraction
+ */
+import { IGitOperationsService, IGitAnalysisService, IGitDatabaseService, IGitAutoCommitService, GitCommitInfo, GitDiffResult, ChangeSignificance, CommitAnalysis, AutoCommitRules } from './interfaces';
+/**
+ * Main Git Integration Coordinator
+ * Uses dependency injection for all Git operations
+ */
 export declare class GitIntegration {
+    private gitOps?;
+    private gitAnalysis?;
+    private gitDatabase?;
+    private gitAutoCommit?;
     private logger;
     private projectPath;
-    private db;
-    private changeDetector;
-    private fileWatcher?;
-    private autoCommitRules;
-    constructor(projectPath?: string);
-    private initializeDatabase;
-    private createGitTables;
-    private insertDefaultAutoCommitRules;
+    constructor(projectPath?: string, gitOps?: IGitOperationsService, gitAnalysis?: IGitAnalysisService, gitDatabase?: IGitDatabaseService, gitAutoCommit?: IGitAutoCommitService);
     getCurrentCommit(): Promise<GitCommitInfo | null>;
     getCommitsSince(since: string): Promise<GitCommitInfo[]>;
     getDiffBetweenCommits(from: string, to?: string): Promise<GitDiffResult[]>;
-    private mapGitStatus;
-    private getChangedFiles;
-    private getCommitStats;
-    private getFilePatch;
-    private getFileChanges;
-    analyzeChangeSignificance(diff: GitDiffResult[]): Promise<ChangeSignificance>;
-    private generateCommitMessage;
+    getWorkingDirectoryDiff(projectPath: string): Promise<GitDiffResult[]>;
+    getStagedFiles(projectPath: string): Promise<string[]>;
     isGitRepository(): Promise<boolean>;
+    analyzeChangeSignificance(diff: GitDiffResult[]): Promise<ChangeSignificance>;
+    analyzeCommitRange(projectPath: string, from: string, to: string): Promise<any>;
     compilesSuccessfully(): Promise<boolean>;
-    performAutoCommit(significance: ChangeSignificance): Promise<boolean>;
     recordCommit(commit: GitCommitInfo, significance: ChangeSignificance, autoCommitted?: boolean): Promise<void>;
     updateDatabaseFromGitHistory(): Promise<void>;
-    startAutoCommitWatcher(): Promise<void>;
     getCommitHistory(limit?: number): Promise<CommitAnalysis[]>;
-    getIntegrationStatus(projectPath: string): Promise<{
-        isRepository: boolean;
-        autoCommitEnabled: boolean;
-        isTracking: boolean;
-        recentCommits: Array<{
-            hash: string;
-            message: string;
-            timestamp: Date;
-        }>;
-    }>;
-    analyzeCommitRange(projectPath: string, from: string, to: string): Promise<{
-        significanceScore: number;
-        filesChanged: number;
-        linesAdded: number;
-        linesDeleted: number;
-        newFeatures: string[];
-    }>;
+    getIntegrationStatus(projectPath: string): Promise<any>;
+    performAutoCommit(significance: ChangeSignificance): Promise<boolean>;
     configureAutoCommit(projectPath: string, rules: Partial<AutoCommitRules>): Promise<void>;
+    startAutoCommitWatcher(): Promise<void>;
     stopAutoCommitWatcher(): Promise<void>;
-    private checkForAutoCommit;
-    getWorkingDirectoryDiff(projectPath: string): Promise<GitDiffResult[]>;
-    private getWorkingFilePatch;
-    private getFileStats;
-    getStagedFiles(projectPath: string): Promise<string[]>;
+    /**
+     * Complete workflow: analyze changes and optionally auto-commit
+     */
+    processChanges(): Promise<{
+        diff: GitDiffResult[];
+        significance: ChangeSignificance;
+        committed: boolean;
+    }>;
+    /**
+     * Initialize Git integration for project
+     */
+    initialize(): Promise<void>;
+    /**
+     * Cleanup resources
+     */
+    cleanup(): Promise<void>;
 }
-export default GitIntegration;
 //# sourceMappingURL=git-integration.d.ts.map

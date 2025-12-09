@@ -98,6 +98,11 @@ export declare class QualityToolManager {
      * Extract human-readable issues from tool results
      */
     private extractIssues;
+    runCompilationCheck(projectPath: string): Promise<any>;
+    runTests(projectPath: string): Promise<any>;
+    runSOLIDAnalysis(projectPath: string): Promise<any>;
+    runSecurityAnalysis(projectPath: string): Promise<any>;
+    runLintingCheck(projectPath: string): Promise<any>;
 }
 export default QualityToolManager;
 //# sourceMappingURL=quality-manager.d.ts.map

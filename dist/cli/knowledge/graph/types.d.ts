@@ -7,10 +7,11 @@
 export interface KnowledgeNode {
     id: string;
     type: NodeType;
-    name: string;
+    name?: string;
     namespace?: string;
     sourceLocation?: SourceLocation;
     metadata: NodeMetadata;
+    confidence?: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -19,9 +20,10 @@ export interface KnowledgeTriad {
     subject: string;
     predicate: RelationType;
     object: string;
-    confidence: number;
+    confidence?: number;
     source: TriadSource;
-    metadata: TriadMetadata;
+    evidenceType?: string;
+    metadata?: TriadMetadata;
     createdAt: Date;
 }
 export declare enum NodeType {
@@ -58,6 +60,8 @@ export declare enum RelationType {
     CONTAINS = "contains",
     COMPOSED_OF = "composed_of",
     PART_OF = "part_of",
+    HAS_METHOD = "has_method",
+    HAS_FIELD = "has_field",
     CALLS = "calls",
     INVOKES = "invokes",
     RETURNS = "returns",
@@ -151,6 +155,13 @@ export interface GraphQuery {
     traversal?: TraversalQuery;
     limit?: number;
     offset?: number;
+    nodeType?: string;
+    subject?: string;
+    predicate?: RelationType;
+    object?: string;
+    evidenceType?: string;
+    confidence?: number;
+    metadata?: Record<string, any>;
 }
 export interface NodeQuery {
     types?: NodeType[];
@@ -195,19 +206,27 @@ export interface GraphAnalysis {
 }
 export interface SemanticCluster {
     id: string;
-    name: string;
     nodes: string[];
-    coherenceScore: number;
-    representativeTriads: KnowledgeTriad[];
+    triads: string[];
+    semanticScore: number;
+    density: number;
+    name?: string;
+    coherenceScore?: number;
+    representativeTriads?: KnowledgeTriad[];
     description?: string;
 }
 export interface ArchitecturalInsight {
-    type: InsightType;
+    type: string;
+    pattern?: string;
     confidence: number;
     description: string;
-    affectedNodes: string[];
-    recommendations: string[];
-    evidence: Evidence[];
+    nodes: string[];
+    reasoning?: string;
+    recommendation: string;
+    impact: 'low' | 'medium' | 'high';
+    affectedNodes?: string[];
+    recommendations?: string[];
+    evidence?: Evidence[];
 }
 export declare enum InsightType {
     DESIGN_PATTERN_DETECTED = "design_pattern_detected",

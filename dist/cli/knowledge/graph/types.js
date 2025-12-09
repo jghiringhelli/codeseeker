@@ -48,6 +48,8 @@ var RelationType;
     RelationType["CONTAINS"] = "contains";
     RelationType["COMPOSED_OF"] = "composed_of";
     RelationType["PART_OF"] = "part_of";
+    RelationType["HAS_METHOD"] = "has_method";
+    RelationType["HAS_FIELD"] = "has_field";
     // Behavioral Relationships
     RelationType["CALLS"] = "calls";
     RelationType["INVOKES"] = "invokes";

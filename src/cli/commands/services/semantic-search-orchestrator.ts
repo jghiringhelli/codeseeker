@@ -1,11 +1,15 @@
 /**
  * Semantic Search Orchestrator Service
- * Single Responsibility: Coordinate semantic search operations
- * Uses semantic search service and enhances results with file analysis
+ * Single Responsibility: Coordinate semantic search operations using PostgreSQL pgvector
+ *
+ * This service queries the semantic_search_embeddings table in PostgreSQL
+ * to find code files relevant to the user's query using vector similarity.
  */
 
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { DatabaseConnections } from '../../../config/database-config';
+import { Logger } from '../../../utils/logger';
 
 export interface SemanticResult {
   file: string;
@@ -17,210 +21,728 @@ export interface SemanticResult {
 }
 
 export class SemanticSearchOrchestrator {
-  // Cache for file discovery and content to avoid repeated file system operations
-  private static fileCache = new Map<string, string[]>();
-  private static contentCache = new Map<string, string>();
-  private static readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  private static cacheTimestamp = new Map<string, number>();
+  private logger = Logger.getInstance();
+  private dbConnections: DatabaseConnections;
+  private projectId?: string;
 
-  // Pre-compiled patterns for better performance
-  private static readonly RELEVANCE_PATTERNS = {
-    auth: /(auth|login|session|jwt|token)/i,
-    api: /(api|route|endpoint|controller)/i,
-    database: /(db|database|model|schema|migration)/i,
-    test: /(test|spec|mock|fixture)/i,
-    component: /(component|view|ui|interface)/i,
-    service: /(service|manager|handler|processor)/i,
-    config: /(config|setting|env|option)/i,
-    util: /(util|helper|tool|common)/i
-  };
+  // Fallback to file-based search when DB is unavailable
+  private dbAvailable = true;
 
-  private static readonly FILE_EXTENSIONS = new Set(['.ts', '.js', '.json']);
-  private static readonly EXCLUDED_DIRS = new Set(['.git', 'node_modules', 'dist', '.vscode', 'coverage']);
+  constructor(dbConnections?: DatabaseConnections) {
+    this.dbConnections = dbConnections || new DatabaseConnections();
+  }
 
   /**
-   * Perform semantic search and enhance with file analysis
+   * Set project ID for scoped searches
+   */
+  setProjectId(projectId: string): void {
+    this.projectId = projectId;
+  }
+
+  /**
+   * Resolve project ID from database by project path
+   */
+  private async resolveProjectId(projectPath: string): Promise<string | undefined> {
+    try {
+      const postgres = await this.dbConnections.getPostgresConnection();
+
+      // Normalize path for comparison (handle Windows/Unix differences)
+      const normalizedPath = projectPath.replace(/\//g, '\\');
+      const unixPath = projectPath.replace(/\\/g, '/');
+
+      const result = await postgres.query(`
+        SELECT id FROM projects
+        WHERE project_path = $1
+           OR project_path = $2
+           OR project_path ILIKE $3
+        LIMIT 1
+      `, [normalizedPath, unixPath, `%${path.basename(projectPath)}`]);
+
+      if (result.rows.length > 0) {
+        return result.rows[0].id;
+      }
+    } catch (error) {
+      this.logger.debug(`Could not resolve project ID: ${error instanceof Error ? error.message : error}`);
+    }
+    return undefined;
+  }
+
+  /**
+   * Perform semantic search using PostgreSQL pgvector
+   * Falls back to file-based search if database is unavailable
    */
   async performSemanticSearch(query: string, projectPath: string): Promise<SemanticResult[]> {
     try {
-      const results: SemanticResult[] = [];
-      const lowerQuery = query.toLowerCase();
-
-      // Use cached file discovery to avoid repeated file system operations
-      const files = await this.discoverFilesCached(projectPath);
-
-      // Special handling for class searches - analyze actual content
-      const isClassSearch = lowerQuery.includes('class') || lowerQuery.includes('classes');
-
-      // Parallel processing for better performance
-      const relevancePromises = files.map(async (filePath) => {
-        let relevance: number;
-        let actualContent = '';
-
-        if (isClassSearch) {
-          // For class searches, analyze actual file content
-          const contentAnalysis = await this.analyzeFileContent(filePath, lowerQuery);
-          relevance = contentAnalysis.relevance;
-          actualContent = contentAnalysis.content;
-        } else {
-          // Use optimized pattern matching for other queries
-          relevance = this.calculateFileRelevanceOptimized(filePath, lowerQuery);
-          actualContent = await this.getFilePreviewCached(filePath);
+      // Resolve project ID from database if not already set
+      if (!this.projectId || this.projectId === 'default') {
+        const resolvedId = await this.resolveProjectId(projectPath);
+        if (resolvedId) {
+          this.projectId = resolvedId;
+          this.logger.debug(`Resolved project ID: ${resolvedId}`);
         }
-
-        if (relevance > 0.1) { // Very low threshold to ensure minimum results
-          const fileType = this.determineFileType(filePath);
-
-          return {
-            file: path.relative(projectPath, filePath),
-            type: fileType,
-            similarity: relevance,
-            content: actualContent,
-            lineStart: 1,
-            lineEnd: Math.min(50, actualContent.split('\n').length)
-          };
-        }
-        return null;
-      });
-
-      // Wait for all relevance calculations
-      const allResults = await Promise.all(relevancePromises);
-      const filteredResults = allResults.filter(result => result !== null);
-      results.push(...filteredResults);
-
-      // Sort by relevance
-      results.sort((a, b) => b.similarity - a.similarity);
-
-      // Ensure minimum results - if we have very few high-relevance results,
-      // include some lower-relevance ones for user confirmation
-      if (results.length === 0) {
-        // Fallback: return at least the top 3 files, even with very low relevance
-        const fallbackResults = await this.getFallbackResults(files, projectPath, lowerQuery);
-        results.push(...fallbackResults);
       }
 
-      return results.slice(0, 10);
+      // Try database search first
+      if (this.dbAvailable) {
+        const dbResults = await this.searchDatabase(query, projectPath);
+        if (dbResults.length > 0) {
+          return dbResults;
+        }
+      }
+
+      // Fallback to file-based search
+      this.logger.debug('Using file-based search fallback');
+      return await this.searchFileSystem(query, projectPath);
 
     } catch (error) {
-      // Log error and return empty results instead of throwing
-      console.warn(`Semantic search failed: ${error instanceof Error ? error.message : error}`);
+      this.logger.warn(`Semantic search error: ${error instanceof Error ? error.message : error}`);
+      // Mark DB as unavailable for this session to avoid repeated failures
+      this.dbAvailable = false;
+      return await this.searchFileSystem(query, projectPath);
+    }
+  }
+
+  /**
+   * Search using PostgreSQL - True Hybrid Search
+   *
+   * Search Strategy:
+   * 1. Run BOTH Full-Text Search AND ILIKE pattern matching in parallel
+   * 2. Merge results with weighted average scoring
+   * 3. FTS captures semantic/linguistic similarity, ILIKE captures exact patterns
+   *
+   * Weight Configuration:
+   * - FTS weight: 0.6 (semantic understanding, stemming, language-aware)
+   * - ILIKE weight: 0.4 (exact matches, identifier patterns)
+   */
+  private async searchDatabase(query: string, projectPath: string): Promise<SemanticResult[]> {
+    const FTS_WEIGHT = 0.6;
+    const ILIKE_WEIGHT = 0.4;
+
+    try {
+      const postgres = await this.dbConnections.getPostgresConnection();
+
+      // First, check if we have embeddings for this project
+      const projectCheck = await postgres.query(`
+        SELECT COUNT(*) as count
+        FROM semantic_search_embeddings
+        WHERE project_id = $1 OR file_path LIKE $2
+      `, [this.projectId || 'default', `${projectPath}%`]);
+
+      const embeddingCount = parseInt(projectCheck.rows[0]?.count || '0');
+
+      if (embeddingCount === 0) {
+        this.logger.debug('No embeddings found in database, falling back to file search');
+        return [];
+      }
+
+      // Run both search methods in parallel
+      const hasFtsColumn = await this.checkFtsColumnExists(postgres);
+
+      const [ftsResults, ilikeResults] = await Promise.all([
+        hasFtsColumn
+          ? this.performFullTextSearch(postgres, query, projectPath)
+          : Promise.resolve({ rows: [] }),
+        this.performIlikeFallbackSearch(postgres, query, projectPath)
+      ]);
+
+      this.logger.debug(`Hybrid search: FTS found ${ftsResults.rows.length}, ILIKE found ${ilikeResults.rows.length}`);
+
+      // Merge results with weighted scoring
+      const mergedResults = this.mergeSearchResults(
+        ftsResults.rows,
+        ilikeResults.rows,
+        FTS_WEIGHT,
+        ILIKE_WEIGHT,
+        projectPath
+      );
+
+      // Sort by combined score and limit
+      mergedResults.sort((a, b) => b.combinedScore - a.combinedScore);
+      const topResults = mergedResults.slice(0, 15);
+
+      this.logger.debug(`Hybrid search merged ${mergedResults.length} results, returning top ${topResults.length}`);
+      return topResults;
+
+    } catch (error) {
+      this.logger.error('Database search failed:', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if the content_tsvector column exists for full-text search
+   */
+  private async checkFtsColumnExists(postgres: any): Promise<boolean> {
+    try {
+      const result = await postgres.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'semantic_search_embeddings'
+        AND column_name = 'content_tsvector'
+      `);
+      return result.rows.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if table has a specific column
+   */
+  private async hasColumn(postgres: any, columnName: string): Promise<boolean> {
+    try {
+      const result = await postgres.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'semantic_search_embeddings'
+        AND column_name = $1
+      `, [columnName]);
+      return result.rows.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Perform Full-Text Search using PostgreSQL tsvector/tsquery
+   * Uses the FULL query text for semantic matching
+   */
+  private async performFullTextSearch(postgres: any, query: string, projectPath: string): Promise<any> {
+    // Check if line columns exist (for backward compatibility with older schemas)
+    const hasLineColumns = await this.hasColumn(postgres, 'chunk_start_line');
+
+    // Build query dynamically based on available columns
+    const lineColumns = hasLineColumns
+      ? 'chunk_start_line, chunk_end_line,'
+      : '(COALESCE(chunk_index, 0) * 20 + 1) as chunk_start_line, (COALESCE(chunk_index, 0) * 20 + 20) as chunk_end_line,';
+
+    // Use websearch_to_tsquery for natural language query parsing
+    // This handles phrases, OR, NOT, and other natural language patterns
+    const searchQuery = `
+      SELECT
+        file_path,
+        content_text,
+        chunk_index,
+        metadata,
+        ${lineColumns}
+        -- Full-text search rank (normalized)
+        ts_rank_cd(content_tsvector, websearch_to_tsquery('english', $1), 32) as similarity
+      FROM semantic_search_embeddings
+      WHERE (project_id = $2 OR file_path LIKE $3)
+        AND content_tsvector @@ websearch_to_tsquery('english', $1)
+      ORDER BY similarity DESC
+      LIMIT 15
+    `;
+
+    return await postgres.query(searchQuery, [
+      query,  // Full query text - let PostgreSQL handle parsing
+      this.projectId || 'default',
+      `${projectPath}%`
+    ]);
+  }
+
+  /**
+   * Fallback to ILIKE pattern matching when FTS is unavailable or returns no results
+   */
+  private async performIlikeFallbackSearch(postgres: any, query: string, projectPath: string): Promise<any> {
+    const searchTerms = this.extractSearchTerms(query);
+
+    // Clean the full query for ILIKE search
+    const cleanedQuery = query.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Use full phrase as primary search term
+    const fullPhrasePattern = `%${cleanedQuery}%`;
+    // Use first keyword (if any) as secondary
+    const primaryTerm = searchTerms.length > 0 ? `%${searchTerms[0]}%` : fullPhrasePattern;
+    // Use all keywords joined for pattern matching
+    const anyTermPattern = searchTerms.length > 0 ? `%${searchTerms.join('%')}%` : fullPhrasePattern;
+
+    // Check if line columns exist (for backward compatibility with older schemas)
+    const hasLineColumns = await this.hasColumn(postgres, 'chunk_start_line');
+
+    // Build query dynamically based on available columns
+    const lineColumns = hasLineColumns
+      ? 'chunk_start_line, chunk_end_line,'
+      : '(COALESCE(chunk_index, 0) * 20 + 1) as chunk_start_line, (COALESCE(chunk_index, 0) * 20 + 20) as chunk_end_line,';
+
+    const searchQuery = `
+      SELECT
+        file_path,
+        content_text,
+        chunk_index,
+        metadata,
+        ${lineColumns}
+        -- Text-based relevance score combining phrase and keyword matching
+        (
+          CASE
+            WHEN content_text ILIKE $1 THEN 0.95  -- Full phrase match (highest)
+            WHEN content_text ILIKE $2 THEN 0.85  -- Primary keyword match
+            WHEN content_text ILIKE $3 THEN 0.75  -- Any keyword pattern
+            WHEN file_path ILIKE $2 THEN 0.65     -- Keyword in file path
+            WHEN file_path ILIKE $1 THEN 0.60    -- Phrase in file path
+            ELSE 0.4
+          END
+        ) as similarity
+      FROM semantic_search_embeddings
+      WHERE (project_id = $4 OR file_path LIKE $5)
+        AND (
+          content_text ILIKE $1      -- Full phrase
+          OR content_text ILIKE $3   -- Any keyword pattern
+          OR file_path ILIKE $2      -- Primary keyword in path
+          OR file_path ILIKE $1      -- Full phrase in path
+          OR metadata::text ILIKE $2
+        )
+      ORDER BY similarity DESC
+      LIMIT 15
+    `;
+
+    return await postgres.query(searchQuery, [
+      fullPhrasePattern,  // $1 - full query phrase
+      primaryTerm,        // $2 - primary keyword
+      anyTermPattern,     // $3 - all keywords pattern
+      this.projectId || 'default',  // $4 - project ID
+      `${projectPath}%`   // $5 - project path pattern
+    ]);
+  }
+
+  /**
+   * Merge results from FTS and ILIKE searches with weighted scoring
+   *
+   * For files found by both methods:
+   * - combinedScore = (ftsScore * ftsWeight) + (ilikeScore * ilikeWeight)
+   *
+   * For files found by only one method:
+   * - Apply a penalty (0.8x) since we're less confident
+   * - combinedScore = score * weight * 0.8
+   */
+  private mergeSearchResults(
+    ftsRows: any[],
+    ilikeRows: any[],
+    ftsWeight: number,
+    ilikeWeight: number,
+    projectPath: string
+  ): (SemanticResult & { combinedScore: number })[] {
+    const excludePaths = ['archive', 'backup', 'old', 'deprecated', 'node_modules', 'dist'];
+
+    // Build maps keyed by file path for efficient lookup
+    const ftsMap = new Map<string, any>();
+    const ilikeMap = new Map<string, any>();
+
+    for (const row of ftsRows) {
+      const relativePath = path.isAbsolute(row.file_path)
+        ? path.relative(projectPath, row.file_path)
+        : row.file_path;
+
+      // Skip excluded directories
+      const lowerPath = relativePath.toLowerCase();
+      if (excludePaths.some(ex => lowerPath.startsWith(ex + '/') || lowerPath.startsWith(ex + '\\'))) {
+        continue;
+      }
+
+      // Keep highest score per file
+      const existing = ftsMap.get(relativePath);
+      if (!existing || (parseFloat(row.similarity) || 0) > (parseFloat(existing.similarity) || 0)) {
+        ftsMap.set(relativePath, { ...row, relativePath });
+      }
+    }
+
+    for (const row of ilikeRows) {
+      const relativePath = path.isAbsolute(row.file_path)
+        ? path.relative(projectPath, row.file_path)
+        : row.file_path;
+
+      // Skip excluded directories
+      const lowerPath = relativePath.toLowerCase();
+      if (excludePaths.some(ex => lowerPath.startsWith(ex + '/') || lowerPath.startsWith(ex + '\\'))) {
+        continue;
+      }
+
+      // Keep highest score per file
+      const existing = ilikeMap.get(relativePath);
+      if (!existing || (parseFloat(row.similarity) || 0) > (parseFloat(existing.similarity) || 0)) {
+        ilikeMap.set(relativePath, { ...row, relativePath });
+      }
+    }
+
+    // Get all unique file paths
+    const allFiles = new Set([...ftsMap.keys(), ...ilikeMap.keys()]);
+    const results: (SemanticResult & { combinedScore: number })[] = [];
+
+    for (const filePath of allFiles) {
+      const ftsResult = ftsMap.get(filePath);
+      const ilikeResult = ilikeMap.get(filePath);
+
+      let combinedScore: number;
+      let ftsScore = ftsResult ? parseFloat(ftsResult.similarity) || 0 : 0;
+      let ilikeScore = ilikeResult ? parseFloat(ilikeResult.similarity) || 0 : 0;
+
+      // Use the row with more data (prefer FTS if both exist)
+      const primaryRow = ftsResult || ilikeResult;
+
+      if (ftsResult && ilikeResult) {
+        // Both methods found this file - weighted average
+        combinedScore = (ftsScore * ftsWeight) + (ilikeScore * ilikeWeight);
+      } else if (ftsResult) {
+        // Only FTS found it - apply penalty for single-source
+        combinedScore = ftsScore * ftsWeight * 1.2; // Slight boost since FTS is more semantic
+      } else {
+        // Only ILIKE found it - apply penalty for single-source
+        combinedScore = ilikeScore * ilikeWeight * 1.2;
+      }
+
+      results.push({
+        file: filePath,
+        type: this.determineFileType(primaryRow.file_path),
+        similarity: combinedScore, // Use combined score as similarity for compatibility
+        content: this.formatContent(primaryRow.content_text, primaryRow.metadata),
+        lineStart: primaryRow.chunk_start_line || (primaryRow.chunk_index || 0) * 20 + 1,
+        lineEnd: primaryRow.chunk_end_line || (primaryRow.chunk_index || 0) * 20 + 20,
+        combinedScore,
+        // Include individual scores for debugging/transparency
+        // ftsScore,
+        // ilikeScore
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Fallback file-based search when database is unavailable
+   */
+  private async searchFileSystem(query: string, projectPath: string): Promise<SemanticResult[]> {
+    const results: SemanticResult[] = [];
+    const lowerQuery = query.toLowerCase();
+    const searchTerms = this.extractSearchTerms(query);
+
+    // Detect if this is a general "understand the project" query
+    const isGeneralProjectQuery = this.isGeneralProjectQuery(lowerQuery);
+
+    try {
+      const files = await this.discoverFiles(projectPath);
+
+      // For general project queries, also include key entry point files
+      if (isGeneralProjectQuery) {
+        const entryPointResults = await this.getEntryPointFiles(projectPath, files);
+        results.push(...entryPointResults);
+      }
+
+      for (const filePath of files) {
+        // Skip files already added as entry points
+        const relativePath = path.relative(projectPath, filePath);
+        if (results.some(r => r.file === relativePath)) continue;
+
+        const relevance = await this.calculateFileRelevance(filePath, lowerQuery, searchTerms);
+
+        if (relevance > 0.2) {
+          const content = await this.getFilePreview(filePath);
+
+          results.push({
+            file: relativePath,
+            type: this.determineFileType(filePath),
+            similarity: relevance,
+            content: content,
+            lineStart: 1,
+            lineEnd: 50
+          });
+        }
+      }
+
+      // Deduplicate by file path (keep highest similarity)
+      const deduped = this.deduplicateResults(results);
+
+      // Sort by relevance and limit results
+      deduped.sort((a, b) => b.similarity - a.similarity);
+      return deduped.slice(0, 10);
+
+    } catch (error) {
+      this.logger.warn(`File system search failed: ${error}`);
       return [];
     }
   }
 
   /**
-   * Cached file discovery with TTL
+   * Deduplicate results by file path, keeping highest similarity
    */
-  private async discoverFilesCached(projectPath: string): Promise<string[]> {
-    const now = Date.now();
-    const cacheKey = projectPath;
+  private deduplicateResults(results: SemanticResult[]): SemanticResult[] {
+    const fileMap = new Map<string, SemanticResult>();
 
-    // Check if cache is still valid
-    const cacheTime = SemanticSearchOrchestrator.cacheTimestamp.get(cacheKey);
-    if (cacheTime && (now - cacheTime < SemanticSearchOrchestrator.CACHE_TTL)) {
-      const cached = SemanticSearchOrchestrator.fileCache.get(cacheKey);
-      if (cached) {
-        return cached;
+    for (const result of results) {
+      const existing = fileMap.get(result.file);
+      if (!existing || result.similarity > existing.similarity) {
+        fileMap.set(result.file, result);
       }
     }
 
-    // Cache miss or expired, discover files
-    const files = await this.discoverFiles(projectPath);
-    SemanticSearchOrchestrator.fileCache.set(cacheKey, files);
-    SemanticSearchOrchestrator.cacheTimestamp.set(cacheKey, now);
+    return Array.from(fileMap.values());
+  }
 
+  /**
+   * Detect if query is asking about the project in general
+   */
+  private isGeneralProjectQuery(lowerQuery: string): boolean {
+    const generalPatterns = [
+      /what\s+(does|is)\s+(this\s+)?project/,
+      /about\s+(this\s+)?project/,
+      /explain\s+(this\s+)?project/,
+      /describe\s+(this\s+)?project/,
+      /overview/,
+      /how\s+does\s+(this\s+)?(project|codebase|code)\s+work/,
+      /understand\s+(this\s+)?(project|codebase)/,
+      /what\s+(is|are)\s+(this|the)/,
+      /project\s+structure/,
+      /architecture/
+    ];
+
+    return generalPatterns.some(pattern => pattern.test(lowerQuery));
+  }
+
+  /**
+   * Get key entry point files for understanding the project
+   */
+  private async getEntryPointFiles(projectPath: string, allFiles: string[]): Promise<SemanticResult[]> {
+    const results: SemanticResult[] = [];
+
+    // Priority entry point patterns (higher = more important)
+    const entryPointPatterns = [
+      { pattern: /(?:^|[/\\])(?:index|main|app|server)\.(ts|js|tsx|jsx)$/i, priority: 0.95 },
+      { pattern: /(?:^|[/\\])(?:cli|bin)[/\\][^/\\]+\.(ts|js)$/i, priority: 0.90 },
+      { pattern: /(?:^|[/\\])src[/\\](?:index|main|app)\.(ts|js|tsx|jsx)$/i, priority: 0.92 },
+      { pattern: /(?:^|[/\\])package\.json$/i, priority: 0.85 },
+      { pattern: /(?:^|[/\\])README\.md$/i, priority: 0.80 },
+      { pattern: /(?:^|[/\\])(?:routes|router|controllers?)[/\\]index\.(ts|js)$/i, priority: 0.75 },
+      { pattern: /(?:^|[/\\])(?:services?|api)[/\\]index\.(ts|js)$/i, priority: 0.70 },
+    ];
+
+    for (const filePath of allFiles) {
+      const relativePath = path.relative(projectPath, filePath);
+
+      for (const { pattern, priority } of entryPointPatterns) {
+        if (pattern.test(relativePath)) {
+          try {
+            const content = await this.getFilePreview(filePath);
+            results.push({
+              file: relativePath,
+              type: this.determineFileType(filePath),
+              similarity: priority,
+              content,
+              lineStart: 1,
+              lineEnd: 50
+            });
+          } catch {
+            // Skip files that can't be read
+          }
+          break; // Only match first pattern per file
+        }
+      }
+    }
+
+    // Also check for package.json and README.md in root
+    const rootFiles = ['package.json', 'README.md', 'CLAUDE.md', 'CODEMIND.md'];
+    for (const rootFile of rootFiles) {
+      const fullPath = path.join(projectPath, rootFile);
+      const relativePath = rootFile;
+
+      // Skip if already added
+      if (results.some(r => r.file === relativePath)) continue;
+
+      try {
+        const content = await this.getFilePreview(fullPath);
+        results.push({
+          file: relativePath,
+          type: rootFile.endsWith('.json') ? 'configuration' : 'documentation',
+          similarity: rootFile === 'package.json' ? 0.85 : 0.80,
+          content,
+          lineStart: 1,
+          lineEnd: 50
+        });
+      } catch {
+        // File doesn't exist, skip
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Extract meaningful search terms from query
+   */
+  private extractSearchTerms(query: string): string[] {
+    const stopWords = new Set(['a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been',
+      'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
+      'may', 'might', 'must', 'shall', 'can', 'need', 'to', 'of', 'in', 'for', 'on', 'with',
+      'at', 'by', 'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above',
+      'below', 'between', 'under', 'again', 'further', 'then', 'once', 'here', 'there',
+      'when', 'where', 'why', 'how', 'all', 'each', 'few', 'more', 'most', 'other', 'some',
+      'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very',
+      'just', 'and', 'but', 'if', 'or', 'because', 'until', 'while', 'this', 'that',
+      'these', 'those', 'what', 'which', 'who', 'whom', 'add', 'create', 'make', 'build',
+      'implement', 'write', 'code', 'file', 'files', 'want', 'need', 'please', 'help']);
+
+    return query
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !stopWords.has(word));
+  }
+
+  /**
+   * Calculate file relevance based on query terms
+   */
+  private async calculateFileRelevance(
+    filePath: string,
+    lowerQuery: string,
+    searchTerms: string[]
+  ): Promise<number> {
+    let score = 0;
+    const fileName = path.basename(filePath, path.extname(filePath)).toLowerCase();
+    const dirPath = path.dirname(filePath).toLowerCase();
+
+    // Check filename matches
+    for (const term of searchTerms) {
+      if (fileName.includes(term)) {
+        score += 0.4;
+      }
+      if (dirPath.includes(term)) {
+        score += 0.2;
+      }
+    }
+
+    // Check file content for matches (lightweight check)
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      const lowerContent = content.toLowerCase();
+
+      for (const term of searchTerms) {
+        if (lowerContent.includes(term)) {
+          score += 0.3;
+        }
+      }
+
+      // Bonus for class/function definitions matching query
+      if (lowerQuery.includes('class') && /class\s+\w+/.test(content)) {
+        score += 0.2;
+      }
+      if (lowerQuery.includes('function') && /function\s+\w+/.test(content)) {
+        score += 0.2;
+      }
+
+    } catch {
+      // Ignore file read errors
+    }
+
+    return Math.min(score, 1.0);
+  }
+
+  /**
+   * Discover code files in project
+   */
+  private async discoverFiles(projectPath: string): Promise<string[]> {
+    const files: string[] = [];
+    const excludeDirs = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', '.vscode', '.idea', 'archive', 'backup', 'old', 'deprecated']);
+    const includeExts = new Set(['.ts', '.js', '.tsx', '.jsx', '.py', '.java', '.go', '.rs', '.cpp', '.c', '.h']);
+
+    const scanDir = async (dir: string): Promise<void> => {
+      try {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+
+        for (const entry of entries) {
+          if (entry.name.startsWith('.') && entry.name !== '.') continue;
+
+          const fullPath = path.join(dir, entry.name);
+
+          if (entry.isDirectory()) {
+            if (!excludeDirs.has(entry.name)) {
+              await scanDir(fullPath);
+            }
+          } else if (entry.isFile()) {
+            const ext = path.extname(entry.name);
+            if (includeExts.has(ext)) {
+              files.push(fullPath);
+            }
+          }
+        }
+      } catch {
+        // Ignore directory read errors
+      }
+    };
+
+    await scanDir(projectPath);
     return files;
   }
 
   /**
-   * Cached file preview with memory management
+   * Get preview of file content
    */
-  private async getFilePreviewCached(filePath: string): Promise<string> {
-    if (SemanticSearchOrchestrator.contentCache.has(filePath)) {
-      return SemanticSearchOrchestrator.contentCache.get(filePath)!;
+  private async getFilePreview(filePath: string): Promise<string> {
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      const lines = content.split('\n');
+      const fileName = path.basename(filePath);
+      const fileType = this.determineFileType(filePath);
+
+      // Extract key elements
+      const classes = content.match(/class\s+(\w+)/g) || [];
+      const functions = content.match(/(?:function\s+(\w+)|(\w+)\s*=\s*(?:async\s*)?\()/g) || [];
+      const exports = content.match(/export\s+(?:default\s+)?(?:class|function|const|interface)\s+(\w+)/g) || [];
+
+      let preview = `File: ${fileName} (${fileType})`;
+
+      if (classes.length > 0) {
+        preview += `\nClasses: ${classes.slice(0, 3).join(', ')}`;
+      }
+      if (exports.length > 0) {
+        preview += `\nExports: ${exports.length} items`;
+      }
+
+      // Add first meaningful lines
+      const meaningfulLines = lines
+        .slice(0, 20)
+        .filter(line => line.trim() && !line.trim().startsWith('//') && !line.trim().startsWith('*'))
+        .slice(0, 5);
+
+      if (meaningfulLines.length > 0) {
+        preview += `\n\nPreview:\n${meaningfulLines.join('\n')}`;
+      }
+
+      return preview;
+    } catch {
+      return `File: ${path.basename(filePath)}`;
     }
-
-    const content = await this.getFilePreview(filePath);
-
-    // Memory management: limit cache size
-    if (SemanticSearchOrchestrator.contentCache.size > 100) {
-      // Remove oldest entries
-      const entries = Array.from(SemanticSearchOrchestrator.contentCache.entries());
-      const toRemove = entries.slice(0, 20); // Remove 20 oldest
-      toRemove.forEach(([key]) => SemanticSearchOrchestrator.contentCache.delete(key));
-    }
-
-    SemanticSearchOrchestrator.contentCache.set(filePath, content);
-    return content;
   }
 
   /**
-   * Optimized file relevance calculation using pre-compiled patterns
+   * Format content from database with metadata
    */
-  private calculateFileRelevanceOptimized(filePath: string, lowerQuery: string): number {
-    let score = 0;
-    const fileName = path.basename(filePath, path.extname(filePath)).toLowerCase();
-    const dirPath = path.dirname(filePath).toLowerCase();
+  private formatContent(content: string, metadata: any): string {
+    let formatted = content;
 
-    // Use pre-compiled patterns for better performance
-    for (const [category, pattern] of Object.entries(SemanticSearchOrchestrator.RELEVANCE_PATTERNS)) {
-      if (pattern.test(lowerQuery)) {
-        // File name scoring
-        if (pattern.test(fileName)) {
-          score += 0.8;
+    if (metadata) {
+      try {
+        const meta = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+        if (meta.classes) {
+          formatted = `Classes: ${meta.classes.join(', ')}\n\n${formatted}`;
         }
-        // Directory path scoring
-        if (pattern.test(dirPath)) {
-          score += 0.5;
+        if (meta.functions) {
+          formatted = `Functions: ${meta.functions.slice(0, 5).join(', ')}\n\n${formatted}`;
         }
+      } catch {
+        // Ignore metadata parse errors
       }
     }
 
-    // Direct name matches (highest priority)
-    if (fileName.includes(lowerQuery.split(' ')[0])) {
-      score += 1.0;
+    // Truncate if too long
+    if (formatted.length > 500) {
+      formatted = formatted.substring(0, 500) + '...';
     }
 
-    return Math.min(score, 1.0);
+    return formatted;
   }
 
   /**
-   * Calculate file relevance to the query
-   */
-  private calculateFileRelevance(filePath: string, lowerQuery: string): number {
-    let score = 0;
-    const fileName = path.basename(filePath, path.extname(filePath)).toLowerCase();
-    const dirPath = path.dirname(filePath).toLowerCase();
-
-    // File name matches
-    if (lowerQuery.includes('auth') && (fileName.includes('auth') || fileName.includes('login'))) {
-      score += 0.9;
-    }
-    if (lowerQuery.includes('api') && (fileName.includes('api') || fileName.includes('route'))) {
-      score += 0.9;
-    }
-    if (lowerQuery.includes('database') && (fileName.includes('db') || fileName.includes('model'))) {
-      score += 0.9;
-    }
-    if (lowerQuery.includes('test') && fileName.includes('test')) {
-      score += 0.9;
-    }
-
-    // Directory structure matches
-    if (lowerQuery.includes('auth') && dirPath.includes('auth')) score += 0.8;
-    if (lowerQuery.includes('api') && (dirPath.includes('api') || dirPath.includes('route'))) score += 0.8;
-    if (lowerQuery.includes('test') && dirPath.includes('test')) score += 0.8;
-
-    // General relevance patterns
-    if (lowerQuery.includes('service') && fileName.includes('service')) score += 0.7;
-    if (lowerQuery.includes('manager') && fileName.includes('manager')) score += 0.7;
-    if (lowerQuery.includes('controller') && fileName.includes('controller')) score += 0.7;
-
-    return Math.min(score, 1.0);
-  }
-
-  /**
-   * Determine file type based on path and content
+   * Determine file type based on path and name
    */
   private determineFileType(filePath: string): string {
     const fileName = path.basename(filePath).toLowerCase();
@@ -238,6 +760,8 @@ export class SemanticSearchOrchestrator {
     if (fileName.includes('test') || fileName.includes('spec')) return 'test';
     if (fileName.includes('config')) return 'configuration';
     if (fileName.includes('util') || fileName.includes('helper')) return 'utility';
+    if (fileName.includes('interface') || fileName.includes('types')) return 'interface';
+    if (fileName.includes('repository') || fileName.includes('dao')) return 'repository';
 
     // Directory-based detection
     if (dirPath.includes('controller')) return 'controller';
@@ -248,130 +772,12 @@ export class SemanticSearchOrchestrator {
     if (dirPath.includes('test')) return 'test';
     if (dirPath.includes('config')) return 'configuration';
 
-    // File extension fallback
+    // Extension-based fallback
     const ext = path.extname(filePath);
     if (['.ts', '.js'].includes(ext)) return 'module';
-    if (['.json'].includes(ext)) return 'configuration';
-    if (['.md', '.txt'].includes(ext)) return 'documentation';
+    if (['.json', '.yaml', '.yml'].includes(ext)) return 'configuration';
+    if (['.md', '.txt', '.rst'].includes(ext)) return 'documentation';
 
     return 'module';
-  }
-
-  /**
-   * Get a preview of file content
-   */
-  private async getFilePreview(filePath: string): Promise<string> {
-    try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      const lines = content.split('\n');
-      return `File: ${path.basename(filePath)} - ${this.determineFileType(filePath)}`;
-    } catch {
-      return `File: ${path.basename(filePath)}`;
-    }
-  }
-
-  /**
-   * Discover relevant files in the project
-   */
-  private async discoverFiles(projectPath: string): Promise<string[]> {
-    const files: string[] = [];
-
-    try {
-      const entries = await fs.readdir(projectPath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(projectPath, entry.name);
-
-        // Skip hidden directories and node_modules
-        if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'dist') {
-          continue;
-        }
-
-        if (entry.isDirectory()) {
-          const subFiles = await this.discoverFiles(fullPath);
-          files.push(...subFiles);
-        } else if (entry.isFile()) {
-          const ext = path.extname(entry.name);
-          if (['.ts', '.js', '.json'].includes(ext)) {
-            files.push(fullPath);
-          }
-        }
-      }
-    } catch (error) {
-      console.warn(`Failed to discover files in ${projectPath}:`, error);
-    }
-
-    return files;
-  }
-
-  /**
-   * Analyze actual file content for class searches
-   */
-  private async analyzeFileContent(filePath: string, query: string): Promise<{ relevance: number; content: string }> {
-    try {
-      const fileContent = await fs.readFile(filePath, 'utf-8');
-      const lines = fileContent.split('\n');
-
-      // Look for class declarations
-      const classMatches = fileContent.match(/class\s+\w+/g) || [];
-      const functionMatches = fileContent.match(/function\s+\w+|\w+\s*\(/g) || [];
-      const moduleMatches = fileContent.match(/export\s+(class|function|const)/g) || [];
-
-      let relevance = 0;
-      let description = `File: ${path.basename(filePath)}`;
-
-      if (classMatches.length > 0) {
-        relevance += 0.9; // High relevance for files with classes
-        description += ` - Contains ${classMatches.length} class(es): ${classMatches.join(', ')}`;
-      }
-
-      if (functionMatches.length > 0) {
-        relevance += 0.3; // Some relevance for files with functions
-        description += ` - ${functionMatches.length} function(s)`;
-      }
-
-      if (moduleMatches.length > 0) {
-        relevance += 0.5; // Good relevance for exported modules
-        description += ` - Exports: ${moduleMatches.length} item(s)`;
-      }
-
-      // Add first few lines as preview
-      const preview = lines.slice(0, 5).join('\n');
-      description += `\n\nPreview:\n${preview}`;
-
-      return {
-        relevance: Math.min(relevance, 1.0),
-        content: description
-      };
-    } catch (error) {
-      return {
-        relevance: 0.1,
-        content: `File: ${path.basename(filePath)} - Unable to analyze content`
-      };
-    }
-  }
-
-  /**
-   * Get fallback results when no high-relevance files found
-   */
-  private async getFallbackResults(files: string[], projectPath: string, query: string): Promise<SemanticResult[]> {
-    const fallbackResults: SemanticResult[] = [];
-
-    // Take first few files and analyze them
-    for (let i = 0; i < Math.min(3, files.length); i++) {
-      const filePath = files[i];
-      const contentAnalysis = await this.analyzeFileContent(filePath, query);
-
-      fallbackResults.push({
-        file: path.relative(projectPath, filePath),
-        type: this.determineFileType(filePath),
-        similarity: contentAnalysis.relevance,
-        content: contentAnalysis.content + ' [Low similarity - please confirm relevance]',
-        lineStart: 1,
-        lineEnd: 20
-      });
-    }
-
-    return fallbackResults;
   }
 }

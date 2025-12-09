@@ -86,7 +86,8 @@ export class CoreSafetyService implements ICoreSafetyService {
         };
       }
 
-      const result = await this.compilationVerifier.verifyCompilation(context.projectPath);
+      const config = { projectPath: context.projectPath };
+      const result = await this.compilationVerifier.verifyCompilation(config);
 
       const issues: ValidationError[] = [];
       const warnings: ValidationWarning[] = [];

@@ -104,13 +104,13 @@ export class GraphStateManager implements IGraphStateManager {
       this.nodes = await databaseService.loadNodes();
       this.triads = await databaseService.loadTriads();
 
-      this.logger.info(`Loaded ${this.nodes.size} nodes and ${this.triads.size} triads from database`);
+      this.logger.debug(`Loaded ${this.nodes.size} nodes and ${this.triads.size} triads`);
 
       // Rebuild indexes after loading
       this.rebuildIndexes();
     } catch (error) {
-      this.logger.error('Failed to load graph state from database:', error);
-      throw error;
+      // Don't throw - graceful fallback when database unavailable
+      this.logger.debug('Graph state using in-memory mode (database unavailable)');
     }
   }
 
@@ -136,15 +136,12 @@ export class GraphStateManager implements IGraphStateManager {
       typeSet.add(id);
     }
 
-    // Persist to database via service
+    // Persist to database via service (don't throw on failure)
     try {
       await databaseService.saveNode(knowledgeNode);
     } catch (error) {
-      this.logger.error('Failed to persist node to database:', error);
-      // Remove from memory if database save failed
-      this.nodes.delete(id);
-      typeSet?.delete(id);
-      throw error;
+      // Keep node in memory even if database save fails
+      this.logger.debug(`Node ${id} saved to memory only (database unavailable)`);
     }
 
     this.logger.debug(`Added node ${id} of type ${node.type}`);
@@ -172,15 +169,12 @@ export class GraphStateManager implements IGraphStateManager {
       relationSet.add(id);
     }
 
-    // Persist to database via service
+    // Persist to database via service (don't throw on failure)
     try {
       await databaseService.saveTriad(knowledgeTriad);
     } catch (error) {
-      this.logger.error('Failed to persist triad to database:', error);
-      // Remove from memory if database save failed
-      this.triads.delete(id);
-      relationSet?.delete(id);
-      throw error;
+      // Keep triad in memory even if database save fails
+      this.logger.debug(`Triad ${id} saved to memory only (database unavailable)`);
     }
 
     this.logger.debug(`Added triad ${id}: ${triad.subject} -> ${triad.predicate} -> ${triad.object}`);

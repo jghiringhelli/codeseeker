@@ -35,7 +35,7 @@ export {
   ProjectContext
 } from './interfaces/index';
 
-export class ClaudeCodeIntegration {
+class ClaudeCodeIntegration {
   private dbConnections: DatabaseConnections;
   private logger = Logger.getInstance();
   private initialized = false;
@@ -54,8 +54,8 @@ export class ClaudeCodeIntegration {
     // Initialize services with dependency injection
     this.executionService = this.executionService || new ClaudeExecutionService();
     this.promptService = this.promptService || new PromptProcessingService();
-    this.contextBuilder = this.contextBuilder || new ProjectContextBuilder();
-    this.responseParser = this.responseParser || new ClaudeResponseParser();
+    this.contextBuilder = this.contextBuilder || new ProjectContextBuilder() as unknown as IContextBuilderService;
+    this.responseParser = this.responseParser || new ClaudeResponseParser() as unknown as IResponseParsingService;
     this.sessionManager = this.sessionManager || new SessionManagementService();
 
     this.analysisService = this.analysisService || new ProjectAnalysisService(
@@ -190,6 +190,41 @@ export class ClaudeCodeIntegration {
   async assessCodeQuality(projectPath: string, context: string): Promise<AnalysisResult['codeQuality']> {
     await this.ensureInitialized();
     return this.analysisService!.assessCodeQuality(projectPath, context);
+  }
+
+  async detectUserIntentSimple(query: string): Promise<{
+    category: string;
+    confidence: number;
+    requiresModifications: boolean;
+    reasoning: string;
+  }> {
+    await this.ensureInitialized();
+
+    // Use Claude-based intent analysis instead of hardcoded keywords
+    try {
+      const { ClaudeIntentAnalyzer } = await import('../../cli/commands/services/claude-intent-analyzer');
+      const analyzer = ClaudeIntentAnalyzer.getInstance();
+      const result = await analyzer.analyzeQuery(query);
+
+      if (result.success && result.analysis) {
+        return {
+          category: result.analysis.intent,
+          confidence: result.analysis.confidence,
+          requiresModifications: result.analysis.requiresModifications,
+          reasoning: result.analysis.reasoning
+        };
+      }
+    } catch (error) {
+      this.logger.debug('Claude intent analysis unavailable, using fallback');
+    }
+
+    // Fallback - return general analysis
+    return {
+      category: 'general',
+      confidence: 0.5,
+      requiresModifications: false,
+      reasoning: 'Intent analysis fallback - Claude unavailable'
+    };
   }
 
   // Prompt Operations (delegated to PromptProcessingService)

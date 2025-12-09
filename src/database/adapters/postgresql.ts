@@ -29,7 +29,7 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
 
   async initialize(): Promise<void> {
     try {
-      this.logger.info('Initializing PostgreSQL connection', {
+      this.logger.debug('Initializing PostgreSQL connection', {
         host: this.config.host,
         database: this.config.database,
         port: this.config.port
@@ -54,7 +54,7 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
       await client?.query('SELECT NOW()');
       client?.release();
 
-      this.logger.info('PostgreSQL connection established successfully');
+      this.logger.debug('PostgreSQL connection established');
 
       // Run migrations
       await this?.migrate();
@@ -67,7 +67,7 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
 
   async close(): Promise<void> {
     if (this.pool) {
-      this.logger.info('Closing PostgreSQL connection pool');
+      this.logger.debug('Closing PostgreSQL connection pool');
       await this.pool?.end();
       this.pool = null;
     }
@@ -79,7 +79,7 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
     }
 
     try {
-      this.logger.info('Running PostgreSQL migrations');
+      this.logger.debug('Running PostgreSQL migrations');
       
       // Try multiple possible paths for the schema file
       const possiblePaths = [
@@ -95,7 +95,7 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
         try {
           schemaSql = readFileSync(schemaPath, 'utf8');
           schemaFound = true;
-          this.logger.info(`Found schema file at: ${schemaPath}`);
+          this.logger.debug(`Found schema file at: ${schemaPath}`);
           break;
         } catch (error) {
           // Try next path
@@ -112,12 +112,12 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
         // Try to run schema - if it fails because objects already exist, that's OK
         try {
           await client?.query(schemaSql);
-          this.logger.info('PostgreSQL migrations completed successfully');
+          this.logger.debug('PostgreSQL migrations completed');
         } catch (migrationError) {
           // Check if the error is just about existing objects
           const errorMessage = (migrationError as Error).message;
           if (errorMessage?.includes('already exists') || errorMessage?.includes('does not exist')) {
-            this.logger.info('PostgreSQL schema already exists, skipping migration');
+            this.logger.debug('PostgreSQL schema already exists');
           } else {
             // Re-throw if it's a different error
             throw migrationError;

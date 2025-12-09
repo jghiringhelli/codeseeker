@@ -17,7 +17,8 @@ export class GitWorkflowService implements IGitWorkflowService {
   private gitManager: GitBranchManager;
 
   constructor(gitManager?: GitBranchManager) {
-    this.gitManager = gitManager || new GitBranchManager();
+    // GitBranchManager requires a project path
+    this.gitManager = gitManager || new GitBranchManager(process.cwd());
   }
 
   async createFeatureBranch(workflowId: string, description: string): Promise<string> {
@@ -33,16 +34,16 @@ export class GitWorkflowService implements IGitWorkflowService {
 
       const branchName = `codemind/${workflowId}/${sanitizedDescription}`;
 
-      // Create and checkout the new branch
-      await this.gitManager.createBranch(branchName);
-      await this.gitManager.checkoutBranch(branchName);
+      // Use GitBranchManager's createFeatureBranch method
+      const userRequest = `${workflowId}: ${description}`;
+      const featureBranch = await this.gitManager.createFeatureBranch(userRequest, workflowId);
 
-      this.logger.info(`Created and switched to branch: ${branchName}`);
-      return branchName;
+      this.logger.info(`Created and switched to branch: ${featureBranch.branchName}`);
+      return featureBranch.branchName;
     } catch (error) {
       this.logger.error('Failed to create feature branch:', error);
-      // Fallback to working directly on current branch (risky but functional)
-      return await this.gitManager.getCurrentBranch();
+      // Fallback to working directly on current branch
+      return 'main'; // Default fallback
     }
   }
 
@@ -250,28 +251,31 @@ export class GitWorkflowService implements IGitWorkflowService {
 
   // Additional utility methods
   async getBranchStatus(): Promise<{
-    currentBranch: string;
+    current: string;
+    hasChanges: boolean;
     hasUncommittedChanges: boolean;
-    aheadBy: number;
-    behindBy: number;
+    ahead: number;
+    behind: number;
   }> {
     try {
       const currentBranch = await this.gitManager.getCurrentBranch();
-      const status = await this.gitManager.getStatus();
+      const statusOutput = await this.gitManager.getStatus();
 
       return {
-        currentBranch,
-        hasUncommittedChanges: status.hasChanges,
-        aheadBy: status.ahead || 0,
-        behindBy: status.behind || 0
+        current: currentBranch,
+        hasChanges: statusOutput.length > 0,
+        hasUncommittedChanges: statusOutput.length > 0,
+        ahead: 0, // Would need additional git command to determine
+        behind: 0 // Would need additional git command to determine
       };
     } catch (error) {
       this.logger.error('Failed to get branch status:', error);
       return {
-        currentBranch: 'unknown',
+        current: 'unknown',
+        hasChanges: false,
         hasUncommittedChanges: false,
-        aheadBy: 0,
-        behindBy: 0
+        ahead: 0,
+        behind: 0
       };
     }
   }

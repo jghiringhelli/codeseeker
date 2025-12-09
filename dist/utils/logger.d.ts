@@ -10,10 +10,23 @@ export declare enum LogLevel {
 }
 export declare class Logger implements ILogger {
     private static instance;
+    private static muted;
     private level;
     private context?;
     constructor(level?: LogLevel, context?: string);
     static getInstance(): Logger;
+    /**
+     * Mute all logging (useful during UI prompts to prevent log interference)
+     */
+    static mute(): void;
+    /**
+     * Unmute logging
+     */
+    static unmute(): void;
+    /**
+     * Check if logging is muted
+     */
+    static isMuted(): boolean;
     setLevel(level: 'debug' | 'info' | 'warn' | 'error'): void;
     debug(message: string, meta?: unknown): void;
     info(message: string, meta?: unknown): void;

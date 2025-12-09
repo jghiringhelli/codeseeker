@@ -7,5 +7,6 @@ export declare class TaskExecutor {
     private executeSOLIDAnalysisTask;
     private executeRefactorTask;
     private executeGeneralTask;
+    executeTask(taskObj: any): Promise<any>;
 }
 //# sourceMappingURL=task-executor.d.ts.map

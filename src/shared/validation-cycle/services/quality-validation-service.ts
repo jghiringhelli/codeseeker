@@ -106,11 +106,11 @@ export class QualityValidationService implements IQualityValidationService {
       }
 
       // Check individual principles
-      for (const [principle, analysis] of Object.entries(result.principles)) {
-        if (analysis.score < 0.6) { // Individual principle threshold
+      for (const [principle, score] of Object.entries(result.principleScores)) {
+        if (score < 0.6) { // Individual principle threshold
           warnings.push({
             type: 'solid_principle_violation',
-            message: `${principle} principle score low: ${analysis.score.toFixed(2)}`,
+            message: `${principle} principle score low: ${score.toFixed(2)}`,
             severity: 'warning'
           });
         }
@@ -124,7 +124,7 @@ export class QualityValidationService implements IQualityValidationService {
             message: violation.description,
             file: violation.file,
             line: violation.line,
-            severity: violation.severity === 'error' ? 'error' : 'warning'
+            severity: violation.severity === 'high' ? 'error' : 'warning'
           });
         }
       }
@@ -153,13 +153,16 @@ export class QualityValidationService implements IQualityValidationService {
     try {
       this.logger.debug('🔍 Detecting code duplication...');
 
-      const result = await this.intelligentFeatures.performSemanticDeduplication(context.projectPath);
+      const result = await this.intelligentFeatures.performSemanticDeduplication(
+        'Code duplication analysis',
+        context.projectPath
+      );
 
       const issues: ValidationError[] = [];
       const warnings: ValidationWarning[] = [];
 
-      if (result.success && result.duplicates) {
-        const totalDuplicatedLines = result.duplicates.reduce((sum, dup) => sum + dup.lines, 0);
+      if (result.shouldProceed && result.hasDuplicates) {
+        const totalDuplicatedLines = result.existingImplementations.reduce((sum, impl) => sum + (impl.lineRange.end - impl.lineRange.start), 0);
 
         if (totalDuplicatedLines > this.config.maxDuplicationLines) {
           warnings.push({
@@ -170,11 +173,11 @@ export class QualityValidationService implements IQualityValidationService {
         }
 
         // Report significant duplications
-        for (const duplicate of result.duplicates.slice(0, 3)) { // Limit to 3 reports
-          if (duplicate.lines > 5) {
+        for (const implementation of result.existingImplementations.slice(0, 3)) { // Limit to 3 reports
+          if (implementation.lineRange.end - implementation.lineRange.start > 5) {
             warnings.push({
               type: 'code_duplication',
-              message: `${duplicate.lines} lines duplicated: ${duplicate.description}`,
+              message: `${implementation.lineRange.end - implementation.lineRange.start} lines with similar functionality: ${implementation.description}`,
               severity: 'info'
             });
           }
@@ -249,31 +252,32 @@ export class QualityValidationService implements IQualityValidationService {
       this.logger.debug('🛡️ Performing security scan...');
 
       const result = await this.intelligentFeatures.performSmartSecurity(
-        context.userIntent || 'Security scan',
-        context.projectPath
+        context.projectPath,
+        [], // changedFiles - empty array for full scan
+        context.userIntent || 'Security scan'
       );
 
       const issues: ValidationError[] = [];
       const warnings: ValidationWarning[] = [];
 
-      if (result.success && result.vulnerabilities) {
+      if (result.vulnerabilities && result.vulnerabilities.length > 0) {
         for (const vuln of result.vulnerabilities.slice(0, 5)) { // Limit to 5 vulnerabilities
-          const severity = this.getSecuritySeverity(vuln.risk);
+          const severity = this.getSecuritySeverity(vuln.severity);
 
-          if (vuln.risk === 'critical' || vuln.risk === 'high') {
+          if (vuln.severity === 'critical' || vuln.severity === 'high') {
             issues.push({
               type: 'security_vulnerability',
               message: vuln.description,
-              file: vuln.location?.file,
-              line: vuln.location?.line,
-              blocking: vuln.risk === 'critical'
+              file: vuln.file,
+              line: vuln.line,
+              blocking: vuln.severity === 'critical'
             });
           } else {
             warnings.push({
               type: 'security_warning',
               message: vuln.description,
-              file: vuln.location?.file,
-              line: vuln.location?.line,
+              file: vuln.file,
+              line: vuln.line,
               severity
             });
           }

@@ -82,7 +82,8 @@ export class DocumentationRAGService {
   constructor(projectId: string) {
     this.logger = Logger.getInstance();
     this.dbConnections = new DatabaseConnections();
-    this.embeddingService = new EmbeddingService();
+    const defaultConfig = { provider: 'local' as const, model: 'local' as const, batchSize: 32 };
+    this.embeddingService = new EmbeddingService(defaultConfig);
     const searchFactory = SearchServiceFactory.getInstance();
     this.semanticSearchService = searchFactory.createSemanticSearchService();
   }

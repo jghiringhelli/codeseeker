@@ -60,9 +60,17 @@ export class SemanticOrchestrator {
       this.logger.info(`🧠 Starting semantic analysis for: "${request.query}"`);
       
       // 1. Semantic search in graph
-      const searchResults = await this.semanticGraph.semanticSearch(request.query, {
+      const rawSearchResults = await this.semanticGraph.semanticSearch(request.query, {
         maxDepth: request.maxResults || 10
       });
+
+      // Transform SearchResult[] to individual node results with relevance scores
+      const searchResults = rawSearchResults.flatMap(result =>
+        result.nodes.map((node, index) => ({
+          node,
+          relevanceScore: 1.0 / (index + 1) // Basic relevance scoring
+        }))
+      );
       
       // 2. Extract relevant concepts
       const relatedConcepts = await this.extractRelatedConcepts(searchResults);
@@ -89,8 +97,8 @@ export class SemanticOrchestrator {
       // 7. Get graph context
       const graphStats = await this.semanticGraph.getGraphStatistics();
       const graphContext = {
-        totalNodes: graphStats.total_nodes || 0,
-        totalRelationships: graphStats.total_relationships || 0,
+        totalNodes: graphStats.nodeCount || 0,
+        totalRelationships: graphStats.relationshipCount || 0,
         relevantClusters: this.extractRelevantClusters(searchResults)
       };
       
@@ -125,13 +133,17 @@ export class SemanticOrchestrator {
       if (result.node.labels.includes('BusinessConcept')) {
         try {
           const crossRefs = await this.semanticGraph.findCrossReferences(result.node.properties.name);
+          const totalRelatedCode = crossRefs.reduce((sum, ref) => sum + ref.relatedCode.length, 0);
+          const totalRelatedDocs = crossRefs.reduce((sum, ref) => sum + ref.relatedDocs.length, 0);
+          const totalRelatedUI = crossRefs.reduce((sum, ref) => sum + ref.relatedUI.length, 0);
+
           concepts.push({
             name: result.node.properties.name,
             domain: result.node.properties.domain,
             description: result.node.properties.description,
-            relatedCode: crossRefs.relatedCode.length,
-            relatedDocs: crossRefs.relatedDocs.length,
-            relatedUI: crossRefs.relatedUI.length,
+            relatedCode: totalRelatedCode,
+            relatedDocs: totalRelatedDocs,
+            relatedUI: totalRelatedUI,
             strength: result.relevanceScore
           });
         } catch (error) {
@@ -148,9 +160,14 @@ export class SemanticOrchestrator {
     const insights: any[] = [];
     
     try {
-      const results = await this.semanticGraph.semanticSearch(query);
+      const rawResults = await this.semanticGraph.semanticSearch(query);
       const domains = new Set<string>();
-      
+
+      // Transform and process results
+      const results = rawResults.flatMap(result =>
+        result.nodes.map(node => ({ node }))
+      );
+
       results.forEach(result => {
         if (result.node.properties.domain) {
           domains.add(result.node.properties.domain);

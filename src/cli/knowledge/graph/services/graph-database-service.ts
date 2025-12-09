@@ -25,10 +25,34 @@ export class GraphDatabaseService implements IGraphDatabaseService {
   private db: any;
   private initialized = false;
 
+  // Static flag to track database availability and suppress repeated errors
+  private static databaseUnavailable = false;
+  private static errorNotified = false;
+
   constructor(private projectPath: string) {}
+
+  /**
+   * Check if database is marked as unavailable
+   */
+  static isDatabaseUnavailable(): boolean {
+    return GraphDatabaseService.databaseUnavailable;
+  }
+
+  /**
+   * Reset the database unavailable flag (for retry attempts)
+   */
+  static resetAvailability(): void {
+    GraphDatabaseService.databaseUnavailable = false;
+    GraphDatabaseService.errorNotified = false;
+  }
 
   async initializeDatabase(): Promise<void> {
     if (this.initialized) return;
+
+    // Skip if database already marked as unavailable
+    if (GraphDatabaseService.databaseUnavailable) {
+      return;
+    }
 
     try {
       const config = DatabaseFactory?.parseConfigFromEnv();
@@ -39,13 +63,26 @@ export class GraphDatabaseService implements IGraphDatabaseService {
         // NOTE: Tables should be created during setup phase, not during runtime queries
         // The setup command handles schema creation via applyConsolidatedSchema()
         this.initialized = true;
-        this.logger.info('Graph database connection initialized (schema assumed to exist from setup)');
+        this.logger.debug('Graph database connection initialized');
       } else {
         this.logger.warn('No database configuration found for graph storage');
       }
     } catch (error) {
-      this.logger.error('Failed to initialize graph database:', error);
-      throw error;
+      // Mark database as unavailable to prevent repeated error spam
+      GraphDatabaseService.databaseUnavailable = true;
+
+      // Only show notification once, not for every subsequent attempt
+      if (!GraphDatabaseService.errorNotified) {
+        GraphDatabaseService.errorNotified = true;
+        // Show a single user-friendly message
+        console.log('\n⚠️  Database unavailable - CodeMind running in local-only mode.');
+        console.log('   Database features (semantic search, knowledge graph) will be limited.');
+        console.log('   To enable full features, ensure PostgreSQL is running.\n');
+        this.logger.debug('Graph database unavailable - using fallback mode');
+      }
+
+      // Don't throw - allow graceful fallback
+      return;
     }
   }
 
@@ -63,6 +100,7 @@ export class GraphDatabaseService implements IGraphDatabaseService {
       await this.db.query(`
         CREATE TABLE IF NOT EXISTS knowledge_nodes (
           id VARCHAR(255) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
           type VARCHAR(100) NOT NULL,
           metadata JSONB,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -110,10 +148,10 @@ export class GraphDatabaseService implements IGraphDatabaseService {
         ON knowledge_triads (predicate, object)
       `);
 
-      this.logger.info('Knowledge graph database tables created successfully');
+      this.logger.debug('Knowledge graph database tables created');
     } catch (error) {
-      this.logger.error('Failed to create knowledge graph tables:', error);
-      throw error;
+      // Don't throw - table creation may fail if DB unavailable
+      this.logger.debug('Failed to create knowledge graph tables - database may be unavailable');
     }
   }
 
@@ -124,17 +162,22 @@ export class GraphDatabaseService implements IGraphDatabaseService {
     }
 
     try {
+      // Derive name from node id or metadata
+      const nodeName = node.metadata?.name || node.id.split('_')[0] || node.id;
+
       await this.db.query(`
         INSERT INTO knowledge_nodes (
-          id, type, metadata, created_at, updated_at,
+          id, name, type, metadata, created_at, updated_at,
           project_path, source_file, confidence
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
           metadata = EXCLUDED.metadata,
           updated_at = EXCLUDED.updated_at,
           confidence = EXCLUDED.confidence
       `, [
         node.id,
+        nodeName,
         node.type,
         JSON.stringify(node.metadata || {}),
         node.createdAt || new Date(),
@@ -144,8 +187,8 @@ export class GraphDatabaseService implements IGraphDatabaseService {
         node.metadata?.confidence || 1.0
       ]);
     } catch (error) {
-      this.logger.error(`Failed to save node ${node.id}:`, error);
-      throw error;
+      // Don't throw - graceful fallback when DB unavailable
+      this.logger.debug(`Failed to save node ${node.id} - database may be unavailable`);
     }
   }
 
@@ -178,8 +221,8 @@ export class GraphDatabaseService implements IGraphDatabaseService {
         this.projectPath
       ]);
     } catch (error) {
-      this.logger.error(`Failed to save triad ${triad.id}:`, error);
-      throw error;
+      // Don't throw - graceful fallback when DB unavailable
+      this.logger.debug(`Failed to save triad ${triad.id} - database may be unavailable`);
     }
   }
 
@@ -197,22 +240,30 @@ export class GraphDatabaseService implements IGraphDatabaseService {
         WHERE project_path = $1
         ORDER BY created_at DESC
       `, [this.projectPath]);
+      const rows = results.rows || results || [];
 
-      for (const row of results) {
+      for (const row of rows) {
+        const metadata = typeof row.metadata === 'string'
+          ? JSON.parse(row.metadata || '{}')
+          : (row.metadata || {});
+        // Include name in metadata if present in database
+        if (row.name) {
+          metadata.name = row.name;
+        }
         const node: KnowledgeNode = {
           id: row.id,
           type: row.type,
-          metadata: JSON.parse(row.metadata || '{}'),
+          metadata,
           createdAt: row.created_at,
           updatedAt: row.updated_at
         };
         nodes.set(node.id, node);
       }
 
-      this.logger.info(`Loaded ${nodes.size} knowledge nodes from database`);
+      this.logger.debug(`Loaded ${nodes.size} knowledge nodes`);
     } catch (error) {
-      this.logger.error('Failed to load nodes from database:', error);
-      throw error;
+      // Don't throw - return empty map when DB unavailable
+      this.logger.debug('Failed to load nodes from database - database may be unavailable');
     }
 
     return nodes;
@@ -232,14 +283,17 @@ export class GraphDatabaseService implements IGraphDatabaseService {
         WHERE project_path = $1
         ORDER BY created_at DESC
       `, [this.projectPath]);
+      const rows = results.rows || results || [];
 
-      for (const row of results) {
+      for (const row of rows) {
         const triad: KnowledgeTriad = {
           id: row.id,
           subject: row.subject,
           predicate: row.predicate,
           object: row.object,
-          metadata: JSON.parse(row.metadata || '{}'),
+          metadata: typeof row.metadata === 'string'
+            ? JSON.parse(row.metadata || '{}')
+            : (row.metadata || {}),
           evidenceType: row.evidence_type,
           source: row.source,
           confidence: row.confidence,
@@ -248,10 +302,10 @@ export class GraphDatabaseService implements IGraphDatabaseService {
         triads.set(triad.id, triad);
       }
 
-      this.logger.info(`Loaded ${triads.size} knowledge triads from database`);
+      this.logger.debug(`Loaded ${triads.size} knowledge triads`);
     } catch (error) {
-      this.logger.error('Failed to load triads from database:', error);
-      throw error;
+      // Don't throw - return empty map when DB unavailable
+      this.logger.debug('Failed to load triads from database - database may be unavailable');
     }
 
     return triads;
@@ -296,17 +350,27 @@ export class GraphDatabaseService implements IGraphDatabaseService {
       }
 
       const results = await this.db.query(sql, params);
+      const rows = results.rows || results || [];
 
-      return results.map((row: any) => ({
-        id: row.id,
-        type: row.type,
-        metadata: JSON.parse(row.metadata || '{}'),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      }));
+      return rows.map((row: any) => {
+        const metadata = typeof row.metadata === 'string'
+          ? JSON.parse(row.metadata || '{}')
+          : (row.metadata || {});
+        if (row.name) {
+          metadata.name = row.name;
+        }
+        return {
+          id: row.id,
+          type: row.type,
+          metadata,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
+        };
+      });
     } catch (error) {
-      this.logger.error('Failed to query nodes:', error);
-      throw error;
+      // Don't throw - return empty array when DB unavailable
+      this.logger.debug('Failed to query nodes - database may be unavailable');
+      return [];
     }
   }
 
@@ -359,21 +423,25 @@ export class GraphDatabaseService implements IGraphDatabaseService {
       }
 
       const results = await this.db.query(sql, params);
+      const rows = results.rows || results || [];
 
-      return results.map((row: any) => ({
+      return rows.map((row: any) => ({
         id: row.id,
         subject: row.subject,
         predicate: row.predicate,
         object: row.object,
-        metadata: JSON.parse(row.metadata || '{}'),
+        metadata: typeof row.metadata === 'string'
+          ? JSON.parse(row.metadata || '{}')
+          : (row.metadata || {}),
         evidenceType: row.evidence_type,
         source: row.source,
         confidence: row.confidence,
         createdAt: row.created_at
       }));
     } catch (error) {
-      this.logger.error('Failed to query triads:', error);
-      throw error;
+      // Don't throw - return empty array when DB unavailable
+      this.logger.debug('Failed to query triads - database may be unavailable');
+      return [];
     }
   }
 
@@ -495,15 +563,19 @@ export class GraphDatabaseService implements IGraphDatabaseService {
 
         // Commit transaction
         await this.db.commitTransaction();
-        this.logger.info('Graph mutation completed successfully');
+        this.logger.debug('Graph mutation completed');
 
       } catch (error) {
-        await this.db.rollbackTransaction();
-        throw error;
+        try {
+          await this.db.rollbackTransaction();
+        } catch {
+          // Ignore rollback errors
+        }
+        this.logger.debug('Failed to mutate graph - database may be unavailable');
       }
     } catch (error) {
-      this.logger.error('Failed to mutate graph:', error);
-      throw error;
+      // Don't throw - graceful fallback when DB unavailable
+      this.logger.debug('Failed to mutate graph - database may be unavailable');
     }
   }
 
@@ -512,9 +584,10 @@ export class GraphDatabaseService implements IGraphDatabaseService {
       try {
         await this.db.close();
         this.initialized = false;
-        this.logger.info('Graph database connection closed');
+        this.logger.debug('Graph database connection closed');
       } catch (error) {
-        this.logger.error('Error closing graph database connection:', error);
+        // Silently handle close errors
+        this.logger.debug('Error closing graph database connection');
       }
     }
   }
@@ -599,8 +672,9 @@ export class GraphDatabaseService implements IGraphDatabaseService {
         }))
       };
     } catch (error) {
-      this.logger.error('Failed to get subgraph:', error);
-      throw error;
+      // Don't throw - return empty result when DB unavailable
+      this.logger.debug('Failed to get subgraph - database may be unavailable');
+      return { nodes: [], triads: [] };
     }
   }
 }

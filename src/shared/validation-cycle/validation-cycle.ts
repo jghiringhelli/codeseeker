@@ -230,6 +230,27 @@ export class CodeMindValidationCycle {
       recommendations: []
     };
   }
+
+  // Additional methods required by task-specific-file-orchestrator
+  async runCoreCycle(context: ProjectContext): Promise<CycleResult> {
+    if (!this.config.enableCoreCycle) {
+      return this.createEmptyResult();
+    }
+    return this.executeCoreSafetyCycle(context);
+  }
+
+  async runQualityCycle(context: ProjectContext): Promise<CycleResult> {
+    if (!this.config.enableQualityCycle) {
+      return this.createEmptyResult();
+    }
+    const qualityResult = await this.executeQualityCycle(context);
+    return qualityResult || this.createEmptyResult();
+  }
+
+  async runValidation(context: ProjectContext): Promise<CycleResult> {
+    const result = await this.executeValidationCycle(context);
+    return result.result;
+  }
 }
 
 // Export factory function for easy instantiation

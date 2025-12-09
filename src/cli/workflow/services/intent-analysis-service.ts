@@ -113,25 +113,9 @@ export class IntentAnalysisService implements IIntentAnalysisService {
   }
 
   private extractDomains(query: string, category: string): string[] {
-    const domains: string[] = [];
-    const queryLower = query.toLowerCase();
-
-    // Technical domains
-    if (queryLower.includes('auth') || queryLower.includes('login')) domains.push('authentication');
-    if (queryLower.includes('api') || queryLower.includes('endpoint')) domains.push('api');
-    if (queryLower.includes('database') || queryLower.includes('db')) domains.push('database');
-    if (queryLower.includes('frontend') || queryLower.includes('ui')) domains.push('frontend');
-    if (queryLower.includes('backend') || queryLower.includes('server')) domains.push('backend');
-    if (queryLower.includes('test') || queryLower.includes('testing')) domains.push('testing');
-    if (queryLower.includes('security') || queryLower.includes('vulnerability')) domains.push('security');
-    if (queryLower.includes('performance') || queryLower.includes('optimization')) domains.push('performance');
-
-    // Add category as domain if no specific domains found
-    if (domains.length === 0) {
-      domains.push(category);
-    }
-
-    return domains;
+    // Domain extraction is now done by ClaudeIntentAnalyzer as part of targetEntities
+    // This is a fallback that uses category if no specific domains found
+    return [category];
   }
 
   private estimateTime(category: string, confidence: number): number {
@@ -156,17 +140,8 @@ export class IntentAnalysisService implements IIntentAnalysisService {
   }
 
   private createFallbackIntent(query: string): ProcessedIntent {
-    // Simple keyword-based fallback
-    const queryLower = query.toLowerCase();
-
-    let category = 'analyze_code';
-    if (queryLower.includes('create') || queryLower.includes('add') || queryLower.includes('implement')) {
-      category = 'create_functionality';
-    } else if (queryLower.includes('fix') || queryLower.includes('bug') || queryLower.includes('error')) {
-      category = 'fix_bug';
-    } else if (queryLower.includes('modify') || queryLower.includes('update') || queryLower.includes('change')) {
-      category = 'modify_existing';
-    }
+    // Fallback without keyword-based analysis - use general category
+    const category = 'analyze_code';
 
     return {
       intention: category,
