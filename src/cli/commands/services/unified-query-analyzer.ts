@@ -297,19 +297,45 @@ Respond with ONLY the JSON, no markdown or explanation.`;
 
   /**
    * Quick check if input is natural language vs command
+   * Natural language queries have multiple words and don't look like commands.
+   * Single-word inputs matching known commands are treated as commands.
+   * Multi-word inputs starting with a command word are natural language (e.g., "Analyze this codebase")
    */
   isNaturalLanguageQuery(input: string): boolean {
     const trimmed = input.trim();
+
+    // Empty or very short inputs are not natural language
+    if (trimmed.length <= 2) {
+      return false;
+    }
+
+    // Known single-word commands
     const knownCommands = new Set([
       'help', 'exit', 'quit', 'status', 'setup', 'init', 'project', 'sync',
       'search', 'analyze', 'dedup', 'solid', 'docs', 'instructions', 'watch', 'watcher'
     ]);
 
-    const firstWord = trimmed.split(' ')[0].toLowerCase();
-    if (knownCommands.has(firstWord)) {
+    const words = trimmed.split(/\s+/);
+    const firstWord = words[0].toLowerCase();
+
+    // Single word that matches a known command = command
+    // e.g., "analyze", "search", "help"
+    if (words.length === 1 && knownCommands.has(firstWord)) {
       return false;
     }
 
-    return trimmed.length > 2;
+    // Multi-word input = natural language (even if it starts with a command word)
+    // e.g., "Analyze this codebase" or "search for authentication code" or "help me understand this"
+    // Exception: command with simple argument like "search auth" (2 words, first is command)
+    if (words.length === 2 && knownCommands.has(firstWord)) {
+      // Could be "search auth" (command) or "search authentication" (NL)
+      // If second word is short (< 5 chars), treat as command with arg
+      if (words[1].length < 5) {
+        return false;
+      }
+    }
+
+    // Multi-word sentences are natural language
+    return true;
   }
 }

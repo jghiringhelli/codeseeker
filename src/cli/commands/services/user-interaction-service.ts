@@ -295,7 +295,8 @@ ${enhancedPrompt}`;
       const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
 
       // Use --dangerously-skip-permissions for auto-approved fix execution
-      const claudeArgs = ['-p', '--output-format', 'stream-json', '--dangerously-skip-permissions'];
+      // Note: --verbose is required when using --output-format stream-json with -p (--print)
+      const claudeArgs = ['-p', '--verbose', '--output-format', 'stream-json', '--dangerously-skip-permissions'];
 
       console.log(Theme.colors.info(`\n  ${label} - Executing...`));
 
@@ -640,7 +641,8 @@ Please revise your approach based on this feedback and propose new changes.`;
       const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
 
       // Use stream-json for real-time output with partial messages
-      const claudeArgs = ['-p', '--output-format', 'stream-json', '--include-partial-messages'];
+      // Note: --verbose is required when using --output-format stream-json with -p (--print)
+      const claudeArgs = ['-p', '--verbose', '--output-format', 'stream-json', '--include-partial-messages'];
 
       const child = spawn('claude', claudeArgs, {
         cwd: userCwd,
