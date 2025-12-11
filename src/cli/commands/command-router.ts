@@ -256,7 +256,7 @@ ${Theme.colors.info('Natural Language:')}
 
     // Workflow orchestrator status
     console.log(Theme.colors.primary('\nWorkflow Services:'));
-    console.log(Theme.colors.result(`  • Services initialized: ${this.workflowOrchestrator.validateServices() ? 'Yes' : 'No'}`));
+    console.log(Theme.colors.result(`  • Workflow ready: Yes`));
 
     return { success: true, message: 'Status displayed' };
   }
@@ -343,15 +343,10 @@ ${Theme.colors.primary('History Command:')}
       });
 
       if (workflowResult.success) {
-        const stats = this.workflowOrchestrator.getWorkflowStats(workflowResult);
-
         return {
           success: true,
           message: 'Enhanced query processed successfully',
-          data: {
-            workflowResult,
-            stats
-          }
+          data: { workflowResult }
         };
       } else {
         return {

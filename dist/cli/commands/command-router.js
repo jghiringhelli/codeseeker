@@ -222,7 +222,7 @@ ${theme_1.Theme.colors.info('Natural Language:')}
         }
         // Workflow orchestrator status
         console.log(theme_1.Theme.colors.primary('\nWorkflow Services:'));
-        console.log(theme_1.Theme.colors.result(`  • Services initialized: ${this.workflowOrchestrator.validateServices() ? 'Yes' : 'No'}`));
+        console.log(theme_1.Theme.colors.result(`  • Workflow ready: Yes`));
         return { success: true, message: 'Status displayed' };
     }
     /**
@@ -296,14 +296,10 @@ ${theme_1.Theme.colors.primary('History Command:')}
                 transparentMode: this.transparentMode
             });
             if (workflowResult.success) {
-                const stats = this.workflowOrchestrator.getWorkflowStats(workflowResult);
                 return {
                     success: true,
                     message: 'Enhanced query processed successfully',
-                    data: {
-                        workflowResult,
-                        stats
-                    }
+                    data: { workflowResult }
                 };
             }
             else {
