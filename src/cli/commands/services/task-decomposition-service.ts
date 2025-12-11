@@ -1,21 +1,25 @@
 /**
  * Task Decomposition Service
- * Single Responsibility: Analyze complex queries and decompose them into focused sub-tasks
+ * Single Responsibility: Delegate query decomposition to Claude for intelligent task splitting
  *
  * This service enables the "Task Split" capability where complex multi-part requests
  * are broken down into smaller, focused tasks. Each sub-task gets its own tailored
  * context from the semantic search and graph analysis.
  *
+ * All decomposition logic is now delegated to ClaudeIntentAnalyzer, which uses
+ * actual Claude AI to analyze and decompose queries instead of hardcoded patterns.
+ *
  * Benefits:
  * - Better Focus: Claude concentrates on one thing at a time
  * - Optimized Context: Each sub-task gets precisely relevant files
  * - Reduced Token Usage: No wasted tokens on irrelevant context
- * - Improved Accuracy: Smaller, focused tasks produce better results
+ * - Improved Accuracy: AI-powered decomposition understands domain concepts
  */
 
 import { QueryAnalysis } from './natural-language-processor';
 import { SemanticResult } from './semantic-search-orchestrator';
 import { GraphContext } from './graph-analysis-service';
+import { ClaudeIntentAnalyzer, DecomposedTask, TaskDecomposition } from './claude-intent-analyzer';
 
 export interface SubTask {
   id: number;
@@ -51,6 +55,7 @@ export interface DecompositionResult {
   originalQuery: string;
   subTasks: SubTask[];
   executionPlan: ExecutionPlan;
+  reasoning?: string;         // Claude's explanation for decomposition
 }
 
 export interface ExecutionPlan {
@@ -72,298 +77,126 @@ export interface SubTaskContext {
 }
 
 export class TaskDecompositionService {
-  // Patterns that indicate complex, multi-part requests
-  private readonly complexityIndicators = [
-    /\band\b.*\b(also|then|after|before)\b/i,
-    /\bfirst\b.*\bthen\b/i,
-    /\b(create|add|implement).*\b(test|document)/i,
-    /\b(fix|update).*\b(and|also)\b.*\b(add|create)/i,
-    /\bmultiple\b|\bseveral\b|\ball\b/i,
-    /\bstep\s*\d/i,
-    /\b\d+\.\s/,  // Numbered list
-  ];
+  private claudeAnalyzer: ClaudeIntentAnalyzer;
 
-  // Action verbs and their corresponding task types
-  private readonly actionTypeMap: Record<string, SubTaskType> = {
-    'understand': 'analyze',
-    'explain': 'analyze',
-    'analyze': 'analyze',
-    'review': 'analyze',
-    'find': 'analyze',
-    'search': 'analyze',
-    'create': 'create',
-    'add': 'create',
-    'implement': 'create',
-    'build': 'create',
-    'write': 'create',
-    'make': 'create',
-    'change': 'modify',
-    'update': 'modify',
-    'modify': 'modify',
-    'edit': 'modify',
-    'refactor': 'refactor',
-    'restructure': 'refactor',
-    'reorganize': 'refactor',
-    'clean': 'refactor',
-    'test': 'test',
-    'verify': 'test',
-    'check': 'test',
-    'fix': 'fix',
-    'debug': 'fix',
-    'resolve': 'fix',
-    'repair': 'fix',
-    'document': 'document',
-    'describe': 'document',
-    'configure': 'configure',
-    'setup': 'configure',
-    'install': 'configure',
-  };
+  constructor() {
+    this.claudeAnalyzer = ClaudeIntentAnalyzer.getInstance();
+  }
 
   /**
-   * Analyze a query and decompose it into sub-tasks if complex
+   * Analyze a query and decompose it into sub-tasks using Claude
+   * This is the async version that uses AI for intelligent decomposition
    */
-  decomposeQuery(query: string, queryAnalysis: QueryAnalysis): DecompositionResult {
-    const isComplex = this.isComplexQuery(query);
+  async decomposeQueryAsync(query: string, queryAnalysis: QueryAnalysis): Promise<DecompositionResult> {
+    // Convert QueryAnalysis to IntentAnalysis format for ClaudeIntentAnalyzer
+    const intentAnalysis = {
+      intent: queryAnalysis.intent as any,
+      confidence: queryAnalysis.confidence,
+      reasoning: queryAnalysis.reasoning || '',
+      requiresModifications: queryAnalysis.requiresModifications || false,
+      assumptions: queryAnalysis.assumptions,
+      ambiguities: queryAnalysis.ambiguities,
+      suggestedClarifications: queryAnalysis.suggestedClarifications || [],
+      targetEntities: queryAnalysis.targetEntities || [],
+      actionVerbs: []
+    };
 
-    if (!isComplex) {
-      // Simple query - single task
-      return {
-        isComplex: false,
-        originalQuery: query,
-        subTasks: [this.createSingleTask(query, queryAnalysis)],
-        executionPlan: {
-          phases: [{ phaseNumber: 1, taskIds: [1], description: 'Execute query' }],
-          totalEstimatedSteps: 1
-        }
-      };
+    const result = await this.claudeAnalyzer.decomposeQuery(query, intentAnalysis);
+
+    if (!result.success || !result.decomposition) {
+      // Fallback to single task
+      return this.createSingleTaskResult(query, queryAnalysis);
     }
 
-    // Complex query - decompose into sub-tasks
-    const subTasks = this.extractSubTasks(query, queryAnalysis);
+    const decomposition = result.decomposition;
+    const subTasks = this.convertToSubTasks(decomposition.subTasks);
     const executionPlan = this.createExecutionPlan(subTasks);
 
     return {
-      isComplex: true,
+      isComplex: decomposition.isComplex,
       originalQuery: query,
       subTasks,
-      executionPlan
+      executionPlan,
+      reasoning: decomposition.reasoning
     };
   }
 
   /**
-   * Determine if a query is complex enough to warrant decomposition
+   * Synchronous version for backward compatibility
+   * Returns single task - callers should migrate to decomposeQueryAsync
    */
-  private isComplexQuery(query: string): boolean {
-    // Check for complexity indicators
-    for (const pattern of this.complexityIndicators) {
-      if (pattern.test(query)) {
-        return true;
-      }
-    }
-
-    // Check for multiple distinct actions
-    const actions = this.extractActions(query);
-    if (actions.length > 1) {
-      return true;
-    }
-
-    // Check query length as a heuristic
-    const wordCount = query.split(/\s+/).length;
-    if (wordCount > 30) {
-      return true;
-    }
-
-    return false;
+  decomposeQuery(query: string, queryAnalysis: QueryAnalysis): DecompositionResult {
+    // Synchronous version returns single task
+    // The workflow orchestrator should use decomposeQueryAsync for Claude-based decomposition
+    return this.createSingleTaskResult(query, queryAnalysis);
   }
 
   /**
-   * Extract action verbs from query
+   * Convert Claude's DecomposedTask format to our SubTask format
    */
-  private extractActions(query: string): string[] {
-    const words = query.toLowerCase().split(/\s+/);
-    const actions: string[] = [];
-
-    for (const word of words) {
-      if (this.actionTypeMap[word] && !actions.includes(word)) {
-        actions.push(word);
-      }
-    }
-
-    return actions;
+  private convertToSubTasks(decomposedTasks: DecomposedTask[]): SubTask[] {
+    return decomposedTasks.map(task => ({
+      id: task.id,
+      type: task.type as SubTaskType,
+      description: task.description,
+      searchTerms: task.searchTerms,
+      priority: task.priority,
+      dependencies: task.dependencies,
+      contextFilter: this.createContextFilter(task.type as SubTaskType),
+      estimatedComplexity: task.complexity
+    }));
   }
 
   /**
-   * Create a single task for simple queries
+   * Create a single task result for simple queries
    */
-  private createSingleTask(query: string, queryAnalysis: QueryAnalysis): SubTask {
-    const taskType = this.determineTaskType(query, queryAnalysis.intent);
+  private createSingleTaskResult(query: string, queryAnalysis: QueryAnalysis): DecompositionResult {
+    const taskType = this.mapIntentToTaskType(queryAnalysis.intent);
 
-    return {
+    const subTask: SubTask = {
       id: 1,
       type: taskType,
       description: query,
-      searchTerms: this.extractSearchTerms(query),
+      searchTerms: queryAnalysis.targetEntities || [],
       priority: 1,
       dependencies: [],
+      contextFilter: this.createContextFilter(taskType),
       estimatedComplexity: 'medium'
+    };
+
+    return {
+      isComplex: false,
+      originalQuery: query,
+      subTasks: [subTask],
+      executionPlan: {
+        phases: [{ phaseNumber: 1, taskIds: [1], description: 'Execute query' }],
+        totalEstimatedSteps: 1
+      }
     };
   }
 
   /**
-   * Extract sub-tasks from a complex query
+   * Map intent to task type
    */
-  private extractSubTasks(query: string, queryAnalysis: QueryAnalysis): SubTask[] {
-    const subTasks: SubTask[] = [];
-    let taskId = 1;
-
-    // Split by common conjunctions and separators
-    const segments = this.splitQueryIntoSegments(query);
-
-    for (const segment of segments) {
-      if (segment.trim().length < 5) continue; // Skip very short segments
-
-      const taskType = this.determineTaskType(segment, queryAnalysis.intent);
-      const searchTerms = this.extractSearchTerms(segment);
-      const complexity = this.estimateComplexity(segment, taskType);
-      const contextFilter = this.createContextFilter(taskType, searchTerms);
-
-      subTasks.push({
-        id: taskId,
-        type: taskType,
-        description: segment.trim(),
-        searchTerms,
-        priority: this.calculatePriority(taskType, taskId),
-        dependencies: this.calculateDependencies(taskId, taskType, subTasks),
-        contextFilter,
-        estimatedComplexity: complexity
-      });
-
-      taskId++;
-    }
-
-    // If no sub-tasks were created, create at least one
-    if (subTasks.length === 0) {
-      subTasks.push(this.createSingleTask(query, queryAnalysis));
-    }
-
-    // Sort by priority
-    subTasks.sort((a, b) => a.priority - b.priority);
-
-    return subTasks;
-  }
-
-  /**
-   * Split a complex query into segments
-   */
-  private splitQueryIntoSegments(query: string): string[] {
-    // First, try to split by numbered items
-    const numberedMatch = query.match(/\d+\.\s+[^.]+/g);
-    if (numberedMatch && numberedMatch.length > 1) {
-      return numberedMatch.map(s => s.replace(/^\d+\.\s*/, ''));
-    }
-
-    // Split by common conjunctions
-    const segments = query
-      .split(/\band\s+(?:also\s+)?|\bthen\s+|\bafter\s+that\s+|\bfirst\s+|\bnext\s+|\bfinally\s+/i)
-      .filter(s => s.trim().length > 0);
-
-    if (segments.length > 1) {
-      return segments;
-    }
-
-    // Split by sentence boundaries
-    const sentences = query.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    if (sentences.length > 1) {
-      return sentences;
-    }
-
-    // Return as single segment
-    return [query];
-  }
-
-  /**
-   * Determine the task type from the segment text
-   */
-  private determineTaskType(segment: string, fallbackIntent: string): SubTaskType {
-    const lowerSegment = segment.toLowerCase();
-
-    for (const [action, type] of Object.entries(this.actionTypeMap)) {
-      if (lowerSegment.includes(action)) {
-        return type;
-      }
-    }
-
-    // Use fallback intent
+  private mapIntentToTaskType(intent: string): SubTaskType {
     const intentMap: Record<string, SubTaskType> = {
-      'understand': 'analyze',
       'create': 'create',
       'modify': 'modify',
       'fix': 'fix',
       'delete': 'modify',
+      'understand': 'analyze',
+      'analyze': 'analyze',
+      'search': 'analyze',
       'general': 'general'
     };
 
-    return intentMap[fallbackIntent] || 'general';
-  }
-
-  /**
-   * Extract search terms from a segment
-   */
-  private extractSearchTerms(segment: string): string[] {
-    const stopWords = new Set([
-      'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-      'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'to', 'of',
-      'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through',
-      'and', 'but', 'or', 'nor', 'so', 'yet', 'both', 'either', 'neither',
-      'not', 'only', 'own', 'same', 'than', 'too', 'very', 'just', 'also',
-      'please', 'help', 'me', 'want', 'need', 'like', 'make', 'sure'
-    ]);
-
-    const words = segment.toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter(word => word.length > 2 && !stopWords.has(word));
-
-    // Return unique terms
-    return [...new Set(words)];
-  }
-
-  /**
-   * Estimate task complexity
-   */
-  private estimateComplexity(segment: string, taskType: SubTaskType): 'low' | 'medium' | 'high' {
-    const wordCount = segment.split(/\s+/).length;
-
-    // High complexity types
-    if (['refactor', 'create'].includes(taskType) && wordCount > 10) {
-      return 'high';
-    }
-
-    // Low complexity types
-    if (['analyze', 'document'].includes(taskType) && wordCount < 10) {
-      return 'low';
-    }
-
-    // Check for complexity keywords
-    const highComplexityPatterns = [
-      /comprehensive/i, /complete/i, /all/i, /entire/i, /full/i,
-      /refactor/i, /restructure/i, /migrate/i, /rewrite/i
-    ];
-
-    for (const pattern of highComplexityPatterns) {
-      if (pattern.test(segment)) {
-        return 'high';
-      }
-    }
-
-    return 'medium';
+    return intentMap[intent] || 'general';
   }
 
   /**
    * Create context filter based on task type
    */
-  private createContextFilter(taskType: SubTaskType, searchTerms: string[]): ContextFilter {
+  private createContextFilter(taskType: SubTaskType): ContextFilter {
     const baseFilter: ContextFilter = {
       maxFiles: 10
     };
@@ -405,62 +238,6 @@ export class TaskDecompositionService {
       default:
         return baseFilter;
     }
-  }
-
-  /**
-   * Calculate task priority (lower = earlier)
-   */
-  private calculatePriority(taskType: SubTaskType, taskId: number): number {
-    // Analysis tasks should run first
-    const typePriority: Record<SubTaskType, number> = {
-      'analyze': 1,
-      'fix': 2,
-      'modify': 3,
-      'refactor': 4,
-      'create': 5,
-      'test': 6,
-      'document': 7,
-      'configure': 8,
-      'general': 5
-    };
-
-    return typePriority[taskType] * 10 + taskId;
-  }
-
-  /**
-   * Calculate task dependencies
-   */
-  private calculateDependencies(taskId: number, taskType: SubTaskType, existingTasks: SubTask[]): number[] {
-    const dependencies: number[] = [];
-
-    // Tests depend on create/modify tasks
-    if (taskType === 'test') {
-      for (const task of existingTasks) {
-        if (['create', 'modify', 'refactor'].includes(task.type)) {
-          dependencies.push(task.id);
-        }
-      }
-    }
-
-    // Documentation depends on implementation
-    if (taskType === 'document') {
-      for (const task of existingTasks) {
-        if (['create', 'modify'].includes(task.type)) {
-          dependencies.push(task.id);
-        }
-      }
-    }
-
-    // Refactor depends on analysis
-    if (taskType === 'refactor') {
-      for (const task of existingTasks) {
-        if (task.type === 'analyze') {
-          dependencies.push(task.id);
-        }
-      }
-    }
-
-    return dependencies;
   }
 
   /**

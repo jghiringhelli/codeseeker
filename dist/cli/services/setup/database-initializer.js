@@ -1,7 +1,10 @@
 "use strict";
 /**
  * Database Initialization Service
- * Single Responsibility: Initialize and test database connections
+ * Single Responsibility: Verify database connections and ensure constraints exist
+ *
+ * Note: For pre-MVP, this focuses on connection verification and constraint creation.
+ * Schema migrations can be added post-MVP when needed.
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -44,8 +47,6 @@ exports.DatabaseInitializer = void 0;
 const pg_1 = require("pg");
 const neo4j = __importStar(require("neo4j-driver"));
 const ioredis_1 = __importDefault(require("ioredis"));
-const path = __importStar(require("path"));
-const fs = __importStar(require("fs/promises"));
 class DatabaseInitializer {
     config = {
         postgres: {
@@ -131,20 +132,24 @@ class DatabaseInitializer {
             const pool = new pg_1.Pool(this.config.postgres);
             const client = await pool.connect();
             try {
-                // Apply consolidated schema
-                const schemaPath = path.join(process.cwd(), 'src', 'database', 'schema.consolidated.sql');
-                try {
-                    const schema = await fs.readFile(schemaPath, 'utf8');
-                    await client.query(schema);
-                }
-                catch (fileError) {
-                    // Schema file not found, create basic structure
-                    await this.createBasicPostgreSQLSchema(client);
-                }
+                // Verify connection and check essential tables exist
+                const tablesResult = await client.query(`
+          SELECT table_name FROM information_schema.tables
+          WHERE table_schema = 'public'
+          AND table_name IN ('projects', 'semantic_search_embeddings')
+        `);
+                const existingTables = tablesResult.rows.map(r => r.table_name);
+                const hasProjects = existingTables.includes('projects');
+                const hasEmbeddings = existingTables.includes('semantic_search_embeddings');
                 return {
                     success: true,
-                    message: 'PostgreSQL initialized successfully',
-                    data: { database: this.config.postgres.database }
+                    message: hasProjects && hasEmbeddings
+                        ? 'PostgreSQL verified successfully'
+                        : 'PostgreSQL connected (some tables may be missing)',
+                    data: {
+                        database: this.config.postgres.database,
+                        tables: existingTables
+                    }
                 };
             }
             finally {
@@ -165,19 +170,52 @@ class DatabaseInitializer {
             const driver = neo4j.driver(this.config.neo4j.uri, neo4j.auth.basic(this.config.neo4j.user, this.config.neo4j.password));
             const session = driver.session();
             try {
-                // Create basic constraints
-                await session.run(`
-          CREATE CONSTRAINT project_id_unique IF NOT EXISTS
-          FOR (p:Project) REQUIRE p.id IS UNIQUE
-        `);
-                await session.run(`
-          CREATE CONSTRAINT file_path_unique IF NOT EXISTS
-          FOR (f:File) REQUIRE (f.project_id, f.path) IS UNIQUE
-        `);
+                // First clean up any duplicate nodes that would prevent constraint creation
+                await this.cleanupDuplicateNeo4jNodes(session);
+                // Create basic constraints with proper error handling
+                const constraintErrors = [];
+                try {
+                    await session.run(`
+            CREATE CONSTRAINT project_id_unique IF NOT EXISTS
+            FOR (p:Project) REQUIRE p.id IS UNIQUE
+          `);
+                }
+                catch (err) {
+                    // If constraint already exists or data issue, log but continue
+                    if (!err.message?.includes('already exists')) {
+                        constraintErrors.push(`Project constraint: ${err.message}`);
+                    }
+                }
+                try {
+                    await session.run(`
+            CREATE CONSTRAINT file_path_unique IF NOT EXISTS
+            FOR (f:File) REQUIRE (f.project_id, f.path) IS UNIQUE
+          `);
+                }
+                catch (err) {
+                    if (!err.message?.includes('already exists')) {
+                        constraintErrors.push(`File constraint: ${err.message}`);
+                    }
+                }
+                // Verify connection works even if constraints had issues
+                const verifyResult = await session.run('RETURN 1 as connected');
+                const isConnected = verifyResult.records.length > 0;
+                if (isConnected) {
+                    return {
+                        success: true,
+                        message: constraintErrors.length > 0
+                            ? 'Neo4j connected (some constraints skipped)'
+                            : 'Neo4j initialized successfully',
+                        data: {
+                            uri: this.config.neo4j.uri,
+                            warnings: constraintErrors.length > 0 ? constraintErrors : undefined
+                        }
+                    };
+                }
                 return {
-                    success: true,
-                    message: 'Neo4j initialized successfully',
-                    data: { uri: this.config.neo4j.uri }
+                    success: false,
+                    message: 'Neo4j connection verification failed',
+                    errors: constraintErrors
                 };
             }
             finally {
@@ -191,6 +229,32 @@ class DatabaseInitializer {
                 message: 'Neo4j initialization failed',
                 errors: [error instanceof Error ? error.message : 'Unknown error']
             };
+        }
+    }
+    /**
+     * Clean up duplicate Neo4j nodes that prevent constraint creation
+     */
+    async cleanupDuplicateNeo4jNodes(session) {
+        try {
+            // Find and remove duplicate Project nodes (keep the first one)
+            await session.run(`
+        MATCH (p:Project)
+        WITH p.id AS projectId, COLLECT(p) AS nodes
+        WHERE SIZE(nodes) > 1
+        UNWIND nodes[1..] AS duplicateNode
+        DETACH DELETE duplicateNode
+      `);
+            // Find and remove duplicate File nodes
+            await session.run(`
+        MATCH (f:File)
+        WITH f.project_id AS pid, f.path AS path, COLLECT(f) AS nodes
+        WHERE SIZE(nodes) > 1
+        UNWIND nodes[1..] AS duplicateNode
+        DETACH DELETE duplicateNode
+      `);
+        }
+        catch {
+            // Ignore cleanup errors - constraints may still work
         }
     }
     async initializeRedis() {
@@ -221,34 +285,6 @@ class DatabaseInitializer {
                 errors: [error instanceof Error ? error.message : 'Unknown error']
             };
         }
-    }
-    async createBasicPostgreSQLSchema(client) {
-        // Create essential tables if schema file is not available
-        await client.query(`
-      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-      CREATE EXTENSION IF NOT EXISTS vector;
-
-      CREATE TABLE IF NOT EXISTS projects (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        project_path TEXT UNIQUE NOT NULL,
-        project_name TEXT NOT NULL,
-        status TEXT DEFAULT 'active',
-        metadata JSONB DEFAULT '{}',
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS semantic_search_embeddings (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-        file_path TEXT NOT NULL,
-        chunk_index INTEGER DEFAULT 0,
-        content_type TEXT DEFAULT 'code',
-        content_text TEXT NOT NULL,
-        content_hash TEXT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
     }
 }
 exports.DatabaseInitializer = DatabaseInitializer;

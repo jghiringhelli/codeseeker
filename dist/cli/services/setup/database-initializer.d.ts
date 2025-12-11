@@ -1,6 +1,9 @@
 /**
  * Database Initialization Service
- * Single Responsibility: Initialize and test database connections
+ * Single Responsibility: Verify database connections and ensure constraints exist
+ *
+ * Note: For pre-MVP, this focuses on connection verification and constraint creation.
+ * Schema migrations can be added post-MVP when needed.
  */
 import { IDatabaseInitializer, SetupResult } from './interfaces/setup-interfaces';
 export declare class DatabaseInitializer implements IDatabaseInitializer {
@@ -12,7 +15,10 @@ export declare class DatabaseInitializer implements IDatabaseInitializer {
     }>;
     initializePostgreSQL(): Promise<SetupResult>;
     initializeNeo4j(): Promise<SetupResult>;
+    /**
+     * Clean up duplicate Neo4j nodes that prevent constraint creation
+     */
+    private cleanupDuplicateNeo4jNodes;
     initializeRedis(): Promise<SetupResult>;
-    private createBasicPostgreSQLSchema;
 }
 //# sourceMappingURL=database-initializer.d.ts.map

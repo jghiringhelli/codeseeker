@@ -5,6 +5,9 @@
  * Enhanced for VS Code and multiple environment compatibility
  */
 
+// Suppress dotenv v17+ "injecting env" log message
+process.env.DOTENV_CONFIG_QUIET = 'true';
+
 const path = require('path');
 const fs = require('fs');
 const os = require('os');

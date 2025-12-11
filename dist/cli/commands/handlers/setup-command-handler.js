@@ -57,6 +57,12 @@ class SetupCommandHandler extends base_command_handler_1.BaseCommandHandler {
     async handle(args) {
         const isReset = args.includes('--reset');
         const isQuick = args.includes('--quick');
+        const isNewConfig = args.includes('--new-config');
+        // Check for stale project.json path mismatch
+        const pathMismatchResult = await this.checkProjectPathMismatch(isNewConfig);
+        if (!pathMismatchResult.success) {
+            return pathMismatchResult;
+        }
         if (isReset) {
             console.log('🗑️ Detected --reset flag - performing complete cleanup...');
             return await this.handleCompleteReset();
@@ -78,6 +84,55 @@ class SetupCommandHandler extends base_command_handler_1.BaseCommandHandler {
                     message: `Command failed: ${error instanceof Error ? error.message : 'Unknown error'}`
                 };
             }
+        }
+    }
+    /**
+     * Check if project.json has a path mismatch with current directory
+     * This happens when a project folder is copied from another location
+     */
+    async checkProjectPathMismatch(forceReset) {
+        // Use CODEMIND_USER_CWD if available (set at CLI startup before any chdir)
+        const currentPath = process.env.CODEMIND_USER_CWD || process.cwd();
+        const configPath = path.join(currentPath, '.codemind', 'project.json');
+        // Debug: show what paths we're comparing
+        this.logger.debug(`Checking path mismatch - userCwd: ${currentPath}, configPath: ${configPath}`);
+        try {
+            // Check if project.json exists
+            const configContent = await fs.readFile(configPath, 'utf-8');
+            const config = JSON.parse(configContent);
+            this.logger.debug(`Config projectPath: ${config.projectPath}`);
+            // Normalize paths for comparison (handle Windows path differences)
+            const normalizedCurrentPath = currentPath.replace(/\\/g, '/').toLowerCase();
+            const normalizedConfigPath = (config.projectPath || '').replace(/\\/g, '/').toLowerCase();
+            if (normalizedConfigPath && normalizedCurrentPath !== normalizedConfigPath) {
+                console.log(theme_1.Theme.colors.warning('\n⚠️  Project path mismatch detected!'));
+                console.log(theme_1.Theme.colors.muted(`   Config path:  ${config.projectPath}`));
+                console.log(theme_1.Theme.colors.muted(`   Current path: ${currentPath}`));
+                if (forceReset) {
+                    console.log(theme_1.Theme.colors.info('\n🔄 --new-config flag detected, resetting project configuration...'));
+                    // Delete the stale project.json so init creates a fresh one
+                    await fs.unlink(configPath);
+                    console.log(theme_1.Theme.colors.success('✅ Removed stale project.json'));
+                    return { success: true, message: 'Stale config removed, proceeding with fresh init' };
+                }
+                else {
+                    console.log(theme_1.Theme.colors.warning('\n💡 This project folder appears to be copied from another location.'));
+                    console.log(theme_1.Theme.colors.info('   The existing configuration points to a different path.'));
+                    console.log(theme_1.Theme.colors.info('\n   Options:'));
+                    console.log(theme_1.Theme.colors.primary('   • Run "codemind init --new-config" to create fresh config for this location'));
+                    console.log(theme_1.Theme.colors.primary('   • Run "codemind init --reset" for complete database cleanup'));
+                    return {
+                        success: false,
+                        message: `Path mismatch: config points to "${config.projectPath}" but current directory is "${currentPath}". Use --new-config to reset.`
+                    };
+                }
+            }
+            // No mismatch, continue normally
+            return { success: true, message: 'Project path verified' };
+        }
+        catch (error) {
+            // No project.json exists or can't be read - this is fine for new projects
+            return { success: true, message: 'No existing config, will create new' };
         }
     }
     /**
@@ -175,7 +230,8 @@ class SetupCommandHandler extends base_command_handler_1.BaseCommandHandler {
      */
     async handleInit(skipIndexing = false) {
         try {
-            const projectPath = this.context.currentProject?.projectPath || process.cwd();
+            // Use CODEMIND_USER_CWD (set at CLI startup before chdir) to get the actual user's directory
+            const projectPath = process.env.CODEMIND_USER_CWD || process.cwd();
             console.log(`📁 Project path: ${projectPath}`);
             // Step 1: Initialize database schema
             console.log(theme_1.Theme.colors.info('\n📊 Setting up database...'));
@@ -328,7 +384,13 @@ class SetupCommandHandler extends base_command_handler_1.BaseCommandHandler {
             const driver = neo4j.driver(process.env.NEO4J_URI || 'bolt://localhost:7687', neo4j.auth.basic(process.env.NEO4J_USER || 'neo4j', process.env.NEO4J_PASSWORD || 'codemind123'));
             const session = driver.session();
             try {
-                // Create project node
+                // First, delete any existing data for this project to ensure clean state
+                await session.run(`
+          MATCH (p:Project {id: $projectId})
+          OPTIONAL MATCH (p)-[*]->(n)
+          DETACH DELETE n, p
+        `, { projectId });
+                // Create project node fresh
                 await session.run(`
           CREATE (p:Project {
             id: $projectId,

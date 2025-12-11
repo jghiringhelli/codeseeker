@@ -30,6 +30,7 @@ export interface ClarificationResult {
   clarifications: Map<string, string>;
   enhancedQuery: string;
   skipped: boolean;
+  skipReason?: string; // Explains why clarification was skipped
 }
 
 export interface AmbiguityDetection {
@@ -61,14 +62,16 @@ export class ContextAwareClarificationService {
     options: { skipClarification?: boolean; maxQuestions?: number } = {}
   ): Promise<ClarificationResult> {
     if (options.skipClarification) {
-      return this.createSkippedResult(query);
+      return this.createSkippedResult(query, 'Transparent mode enabled');
     }
 
     // Detect ambiguities based on actual research results
     const ambiguities = this.detectAmbiguities(query, queryAnalysis, semanticResults, graphContext);
 
     if (ambiguities.length === 0) {
-      return this.createSkippedResult(query);
+      // Build a reason explaining why no clarification is needed
+      const skipReason = this.buildSkipReason(queryAnalysis, semanticResults, graphContext);
+      return this.createSkippedResult(query, skipReason);
     }
 
     // Generate questions from detected ambiguities
@@ -434,15 +437,70 @@ ${clarificationText}`;
   }
 
   /**
+   * Build a human-readable reason explaining why clarification was skipped
+   */
+  private buildSkipReason(
+    queryAnalysis: QueryAnalysis,
+    semanticResults: SemanticResult[],
+    graphContext: GraphContext
+  ): string {
+    const reasons: string[] = [];
+
+    // Check why no ambiguities were detected
+    const highConfidenceResults = semanticResults.filter(r => r.similarity > 0.7);
+    const classCount = graphContext.classes?.length || 0;
+
+    // Intent-specific reasons
+    if (queryAnalysis.intent === 'create') {
+      // For create intent, check if there are similar implementations
+      const similarClasses = this.findSimilarImplementations(semanticResults, graphContext);
+      if (similarClasses.length <= 1) {
+        reasons.push('no conflicting implementation patterns found');
+      }
+    }
+
+    if (queryAnalysis.intent === 'modify' || queryAnalysis.intent === 'fix') {
+      // For modify/fix, check if target is clear
+      if (highConfidenceResults.length <= 3) {
+        reasons.push(`target is clear (${highConfidenceResults.length} high-confidence match${highConfidenceResults.length === 1 ? '' : 'es'})`);
+      }
+    }
+
+    // General reasons
+    if (semanticResults.length === 0) {
+      reasons.push('no relevant files found in codebase');
+    } else if (semanticResults.length <= 5) {
+      reasons.push(`scope is focused (${semanticResults.length} relevant file${semanticResults.length === 1 ? '' : 's'})`);
+    }
+
+    if (queryAnalysis.confidence >= 0.8) {
+      reasons.push(`high query confidence (${Math.round(queryAnalysis.confidence * 100)}%)`);
+    }
+
+    if (classCount > 0 && classCount <= 3) {
+      reasons.push(`clear component target${classCount === 1 ? '' : 's'} identified`);
+    }
+
+    // If no specific reasons, provide a generic one
+    if (reasons.length === 0) {
+      reasons.push('query is specific enough for Claude to proceed');
+    }
+
+    // Format the reason
+    return reasons.slice(0, 2).join(', ');
+  }
+
+  /**
    * Create a skipped result
    */
-  private createSkippedResult(query: string): ClarificationResult {
+  private createSkippedResult(query: string, skipReason?: string): ClarificationResult {
     return {
       questionsAsked: 0,
       questionsAnswered: 0,
       clarifications: new Map(),
       enhancedQuery: query,
-      skipped: true
+      skipped: true,
+      skipReason
     };
   }
 }

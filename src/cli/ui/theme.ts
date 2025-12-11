@@ -22,6 +22,13 @@ export interface ThemeColors {
   claudeCodeMuted: chalk.Chalk;
   interrupt: chalk.Chalk;
   accent: chalk.Chalk;
+  // New colors for enhanced output
+  file: chalk.Chalk;
+  relationship: chalk.Chalk;
+  question: chalk.Chalk;
+  component: chalk.Chalk;
+  taskHeader: chalk.Chalk;
+  sectionTitle: chalk.Chalk;
 }
 
 export class Theme {
@@ -41,7 +48,14 @@ export class Theme {
     claudeCode: chalk.hex('#FF8C42'),     // Slightly lighter Claude orange
     claudeCodeMuted: chalk.hex('#CC6A2C'), // Muted but visible Claude color
     interrupt: chalk.hex('#FF4444').bold, // Bright bold red for interrupts
-    accent: chalk.hex('#FF66CC').bold     // Bright bold magenta for accents
+    accent: chalk.hex('#FF66CC').bold,    // Bright bold magenta for accents
+    // New semantic colors for important outputs
+    file: chalk.hex('#00FFAA').bold,      // Bright green for file paths
+    relationship: chalk.hex('#FF99FF'),   // Light magenta for relationships
+    question: chalk.hex('#FFFF00').bold,  // Bright yellow for questions
+    component: chalk.hex('#66CCFF'),      // Light cyan for components
+    taskHeader: chalk.hex('#FF8C42').bold.underline, // Orange bold underline for task headers
+    sectionTitle: chalk.hex('#FFFFFF').bold.inverse  // Inverse white for section titles
   };
 
   /**
@@ -90,6 +104,166 @@ export class Theme {
    */
   static formatInfo(message: string, icon = 'ℹ️'): string {
     return this.colors.info(`${icon} ${message}`);
+  }
+
+  // ============================================
+  // Enhanced Output Formatting Utilities
+  // ============================================
+
+  /**
+   * Create a prominent section box with title
+   */
+  static createSectionBox(title: string, icon: string, content: string[]): string {
+    const width = 60;
+    const borderChar = '─';
+    const lines: string[] = [];
+
+    // Top border with title
+    lines.push(this.colors.primary(`╭${borderChar.repeat(2)} ${icon} ${title} ${borderChar.repeat(width - title.length - 7)}╮`));
+
+    // Content lines
+    content.forEach(line => {
+      const paddedLine = line.padEnd(width - 2);
+      lines.push(this.colors.primary('│') + ` ${paddedLine}` + this.colors.primary('│'));
+    });
+
+    // Bottom border
+    lines.push(this.colors.primary(`╰${borderChar.repeat(width)}╯`));
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Format a file path with emphasis
+   */
+  static formatFile(filePath: string, similarity?: number, type?: string): string {
+    let result = `  📄 ${this.colors.file(filePath)}`;
+    if (type) {
+      result += this.colors.muted(` [${type}]`);
+    }
+    if (similarity !== undefined) {
+      const percent = (similarity * 100).toFixed(0);
+      const color = similarity > 0.8 ? this.colors.success :
+                    similarity > 0.6 ? this.colors.warning : this.colors.muted;
+      result += color(` (${percent}% match)`);
+    }
+    return result;
+  }
+
+  /**
+   * Format a relationship with visual arrow
+   */
+  static formatRelationship(from: string, to: string, type: string): string {
+    return `  ${this.colors.component(from)} ${this.colors.relationship('→')} ${this.colors.component(to)} ${this.colors.muted(`[${type}]`)}`;
+  }
+
+  /**
+   * Format a question prominently for user attention
+   */
+  static formatQuestion(question: string, index?: number): string {
+    const prefix = index !== undefined ? `${index + 1}. ` : '❓ ';
+    return `\n  ${this.colors.question(prefix + question)}`;
+  }
+
+  /**
+   * Format a component/class entry
+   */
+  static formatComponent(name: string, type: string, location?: string): string {
+    let result = `  📦 ${this.colors.component(name)}`;
+    result += this.colors.muted(` (${type})`);
+    if (location) {
+      result += this.colors.muted(` at ${location}`);
+    }
+    return result;
+  }
+
+  /**
+   * Create a mini progress bar
+   */
+  static createProgressBar(current: number, total: number, width: number = 20): string {
+    const filled = Math.round((current / total) * width);
+    const empty = width - filled;
+    const bar = this.colors.success('█'.repeat(filled)) + this.colors.muted('░'.repeat(empty));
+    return `[${bar}] ${current}/${total}`;
+  }
+
+  /**
+   * Create a step indicator with status
+   */
+  static formatStep(stepNumber: number, totalSteps: number, title: string, status: 'pending' | 'active' | 'complete'): string {
+    const icons = {
+      pending: this.colors.muted('○'),
+      active: this.colors.warning('◉'),
+      complete: this.colors.success('●')
+    };
+    const titleColor = status === 'active' ? this.colors.highlight :
+                       status === 'complete' ? this.colors.success : this.colors.muted;
+    return `${icons[status]} Step ${stepNumber}/${totalSteps}: ${titleColor(title)}`;
+  }
+
+  /**
+   * Create a horizontal divider
+   */
+  static divider(char: string = '─', width: number = 50): string {
+    return this.colors.border(char.repeat(width));
+  }
+
+  /**
+   * Format a highlighted section title
+   */
+  static sectionTitle(title: string, icon?: string): string {
+    const prefix = icon ? `${icon} ` : '';
+    return `\n${this.colors.sectionTitle(` ${prefix}${title} `)}\n`;
+  }
+
+  /**
+   * Format a task header for sub-tasks
+   */
+  static formatTaskHeader(taskId: number, taskType: string, description: string): string {
+    const typeIcons: Record<string, string> = {
+      'create': '🆕',
+      'modify': '✏️',
+      'fix': '🔧',
+      'delete': '🗑️',
+      'understand': '🔍',
+      'analyze': '📊',
+      'refactor': '♻️',
+      'test': '🧪',
+      'default': '📋'
+    };
+    const icon = typeIcons[taskType.toLowerCase()] || typeIcons['default'];
+    const lines: string[] = [];
+    lines.push(this.colors.taskHeader(`\n${icon} Sub-Task ${taskId}: ${taskType.toUpperCase()}`));
+    lines.push(this.colors.result(`   ${description}`));
+    return lines.join('\n');
+  }
+
+  /**
+   * Format a results summary with statistics
+   */
+  static formatResultsSummary(stats: { files: number; components: number; relationships: number }): string {
+    return [
+      this.colors.muted('  ┌──────────────────────────────────┐'),
+      this.colors.muted('  │ ') + this.colors.file(`📁 ${stats.files} files`) +
+        this.colors.muted(' │ ') + this.colors.component(`📦 ${stats.components} components`) +
+        this.colors.muted(' │ ') + this.colors.relationship(`🔗 ${stats.relationships} relationships`) + this.colors.muted(' │'),
+      this.colors.muted('  └──────────────────────────────────┘')
+    ].join('\n');
+  }
+
+  /**
+   * Create emphasized output for important information
+   */
+  static emphasize(text: string): string {
+    return this.colors.highlight(`▶ ${text}`);
+  }
+
+  /**
+   * Format a list of items with visual hierarchy
+   */
+  static formatList(items: string[], icon: string = '•', indent: number = 2): string {
+    const indentStr = ' '.repeat(indent);
+    return items.map(item => `${indentStr}${this.colors.primary(icon)} ${item}`).join('\n');
   }
 }
 

@@ -134,16 +134,8 @@ export class CodeMindCLI {
       const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
 
       // Load environment variables from user's working directory (not CodeMind installation)
-      // Suppress dotenv logs during init for cleaner output
-      const originalStderr = process.stderr.write.bind(process.stderr);
-      try {
-        // Temporarily suppress stderr to hide dotenv injection logs
-        process.stderr.write = (): boolean => true;
-        dotenv.config({ path: userCwd + '/.env' });
-      } finally {
-        // Restore stderr
-        process.stderr.write = originalStderr;
-      }
+      // Use quiet: true to suppress dotenv v17+ "injecting env" log messages
+      dotenv.config({ path: userCwd + '/.env', quiet: true });
 
       // Auto-detect project in background (non-blocking)
       await this.autoDetectProjectSilent();
@@ -164,16 +156,8 @@ export class CodeMindCLI {
       const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
 
       // Load environment variables from user's working directory (not CodeMind installation)
-      // Suppress dotenv logs during init for cleaner output
-      const originalStderr = process.stderr.write.bind(process.stderr);
-      try {
-        // Temporarily suppress stderr to hide dotenv injection logs
-        process.stderr.write = (): boolean => true;
-        dotenv.config({ path: userCwd + '/.env' });
-      } finally {
-        // Restore stderr
-        process.stderr.write = originalStderr;
-      }
+      // Use quiet: true to suppress dotenv v17+ "injecting env" log messages
+      dotenv.config({ path: userCwd + '/.env', quiet: true });
 
       // Display welcome message
       WelcomeDisplay.displayWelcome();
@@ -840,7 +824,10 @@ ${Theme.colors.secondary('Examples:')}
       cli.setCommandMode(true);
       try {
         await cli.startSilent();
-        await (cli as unknown as { processInput: (input: string) => Promise<void> }).processInput(args[commandIndex + 1]);
+        const command = args[commandIndex + 1];
+        // Add command to history before executing (for persistence across restarts)
+        (cli as unknown as { addToHistory: (cmd: string) => void }).addToHistory(command);
+        await (cli as unknown as { processInput: (input: string) => Promise<void> }).processInput(command);
         console.log(Theme.colors.success('✅ Command completed'));
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -864,6 +851,8 @@ ${Theme.colors.secondary('Examples:')}
     const fullCommand = args.slice(commandStartIndex).join(' ');
     try {
       await cli.startSilent();
+      // Add command to history before executing (for persistence across restarts)
+      (cli as unknown as { addToHistory: (cmd: string) => void }).addToHistory(fullCommand);
       await (cli as unknown as { processInput: (input: string) => Promise<void> }).processInput(fullCommand);
       console.log(Theme.colors.success('✅ Command completed'));
     } catch (error: unknown) {

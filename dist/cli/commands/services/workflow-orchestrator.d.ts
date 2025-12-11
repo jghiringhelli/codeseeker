@@ -108,24 +108,29 @@ export declare class WorkflowOrchestrator {
      */
     private confirmTaskExecution;
     /**
-     * Get icon for task type
-     */
-    private getTaskTypeIcon;
-    /**
      * Get complexity badge
      */
     private getComplexityBadge;
     /**
-     * Verify build and run tests
+     * Run build only
      */
-    private verifyBuildAndTests;
+    private runBuild;
+    /**
+     * Run tests only
+     */
+    private runTests;
+    /**
+     * Verify build and run tests (legacy method - kept for compatibility)
+     * @deprecated Use runBuild and runTests separately with the new workflow
+     */
+    private _verifyBuildAndTests;
     /**
      * Sync modified files to all databases
      */
     private syncDatabases;
     /**
      * Display context summary - shows what CodeMind found
-     * Just prints the information directly without interactive prompts
+     * Uses enhanced formatting to highlight important information
      */
     private displayContextSummary;
     /**

@@ -12,6 +12,11 @@ export declare class SetupCommandHandler extends BaseCommandHandler {
      */
     handle(args: string): Promise<CommandResult>;
     /**
+     * Check if project.json has a path mismatch with current directory
+     * This happens when a project folder is copied from another location
+     */
+    private checkProjectPathMismatch;
+    /**
      * Perform complete database cleanup and reinitialization
      */
     private handleCompleteReset;

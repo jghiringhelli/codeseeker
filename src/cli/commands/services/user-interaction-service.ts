@@ -57,6 +57,30 @@ export interface ApprovalResult {
   feedback?: string;  // User feedback when choice is 'no_feedback'
 }
 
+/**
+ * Test type for generation
+ */
+export type TestType = 'unit' | 'integration' | 'e2e';
+
+/**
+ * Options for build/test verification
+ */
+export interface BuildTestOptions {
+  runBuild: boolean;
+  runTests: boolean;
+  generateTests: boolean;
+  testType?: TestType;  // Type of tests to generate (unit, integration, e2e)
+  cancelled?: boolean;
+}
+
+/**
+ * Action to take on build/test failure
+ */
+export interface FailureAction {
+  action: 'fix' | 'continue' | 'show_error' | 'abort';
+  errorMessage: string;
+}
+
 export class UserInteractionService {
   private rl?: readline.Interface;
   private skipApproval = false;  // When true, auto-approve changes (user selected "Yes, always")
@@ -110,8 +134,9 @@ export class UserInteractionService {
       return clarifications;
     }
 
-    console.log('\n🤔 CodeMind detected some assumptions and ambiguities in your request.');
-    console.log('Please help clarify the following:\n');
+    console.log(Theme.sectionTitle('Clarification Needed', '❓'));
+    console.log(Theme.colors.warning('  CodeMind detected some assumptions and ambiguities in your request.'));
+    console.log(Theme.colors.highlight('  Please help clarify the following questions:\n'));
 
     this.pauseReadline();
     Logger.mute();
@@ -153,19 +178,38 @@ export class UserInteractionService {
   /**
    * Execute Claude Code with enhanced prompt
    * When running inside Claude Code, outputs context transparently for the current Claude instance
+   * @param enhancedPrompt The prompt to send to Claude
+   * @param options.autoApprove If true, auto-approve all file changes (for automated fix tasks)
    */
-  async executeClaudeCode(enhancedPrompt: string): Promise<ClaudeResponse> {
+  async executeClaudeCode(enhancedPrompt: string, options?: { autoApprove?: boolean }): Promise<ClaudeResponse> {
+    // For automated tasks like build fixes, enable auto-approval
+    if (options?.autoApprove) {
+      this.skipApproval = true;
+    }
+
     try {
       // Check if running inside Claude Code
       if (PlatformUtils.isRunningInClaudeCode()) {
         // TRANSPARENT MODE: Pass enhanced context to Claude
+        // For auto-approve tasks (build fixes, test fixes), add execution directive
+        let promptToSend = enhancedPrompt;
+        if (options?.autoApprove) {
+          // Add directive to execute immediately without showing a plan
+          promptToSend = `<codemind-directive>
+EXECUTE IMMEDIATELY - DO NOT SHOW A PLAN
+This is an automated fix task. Execute the fix directly without asking for approval or showing a plan.
+Just make the necessary changes to fix the issue.
+</codemind-directive>
+
+${enhancedPrompt}`;
+        }
+
         // Output the context in a clear, visible format that Claude will process
-        console.log('\n┌─ 📤 CodeMind Enhanced Context ─────────────────────────────┐');
-        console.log('│ The following context is being provided to Claude Code:');
-        console.log('└──────────────────────────────────────────────────────────────┘\n');
+        console.log(Theme.sectionTitle('CodeMind Enhanced Context', '📤'));
+        console.log(Theme.colors.muted('  The following context is being provided to Claude Code:\n'));
 
         // Show a summary of what's being provided
-        const lines = enhancedPrompt.split('\n');
+        const lines = promptToSend.split('\n');
         const contextPreview = lines.slice(0, 15).join('\n');
         console.log(contextPreview);
         if (lines.length > 15) {
@@ -174,14 +218,19 @@ export class UserInteractionService {
 
         // Output the full context in the special tags for Claude to process
         console.log('\n<codemind-context>');
-        console.log(enhancedPrompt);
+        console.log(promptToSend);
         console.log('</codemind-context>\n');
 
-        console.log('┌─ ℹ️  Transparent Mode Active ───────────────────────────────┐');
-        console.log('│ CodeMind detected it\'s running inside Claude Code.');
-        console.log('│ The enhanced context above will inform Claude\'s response.');
-        console.log('│ Claude Code will now continue with this additional context.');
-        console.log('└──────────────────────────────────────────────────────────────┘\n');
+        if (options?.autoApprove) {
+          console.log(Theme.colors.warning('\n  ⚡ Auto-Execute Mode'));
+          console.log(Theme.colors.muted('  Claude will execute the fix immediately without showing a plan.\n'));
+        } else {
+          console.log(Theme.colors.info('\n  ℹ️  Transparent Mode Active'));
+          console.log(Theme.divider('─', 55));
+          console.log(Theme.colors.muted('  CodeMind detected it\'s running inside Claude Code.'));
+          console.log(Theme.colors.muted('  The enhanced context above will inform Claude\'s response.'));
+          console.log(Theme.colors.muted('  Claude Code will now continue with this additional context.\n'));
+        }
 
         // Return success - Claude (already running) will process this context
         return {
@@ -205,6 +254,133 @@ export class UserInteractionService {
   }
 
   /**
+   * Execute a direct Claude command for autonomous fix tasks (build/test fixes)
+   * This method bypasses the full workflow orchestrator and executes immediately.
+   *
+   * In transparent mode: Outputs a plain instruction for Claude to process without
+   * triggering the CodeMind workflow (no <codemind-context> tags).
+   *
+   * In external mode: Runs Claude CLI with auto-approval for immediate execution.
+   */
+  async executeDirectFixCommand(fixPrompt: string, taskType: 'build' | 'test' | 'general'): Promise<{ success: boolean; output: string }> {
+    const taskLabels = {
+      'build': '🔨 Build Fix',
+      'test': '🧪 Test Fix',
+      'general': '🔧 Fix'
+    };
+
+    const label = taskLabels[taskType];
+
+    if (PlatformUtils.isRunningInClaudeCode()) {
+      // TRANSPARENT MODE: Output as a simple instruction for the running Claude instance
+      // Use a special format that doesn't trigger CodeMind workflow
+      console.log(Theme.colors.info(`\n  ${label} - Direct Execution`));
+      console.log(Theme.colors.muted('  ─────────────────────────────────────────────'));
+
+      // Output the instruction directly (Claude will see this as instruction to follow)
+      console.log(Theme.colors.claudeCode(`\n  INSTRUCTION: ${fixPrompt.split('\n')[0]}`));
+      if (fixPrompt.split('\n').length > 1) {
+        console.log(Theme.colors.muted(`  ... (${fixPrompt.split('\n').length - 1} more lines of context)`));
+      }
+
+      // Output completion message
+      console.log(Theme.colors.muted('\n  Claude will now execute this fix directly.\n'));
+
+      // Return success - the current Claude session will process this
+      return { success: true, output: 'Instruction provided to Claude' };
+    }
+
+    // EXTERNAL MODE: Run Claude CLI with streaming and auto-approval
+    return new Promise((resolve) => {
+      const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
+
+      // Use --dangerously-skip-permissions for auto-approved fix execution
+      const claudeArgs = ['-p', '--output-format', 'stream-json', '--dangerously-skip-permissions'];
+
+      console.log(Theme.colors.info(`\n  ${label} - Executing...`));
+
+      const child = spawn('claude', claudeArgs, {
+        cwd: userCwd,
+        env: { ...process.env },
+        stdio: ['pipe', 'pipe', 'pipe'],
+        shell: true
+      });
+
+      let buffer = '';
+      let lastDisplayedText = '';
+      let isFirstOutput = true;
+      let finalOutput = '';
+
+      child.stdin?.write(fixPrompt);
+      child.stdin?.end();
+
+      child.stdout?.on('data', (data: Buffer) => {
+        buffer += data.toString();
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const event = JSON.parse(line);
+
+            if (event.type === 'assistant') {
+              if (event.message?.content) {
+                for (const block of event.message.content) {
+                  if (block.type === 'text') {
+                    const newText = block.text || '';
+                    if (newText.length > lastDisplayedText.length) {
+                      const delta = newText.substring(lastDisplayedText.length);
+                      if (isFirstOutput) {
+                        process.stdout.write(Theme.colors.claudeCode('\n  │ '));
+                        isFirstOutput = false;
+                      }
+                      const formattedDelta = delta.replace(/\n/g, Theme.colors.claudeCode('\n  │ '));
+                      process.stdout.write(Theme.colors.claudeCode(formattedDelta));
+                      lastDisplayedText = newText;
+                    }
+                  }
+                }
+              }
+            } else if (event.type === 'result') {
+              if (!isFirstOutput) {
+                process.stdout.write('\n');
+              }
+              finalOutput = event.result || '';
+            }
+          } catch {
+            // Skip non-JSON lines
+          }
+        }
+      });
+
+      child.stderr?.on('data', (data: Buffer) => {
+        const errorText = data.toString();
+        if (errorText.includes('Error') || errorText.includes('error')) {
+          console.error(Theme.colors.error(`  Error: ${errorText}`));
+        }
+      });
+
+      child.on('close', (code) => {
+        if (code === 0) {
+          console.log(Theme.colors.success(`  ✓ ${label} completed`));
+          resolve({ success: true, output: finalOutput || lastDisplayedText });
+        } else {
+          console.log(Theme.colors.error(`  ✗ ${label} failed (exit code: ${code})`));
+          resolve({ success: false, output: finalOutput || lastDisplayedText });
+        }
+      });
+
+      child.on('error', (err) => {
+        console.error(Theme.colors.error(`  ✗ Failed to start Claude: ${err.message}`));
+        resolve({ success: false, output: err.message });
+      });
+    });
+  }
+
+  /**
    * Execute Claude Code with two-phase permission handling and feedback loop
    * Phase 1: Run Claude and collect proposed changes (permission denials)
    * Phase 2: If user approves, resume session with permissions to execute changes
@@ -225,10 +401,10 @@ export class UserInteractionService {
         this.showCompactContextSummary(currentPrompt);
       }
 
-      // Phase 1: Run Claude and collect proposed changes
-      const spinner = Spinner.create(iterationCount === 1 ? 'Claude is analyzing...' : 'Claude is re-analyzing with your feedback...');
+      // Phase 1: Run Claude and collect proposed changes (with real-time streaming output)
+      console.log(Theme.colors.info(iterationCount === 1 ? '\n  🤖 Claude is thinking...' : '\n  🤖 Claude is re-analyzing with your feedback...'));
       const firstPhase = await this.executeClaudeFirstPhase(currentPrompt);
-      spinner.succeed(iterationCount === 1 ? 'Analysis complete' : 'Re-analysis complete');
+      console.log(Theme.colors.success('\n  ✓ Analysis complete'));
 
       // Show Claude's plan (not the permission message, but the actual plan)
       this.showClaudePlan(firstPhase.response);
@@ -390,15 +566,34 @@ Please revise your approach based on this feedback and propose new changes.`;
   }
 
   /**
-   * Show Claude's plan (filtering out permission-related messages)
+   * Show Claude's plan (with minimal filtering for any residual permission messages)
+   * Note: The enhanced prompt now instructs Claude to avoid permission-related messages,
+   * but we keep light filtering as a fallback for any that slip through.
    */
   private showClaudePlan(response: string): void {
-    // Filter out permission-related messages that aren't useful to show
+    // Light filtering for any residual permission-related messages
+    // The prompt instructions should handle most cases, this is just a safety net
     const filteredResponse = response
-      .replace(/It seems I need permission.*?(\n|$)/gi, '')
-      .replace(/Could you grant permission.*?(\n|$)/gi, '')
-      .replace(/Would you like to grant.*?(\n|$)/gi, '')
-      .replace(/Once granted.*?(\n|$)/gi, '')
+      .split('\n')
+      .filter(line => {
+        const lowerLine = line.toLowerCase();
+        // Filter lines that are purely about permissions (not substantive content)
+        if (lowerLine.includes('permission') && (
+          lowerLine.includes('grant') ||
+          lowerLine.includes('need') ||
+          lowerLine.includes('haven\'t been') ||
+          lowerLine.includes('hasn\'t been') ||
+          lowerLine.includes('once you')
+        )) {
+          return false;
+        }
+        // Filter "I'll need to..." permission requests
+        if (lowerLine.includes('i\'ll need') && lowerLine.includes('permission')) {
+          return false;
+        }
+        return true;
+      })
+      .join('\n')
       .trim();
 
     if (filteredResponse) {
@@ -438,13 +633,14 @@ Please revise your approach based on this feedback and propose new changes.`;
 
   /**
    * Phase 1: Execute Claude and collect proposed changes without applying them
+   * Uses stream-json format to show Claude's thinking in real-time
    */
   private async executeClaudeFirstPhase(prompt: string): Promise<ClaudeFirstPhaseResult> {
     return new Promise((resolve) => {
       const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
 
-      // Use JSON output format to get structured response with permission_denials
-      const claudeArgs = ['-p', '--output-format', 'json'];
+      // Use stream-json for real-time output with partial messages
+      const claudeArgs = ['-p', '--output-format', 'stream-json', '--include-partial-messages'];
 
       const child = spawn('claude', claudeArgs, {
         cwd: userCwd,
@@ -453,56 +649,117 @@ Please revise your approach based on this feedback and propose new changes.`;
         shell: true
       });
 
-      let stdoutData = '';
-      let stderrData = '';
+      let buffer = '';
+      let sessionId = '';
+      let finalResult = '';
+      const proposedChanges: ProposedChange[] = [];
+      let lastDisplayedText = '';
+      let isFirstOutput = true;
 
       child.stdin?.write(prompt);
       child.stdin?.end();
 
       child.stdout?.on('data', (data: Buffer) => {
-        stdoutData += data.toString();
+        buffer += data.toString();
+
+        // Process complete JSON lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const event = JSON.parse(line);
+
+            // Handle different event types
+            if (event.type === 'assistant') {
+              // Partial assistant message - show Claude's thinking
+              if (event.message?.content) {
+                for (const block of event.message.content) {
+                  if (block.type === 'text') {
+                    const newText = block.text || '';
+                    // Only show new text (delta)
+                    if (newText.length > lastDisplayedText.length) {
+                      const delta = newText.substring(lastDisplayedText.length);
+                      if (isFirstOutput) {
+                        // Start with Claude-themed bar prefix
+                        process.stdout.write(Theme.colors.claudeCode('\n  │ '));
+                        isFirstOutput = false;
+                      }
+                      // Show Claude's thinking with Claude theme color and handle newlines
+                      const formattedDelta = delta.replace(/\n/g, Theme.colors.claudeCode('\n  │ '));
+                      process.stdout.write(Theme.colors.claudeCode(formattedDelta));
+                      lastDisplayedText = newText;
+                    }
+                  }
+                }
+              }
+            } else if (event.type === 'result') {
+              // Final result - extract session_id and permission_denials
+              if (!isFirstOutput) {
+                process.stdout.write('\n');
+              }
+              sessionId = event.session_id || '';
+              finalResult = event.result || '';
+
+              // Extract proposed changes from permission_denials
+              const denials = event.permission_denials || [];
+              for (const denial of denials) {
+                const isFileOperation = denial.tool_name === 'Write' || denial.tool_name === 'Edit';
+                const hasFilePath = denial.tool_input?.file_path;
+
+                if (isFileOperation && hasFilePath) {
+                  const change: ProposedChange = {
+                    tool: denial.tool_name as 'Write' | 'Edit',
+                    filePath: denial.tool_input.file_path
+                  };
+
+                  if (denial.tool_name === 'Write') {
+                    change.content = denial.tool_input.content;
+                  } else if (denial.tool_name === 'Edit') {
+                    change.oldString = denial.tool_input.old_string;
+                    change.newString = denial.tool_input.new_string;
+                  }
+
+                  proposedChanges.push(change);
+                }
+              }
+            }
+          } catch {
+            // Ignore parse errors for incomplete lines
+          }
+        }
       });
 
       child.stderr?.on('data', (data: Buffer) => {
-        stderrData += data.toString();
+        // Show stderr in real-time as errors
+        const text = data.toString().trim();
+        if (text) {
+          console.error(Theme.colors.error(`\n  ${text}`));
+        }
       });
 
       child.on('close', () => {
-        try {
-          const result = JSON.parse(stdoutData);
-
-          // Extract proposed changes from permission_denials
-          const proposedChanges: ProposedChange[] = (result.permission_denials || []).map((denial: any) => {
-            const change: ProposedChange = {
-              tool: denial.tool_name as 'Write' | 'Edit',
-              filePath: denial.tool_input.file_path
-            };
-
-            if (denial.tool_name === 'Write') {
-              change.content = denial.tool_input.content;
-            } else if (denial.tool_name === 'Edit') {
-              change.oldString = denial.tool_input.old_string;
-              change.newString = denial.tool_input.new_string;
+        // Process any remaining buffer
+        if (buffer.trim()) {
+          try {
+            const event = JSON.parse(buffer);
+            if (event.type === 'result') {
+              sessionId = event.session_id || sessionId;
+              finalResult = event.result || finalResult;
             }
-
-            return change;
-          });
-
-          resolve({
-            sessionId: result.session_id || '',
-            response: result.result || '',
-            proposedChanges,
-            hasPermissionDenials: (result.permission_denials || []).length > 0
-          });
-        } catch (error) {
-          // If JSON parsing fails, return the raw output
-          resolve({
-            sessionId: '',
-            response: stdoutData || stderrData,
-            proposedChanges: [],
-            hasPermissionDenials: false
-          });
+          } catch {
+            // Ignore
+          }
         }
+
+        resolve({
+          sessionId,
+          response: finalResult,
+          proposedChanges,
+          hasPermissionDenials: proposedChanges.length > 0
+        });
       });
 
       child.on('error', (err) => {
@@ -682,40 +939,115 @@ Please revise your approach based on this feedback and propose new changes.`;
   }
 
   /**
-   * Ask user if they want to run build/tests after changes
+   * Ask user what verification steps to run after changes
    */
-  async confirmBuildAndTest(): Promise<ApprovalResult> {
+  async confirmBuildAndTest(): Promise<BuildTestOptions> {
     if (this.skipApproval) {
-      return { choice: 'yes' };
+      return { runBuild: true, runTests: true, generateTests: false };
     }
 
     this.pauseReadline();
     Logger.mute();
 
     try {
+      console.log(Theme.sectionTitle('Verification Options', '🔍'));
+
       const answer = await inquirer.prompt([
         {
-          type: 'list',
-          name: 'choice',
-          message: 'Run build and tests?',
+          type: 'checkbox',
+          name: 'options',
+          message: 'Select verification steps to run:',
           choices: [
-            { name: 'Yes', value: 'yes' },
-            { name: 'Yes, and don\'t ask again', value: 'yes_always' },
-            { name: 'No, skip build/test', value: 'cancelled' }
-          ],
-          default: 'yes'
+            { name: '🔨 Run build (npm run build)', value: 'build', checked: true },
+            { name: '🧪 Run existing tests (npm test)', value: 'test', checked: true },
+            { name: '📝 Generate new tests for changed files', value: 'generate_tests', checked: false }
+          ]
         }
       ]);
 
-      if (answer.choice === 'yes_always') {
-        this.skipApproval = true;
+      const options: BuildTestOptions = {
+        runBuild: answer.options.includes('build'),
+        runTests: answer.options.includes('test'),
+        generateTests: answer.options.includes('generate_tests')
+      };
+
+      // If generate tests is selected, ask for test type
+      if (options.generateTests) {
+        const testTypeAnswer = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'testType',
+            message: 'What type of tests to generate?',
+            choices: [
+              { name: '🔬 Unit tests (test individual functions/classes in isolation)', value: 'unit' },
+              { name: '🔗 Integration tests (test component interactions)', value: 'integration' },
+              { name: '🖥️  E2E tests (test full user workflows)', value: 'e2e' }
+            ],
+            default: 'unit'
+          }
+        ]);
+        options.testType = testTypeAnswer.testType as TestType;
       }
 
-      return { choice: answer.choice as ApprovalChoice };
+      // If nothing selected, confirm skip
+      if (!options.runBuild && !options.runTests && !options.generateTests) {
+        const skipConfirm = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'skip',
+            message: 'Skip all verification?',
+            default: false
+          }
+        ]);
+        if (!skipConfirm.skip) {
+          Logger.unmute();
+          this.resumeReadline();
+          return this.confirmBuildAndTest();
+        }
+      }
+
+      return options;
     } catch (error: any) {
       if (error.name === 'ExitPromptError' || error.message?.includes('force closed')) {
         console.log('\n⚠️  Prompt cancelled');
-        return { choice: 'cancelled' };
+        return { runBuild: false, runTests: false, generateTests: false, cancelled: true };
+      }
+      throw error;
+    } finally {
+      Logger.unmute();
+      this.resumeReadline();
+    }
+  }
+
+  /**
+   * Ask user how to handle build/test failure
+   */
+  async promptFailureAction(failureType: 'build' | 'test', errorMessage: string): Promise<FailureAction> {
+    this.pauseReadline();
+    Logger.mute();
+
+    try {
+      console.log(Theme.colors.error(`\n  ❌ ${failureType === 'build' ? 'Build' : 'Test'} failed`));
+      console.log(Theme.colors.muted(`  Error: ${errorMessage.substring(0, 200)}${errorMessage.length > 200 ? '...' : ''}\n`));
+
+      const answer = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'action',
+          message: `How would you like to handle the ${failureType} failure?`,
+          choices: [
+            { name: `🔧 Ask Claude to fix the ${failureType} error`, value: 'fix' },
+            { name: '⏭️  Continue anyway (skip this step)', value: 'continue' },
+            { name: '📋 Show full error output', value: 'show_error' },
+            { name: '❌ Abort workflow', value: 'abort' }
+          ]
+        }
+      ]);
+
+      return { action: answer.action, errorMessage };
+    } catch (error: any) {
+      if (error.name === 'ExitPromptError' || error.message?.includes('force closed')) {
+        return { action: 'abort', errorMessage };
       }
       throw error;
     } finally {

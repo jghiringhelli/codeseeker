@@ -50,8 +50,17 @@ export declare class ContextBuilder {
     private formatLocation;
     /**
      * Create enhanced prompt for Claude Code
+     * Uses structured prompt engineering: Role → Context → Task → Format → Constraints
      */
     private createEnhancedPrompt;
+    /**
+     * Get role description based on detected intent
+     */
+    private getRoleForIntent;
+    /**
+     * Get expected response format based on intent
+     */
+    private getFormatForIntent;
     /**
      * Create a preview of file content
      */

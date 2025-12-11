@@ -281,9 +281,10 @@ class WorkflowOrchestrator {
             // ==========================================
             // STEP 2: Task Decomposition (for complex queries)
             // Run BEFORE preview so we can show all sub-tasks
+            // Uses Claude AI for intelligent decomposition
             // ==========================================
             spinner = theme_1.Spinner.create('Analyzing task complexity...');
-            const decomposition = this.taskDecompositionService.decomposeQuery(query, queryAnalysis);
+            const decomposition = await this.taskDecompositionService.decomposeQueryAsync(query, queryAnalysis);
             if (decomposition.isComplex) {
                 spinner.succeed(`Complex query: ${decomposition.subTasks.length} sub-tasks identified`);
             }
@@ -327,7 +328,7 @@ class WorkflowOrchestrator {
                 // COMPLEX QUERY: Process each sub-task with its own search & context
                 // Steps 3-7 run in a loop for each sub-task, then step 8 executes
                 // ==========================================
-                console.log(`\n🔄 Processing ${decomposition.subTasks.length} sub-tasks...\n`);
+                console.log(theme_1.Theme.sectionTitle(`Processing ${decomposition.subTasks.length} Sub-Tasks`, '🔄'));
                 const combinedResponse = {
                     response: '',
                     filesToModify: [],
@@ -338,9 +339,9 @@ class WorkflowOrchestrator {
                 const allClasses = [];
                 const allRelationships = [];
                 for (const subTask of decomposition.subTasks) {
-                    console.log(theme_1.Theme.colors.primary(`\n┌─ Sub-Task ${subTask.id}: ${subTask.type.toUpperCase()} ──────────────────────────────┐`));
-                    console.log(theme_1.Theme.colors.muted(`│ ${subTask.description.substring(0, 55)}${subTask.description.length > 55 ? '...' : ''}`));
-                    console.log(theme_1.Theme.colors.primary(`└${'─'.repeat(58)}┘`));
+                    // Enhanced sub-task header with visual separation
+                    console.log(theme_1.Theme.formatTaskHeader(subTask.id, subTask.type, subTask.description));
+                    console.log(theme_1.Theme.colors.muted(`  ${theme_1.Theme.createProgressBar(subTask.id, decomposition.subTasks.length)}`));
                     // STEP 3 (per sub-task): Semantic Search using sub-task's search terms
                     const searchQuery = subTask.searchTerms.length > 0
                         ? subTask.searchTerms.join(' ')
@@ -353,10 +354,10 @@ class WorkflowOrchestrator {
                         filteredResults = this.applyContextFilter(taskSemanticResults, subTask.contextFilter);
                     }
                     if (filteredResults.length > 0) {
-                        spinner.succeed(`  Found ${filteredResults.length} relevant files`);
-                        filteredResults.slice(0, 3).forEach((r, i) => {
-                            const similarity = (r.similarity * 100).toFixed(0);
-                            console.log(theme_1.Theme.colors.muted(`     ${i + 1}. ${r.file} (${similarity}%)`));
+                        spinner.succeed(`  Found ${theme_1.Theme.colors.highlight(String(filteredResults.length))} relevant files`);
+                        // Show files with enhanced formatting
+                        filteredResults.slice(0, 3).forEach(r => {
+                            console.log(theme_1.Theme.formatFile(r.file, r.similarity, r.type));
                         });
                         if (filteredResults.length > 3) {
                             console.log(theme_1.Theme.colors.muted(`     ... +${filteredResults.length - 3} more`));
@@ -370,7 +371,7 @@ class WorkflowOrchestrator {
                     const taskGraphContext = await this.graphAnalysisService.performGraphAnalysis(searchQuery, filteredResults);
                     const taskRelCount = taskGraphContext.relationships?.length || 0;
                     const taskClassCount = taskGraphContext.classes?.length || 0;
-                    spinner.succeed(`  Found ${taskClassCount} components, ${taskRelCount} relationships`);
+                    spinner.succeed(`  Found ${theme_1.Theme.colors.component(String(taskClassCount))} components, ${theme_1.Theme.colors.relationship(String(taskRelCount))} relationships`);
                     // STEP 5 (per sub-task): Context-Aware Clarification
                     // Only ask for first sub-task or if high-impact ambiguity detected
                     if (!options.skipUserClarification && filteredResults.length > 0 && subTask.id === 1) {
@@ -378,18 +379,26 @@ class WorkflowOrchestrator {
                         if (!taskClarification.skipped && taskClarification.questionsAnswered > 0) {
                             clarificationResult = taskClarification;
                         }
+                        else if (taskClarification.skipped && taskClarification.skipReason) {
+                            // Display why clarification was skipped
+                            console.log(theme_1.Theme.colors.muted(`  ℹ️  No clarification needed: ${taskClarification.skipReason}`));
+                        }
                     }
                     // STEP 6 (per sub-task): Build Sub-Task Context
                     spinner = theme_1.Spinner.create('  Building context...');
                     const taskContext = this.taskDecompositionService.filterContextForSubTask(subTask, filteredResults, taskGraphContext);
                     subTaskContexts.push(taskContext);
                     spinner.succeed('  Context ready');
-                    // Display sub-task context summary
+                    // Display sub-task context summary with enhanced formatting
                     if (filteredResults.length > 0 || taskClassCount > 0) {
-                        console.log(theme_1.Theme.colors.muted(`  📁 Files: ${filteredResults.length} | 📦 Components: ${taskClassCount} | 🔗 Relationships: ${taskRelCount}`));
+                        console.log('\n' + theme_1.Theme.formatResultsSummary({
+                            files: filteredResults.length,
+                            components: taskClassCount,
+                            relationships: taskRelCount
+                        }));
                     }
                     // STEP 7 (per sub-task): Execute Claude Code
-                    console.log(theme_1.Theme.colors.info('\n  🤖 Executing with Claude Code...'));
+                    console.log(theme_1.Theme.colors.claudeCode('\n  🤖 Executing with Claude Code...'));
                     const subResponse = await this.userInteractionService.executeClaudeCode(taskContext.enhancedPrompt);
                     // Aggregate responses
                     if (subResponse.response) {
@@ -429,7 +438,7 @@ class WorkflowOrchestrator {
                 };
                 // Build combined enhanced context for result
                 enhancedContext = this.contextBuilder.buildEnhancedContext(query, queryAnalysis, [], semanticResults, graphContext);
-                console.log(`\n✅ Completed all ${decomposition.subTasks.length} sub-tasks`);
+                console.log(theme_1.Theme.colors.success(`\n✅ Completed all ${decomposition.subTasks.length} sub-tasks`));
             }
             else {
                 // ==========================================
@@ -439,14 +448,15 @@ class WorkflowOrchestrator {
                 spinner = theme_1.Spinner.create('Searching codebase...');
                 semanticResults = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
                 if (semanticResults.length > 0) {
-                    spinner.succeed(`Found ${semanticResults.length} relevant files`);
+                    spinner.succeed(`Found ${theme_1.Theme.colors.highlight(String(semanticResults.length))} relevant files`);
+                    console.log(theme_1.Theme.colors.highlight('\n  📁 RELEVANT FILES'));
+                    console.log(theme_1.Theme.divider('─', 55));
                     const topFiles = semanticResults.slice(0, 5);
-                    topFiles.forEach((r, i) => {
-                        const similarity = (r.similarity * 100).toFixed(0);
-                        console.log(theme_1.Theme.colors.muted(`   ${i + 1}. ${r.file} (${r.type}, ${similarity}%)`));
+                    topFiles.forEach(r => {
+                        console.log(theme_1.Theme.formatFile(r.file, r.similarity, r.type));
                     });
                     if (semanticResults.length > 5) {
-                        console.log(theme_1.Theme.colors.muted(`   ... +${semanticResults.length - 5} more files`));
+                        console.log(theme_1.Theme.colors.muted(`     ... +${semanticResults.length - 5} more files`));
                     }
                 }
                 else {
@@ -457,14 +467,16 @@ class WorkflowOrchestrator {
                 graphContext = await this.graphAnalysisService.performGraphAnalysis(query, semanticResults);
                 const relCount = graphContext.relationships?.length || 0;
                 const classCount = graphContext.classes?.length || 0;
-                spinner.succeed(`Found ${classCount} components, ${relCount} relationships`);
+                spinner.succeed(`Found ${theme_1.Theme.colors.component(String(classCount))} components, ${theme_1.Theme.colors.relationship(String(relCount))} relationships`);
                 if (relCount > 0) {
+                    console.log(theme_1.Theme.colors.highlight('\n  🔗 RELATIONSHIPS'));
+                    console.log(theme_1.Theme.divider('─', 55));
                     const topRels = graphContext.relationships.slice(0, 3);
                     topRels.forEach(r => {
-                        console.log(theme_1.Theme.colors.muted(`   • ${r.from} → ${r.to} (${r.type})`));
+                        console.log(theme_1.Theme.formatRelationship(r.from, r.to, r.type));
                     });
                     if (relCount > 3) {
-                        console.log(theme_1.Theme.colors.muted(`   ... +${relCount - 3} more relationships`));
+                        console.log(theme_1.Theme.colors.muted(`     ... +${relCount - 3} more relationships`));
                     }
                 }
                 // STEP 5: Context-Aware Clarification
@@ -475,6 +487,10 @@ class WorkflowOrchestrator {
                         userClarifications = Array.from(clarificationResult.clarifications.entries())
                             .map(([key, value]) => `${key}: ${value}`);
                         query = clarificationResult.enhancedQuery;
+                    }
+                    else if (clarificationResult.skipped && clarificationResult.skipReason) {
+                        // Display why clarification was skipped
+                        console.log(theme_1.Theme.colors.muted(`\n  ℹ️  No clarification needed: ${clarificationResult.skipReason}`));
                     }
                 }
                 // STEP 6: Enhanced Context Building
@@ -491,30 +507,163 @@ class WorkflowOrchestrator {
             // Note: File changes are now confirmed BEFORE being applied (in executeClaudeCode)
             // No need for post-execution file modification approval
             // ==========================================
-            // STEP 9: Build/Test Verification (with user confirmation)
+            // STEP 9: Build/Test Verification (with user options)
             // ==========================================
             let buildResult;
             if (!options.skipBuildTest && claudeResponse.filesToModify.length > 0) {
-                // Ask user if they want to run build/tests
-                const buildConfirmation = await this.userInteractionService.confirmBuildAndTest();
-                if (buildConfirmation.choice === 'yes' || buildConfirmation.choice === 'yes_always') {
-                    console.log(theme_1.Theme.colors.muted('\n  Running build and tests...'));
-                    buildResult = await this.verifyBuildAndTests(projectPath);
-                    if (buildResult.buildSuccess) {
-                        console.log(theme_1.Theme.colors.success('  ✓ Build successful'));
-                    }
-                    else if (buildResult.buildError) {
-                        console.log(theme_1.Theme.colors.error(`  ✗ Build failed: ${buildResult.buildError.substring(0, 100)}...`));
-                    }
-                    if (buildResult.testSuccess) {
-                        console.log(theme_1.Theme.colors.success('  ✓ Tests passed'));
-                    }
-                    else if (buildResult.testError) {
-                        console.log(theme_1.Theme.colors.error(`  ✗ Tests failed: ${buildResult.testError.substring(0, 100)}...`));
-                    }
+                // Ask user which verification steps to run
+                const buildOptions = await this.userInteractionService.confirmBuildAndTest();
+                if (buildOptions.cancelled) {
+                    console.log(theme_1.Theme.colors.muted('\n  Skipped build/test verification'));
                 }
                 else {
-                    console.log(theme_1.Theme.colors.muted('\n  Skipped build/test verification'));
+                    buildResult = { buildSuccess: true, testSuccess: true };
+                    // ==========================================
+                    // AUTONOMOUS BUILD CHECK
+                    // If build fails, automatically fix and retry
+                    // ==========================================
+                    if (buildOptions.runBuild) {
+                        console.log(theme_1.Theme.colors.muted('\n  Running build...'));
+                        let buildOnlyResult = await this.runBuild(projectPath);
+                        buildResult.buildSuccess = buildOnlyResult.success;
+                        buildResult.buildOutput = buildOnlyResult.output;
+                        buildResult.buildError = buildOnlyResult.error;
+                        if (buildResult.buildSuccess) {
+                            console.log(theme_1.Theme.colors.success('  ✓ Build successful'));
+                        }
+                        else {
+                            // Autonomous fix - no user prompt needed
+                            console.log(theme_1.Theme.colors.error('  ✗ Build failed'));
+                            console.log(theme_1.Theme.colors.muted('  Automatically fixing build errors...'));
+                            const fixPrompt = `Fix the build error in ${projectPath}:
+
+${buildResult.buildError?.substring(0, 2000)}
+
+Instructions:
+1. Analyze the build error above
+2. Fix the root cause of the build failure
+3. Apply the necessary changes to make the build pass`;
+                            await this.userInteractionService.executeDirectFixCommand(fixPrompt, 'build');
+                            // Re-run build after fix
+                            console.log(theme_1.Theme.colors.muted('\n  Re-running build...'));
+                            buildOnlyResult = await this.runBuild(projectPath);
+                            buildResult.buildSuccess = buildOnlyResult.success;
+                            if (buildResult.buildSuccess) {
+                                console.log(theme_1.Theme.colors.success('  ✓ Build fixed and successful'));
+                            }
+                            else {
+                                console.log(theme_1.Theme.colors.warning('  ⚠️ Build still failing - manual intervention may be needed'));
+                            }
+                        }
+                    }
+                    // ==========================================
+                    // AUTONOMOUS TEST CHECK
+                    // If tests fail, automatically fix and retry
+                    // ==========================================
+                    if (buildOptions.runTests && (buildResult.buildSuccess || !buildOptions.runBuild)) {
+                        console.log(theme_1.Theme.colors.muted('\n  Running tests...'));
+                        let testOnlyResult = await this.runTests(projectPath);
+                        buildResult.testSuccess = testOnlyResult.success;
+                        buildResult.testOutput = testOnlyResult.output;
+                        buildResult.testError = testOnlyResult.error;
+                        if (buildResult.testSuccess) {
+                            console.log(theme_1.Theme.colors.success('  ✓ Tests passed'));
+                        }
+                        else {
+                            // Autonomous fix - no user prompt needed
+                            console.log(theme_1.Theme.colors.error('  ✗ Tests failed'));
+                            console.log(theme_1.Theme.colors.muted('  Automatically fixing test failures...'));
+                            const fixPrompt = `Fix the failing tests in ${projectPath}:
+
+Error Output:
+${buildResult.testError?.substring(0, 2000)}
+
+Instructions:
+1. Analyze the test failure(s) above to identify the root cause
+2. Determine if the issue is in the test code or the implementation code
+3. If the test expectations are wrong, fix the test assertions
+4. If the implementation has a bug, fix the implementation
+5. Apply the minimal changes needed to make tests pass
+6. Do NOT skip or delete failing tests - fix them properly`;
+                            await this.userInteractionService.executeDirectFixCommand(fixPrompt, 'test');
+                            // Re-run tests after fix
+                            console.log(theme_1.Theme.colors.muted('\n  Re-running tests...'));
+                            testOnlyResult = await this.runTests(projectPath);
+                            buildResult.testSuccess = testOnlyResult.success;
+                            if (buildResult.testSuccess) {
+                                console.log(theme_1.Theme.colors.success('  ✓ Tests fixed and passing'));
+                            }
+                            else {
+                                console.log(theme_1.Theme.colors.warning('  ⚠️ Some tests still failing - manual intervention may be needed'));
+                            }
+                        }
+                    }
+                    // ==========================================
+                    // AUTONOMOUS TEST GENERATION
+                    // Generate and run new tests for changed files
+                    // ==========================================
+                    if (buildOptions.generateTests && claudeResponse.filesToModify.length > 0) {
+                        const testType = buildOptions.testType || 'unit';
+                        const testTypeLabels = {
+                            'unit': {
+                                label: 'unit tests',
+                                description: 'Test individual functions/classes in isolation with mocked dependencies'
+                            },
+                            'integration': {
+                                label: 'integration tests',
+                                description: 'Test component interactions and data flow between modules'
+                            },
+                            'e2e': {
+                                label: 'end-to-end tests',
+                                description: 'Test complete user workflows from start to finish'
+                            }
+                        };
+                        const { label, description } = testTypeLabels[testType];
+                        console.log(theme_1.Theme.colors.info(`\n  📝 Generating ${label} for changed files...`));
+                        const testGenPrompt = `Generate ${label} for the following files in ${projectPath}:
+
+${claudeResponse.filesToModify.join('\n')}
+
+Test type: ${testType.toUpperCase()}
+Description: ${description}
+
+Requirements:
+- Follow the project's existing test patterns and conventions
+- Use the project's testing framework (Jest, Mocha, etc.)
+- ${testType === 'unit' ? 'Mock external dependencies and focus on isolated functionality' : ''}
+- ${testType === 'integration' ? 'Test realistic component interactions without external services' : ''}
+- ${testType === 'e2e' ? 'Test complete user journeys with realistic data' : ''}
+- Include edge cases and error scenarios
+- Add descriptive test names that explain the expected behavior`;
+                        await this.userInteractionService.executeDirectFixCommand(testGenPrompt, 'test');
+                        // Run the new tests
+                        console.log(theme_1.Theme.colors.muted('\n  Running new tests...'));
+                        const newTestResult = await this.runTests(projectPath);
+                        if (newTestResult.success) {
+                            console.log(theme_1.Theme.colors.success(`  ✓ New ${label} generated and passing`));
+                        }
+                        else {
+                            // Auto-fix failing new tests
+                            console.log(theme_1.Theme.colors.warning(`  ⚠️ Some new ${label} failing, auto-fixing...`));
+                            const fixNewTestsPrompt = `Fix the failing tests that were just generated:
+
+${newTestResult.error?.substring(0, 2000)}
+
+Instructions:
+1. Analyze the test failures
+2. Fix the test assertions or implementation as needed
+3. Ensure all tests pass`;
+                            await this.userInteractionService.executeDirectFixCommand(fixNewTestsPrompt, 'test');
+                            // Re-run after fix
+                            const retryNewTests = await this.runTests(projectPath);
+                            if (retryNewTests.success) {
+                                console.log(theme_1.Theme.colors.success(`  ✓ New ${label} fixed and passing`));
+                            }
+                            else {
+                                console.log(theme_1.Theme.colors.warning(`  ⚠️ Some ${label} may still need adjustment`));
+                            }
+                        }
+                    }
                 }
             }
             // ==========================================
@@ -556,31 +705,8 @@ class WorkflowOrchestrator {
      * Confirm task execution with user
      * Shows detailed task breakdown and allows user to proceed, modify, or cancel
      */
-    async confirmTaskExecution(decomposition) {
-        // Display detailed task breakdown
-        console.log(theme_1.Theme.colors.primary('\n┌─ 📋 Task Breakdown ────────────────────────────────────────┐'));
-        console.log(theme_1.Theme.colors.muted('│ CodeMind has analyzed your request and identified:'));
-        console.log(theme_1.Theme.colors.primary('│'));
-        for (const task of decomposition.subTasks) {
-            const typeIcon = this.getTaskTypeIcon(task.type);
-            const complexityBadge = this.getComplexityBadge(task.estimatedComplexity);
-            console.log(theme_1.Theme.colors.primary(`│ ${typeIcon} Task ${task.id}: `) + theme_1.Theme.colors.result(task.description));
-            console.log(theme_1.Theme.colors.muted(`│    Type: ${task.type} | Complexity: ${complexityBadge}`));
-            if (task.searchTerms.length > 0) {
-                console.log(theme_1.Theme.colors.muted(`│    Search terms: ${task.searchTerms.slice(0, 5).join(', ')}`));
-            }
-            if (task.dependencies.length > 0) {
-                console.log(theme_1.Theme.colors.muted(`│    Depends on: Task ${task.dependencies.join(', Task ')}`));
-            }
-            console.log(theme_1.Theme.colors.primary('│'));
-        }
-        // Show execution plan
-        console.log(theme_1.Theme.colors.primary('│ 📊 Execution Plan:'));
-        for (const phase of decomposition.executionPlan.phases) {
-            const taskIds = phase.taskIds.join(', ');
-            console.log(theme_1.Theme.colors.muted(`│    Phase ${phase.phaseNumber}: Tasks [${taskIds}] - ${phase.description}`));
-        }
-        console.log(theme_1.Theme.colors.primary('└──────────────────────────────────────────────────────────────┘\n'));
+    async confirmTaskExecution(_decomposition) {
+        // Task details already shown by displayTaskPreview - just show the confirmation prompt
         // Pause readline and mute logger before inquirer prompts
         if (this._readlineInterface) {
             this._readlineInterface.pause();
@@ -635,23 +761,6 @@ class WorkflowOrchestrator {
         }
     }
     /**
-     * Get icon for task type
-     */
-    getTaskTypeIcon(type) {
-        const icons = {
-            'analyze': '🔍',
-            'create': '✨',
-            'modify': '📝',
-            'refactor': '🔄',
-            'test': '🧪',
-            'fix': '🔧',
-            'document': '📚',
-            'configure': '⚙️',
-            'general': '📌'
-        };
-        return icons[type] || '📌';
-    }
-    /**
      * Get complexity badge
      */
     getComplexityBadge(complexity) {
@@ -663,47 +772,62 @@ class WorkflowOrchestrator {
         return badges[complexity] || complexity;
     }
     /**
-     * Verify build and run tests
+     * Run build only
      */
-    async verifyBuildAndTests(projectPath) {
-        const result = {
-            buildSuccess: false,
-            testSuccess: false
-        };
-        // Try to run build
+    async runBuild(projectPath) {
         try {
             const { stdout, stderr } = await execAsync('npm run build', {
                 cwd: projectPath,
                 timeout: 120000 // 2 minute timeout
             });
-            result.buildSuccess = true;
-            result.buildOutput = stdout;
-            if (stderr) {
-                result.buildOutput += '\n' + stderr;
-            }
+            return {
+                success: true,
+                output: stdout + (stderr ? '\n' + stderr : '')
+            };
         }
         catch (error) {
-            result.buildSuccess = false;
-            result.buildError = error.message || String(error);
-            // Don't fail completely if build fails - continue with tests
+            return {
+                success: false,
+                error: error.message || String(error)
+            };
         }
-        // Try to run tests
+    }
+    /**
+     * Run tests only
+     */
+    async runTests(projectPath) {
         try {
             const { stdout, stderr } = await execAsync('npm test', {
                 cwd: projectPath,
                 timeout: 180000 // 3 minute timeout
             });
-            result.testSuccess = true;
-            result.testOutput = stdout;
-            if (stderr) {
-                result.testOutput += '\n' + stderr;
-            }
+            return {
+                success: true,
+                output: stdout + (stderr ? '\n' + stderr : '')
+            };
         }
         catch (error) {
-            result.testSuccess = false;
-            result.testError = error.message || String(error);
+            return {
+                success: false,
+                error: error.message || String(error)
+            };
         }
-        return result;
+    }
+    /**
+     * Verify build and run tests (legacy method - kept for compatibility)
+     * @deprecated Use runBuild and runTests separately with the new workflow
+     */
+    async _verifyBuildAndTests(projectPath) {
+        const buildResult = await this.runBuild(projectPath);
+        const testResult = await this.runTests(projectPath);
+        return {
+            buildSuccess: buildResult.success,
+            buildOutput: buildResult.output,
+            buildError: buildResult.error,
+            testSuccess: testResult.success,
+            testOutput: testResult.output,
+            testError: testResult.error
+        };
     }
     /**
      * Sync modified files to all databases
@@ -724,66 +848,70 @@ class WorkflowOrchestrator {
     }
     /**
      * Display context summary - shows what CodeMind found
-     * Just prints the information directly without interactive prompts
+     * Uses enhanced formatting to highlight important information
      */
     displayContextSummary(semanticResults, graphContext) {
-        console.log('\n┌─ 🧠 CodeMind Context Details ─────────────────────────────┐');
-        // Show relevant files with file:line format
+        // Section header with visual emphasis
+        console.log(theme_1.Theme.sectionTitle('CodeMind Context Details', '🧠'));
+        // Show relevant files with enhanced formatting
         if (semanticResults.length > 0) {
-            console.log('│ 📁 Relevant Files:');
-            const topFiles = semanticResults.slice(0, 10);
+            console.log(theme_1.Theme.colors.highlight('\n  📁 RELEVANT FILES'));
+            console.log(theme_1.Theme.divider('─', 55));
+            const topFiles = semanticResults.slice(0, 8);
             topFiles.forEach(r => {
-                const similarity = (r.similarity * 100).toFixed(0);
                 // Find corresponding class for line number
                 const classInfo = graphContext.classes?.find(c => c.filePath === r.file ||
                     r.file.toLowerCase().includes(c.name.toLowerCase().replace(/([A-Z])/g, '-$1').toLowerCase()));
                 const startLine = classInfo?.metadata?.startLine || classInfo?.sourceLocation?.startLine;
                 const location = startLine ? `${r.file}:${startLine}` : r.file;
-                console.log(`│    • ${location} (${r.type}, ${similarity}%)`);
+                console.log(theme_1.Theme.formatFile(location, r.similarity, r.type));
             });
-            if (semanticResults.length > 10) {
-                console.log(`│    ... +${semanticResults.length - 10} more files`);
+            if (semanticResults.length > 8) {
+                console.log(theme_1.Theme.colors.muted(`     ... +${semanticResults.length - 8} more files`));
             }
         }
-        // Show classes found with file:line format
+        // Show classes found with enhanced formatting
         if (graphContext.classes && graphContext.classes.length > 0) {
-            console.log('│ 📦 Classes/Components:');
+            console.log(theme_1.Theme.colors.highlight('\n  📦 COMPONENTS'));
+            console.log(theme_1.Theme.divider('─', 55));
             const topClasses = graphContext.classes.slice(0, 6);
             topClasses.forEach(c => {
                 const startLine = c.metadata?.startLine || c.sourceLocation?.startLine;
                 const location = c.filePath
-                    ? ` [${c.filePath}${startLine ? `:${startLine}` : ''}]`
-                    : '';
-                console.log(`│    • ${c.name}: ${c.type}${location}`);
+                    ? `${c.filePath}${startLine ? `:${startLine}` : ''}`
+                    : undefined;
+                console.log(theme_1.Theme.formatComponent(c.name, c.type, location));
             });
             if (graphContext.classes.length > 6) {
-                console.log(`│    ... +${graphContext.classes.length - 6} more`);
+                console.log(theme_1.Theme.colors.muted(`     ... +${graphContext.classes.length - 6} more`));
             }
         }
-        // Show relationships with method names and file:line context
+        // Show relationships with enhanced formatting
         if (graphContext.relationships.length > 0) {
-            console.log('│ 🔗 Relationships:');
+            console.log(theme_1.Theme.colors.highlight('\n  🔗 RELATIONSHIPS'));
+            console.log(theme_1.Theme.divider('─', 55));
             const topRels = graphContext.relationships.slice(0, 5);
             topRels.forEach(r => {
-                // Format: ClassName.methodName() → TargetClass.targetMethod() [file:line]
+                // Format: ClassName.methodName() → TargetClass.targetMethod()
                 const fromDisplay = r.fromMethod
                     ? `${r.from}.${r.fromMethod}()`
                     : r.from;
                 const toDisplay = r.toMethod
                     ? `${r.to}.${r.toMethod}()`
                     : r.to;
-                // Include file:line if available
-                const lineLoc = r.line ? `:${r.line}` : '';
-                const fromLoc = r.fromPath
-                    ? ` [${r.fromPath}${lineLoc}]`
-                    : '';
-                console.log(`│    • ${fromDisplay}${fromLoc} → ${toDisplay} (${r.type})`);
+                console.log(theme_1.Theme.formatRelationship(fromDisplay, toDisplay, r.type));
             });
             if (graphContext.relationships.length > 5) {
-                console.log(`│    ... +${graphContext.relationships.length - 5} more`);
+                console.log(theme_1.Theme.colors.muted(`     ... +${graphContext.relationships.length - 5} more`));
             }
         }
-        console.log('└──────────────────────────────────────────────────────────┘\n');
+        // Summary statistics box
+        console.log('\n' + theme_1.Theme.formatResultsSummary({
+            files: semanticResults.length,
+            components: graphContext.classes?.length || 0,
+            relationships: graphContext.relationships.length
+        }));
+        console.log('');
     }
     /**
      * Check if input is suitable for the full workflow
@@ -826,56 +954,55 @@ class WorkflowOrchestrator {
      * Shows users what CodeMind will do based on query analysis and decomposition
      */
     displayTaskPreview(query, analysis, decomposition) {
-        console.log('\n┌─ 📋 Task Preview ─────────────────────────────────────────┐');
+        console.log(theme_1.Theme.sectionTitle('Task Preview', '📋'));
         if (decomposition.isComplex && decomposition.subTasks.length > 1) {
-            // Complex query with multiple sub-tasks
-            console.log(`│ 📊 Complex request: ${decomposition.subTasks.length} tasks identified`);
-            console.log(`│    Overall confidence: ${this.formatConfidenceLabel(analysis.confidence)}`);
-            console.log(`│`);
-            console.log(`│ 📝 Tasks to execute:`);
+            // Complex query with multiple sub-tasks - highlight task count
+            console.log(theme_1.Theme.colors.warning(`  📊 Complex request: `) + theme_1.Theme.colors.highlight(`${decomposition.subTasks.length} tasks identified`));
+            console.log(theme_1.Theme.colors.muted(`     Overall confidence: ${this.formatConfidenceLabel(analysis.confidence)}`));
+            console.log(theme_1.Theme.colors.highlight('\n  📝 TASKS TO EXECUTE'));
+            console.log(theme_1.Theme.divider('─', 55));
             for (const task of decomposition.subTasks) {
-                const icon = this.getIntentIcon(task.type);
+                // Use enhanced task header formatting
+                console.log(theme_1.Theme.formatTaskHeader(task.id, task.type, task.description));
                 const complexity = this.getComplexityBadge(task.estimatedComplexity);
-                const desc = task.description.length > 50
-                    ? task.description.substring(0, 47) + '...'
-                    : task.description;
-                console.log(`│    ${icon} ${task.id}. ${desc}`);
-                console.log(`│       Type: ${task.type} | Complexity: ${complexity}`);
+                console.log(theme_1.Theme.colors.muted(`     Complexity: ${complexity}`));
                 // Show dependencies if any
                 if (task.dependencies.length > 0) {
-                    console.log(`│       Depends on: Task ${task.dependencies.join(', Task ')}`);
+                    console.log(theme_1.Theme.colors.relationship(`     ↳ Depends on: Task ${task.dependencies.join(', Task ')}`));
                 }
             }
-            // Show execution phases
+            // Show execution phases with visual progress
             if (decomposition.executionPlan.phases.length > 1) {
-                console.log(`│`);
-                console.log(`│ 🔄 Execution order: ${decomposition.executionPlan.phases.length} phases`);
+                console.log(theme_1.Theme.colors.highlight('\n  🔄 EXECUTION ORDER'));
+                console.log(theme_1.Theme.divider('─', 55));
                 for (const phase of decomposition.executionPlan.phases) {
-                    console.log(`│    Phase ${phase.phaseNumber}: Tasks [${phase.taskIds.join(', ')}]`);
+                    const taskList = phase.taskIds.map(id => theme_1.Theme.colors.component(`#${id}`)).join(', ');
+                    console.log(`  ${theme_1.Theme.colors.warning(`Phase ${phase.phaseNumber}:`)} ${taskList}`);
                 }
             }
         }
         else {
-            // Simple query - single task
+            // Simple query - single task with prominent action display
             const intentIcon = this.getIntentIcon(analysis.intent);
             const intentLabel = this.formatIntentLabel(analysis.intent);
             const confidenceLabel = this.formatConfidenceLabel(analysis.confidence);
-            console.log(`│ ${intentIcon} Action: ${intentLabel}`);
-            console.log(`│    Confidence: ${confidenceLabel}`);
+            console.log(theme_1.Theme.emphasize(`${intentIcon} Action: ${intentLabel}`));
+            console.log(theme_1.Theme.colors.muted(`     Confidence: ${confidenceLabel}`));
             // Show what CodeMind will do
             const taskDescription = this.generateTaskDescription(query, analysis);
-            console.log(`│`);
-            console.log(`│ 📝 What CodeMind will do:`);
-            taskDescription.forEach(line => {
-                console.log(`│    ${line}`);
-            });
+            console.log(theme_1.Theme.colors.highlight('\n  📝 WHAT CODEMIND WILL DO'));
+            console.log(theme_1.Theme.divider('─', 55));
+            console.log(theme_1.Theme.formatList(taskDescription, '▸', 4));
         }
         // Show files that will be targeted (if entities identified)
         if (analysis.targetEntities && analysis.targetEntities.length > 0) {
-            console.log(`│`);
-            console.log(`│ 🎯 Target areas: ${analysis.targetEntities.join(', ')}`);
+            console.log(theme_1.Theme.colors.highlight('\n  🎯 TARGET AREAS'));
+            console.log(theme_1.Theme.divider('─', 55));
+            analysis.targetEntities.forEach(entity => {
+                console.log(`  ${theme_1.Theme.colors.file(`→ ${entity}`)}`);
+            });
         }
-        console.log('└──────────────────────────────────────────────────────────┘\n');
+        console.log('');
     }
     /**
      * Get icon for intent type

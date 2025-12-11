@@ -35,6 +35,27 @@ export interface ApprovalResult {
     choice: ApprovalChoice;
     feedback?: string;
 }
+/**
+ * Test type for generation
+ */
+export type TestType = 'unit' | 'integration' | 'e2e';
+/**
+ * Options for build/test verification
+ */
+export interface BuildTestOptions {
+    runBuild: boolean;
+    runTests: boolean;
+    generateTests: boolean;
+    testType?: TestType;
+    cancelled?: boolean;
+}
+/**
+ * Action to take on build/test failure
+ */
+export interface FailureAction {
+    action: 'fix' | 'continue' | 'show_error' | 'abort';
+    errorMessage: string;
+}
 export declare class UserInteractionService {
     private rl?;
     private skipApproval;
@@ -62,8 +83,25 @@ export declare class UserInteractionService {
     /**
      * Execute Claude Code with enhanced prompt
      * When running inside Claude Code, outputs context transparently for the current Claude instance
+     * @param enhancedPrompt The prompt to send to Claude
+     * @param options.autoApprove If true, auto-approve all file changes (for automated fix tasks)
      */
-    executeClaudeCode(enhancedPrompt: string): Promise<ClaudeResponse>;
+    executeClaudeCode(enhancedPrompt: string, options?: {
+        autoApprove?: boolean;
+    }): Promise<ClaudeResponse>;
+    /**
+     * Execute a direct Claude command for autonomous fix tasks (build/test fixes)
+     * This method bypasses the full workflow orchestrator and executes immediately.
+     *
+     * In transparent mode: Outputs a plain instruction for Claude to process without
+     * triggering the CodeMind workflow (no <codemind-context> tags).
+     *
+     * In external mode: Runs Claude CLI with auto-approval for immediate execution.
+     */
+    executeDirectFixCommand(fixPrompt: string, taskType: 'build' | 'test' | 'general'): Promise<{
+        success: boolean;
+        output: string;
+    }>;
     /**
      * Execute Claude Code with two-phase permission handling and feedback loop
      * Phase 1: Run Claude and collect proposed changes (permission denials)
@@ -84,7 +122,9 @@ export declare class UserInteractionService {
      */
     private showCompactContextSummary;
     /**
-     * Show Claude's plan (filtering out permission-related messages)
+     * Show Claude's plan (with minimal filtering for any residual permission messages)
+     * Note: The enhanced prompt now instructs Claude to avoid permission-related messages,
+     * but we keep light filtering as a fallback for any that slip through.
      */
     private showClaudePlan;
     /**
@@ -97,6 +137,7 @@ export declare class UserInteractionService {
     private showAppliedChanges;
     /**
      * Phase 1: Execute Claude and collect proposed changes without applying them
+     * Uses stream-json format to show Claude's thinking in real-time
      */
     private executeClaudeFirstPhase;
     /**
@@ -117,9 +158,13 @@ export declare class UserInteractionService {
         dontAskAgain: boolean;
     }>;
     /**
-     * Ask user if they want to run build/tests after changes
+     * Ask user what verification steps to run after changes
      */
-    confirmBuildAndTest(): Promise<ApprovalResult>;
+    confirmBuildAndTest(): Promise<BuildTestOptions>;
+    /**
+     * Ask user how to handle build/test failure
+     */
+    promptFailureAction(failureType: 'build' | 'test', errorMessage: string): Promise<FailureAction>;
     /**
      * Display execution summary
      */
