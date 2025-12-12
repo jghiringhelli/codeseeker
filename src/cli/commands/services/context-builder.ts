@@ -229,14 +229,14 @@ Follow CLAUDE.md project guidelines:
 - Maintain the project's layered architecture (CLI/Orchestrator/Shared)`);
 
     // ===========================================
-    // CRITICAL MINDSET: Be a rigorous mentor
+    // EXECUTION MINDSET: Act decisively
     // ===========================================
-    sections.push(`# Critical Mindset
-Be a ruthless mentor, not a yes-man. Scrutinize every assumption:
-- Challenge flawed ideas directly - explain WHY something is wrong
-- Point out architectural risks, edge cases, or better alternatives
-- If the request contradicts best practices, say so before proceeding
-- When the user is clear and correct, execute precisely without hesitation`);
+    sections.push(`# Execution Mindset
+- If the task is clear, execute it directly without asking questions
+- If something is ambiguous, state your interpretation briefly then PROCEED
+- Point out concerns or risks IN YOUR RESPONSE while still delivering the solution
+- After ONE clarification (if any was asked earlier), assume reasonable defaults and execute
+- Provide working code, not questions about what the user wants`);
 
     // ===========================================
     // CONSTRAINTS: What NOT to do

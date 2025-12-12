@@ -73,6 +73,7 @@ export interface WorkflowOptions {
   maxSemanticResults?: number;
   projectId?: string;
   transparentMode?: boolean;
+  clarificationCount?: number;  // Track how many clarifications have been asked (max 2)
 }
 
 export class WorkflowOrchestrator {
@@ -196,13 +197,19 @@ export class WorkflowOrchestrator {
       console.log(Theme.colors.primary(`${intentIcon} ${analysis.intent.toUpperCase()}`) +
         Theme.colors.muted(` (${Math.round(analysis.confidence * 100)}% confidence)`));
 
-      // Handle clarification if Claude says it's critical
+      // Handle clarification if Claude says it's critical (max 2 total)
       let finalQuery = query;
-      if (analysis.clarificationNeeded && analysis.clarificationQuestion && !isTransparentMode) {
+      const clarificationCount = options.clarificationCount || 0;
+      const MAX_CLARIFICATIONS = 2;
+
+      if (analysis.clarificationNeeded && analysis.clarificationQuestion && !isTransparentMode && clarificationCount < MAX_CLARIFICATIONS) {
         const answer = await this.askClarification(analysis.clarificationQuestion);
         if (answer) {
           finalQuery = `${query}\n\nClarification: ${answer}`;
         }
+        // Note: caller should increment clarificationCount if re-running workflow
+      } else if (analysis.clarificationNeeded && clarificationCount >= MAX_CLARIFICATIONS) {
+        console.log(Theme.colors.muted('  (Max clarifications reached - proceeding with best interpretation)'));
       }
 
       // Convert to legacy QueryAnalysis format

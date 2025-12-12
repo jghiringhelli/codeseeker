@@ -141,12 +141,14 @@ Guidelines:
 1. Intent: What the user wants (create=new code, modify=change existing, fix=debug, etc.)
 2. isComplex: TRUE only if multiple DISTINCT actions needed (e.g., "add X and test it" = 2 tasks)
 3. subTasks: For simple queries, just ONE task. For complex, break into focused steps.
-4. clarificationNeeded: TRUE only if something is CRITICALLY ambiguous that would cause wrong action
-   - Example TRUE: "fix the bug" (which bug?)
-   - Example FALSE: "add authentication" (can proceed with reasonable defaults)
-5. If clarificationNeeded is true, set clarificationQuestion to ONE specific question
+4. clarificationNeeded: Usually FALSE. Only TRUE when there's a CLEAR ambiguity that would lead to wrong action.
+   - "SOLIDify this codebase" → FALSE (proceed with full analysis + refactoring)
+   - "fix the auth bug" → TRUE (which bug specifically?)
+   - "add a feature" → TRUE (what feature?)
+   - "analyze the project" → FALSE (analyze everything)
+5. confidence: 0.7-0.9 for clear requests, 0.5-0.7 for somewhat ambiguous, below 0.5 only for truly vague.
 
-Simple queries get ONE subTask. Don't over-decompose.
+Keep clarification questions SPECIFIC and ACTIONABLE. One question max.
 Respond with ONLY the JSON, no markdown or explanation.`;
   }
 
