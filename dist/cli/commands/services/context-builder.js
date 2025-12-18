@@ -84,10 +84,28 @@ class ContextBuilder {
     }
     /**
      * Create enhanced prompt for Claude Code
-     * Uses structured prompt engineering: Role → Context → Task → Format → Constraints
+     * Uses structured prompt engineering: Pre-Search Info → Role → Context → Task → Format → Constraints
      */
     createEnhancedPrompt(originalQuery, queryAnalysis, userClarifications, relevantFiles, graphContext) {
         const sections = [];
+        // ===========================================
+        // PRE-SEARCH METHODOLOGY: Explain how we found the context
+        // ===========================================
+        const fileCount = relevantFiles.length;
+        const componentCount = graphContext.classes?.length || 0;
+        const relationshipCount = graphContext.relationshipDetails?.length || 0;
+        sections.push(`# Enhanced Context from CodeMind Pre-Search
+
+**IMPORTANT**: This prompt has been enhanced by CodeMind, a codebase analysis tool. The context below was gathered BEFORE this request reached you using:
+
+1. **Semantic Vector Search** (PostgreSQL + pgvector): Found ${fileCount} relevant files by analyzing code embeddings for semantic similarity to the query
+2. **Knowledge Graph Analysis** (Neo4j): Discovered ${componentCount} components and ${relationshipCount} relationships by traversing the project's dependency graph
+
+**How to use this context**:
+- The files and components listed below are the MOST RELEVANT to the user's query based on our analysis
+- You can trust this as a reliable starting point - no need to re-search for the same information
+- If you need additional context beyond what's provided, you may search further
+- Focus on analyzing and working with the discovered files rather than searching from scratch`);
         // ===========================================
         // ROLE: Task-specific role based on intent
         // ===========================================
@@ -107,7 +125,8 @@ class ContextBuilder {
         // CONTEXT: Discovered files and relationships
         // ===========================================
         if (relevantFiles.length > 0 || (graphContext.classes && graphContext.classes.length > 0)) {
-            sections.push(`# Context from Codebase Analysis`);
+            sections.push(`# Pre-Discovered Context (Use This First)
+The following files, components, and relationships were discovered through automated analysis. **Start here** rather than searching from scratch.`);
             // Files with previews
             if (relevantFiles.length > 0) {
                 const fileEntries = relevantFiles
@@ -165,14 +184,14 @@ Follow CLAUDE.md project guidelines:
 - Match existing patterns in the relevant files above
 - Maintain the project's layered architecture (CLI/Orchestrator/Shared)`);
         // ===========================================
-        // CRITICAL MINDSET: Be a rigorous mentor
+        // EXECUTION MINDSET: Act decisively
         // ===========================================
-        sections.push(`# Critical Mindset
-Be a ruthless mentor, not a yes-man. Scrutinize every assumption:
-- Challenge flawed ideas directly - explain WHY something is wrong
-- Point out architectural risks, edge cases, or better alternatives
-- If the request contradicts best practices, say so before proceeding
-- When the user is clear and correct, execute precisely without hesitation`);
+        sections.push(`# Execution Mindset
+- If the task is clear, execute it directly without asking questions
+- If something is ambiguous, state your interpretation briefly then PROCEED
+- Point out concerns or risks IN YOUR RESPONSE while still delivering the solution
+- After ONE clarification (if any was asked earlier), assume reasonable defaults and execute
+- Provide working code, not questions about what the user wants`);
         // ===========================================
         // CONSTRAINTS: What NOT to do
         // ===========================================
@@ -234,12 +253,15 @@ Be a ruthless mentor, not a yes-man. Scrutinize every assumption:
         return formats[intent] || formats['general'];
     }
     /**
-     * Create a preview of file content
+     * Create a meaningful preview of file content
+     * Shows ~50 lines - enough to see class signatures, imports, and key methods
+     * This reduces Claude's need to Read files, saving tool call tokens
      */
     createFilePreview(result) {
         const lines = result.content.split('\n');
-        const previewLines = lines.slice(0, 3); // First 3 lines
-        return previewLines.join('\n') + (lines.length > 3 ? '\n...' : '');
+        const PREVIEW_LINES = 50; // Enough to see class structure and key methods
+        const previewLines = lines.slice(0, PREVIEW_LINES);
+        return previewLines.join('\n') + (lines.length > PREVIEW_LINES ? `\n... (${lines.length - PREVIEW_LINES} more lines)` : '');
     }
     /**
      * Generate context statistics for logging

@@ -47,7 +47,12 @@ interface ClaudeFirstPhaseResult {
 /**
  * User's choice for file changes approval
  */
-export type ApprovalChoice = 'yes' | 'yes_always' | 'no_feedback' | 'cancelled';
+export type ApprovalChoice = 'yes' | 'yes_always' | 'yes_per_file' | 'no_feedback' | 'cancelled';
+
+/**
+ * User's choice for how to continue after interruption
+ */
+export type ContinuationChoice = 'continue' | 'new_search' | 'cancel';
 
 /**
  * Result of approval prompt
@@ -81,12 +86,62 @@ export interface FailureAction {
   errorMessage: string;
 }
 
+/**
+ * Language-agnostic test result summary
+ */
+export interface TestResultSummary {
+  passed: number;
+  failed: number;
+  skipped?: number;
+  total: number;
+  framework?: string;  // Detected framework (jest, pytest, go, cargo, etc.)
+}
+
+/**
+ * Search mode options for the pre-prompt menu
+ */
+export type SearchMode = 'enabled' | 'disabled';
+
+/**
+ * Result of the pre-prompt menu
+ */
+export interface PrePromptResult {
+  searchEnabled: boolean;
+  prompt: string;
+  cancelled: boolean;
+}
+
 export class UserInteractionService {
   private rl?: readline.Interface;
   private skipApproval = false;  // When true, auto-approve changes (user selected "Yes, always")
+  private verboseMode = false;   // When true, show full debug output (files, relationships, prompt)
+  private activeChild: any = null;  // Track active child process for cancellation
+  private isCancelled = false;      // Flag to track user cancellation
+  private searchModeEnabled = true;  // Toggle for semantic search (default: enabled)
+  private isFirstPromptInSession = true;  // Track if this is the first prompt (for REPL mode)
 
   constructor() {
     // No initialization needed - we pipe directly to claude stdin
+
+    // Set up SIGINT (Ctrl+C) handler for graceful cancellation
+    process.on('SIGINT', () => {
+      if (this.activeChild) {
+        console.log(Theme.colors.warning('\n\n  ⚠️  Cancelling... (press Ctrl+C again to force quit)'));
+        this.isCancelled = true;
+        this.activeChild.kill('SIGTERM');
+        this.activeChild = null;
+      } else {
+        // If no active child, let the default handler take over
+        process.exit(0);
+      }
+    });
+  }
+
+  /**
+   * Set verbose mode (when user uses -v/--verbose flag)
+   */
+  setVerboseMode(enabled: boolean): void {
+    this.verboseMode = enabled;
   }
 
   /**
@@ -405,10 +460,8 @@ ${enhancedPrompt}`;
       // Phase 1: Run Claude and collect proposed changes (with real-time streaming output)
       console.log(Theme.colors.info(iterationCount === 1 ? '\n  🤖 Claude is thinking...' : '\n  🤖 Claude is re-analyzing with your feedback...'));
       const firstPhase = await this.executeClaudeFirstPhase(currentPrompt);
-      console.log(Theme.colors.success('\n  ✓ Analysis complete'));
-
-      // Show Claude's plan (not the permission message, but the actual plan)
-      this.showClaudePlan(firstPhase.response);
+      // Note: Claude's response is already shown during streaming (real-time output)
+      // The "Plan" box was removed to avoid showing the same content twice
 
       // If there are proposed changes, show them and ask for approval
       if (firstPhase.hasPermissionDenials && firstPhase.proposedChanges.length > 0) {
@@ -553,58 +606,79 @@ Please revise your approach based on this feedback and propose new changes.`;
 
   /**
    * Show compact context summary - just a single line showing what's being sent
+   * In verbose mode, shows full context details
    */
   private showCompactContextSummary(prompt: string): void {
     const lines = prompt.split('\n');
     const totalChars = prompt.length;
 
     // Extract file count from the prompt
-    const filesMatch = prompt.match(/# Relevant Files \((\d+) found\)/);
-    const fileCount = filesMatch ? filesMatch[1] : '0';
+    const filesMatch = prompt.match(/## Relevant Files\n([\s\S]*?)(?=\n##|\n#|$)/);
+    const fileSection = filesMatch ? filesMatch[1] : '';
+    const fileMatches = fileSection.match(/\*\*([^*]+)\*\*/g) || [];
+    const fileCount = fileMatches.length;
 
     // Single compact line
     console.log(Theme.colors.muted(`\n  📤 Sending: ${fileCount} files, ${lines.length} lines (${totalChars} chars)`));
-  }
 
-  /**
-   * Show Claude's plan (with minimal filtering for any residual permission messages)
-   * Note: The enhanced prompt now instructs Claude to avoid permission-related messages,
-   * but we keep light filtering as a fallback for any that slip through.
-   */
-  private showClaudePlan(response: string): void {
-    // Light filtering for any residual permission-related messages
-    // The prompt instructions should handle most cases, this is just a safety net
-    const filteredResponse = response
-      .split('\n')
-      .filter(line => {
-        const lowerLine = line.toLowerCase();
-        // Filter lines that are purely about permissions (not substantive content)
-        if (lowerLine.includes('permission') && (
-          lowerLine.includes('grant') ||
-          lowerLine.includes('need') ||
-          lowerLine.includes('haven\'t been') ||
-          lowerLine.includes('hasn\'t been') ||
-          lowerLine.includes('once you')
-        )) {
-          return false;
-        }
-        // Filter "I'll need to..." permission requests
-        if (lowerLine.includes('i\'ll need') && lowerLine.includes('permission')) {
-          return false;
-        }
-        return true;
-      })
-      .join('\n')
-      .trim();
+    // In verbose mode, show full details
+    if (this.verboseMode) {
+      console.log(Theme.colors.info('\n  ┌─ 🔍 Verbose: Full Context Details ─────────────────────────┐'));
 
-    if (filteredResponse) {
-      console.log(Theme.colors.claudeCode('\n┌─ 🤖 Plan ────────────────────────────────────────────────────┐'));
-      // Show all lines without truncation
-      const responseLines = filteredResponse.split('\n');
-      responseLines.forEach(line => {
-        console.log(Theme.colors.claudeCodeMuted('│ ') + Theme.colors.claudeCode(line));
+      // Show files found
+      if (fileMatches.length > 0) {
+        console.log(Theme.colors.muted('  │'));
+        console.log(Theme.colors.info('  │ Files:'));
+        fileMatches.forEach(match => {
+          const fileName = match.replace(/\*\*/g, '');
+          console.log(Theme.colors.muted('  │   ') + Theme.colors.highlight(fileName));
+        });
+      }
+
+      // Extract and show relationships
+      const relMatch = prompt.match(/## Dependencies\n([\s\S]*?)(?=\n##|\n#|$)/);
+      if (relMatch) {
+        const relSection = relMatch[1];
+        const relLines = relSection.split('\n').filter(l => l.trim().startsWith('-'));
+        if (relLines.length > 0) {
+          console.log(Theme.colors.muted('  │'));
+          console.log(Theme.colors.info('  │ Relationships:'));
+          relLines.slice(0, 10).forEach(line => {
+            console.log(Theme.colors.muted('  │   ') + Theme.colors.muted(line.trim()));
+          });
+          if (relLines.length > 10) {
+            console.log(Theme.colors.muted(`  │   ... and ${relLines.length - 10} more`));
+          }
+        }
+      }
+
+      // Extract and show components
+      const compMatch = prompt.match(/## Components\n([\s\S]*?)(?=\n##|\n#|$)/);
+      if (compMatch) {
+        const compSection = compMatch[1];
+        const compLines = compSection.split('\n').filter(l => l.trim().startsWith('-'));
+        if (compLines.length > 0) {
+          console.log(Theme.colors.muted('  │'));
+          console.log(Theme.colors.info('  │ Components:'));
+          compLines.slice(0, 8).forEach(line => {
+            console.log(Theme.colors.muted('  │   ') + Theme.colors.muted(line.trim()));
+          });
+          if (compLines.length > 8) {
+            console.log(Theme.colors.muted(`  │   ... and ${compLines.length - 8} more`));
+          }
+        }
+      }
+
+      console.log(Theme.colors.muted('  │'));
+      console.log(Theme.colors.info('  │ Full Prompt:'));
+
+      // Show full prompt with line numbers
+      lines.forEach((line, i) => {
+        const lineNum = String(i + 1).padStart(4, ' ');
+        console.log(Theme.colors.muted(`  │ ${lineNum} │ `) + line);
       });
-      console.log(Theme.colors.claudeCode('└──────────────────────────────────────────────────────────────┘'));
+
+      console.log(Theme.colors.info('  └──────────────────────────────────────────────────────────────┘'));
     }
   }
 
@@ -656,7 +730,18 @@ Please revise your approach based on this feedback and propose new changes.`;
       let finalResult = '';
       const proposedChanges: ProposedChange[] = [];
       let lastDisplayedText = '';
+      let lastDisplayedThinking = '';
       let isFirstOutput = true;
+      let currentToolName = '';
+      let lastToolStatus = '';
+
+      // Rotating spinner characters for thinking/processing states
+      const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+      let spinnerIdx = 0;
+
+      // Status verbs that Claude Code shows during processing
+      const thinkingVerbs = ['Thinking', 'Reasoning', 'Analyzing', 'Processing', 'Planning', 'Considering'];
+      let verbIdx = 0;
 
       child.stdin?.write(prompt);
       child.stdin?.end();
@@ -676,10 +761,29 @@ Please revise your approach based on this feedback and propose new changes.`;
 
             // Handle different event types
             if (event.type === 'assistant') {
-              // Partial assistant message - show Claude's thinking
+              // Partial assistant message - show Claude's thinking and reasoning
               if (event.message?.content) {
                 for (const block of event.message.content) {
-                  if (block.type === 'text') {
+                  // Handle thinking/reasoning blocks (Claude's internal reasoning)
+                  if (block.type === 'thinking') {
+                    const thinkingText = block.thinking || '';
+                    if (thinkingText.length > lastDisplayedThinking.length) {
+                      const delta = thinkingText.substring(lastDisplayedThinking.length);
+                      // Show thinking with a distinct prefix
+                      const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
+                      const verb = thinkingVerbs[verbIdx % thinkingVerbs.length];
+                      if (lastDisplayedThinking === '') {
+                        process.stdout.write(Theme.colors.muted(`\n  ${spinner} ${verb}...\n`));
+                        verbIdx++;
+                      }
+                      // Show reasoning in muted/dim color with thinking prefix
+                      const formattedDelta = delta.replace(/\n/g, Theme.colors.muted('\n  │ '));
+                      process.stdout.write(Theme.colors.muted(`  │ ${formattedDelta}`));
+                      lastDisplayedThinking = thinkingText;
+                    }
+                  }
+                  // Handle regular text output
+                  else if (block.type === 'text') {
                     const newText = block.text || '';
                     // Only show new text (delta)
                     if (newText.length > lastDisplayedText.length) {
@@ -695,9 +799,42 @@ Please revise your approach based on this feedback and propose new changes.`;
                       lastDisplayedText = newText;
                     }
                   }
+                  // Handle tool use blocks (Read, Edit, Write, Bash, etc.)
+                  else if (block.type === 'tool_use') {
+                    const toolName = block.name || 'Tool';
+                    currentToolName = toolName;
+                    // Show tool invocation with spinner
+                    const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
+                    const toolDisplay = this.formatToolDisplay(toolName, block.input);
+                    if (toolDisplay !== lastToolStatus) {
+                      process.stdout.write(Theme.colors.info(`\n  ${spinner} ${toolDisplay}`));
+                      lastToolStatus = toolDisplay;
+                    }
+                  }
                 }
               }
-            } else if (event.type === 'result') {
+            }
+            // Handle content_block_start events (tool starts)
+            else if (event.type === 'content_block_start') {
+              if (event.content_block?.type === 'tool_use') {
+                const toolName = event.content_block.name || 'Tool';
+                currentToolName = toolName;
+                const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
+                process.stdout.write(Theme.colors.info(`\n  ${spinner} Using ${toolName}...`));
+              } else if (event.content_block?.type === 'thinking') {
+                const verb = thinkingVerbs[verbIdx++ % thinkingVerbs.length];
+                const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
+                process.stdout.write(Theme.colors.muted(`\n  ${spinner} ${verb}...`));
+              }
+            }
+            // Handle tool result events
+            else if (event.type === 'tool_result' || event.type === 'content_block_stop') {
+              if (currentToolName) {
+                process.stdout.write(Theme.colors.success(' ✓'));
+                currentToolName = '';
+              }
+            }
+            else if (event.type === 'result') {
               // Final result - extract session_id and permission_denials
               if (!isFirstOutput) {
                 process.stdout.write('\n');
@@ -756,6 +893,12 @@ Please revise your approach based on this feedback and propose new changes.`;
           }
         }
 
+        // Parse and display test results if any (language-agnostic)
+        const testResults = this.parseTestResults(lastDisplayedText);
+        if (testResults) {
+          this.displayTestSummary(testResults);
+        }
+
         resolve({
           sessionId,
           response: finalResult,
@@ -782,17 +925,21 @@ Please revise your approach based on this feedback and propose new changes.`;
 
   /**
    * Phase 2: Resume the session with permissions to apply changes
+   * Uses streaming output to show Claude's reasoning and progress in real-time
    */
   private async executeClaudeSecondPhase(sessionId: string): Promise<string> {
     return new Promise((resolve) => {
       const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
 
       // Resume the session with permission mode to apply changes
+      // Use stream-json for real-time output
       const claudeArgs = [
         '-p',
+        '--verbose',
         '--resume', sessionId,
         '--permission-mode', 'acceptEdits',
-        '--output-format', 'json'
+        '--output-format', 'stream-json',
+        '--include-partial-messages'
       ];
 
       const child = spawn('claude', claudeArgs, {
@@ -802,23 +949,104 @@ Please revise your approach based on this feedback and propose new changes.`;
         shell: true
       });
 
-      let stdoutData = '';
+      let buffer = '';
+      let finalResult = '';
+      let lastDisplayedText = '';
+      let isFirstOutput = true;
+      let currentToolName = '';
+
+      // Rotating spinner characters
+      const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+      let spinnerIdx = 0;
 
       // Send a simple "proceed" message
       child.stdin?.write('Please proceed with the file changes.');
       child.stdin?.end();
 
       child.stdout?.on('data', (data: Buffer) => {
-        stdoutData += data.toString();
+        buffer += data.toString();
+
+        // Process complete JSON lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const event = JSON.parse(line);
+
+            if (event.type === 'assistant') {
+              // Show Claude's reasoning during changes
+              if (event.message?.content) {
+                for (const block of event.message.content) {
+                  if (block.type === 'text') {
+                    const newText = block.text || '';
+                    if (newText.length > lastDisplayedText.length) {
+                      const delta = newText.substring(lastDisplayedText.length);
+                      if (isFirstOutput) {
+                        process.stdout.write(Theme.colors.claudeCode('\n  │ '));
+                        isFirstOutput = false;
+                      }
+                      const formattedDelta = delta.replace(/\n/g, Theme.colors.claudeCode('\n  │ '));
+                      process.stdout.write(Theme.colors.claudeCode(formattedDelta));
+                      lastDisplayedText = newText;
+                    }
+                  } else if (block.type === 'tool_use') {
+                    // Show tool invocations (Write, Edit, etc.)
+                    const toolName = block.name || 'Tool';
+                    currentToolName = toolName;
+                    const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
+                    const toolDisplay = this.formatToolDisplay(toolName, block.input);
+                    process.stdout.write(Theme.colors.info(`\n  ${spinner} ${toolDisplay}`));
+                  }
+                }
+              }
+            } else if (event.type === 'content_block_start') {
+              if (event.content_block?.type === 'tool_use') {
+                const toolName = event.content_block.name || 'Tool';
+                currentToolName = toolName;
+                const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
+                process.stdout.write(Theme.colors.info(`\n  ${spinner} Using ${toolName}...`));
+              }
+            } else if (event.type === 'tool_result' || event.type === 'content_block_stop') {
+              if (currentToolName) {
+                process.stdout.write(Theme.colors.success(' ✓'));
+                currentToolName = '';
+              }
+            } else if (event.type === 'result') {
+              if (!isFirstOutput) {
+                process.stdout.write('\n');
+              }
+              finalResult = event.result || '';
+            }
+          } catch {
+            // Ignore parse errors for incomplete lines
+          }
+        }
+      });
+
+      child.stderr?.on('data', (data: Buffer) => {
+        const text = data.toString().trim();
+        if (text && (text.includes('Error') || text.includes('error'))) {
+          console.error(Theme.colors.error(`\n  ${text}`));
+        }
       });
 
       child.on('close', () => {
-        try {
-          const result = JSON.parse(stdoutData);
-          resolve(result.result || 'Changes applied');
-        } catch {
-          resolve(stdoutData || 'Changes applied');
+        // Process any remaining buffer
+        if (buffer.trim()) {
+          try {
+            const event = JSON.parse(buffer);
+            if (event.type === 'result') {
+              finalResult = event.result || finalResult;
+            }
+          } catch {
+            // Ignore
+          }
         }
+
+        resolve(finalResult || lastDisplayedText || 'Changes applied');
       });
 
       child.on('error', (err) => {
@@ -844,7 +1072,7 @@ Please revise your approach based on this feedback and propose new changes.`;
     }
 
     // Show full changes - no truncation
-    console.log(Theme.colors.warning('\n┌─ 📝 Proposed Changes ─────────────────────────────────────┐'));
+    console.log(Theme.colors.warning('\n┌─ 📝 Proposed Changes ───────────────────────────��─────────┐'));
 
     for (let i = 0; i < changes.length; i++) {
       const change = changes[i];
@@ -898,7 +1126,7 @@ Please revise your approach based on this feedback and propose new changes.`;
           choices: [
             { name: 'Yes', value: 'yes' },
             { name: 'Yes, and don\'t ask again', value: 'yes_always' },
-            { name: 'No, tell me what to do differently', value: 'no_feedback' }
+            { name: 'No, and tell me what to do differently', value: 'no_feedback' }
           ],
           default: 'yes'
         }
@@ -1059,6 +1287,295 @@ Please revise your approach based on this feedback and propose new changes.`;
   }
 
   /**
+   * Ask user how to continue after an interruption
+   * Used when user provides new input while a Claude session is active
+   * @param hasActiveSession Whether there's an active Claude session that can be resumed
+   * @returns The user's choice: continue (forward to Claude), new_search (fresh CodeMind search), or cancel
+   */
+  async promptContinuationChoice(hasActiveSession: boolean): Promise<ContinuationChoice> {
+    this.pauseReadline();
+    Logger.mute();
+
+    try {
+      const choices = hasActiveSession
+        ? [
+            { name: 'Continue conversation (forward to Claude)', value: 'continue' },
+            { name: 'New search (find relevant files first)', value: 'new_search' },
+            { name: 'Cancel', value: 'cancel' }
+          ]
+        : [
+            { name: 'New search (find relevant files first)', value: 'new_search' },
+            { name: 'Skip search (pass directly to Claude)', value: 'continue' },
+            { name: 'Cancel', value: 'cancel' }
+          ];
+
+      const answer = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'choice',
+          message: 'How should I continue?',
+          choices,
+          default: hasActiveSession ? 'continue' : 'new_search'
+        }
+      ]);
+
+      return answer.choice as ContinuationChoice;
+    } catch (error: any) {
+      if (error.name === 'ExitPromptError' || error.message?.includes('force closed')) {
+        return 'cancel';
+      }
+      throw error;
+    } finally {
+      Logger.unmute();
+      this.resumeReadline();
+    }
+  }
+
+  /**
+   * Check if cancellation was requested
+   */
+  wasCancelled(): boolean {
+    return this.isCancelled;
+  }
+
+  /**
+   * Reset cancellation flag
+   */
+  resetCancellation(): void {
+    this.isCancelled = false;
+  }
+
+  /**
+   * Get current search mode status
+   */
+  isSearchEnabled(): boolean {
+    return this.searchModeEnabled;
+  }
+
+  /**
+   * Set search mode enabled/disabled
+   */
+  setSearchMode(enabled: boolean): void {
+    this.searchModeEnabled = enabled;
+  }
+
+  /**
+   * Toggle search mode on/off
+   */
+  toggleSearchMode(): boolean {
+    this.searchModeEnabled = !this.searchModeEnabled;
+    return this.searchModeEnabled;
+  }
+
+  /**
+   * Prepare search mode for a new prompt
+   * In REPL mode: First prompt = ON, subsequent prompts = OFF by default
+   * In -c mode: Always ON (called with forceOn=true)
+   * @param forceOn If true, always enable search (used for -c mode)
+   */
+  prepareForNewPrompt(forceOn: boolean = false): void {
+    if (forceOn) {
+      // -c mode: always search
+      this.searchModeEnabled = true;
+    } else if (this.isFirstPromptInSession) {
+      // REPL mode first prompt: enable search
+      this.searchModeEnabled = true;
+      this.isFirstPromptInSession = false;
+    } else {
+      // REPL mode subsequent prompts: disable search by default
+      this.searchModeEnabled = false;
+    }
+  }
+
+  /**
+   * Mark a conversation as complete (for REPL mode)
+   * After a conversation, search defaults to OFF for the next prompt
+   */
+  markConversationComplete(): void {
+    // Don't change isFirstPromptInSession - it stays false after first use
+    // searchModeEnabled will be set to false on next prepareForNewPrompt() call
+  }
+
+  /**
+   * Reset session state (for new REPL sessions)
+   */
+  resetSession(): void {
+    this.isFirstPromptInSession = true;
+    this.searchModeEnabled = true;
+  }
+
+  /**
+   * Show a compact pre-prompt menu for search mode toggle
+   * Returns the user's choice and their prompt
+   * @param hasActiveSession Whether there's an active Claude session (for context)
+   */
+  async promptWithSearchToggle(hasActiveSession: boolean = false): Promise<PrePromptResult> {
+    this.pauseReadline();
+    Logger.mute();
+
+    try {
+      // Show current mode status
+      const modeIndicator = this.searchModeEnabled
+        ? Theme.colors.success('🔍 Search: ON')
+        : Theme.colors.muted('🔍 Search: OFF');
+
+      console.log(`\n  ${modeIndicator}`);
+
+      const answer = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'action',
+          message: 'Options:',
+          choices: [
+            {
+              name: `Enter prompt ${this.searchModeEnabled ? '(with search)' : '(direct to Claude)'}`,
+              value: 'prompt'
+            },
+            {
+              name: this.searchModeEnabled
+                ? 'Turn OFF search (skip file discovery)'
+                : 'Turn ON search (find relevant files first)',
+              value: 'toggle'
+            },
+            { name: 'Cancel', value: 'cancel' }
+          ],
+          default: 'prompt'
+        }
+      ]);
+
+      // Handle toggle action - recursively call to show updated menu
+      if (answer.action === 'toggle') {
+        this.toggleSearchMode();
+        Logger.unmute();
+        this.resumeReadline();
+        return this.promptWithSearchToggle(hasActiveSession);
+      }
+
+      // Handle cancel
+      if (answer.action === 'cancel') {
+        return { searchEnabled: this.searchModeEnabled, prompt: '', cancelled: true };
+      }
+
+      // Get the user's prompt
+      const promptAnswer = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'userPrompt',
+          message: '💬',
+          validate: (input) => input.trim().length > 0 || 'Please enter a prompt (or Ctrl+C to cancel)'
+        }
+      ]);
+
+      return {
+        searchEnabled: this.searchModeEnabled,
+        prompt: promptAnswer.userPrompt.trim(),
+        cancelled: false
+      };
+
+    } catch (error: any) {
+      if (error.name === 'ExitPromptError' || error.message?.includes('force closed')) {
+        return { searchEnabled: this.searchModeEnabled, prompt: '', cancelled: true };
+      }
+      throw error;
+    } finally {
+      Logger.unmute();
+      this.resumeReadline();
+    }
+  }
+
+  /**
+   * Show a minimal inline search toggle (single key press style)
+   * For quick mode switching without a full menu
+   * Format: "[S] Search: ON/OFF | Enter prompt:"
+   */
+  async promptWithInlineToggle(): Promise<PrePromptResult> {
+    this.pauseReadline();
+    Logger.mute();
+
+    try {
+      // Compact inline display
+      const searchStatus = this.searchModeEnabled ? 'ON' : 'OFF';
+      const statusColor = this.searchModeEnabled ? Theme.colors.success : Theme.colors.muted;
+
+      console.log(Theme.colors.muted(`\n  [s] to toggle search | `) + statusColor(`Search: ${searchStatus}`));
+
+      const answer = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'input',
+          message: '›',
+          validate: (input) => {
+            const trimmed = input.trim().toLowerCase();
+            // Allow 's' to toggle, empty is not allowed, anything else is the prompt
+            if (trimmed === '') {
+              return 'Enter your prompt, or type "s" to toggle search mode';
+            }
+            return true;
+          }
+        }
+      ]);
+
+      const input = answer.input.trim();
+
+      // Check if user wants to toggle
+      if (input.toLowerCase() === 's') {
+        this.toggleSearchMode();
+        Logger.unmute();
+        this.resumeReadline();
+        // Recursively show the prompt again with updated status
+        return this.promptWithInlineToggle();
+      }
+
+      return {
+        searchEnabled: this.searchModeEnabled,
+        prompt: input,
+        cancelled: false
+      };
+
+    } catch (error: any) {
+      if (error.name === 'ExitPromptError' || error.message?.includes('force closed')) {
+        return { searchEnabled: this.searchModeEnabled, prompt: '', cancelled: true };
+      }
+      throw error;
+    } finally {
+      Logger.unmute();
+      this.resumeReadline();
+    }
+  }
+
+  /**
+   * Get the search toggle indicator string for display
+   * Returns a radio-button style indicator like "( * ) Search files" or "( ) Search files"
+   * @param enabled Optional override for the search state, defaults to current state
+   */
+  getSearchToggleIndicator(enabled?: boolean): string {
+    const isEnabled = enabled !== undefined ? enabled : this.searchModeEnabled;
+    const radioButton = isEnabled ? '(*)' : '( )';
+    const color = isEnabled ? Theme.colors.success : Theme.colors.muted;
+    return color(`${radioButton} Search files and knowledge graph`);
+  }
+
+  /**
+   * Display the search toggle indicator (for use before prompts)
+   * Shows: "( * ) Search files and knowledge graph" or "( ) Search files and knowledge graph"
+   * Also shows toggle hint: "[s] to toggle"
+   */
+  displaySearchToggleIndicator(): void {
+    const indicator = this.getSearchToggleIndicator();
+    const toggleHint = Theme.colors.muted('[s] toggle');
+    console.log(`\n  ${indicator}  ${toggleHint}`);
+  }
+
+  /**
+   * Check if input is a search toggle command
+   * Returns true if input is 's' or '/s' (toggle search)
+   */
+  isSearchToggleCommand(input: string): boolean {
+    const trimmed = input.trim().toLowerCase();
+    return trimmed === 's' || trimmed === '/s';
+  }
+
+  /**
    * Display execution summary
    */
   displayExecutionSummary(summary: string, stats: any): void {
@@ -1113,6 +1630,212 @@ Please revise your approach based on this feedback and propose new changes.`;
 
     // Remove duplicates and limit to 3 questions to avoid overwhelming user
     return [...new Set(questions)].slice(0, 3);
+  }
+
+  /**
+   * Parse test results from Claude's output (language-agnostic)
+   * Supports: Jest, Mocha, pytest, Go test, Cargo test, PHPUnit, RSpec, JUnit, etc.
+   */
+  parseTestResults(output: string): TestResultSummary | null {
+    if (!output) return null;
+
+    // Pattern matchers for different test frameworks
+    const patterns: Array<{ regex: RegExp; framework: string; extractor: (match: RegExpMatchArray) => TestResultSummary }> = [
+      // Jest/Vitest: "Tests: 5 passed, 2 failed, 7 total" or "Tests:  42 passed, 42 total"
+      {
+        regex: /Tests:\s*(\d+)\s*passed(?:,\s*(\d+)\s*failed)?(?:,\s*(\d+)\s*skipped)?(?:,\s*(\d+)\s*total)?/i,
+        framework: 'jest',
+        extractor: (m) => ({
+          passed: parseInt(m[1]) || 0,
+          failed: parseInt(m[2]) || 0,
+          skipped: parseInt(m[3]) || 0,
+          total: parseInt(m[4]) || (parseInt(m[1]) || 0) + (parseInt(m[2]) || 0) + (parseInt(m[3]) || 0),
+          framework: 'jest'
+        })
+      },
+      // Mocha: "5 passing" / "2 failing" / "1 pending"
+      {
+        regex: /(\d+)\s*passing.*?(?:(\d+)\s*failing)?.*?(?:(\d+)\s*pending)?/is,
+        framework: 'mocha',
+        extractor: (m) => ({
+          passed: parseInt(m[1]) || 0,
+          failed: parseInt(m[2]) || 0,
+          skipped: parseInt(m[3]) || 0,
+          total: (parseInt(m[1]) || 0) + (parseInt(m[2]) || 0) + (parseInt(m[3]) || 0),
+          framework: 'mocha'
+        })
+      },
+      // pytest: "5 passed, 2 failed, 1 skipped" or "===== 5 passed in 0.12s ====="
+      {
+        regex: /(?:=+\s*)?(\d+)\s*passed(?:[,\s]+(\d+)\s*failed)?(?:[,\s]+(\d+)\s*skipped)?/i,
+        framework: 'pytest',
+        extractor: (m) => ({
+          passed: parseInt(m[1]) || 0,
+          failed: parseInt(m[2]) || 0,
+          skipped: parseInt(m[3]) || 0,
+          total: (parseInt(m[1]) || 0) + (parseInt(m[2]) || 0) + (parseInt(m[3]) || 0),
+          framework: 'pytest'
+        })
+      },
+      // Go test: "ok  	package	0.123s" (counts ok lines) or "PASS" / "FAIL"
+      {
+        regex: /(?:^|\n)(?:ok\s+|PASS\s*$)/gm,
+        framework: 'go',
+        extractor: (m) => {
+          // For Go, we need to count all matches
+          const okMatches = output.match(/(?:^|\n)ok\s+/gm) || [];
+          const failMatches = output.match(/(?:^|\n)FAIL\s+/gm) || [];
+          const passed = okMatches.length || (output.includes('PASS') ? 1 : 0);
+          const failed = failMatches.length;
+          return {
+            passed,
+            failed,
+            total: passed + failed,
+            framework: 'go'
+          };
+        }
+      },
+      // Cargo test (Rust): "test result: ok. 5 passed; 0 failed; 0 ignored"
+      {
+        regex: /test result:\s*(?:ok|FAILED)\.\s*(\d+)\s*passed;\s*(\d+)\s*failed;\s*(\d+)\s*ignored/i,
+        framework: 'cargo',
+        extractor: (m) => ({
+          passed: parseInt(m[1]) || 0,
+          failed: parseInt(m[2]) || 0,
+          skipped: parseInt(m[3]) || 0,
+          total: (parseInt(m[1]) || 0) + (parseInt(m[2]) || 0) + (parseInt(m[3]) || 0),
+          framework: 'cargo'
+        })
+      },
+      // PHPUnit: "OK (5 tests, 10 assertions)" or "FAILURES! Tests: 5, Failures: 2"
+      {
+        regex: /(?:OK\s*\((\d+)\s*tests?|Tests:\s*(\d+),\s*(?:Assertions:\s*\d+,\s*)?Failures:\s*(\d+))/i,
+        framework: 'phpunit',
+        extractor: (m) => {
+          if (m[1]) {
+            // OK case
+            return { passed: parseInt(m[1]), failed: 0, total: parseInt(m[1]), framework: 'phpunit' };
+          }
+          // FAILURES case
+          const total = parseInt(m[2]) || 0;
+          const failed = parseInt(m[3]) || 0;
+          return { passed: total - failed, failed, total, framework: 'phpunit' };
+        }
+      },
+      // RSpec (Ruby): "5 examples, 2 failures, 1 pending"
+      {
+        regex: /(\d+)\s*examples?,\s*(\d+)\s*failures?(?:,\s*(\d+)\s*pending)?/i,
+        framework: 'rspec',
+        extractor: (m) => ({
+          passed: (parseInt(m[1]) || 0) - (parseInt(m[2]) || 0) - (parseInt(m[3]) || 0),
+          failed: parseInt(m[2]) || 0,
+          skipped: parseInt(m[3]) || 0,
+          total: parseInt(m[1]) || 0,
+          framework: 'rspec'
+        })
+      },
+      // JUnit/Maven/Gradle: "Tests run: 5, Failures: 1, Errors: 0, Skipped: 1"
+      {
+        regex: /Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+)(?:,\s*Skipped:\s*(\d+))?/i,
+        framework: 'junit',
+        extractor: (m) => {
+          const total = parseInt(m[1]) || 0;
+          const failures = parseInt(m[2]) || 0;
+          const errors = parseInt(m[3]) || 0;
+          const skipped = parseInt(m[4]) || 0;
+          return {
+            passed: total - failures - errors - skipped,
+            failed: failures + errors,
+            skipped,
+            total,
+            framework: 'junit'
+          };
+        }
+      },
+      // .NET/NUnit/xUnit: "Passed: 5, Failed: 2, Skipped: 1, Total: 8"
+      {
+        regex: /(?:Passed|Passed!):\s*(\d+)(?:.*?Failed:\s*(\d+))?(?:.*?Skipped:\s*(\d+))?(?:.*?Total:\s*(\d+))?/i,
+        framework: 'dotnet',
+        extractor: (m) => ({
+          passed: parseInt(m[1]) || 0,
+          failed: parseInt(m[2]) || 0,
+          skipped: parseInt(m[3]) || 0,
+          total: parseInt(m[4]) || (parseInt(m[1]) || 0) + (parseInt(m[2]) || 0) + (parseInt(m[3]) || 0),
+          framework: 'dotnet'
+        })
+      }
+    ];
+
+    // Try each pattern
+    for (const { regex, extractor } of patterns) {
+      const match = output.match(regex);
+      if (match) {
+        const result = extractor(match);
+        // Validate we got meaningful results
+        if (result.total > 0 || result.passed > 0 || result.failed > 0) {
+          return result;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Display test result summary in a user-friendly format
+   */
+  displayTestSummary(summary: TestResultSummary): void {
+    const { passed, failed, skipped, framework } = summary;
+
+    if (failed === 0) {
+      // All tests passed
+      console.log(Theme.colors.success(`\n  ✅ ${passed} test${passed !== 1 ? 's' : ''} passed`));
+    } else {
+      // Some tests failed
+      console.log(Theme.colors.error(`\n  ❌ ${failed} test${failed !== 1 ? 's' : ''} failed, ${passed} passed`));
+    }
+
+    // Show skipped if any
+    if (skipped && skipped > 0) {
+      console.log(Theme.colors.warning(`     ⏭️  ${skipped} skipped`));
+    }
+
+    // Show framework if detected
+    if (framework) {
+      console.log(Theme.colors.muted(`     (${framework})`));
+    }
+  }
+
+  /**
+   * Format tool invocation for display
+   * Shows human-readable descriptions like "Reading src/file.ts" or "Editing config.json"
+   */
+  private formatToolDisplay(toolName: string, input?: any): string {
+    const filePath = input?.file_path || input?.path || '';
+    const fileName = filePath ? filePath.split(/[/\\]/).pop() : '';
+
+    switch (toolName.toLowerCase()) {
+      case 'read':
+        return fileName ? `Reading ${fileName}` : 'Reading file...';
+      case 'edit':
+        return fileName ? `Editing ${fileName}` : 'Editing file...';
+      case 'write':
+        return fileName ? `Writing ${fileName}` : 'Writing file...';
+      case 'bash':
+        const cmd = input?.command || '';
+        const shortCmd = cmd.length > 40 ? cmd.substring(0, 37) + '...' : cmd;
+        return shortCmd ? `Running: ${shortCmd}` : 'Running command...';
+      case 'glob':
+        return input?.pattern ? `Searching: ${input.pattern}` : 'Searching files...';
+      case 'grep':
+        return input?.pattern ? `Grep: ${input.pattern}` : 'Searching content...';
+      case 'todowrite':
+        return 'Updating task list...';
+      case 'task':
+        return 'Launching sub-agent...';
+      default:
+        return `${toolName}...`;
+    }
   }
 
   /**

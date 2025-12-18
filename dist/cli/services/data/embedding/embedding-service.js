@@ -23,10 +23,12 @@ class EmbeddingService {
     constructor(config, embeddingProvider, fileProcessor) {
         this.config = config;
         this.logger = logger_1.Logger.getInstance();
-        // Apply default values for backward compatibility
+        // Apply default values - ALWAYS use Xenova for consistent embeddings
+        // IMPORTANT: All embedding generation MUST use the same model (Xenova/all-MiniLM-L6-v2)
+        // Using different models (local vs xenova) produces incompatible vectors
         this.config = {
-            provider: 'local',
-            model: 'local',
+            provider: 'xenova',
+            model: 'Xenova/all-MiniLM-L6-v2',
             chunkSize: 1000,
             maxTokens: 8000,
             batchSize: 10,

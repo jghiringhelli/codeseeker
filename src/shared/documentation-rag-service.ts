@@ -82,7 +82,8 @@ export class DocumentationRAGService {
   constructor(projectId: string) {
     this.logger = Logger.getInstance();
     this.dbConnections = new DatabaseConnections();
-    const defaultConfig = { provider: 'local' as const, model: 'local' as const, batchSize: 32 };
+    // IMPORTANT: Must use same model as search-command-handler.ts and embedding-generator-adapter.ts
+    const defaultConfig = { provider: 'xenova' as const, model: 'Xenova/all-MiniLM-L6-v2' as const, batchSize: 32 };
     this.embeddingService = new EmbeddingService(defaultConfig);
     const searchFactory = SearchServiceFactory.getInstance();
     this.semanticSearchService = searchFactory.createSemanticSearchService();

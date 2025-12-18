@@ -115,7 +115,7 @@ export declare abstract class AnalysisTool implements BaseToolInterface {
         bundleCompatible: boolean;
         dependencies: string[];
         performanceImpact: "medium" | "low" | "high" | "minimal";
-        tokenUsage: "medium" | "low" | "high" | "variable" | "minimal";
+        tokenUsage: "medium" | "low" | "high" | "minimal" | "variable";
     };
     /**
      * Check if tool matches given intent

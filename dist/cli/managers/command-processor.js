@@ -31,6 +31,38 @@ class CommandProcessor {
         this.router.setTransparentMode(enabled);
     }
     /**
+     * Set verbose mode (show full debug output: files, relationships, prompt)
+     */
+    setVerboseMode(enabled) {
+        this.router.setVerboseMode(enabled);
+    }
+    /**
+     * Set command mode (when running with -c flag)
+     * In command mode, search is always forced on
+     */
+    setCommandMode(enabled) {
+        this.router.setCommandMode(enabled);
+    }
+    /**
+     * Set no-search mode (skip semantic search)
+     * When enabled, prompts go directly to Claude without file discovery
+     */
+    setNoSearchMode(enabled) {
+        this.router.setNoSearchMode(enabled);
+    }
+    /**
+     * Prepare for a new prompt (manages search toggle state)
+     */
+    prepareForNewPrompt() {
+        this.router.prepareForNewPrompt();
+    }
+    /**
+     * Mark conversation as complete (for REPL mode)
+     */
+    markConversationComplete() {
+        this.router.markConversationComplete();
+    }
+    /**
      * Set history callbacks (for /history command)
      */
     setHistoryCallbacks(callbacks) {
@@ -66,6 +98,19 @@ class CommandProcessor {
      */
     getAvailableCommands() {
         return this.router.getAvailableCommands();
+    }
+    /**
+     * Display the search toggle indicator
+     * Shows radio-button style indicator: "( * ) Search files and knowledge graph"
+     */
+    displaySearchToggleIndicator() {
+        this.router.displaySearchToggleIndicator();
+    }
+    /**
+     * Get the user interaction service (for advanced search toggle control)
+     */
+    getUserInteractionService() {
+        return this.router.getUserInteractionService();
     }
 }
 exports.CommandProcessor = CommandProcessor;

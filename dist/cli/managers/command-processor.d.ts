@@ -21,6 +21,28 @@ export declare class CommandProcessor {
      */
     setTransparentMode(enabled: boolean): void;
     /**
+     * Set verbose mode (show full debug output: files, relationships, prompt)
+     */
+    setVerboseMode(enabled: boolean): void;
+    /**
+     * Set command mode (when running with -c flag)
+     * In command mode, search is always forced on
+     */
+    setCommandMode(enabled: boolean): void;
+    /**
+     * Set no-search mode (skip semantic search)
+     * When enabled, prompts go directly to Claude without file discovery
+     */
+    setNoSearchMode(enabled: boolean): void;
+    /**
+     * Prepare for a new prompt (manages search toggle state)
+     */
+    prepareForNewPrompt(): void;
+    /**
+     * Mark conversation as complete (for REPL mode)
+     */
+    markConversationComplete(): void;
+    /**
      * Set history callbacks (for /history command)
      */
     setHistoryCallbacks(callbacks: HistoryCallbacks): void;
@@ -38,6 +60,15 @@ export declare class CommandProcessor {
      * Get available commands from router
      */
     getAvailableCommands(): string[];
+    /**
+     * Display the search toggle indicator
+     * Shows radio-button style indicator: "( * ) Search files and knowledge graph"
+     */
+    displaySearchToggleIndicator(): void;
+    /**
+     * Get the user interaction service (for advanced search toggle control)
+     */
+    getUserInteractionService(): import("../commands/services/user-interaction-service").UserInteractionService;
 }
 export { CommandContext, CommandResult } from '../commands/command-context';
 export { ClaudeCodeExecutionOptions, ClaudeCodeExecutionResult } from '../services/claude/claude-code-executor';

@@ -109,6 +109,9 @@ export declare class Theme {
 /**
  * Spinner - Interactive thinking indicator
  * Shows animated spinner while processing
+ *
+ * Uses carriage return + clear-to-end-of-line for proper in-place animation
+ * that works across Windows (cmd, PowerShell, Git Bash) and Unix terminals.
  */
 export declare class Spinner {
     private static readonly frames;

@@ -50,7 +50,7 @@ export declare class ContextBuilder {
     private formatLocation;
     /**
      * Create enhanced prompt for Claude Code
-     * Uses structured prompt engineering: Role → Context → Task → Format → Constraints
+     * Uses structured prompt engineering: Pre-Search Info → Role → Context → Task → Format → Constraints
      */
     private createEnhancedPrompt;
     /**
@@ -62,7 +62,9 @@ export declare class ContextBuilder {
      */
     private getFormatForIntent;
     /**
-     * Create a preview of file content
+     * Create a meaningful preview of file content
+     * Shows ~50 lines - enough to see class signatures, imports, and key methods
+     * This reduces Claude's need to Read files, saving tool call tokens
      */
     private createFilePreview;
     /**

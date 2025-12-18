@@ -3,6 +3,8 @@
  * ProjectManager - SOLID Principles Compliant
  * Uses dependency injection and single responsibility services
  * Now includes proper error handling following SOLID principles
+ *
+ * Updated: Uses ProjectIdentityService for deterministic project IDs
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -39,37 +41,76 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectManager = void 0;
-const uuid_1 = require("uuid");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const theme_1 = require("../ui/theme");
 const error_utils_1 = require("../../core/utils/error-utils");
+const project_identity_service_1 = require("../services/project-identity-service");
 class ProjectManager {
     projectDetector;
     languageManager;
     projectRegistry;
     currentProjectPath;
+    identityService;
     constructor(projectDetector, languageManager, projectRegistry) {
         this.projectDetector = projectDetector;
         this.languageManager = languageManager;
         this.projectRegistry = projectRegistry;
         this.currentProjectPath = process.env.CODEMIND_USER_CWD || process.cwd();
+        this.identityService = new project_identity_service_1.ProjectIdentityService();
     }
     /**
      * Initialize a new project using dependency-injected services
+     * Uses ProjectIdentityService for deterministic ID generation
      */
     async initializeProject(projectPath, options, _syncMode) {
         try {
             console.log(theme_1.Theme.colors.info(`🔄 Initializing project: ${options.projectName}`));
+            // Step 1: Resolve project identity (deterministic ID based on path)
+            const resolution = await this.identityService.resolveProject(projectPath, options.projectName);
+            // Handle different resolution actions
+            if (resolution.action === 'use_existing' && resolution.identity) {
+                console.log(theme_1.Theme.colors.info(`📋 ${resolution.message}`));
+                // Return existing project config
+                const existingConfig = await this.projectRegistry.getProject(resolution.identity.id);
+                if (existingConfig) {
+                    return { success: true, config: existingConfig, resolution };
+                }
+            }
+            if (resolution.action === 'update_path' && resolution.identity) {
+                console.log(theme_1.Theme.colors.warning(`📦 ${resolution.message}`));
+                // Project was moved - update the path
+                await this.identityService.updateProjectPath(resolution.identity.id, projectPath, resolution.identity.currentPath);
+                console.log(theme_1.Theme.colors.success(`✅ Project path updated`));
+                const existingConfig = await this.projectRegistry.getProject(resolution.identity.id);
+                if (existingConfig) {
+                    // Update local config with new path
+                    existingConfig.projectPath = projectPath;
+                    this.createLocalConfig(existingConfig);
+                    return { success: true, config: existingConfig, resolution };
+                }
+            }
+            if (resolution.action === 'merge_duplicate' && resolution.duplicates && resolution.duplicates.length > 0) {
+                console.log(theme_1.Theme.colors.warning(`⚠️ ${resolution.message}`));
+                console.log(theme_1.Theme.colors.info(`   Run 'codemind project cleanup' to merge duplicates`));
+                // Use the first duplicate's ID for now
+                const primaryDuplicate = resolution.duplicates[0];
+                const existingConfig = await this.projectRegistry.getProject(primaryDuplicate.id);
+                if (existingConfig) {
+                    return { success: true, config: existingConfig, resolution };
+                }
+            }
+            // Step 2: Create new project with deterministic ID
+            const projectId = resolution.identity?.id || this.identityService.generateDeterministicId(projectPath);
             // Use injected detector service
             const detectedType = await this.projectDetector.detectProjectType(projectPath);
             const projectType = options.projectType || detectedType;
             // Use injected language manager
             const detectedLanguages = await this.languageManager.detectLanguages(projectPath);
             const languageSetup = await this.languageManager.setupLanguageSupport(detectedLanguages);
-            // Create project configuration
+            // Create project configuration with deterministic ID
             const config = {
-                projectId: (0, uuid_1.v4)(),
+                projectId,
                 projectName: options.projectName,
                 projectPath,
                 projectType,
@@ -82,9 +123,9 @@ class ProjectManager {
             // Use injected registry service
             await this.projectRegistry.registerProject(config);
             // Create local configuration
-            await this.createLocalConfig(config);
+            this.createLocalConfig(config);
             console.log(theme_1.Theme.colors.success(`✅ Project initialized: ${config.projectId}`));
-            return { success: true, config };
+            return { success: true, config, resolution };
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -111,6 +152,32 @@ class ProjectManager {
      */
     async getProjectInfo(projectId) {
         return await this.projectRegistry.getProject(projectId);
+    }
+    /**
+     * Get deterministic project ID for a path
+     * Same path always produces the same ID
+     */
+    getDeterministicProjectId(projectPath) {
+        return this.identityService.generateDeterministicId(projectPath);
+    }
+    /**
+     * Clean up duplicate projects for a path
+     * Merges data from duplicates into the canonical entry
+     */
+    async cleanupDuplicates(projectPath) {
+        return await this.identityService.cleanupDuplicates(projectPath);
+    }
+    /**
+     * List all registered projects with their data statistics
+     */
+    async listProjects() {
+        return await this.identityService.listProjects();
+    }
+    /**
+     * Find all duplicate project entries
+     */
+    async findDuplicateProjects() {
+        return await this.identityService.findAllDuplicates();
     }
     /**
      * Scan project files using detector service

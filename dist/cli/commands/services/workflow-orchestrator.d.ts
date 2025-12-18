@@ -1,20 +1,23 @@
 /**
- * Workflow Orchestrator Service - STREAMLINED MVP
- * Single Responsibility: Coordinate the CodeMind Core Cycle with minimal friction
+ * Workflow Orchestrator Service - TRANSPARENT MODE
+ * Single Responsibility: Coordinate CodeMind workflow OR pass through to Claude transparently
  *
- * Simplified workflow:
- * 1. Query Analysis (ONE Claude call for intent + complexity + clarification check)
- * 2. Semantic Search (find relevant files)
- * 3. Graph Analysis (show relationships if found)
- * 4. Build Context & Execute Claude
- * 5. Apply Changes (with user approval)
- * 6. Quality Check (auto build/test)
- * 7. Database Sync (silent)
+ * Workflow when DBs are UP:
+ * 1. Semantic Search (find relevant files using embeddings)
+ * 2. Graph Analysis (show relationships)
+ * 3. Build Context & Execute Claude with enhanced context
+ * 4. Quality Check (auto build/test)
+ * 5. Database Sync
+ *
+ * When DBs are DOWN:
+ * - Inform user that CodeMind is running in transparent mode
+ * - Pass query directly to Claude (same as using `claude` directly)
+ * - Only difference: quality checks at the end
  */
 import { SemanticResult } from './semantic-search-orchestrator';
 import { GraphContext } from './graph-analysis-service';
 import { EnhancedContext } from './context-builder';
-import { ClaudeResponse } from './user-interaction-service';
+import { UserInteractionService, ClaudeResponse } from './user-interaction-service';
 export interface QueryAnalysis {
     assumptions: string[];
     ambiguities: string[];
@@ -35,6 +38,7 @@ export interface WorkflowResult {
     buildResult?: BuildTestResult;
     syncResult?: SyncResult;
     error?: string;
+    transparentMode?: boolean;
 }
 export interface BuildTestResult {
     buildSuccess: boolean;
@@ -55,9 +59,10 @@ export interface WorkflowOptions {
     maxSemanticResults?: number;
     projectId?: string;
     transparentMode?: boolean;
+    forceSearch?: boolean;
+    isCommandMode?: boolean;
 }
 export declare class WorkflowOrchestrator {
-    private _unifiedAnalyzer?;
     private _searchOrchestrator?;
     private _graphAnalysisService?;
     private _contextBuilder?;
@@ -67,7 +72,6 @@ export declare class WorkflowOrchestrator {
     private projectPath;
     private projectId;
     private _readlineInterface?;
-    private get unifiedAnalyzer();
     private get searchOrchestrator();
     private get graphAnalysisService();
     private get contextBuilder();
@@ -76,15 +80,36 @@ export declare class WorkflowOrchestrator {
     private get databaseUpdateManager();
     constructor(projectPath: string, projectId?: string);
     setReadlineInterface(rl: any): void;
+    /**
+     * Set verbose mode (show full debug output: files, relationships, prompt)
+     */
+    setVerboseMode(enabled: boolean): void;
+    /**
+     * Get the UserInteractionService for external access
+     * Used by CommandRouter for search toggle management
+     */
+    getUserInteractionService(): UserInteractionService;
     setProject(projectId: string, projectPath: string): void;
     /**
-     * Execute the streamlined CodeMind workflow
+     * Check if databases are available for enhanced workflow
+     */
+    private checkDatabaseAvailability;
+    /**
+     * Execute the CodeMind workflow
+     * - If DBs are available: enhanced workflow with semantic search + context
+     * - If DBs are down: transparent mode - pass through to Claude directly
      */
     executeWorkflow(query: string, projectPath: string, options?: WorkflowOptions): Promise<WorkflowResult>;
     /**
-     * Ask a clarification question (only when Claude says it's critical)
+     * Transparent mode - pass query directly to Claude
+     * Used when databases are unavailable
      */
-    private askClarification;
+    private executeTransparentMode;
+    /**
+     * Enhanced mode - full workflow with semantic search and context building
+     * Used when databases are available
+     */
+    private executeEnhancedMode;
     /**
      * Run autonomous quality check - build and test without prompts
      */
@@ -94,13 +119,9 @@ export declare class WorkflowOrchestrator {
      */
     private showCompletionSummary;
     /**
-     * Convert UnifiedAnalysis to legacy QueryAnalysis format
+     * Create default query analysis (no longer using Claude for intent detection)
      */
-    private toLegacyAnalysis;
-    /**
-     * Get icon for intent
-     */
-    private getIntentIcon;
+    private createDefaultQueryAnalysis;
     /**
      * Run build
      */
@@ -114,7 +135,8 @@ export declare class WorkflowOrchestrator {
      */
     private syncDatabases;
     /**
-     * Check if workflow should be used
+     * Check if workflow should be used (natural language vs command)
+     * This is simple command routing, NOT intent detection
      */
     shouldUseWorkflow(input: string): boolean;
     /**

@@ -443,6 +443,40 @@ codemind analyze "what design patterns are used"
 
 Ask questions directly without specific commands. CodeMind automatically detects natural language and triggers the enhanced workflow.
 
+### Search Toggle Feature
+
+Before entering a prompt, you can toggle semantic search on/off. This is useful when:
+- You want to skip file discovery and send prompts directly to Claude
+- You know exactly what you want Claude to do without context gathering
+- You want faster responses for simple queries
+
+#### Menu-Based Toggle
+
+When using the menu-based prompt interface, you'll see:
+
+```
+  Search: ON
+
+? Options:
+  > Enter prompt (with search)
+    Turn OFF search (skip file discovery)
+    Cancel
+```
+
+Select "Turn OFF search" to disable semantic search, then enter your prompt.
+
+#### Inline Toggle
+
+When using the inline prompt interface:
+
+```
+  [s] to toggle search | Search: ON
+>
+```
+
+- Type `s` and press Enter to toggle search mode
+- Or type your prompt directly
+
 ### Syntax
 
 ```bash

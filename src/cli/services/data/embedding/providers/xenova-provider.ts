@@ -26,7 +26,7 @@ export class XenovaEmbeddingProvider implements IEmbeddingProvider {
         const transformersModule = await (eval('import("@xenova/transformers")') as Promise<any>);
         const { pipeline: pipelineFunc } = transformersModule;
         pipeline = await pipelineFunc('feature-extraction', this.config.model);
-        this.logger.info('✅ Xenova transformers initialized');
+        this.logger.debug('Xenova transformers initialized');
       } catch (error: any) {
         this.logger.error('Failed to initialize Xenova:', error);
 

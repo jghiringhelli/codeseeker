@@ -573,7 +573,8 @@ export class SyncManagerService {
   private async updateEmbeddings(files: FileHashEntry[], projectPath: string): Promise<number> {
     try {
       const { EmbeddingService } = await import('../../cli/services/data/embedding/embedding-service');
-      const defaultConfig = { provider: 'local' as const, model: 'local' as const, batchSize: 32 };
+      // IMPORTANT: Must use same model as search-command-handler.ts and embedding-generator-adapter.ts
+      const defaultConfig = { provider: 'xenova' as const, model: 'Xenova/all-MiniLM-L6-v2' as const, batchSize: 32 };
       const embeddingService = new EmbeddingService(defaultConfig);
 
       console.log(Theme.colors.muted(`   Processing ${files.length} files for embedding updates...`));

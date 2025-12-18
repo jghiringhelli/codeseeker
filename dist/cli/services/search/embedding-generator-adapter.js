@@ -9,10 +9,11 @@ const embedding_service_1 = require("../data/embedding/embedding-service");
 class EmbeddingGeneratorAdapter {
     embeddingService;
     constructor() {
-        // Default embedding configuration
+        // IMPORTANT: Use same embedding model as indexing (search-command-handler.ts)
+        // Both must use Xenova/all-MiniLM-L6-v2 for proper similarity matching
         const defaultConfig = {
-            provider: 'local',
-            model: 'local',
+            provider: 'xenova',
+            model: 'Xenova/all-MiniLM-L6-v2',
             batchSize: 32
         };
         this.embeddingService = new embedding_service_1.EmbeddingService(defaultConfig);

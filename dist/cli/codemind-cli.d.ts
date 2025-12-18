@@ -12,10 +12,13 @@ export declare class CodeMindCLI {
     private activeOperations;
     private currentAbortController?;
     private transparentMode;
+    private verboseMode;
+    private noSearchMode;
     private commandMode;
     private commandModeCompleted;
     private replMode;
     private explicitExitRequested;
+    private isProcessingCommand;
     private commandHistory;
     private historyFile;
     private historyDir;
@@ -64,10 +67,20 @@ export declare class CodeMindCLI {
      */
     setTransparentMode(enabled: boolean): void;
     /**
+     * Set verbose mode (show full debug output: files, relationships, prompt)
+     */
+    setVerboseMode(enabled: boolean): void;
+    /**
      * Set command mode (single command execution with -c flag)
      * This prevents premature exit during inquirer prompts
+     * Also configures search toggle behavior (always ON in command mode)
      */
     setCommandMode(enabled: boolean): void;
+    /**
+     * Set no-search mode (skip semantic search)
+     * When enabled, prompts go directly to Claude without file discovery
+     */
+    setNoSearchMode(enabled: boolean): void;
     /**
      * Set REPL mode (interactive mode)
      * In REPL mode, the CLI only exits on explicit /exit or double Ctrl+C

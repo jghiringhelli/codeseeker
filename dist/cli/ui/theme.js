@@ -225,6 +225,9 @@ exports.Theme = Theme;
 /**
  * Spinner - Interactive thinking indicator
  * Shows animated spinner while processing
+ *
+ * Uses carriage return + clear-to-end-of-line for proper in-place animation
+ * that works across Windows (cmd, PowerShell, Git Bash) and Unix terminals.
  */
 class Spinner {
     static frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -246,7 +249,10 @@ class Spinner {
         this.stream.write('\x1B[?25l');
         this.intervalId = setInterval(() => {
             const frame = Spinner.frames[this.frameIndex];
-            this.stream.write(`\r${Theme.colors.primary(frame)} ${Theme.colors.muted(this.message)}`);
+            // Clear the line first, then write new content
+            // Using \r (carriage return) + \x1B[K (clear to end of line)
+            // This ensures the line is fully cleared before writing new content
+            this.stream.write(`\r\x1B[K${Theme.colors.primary(frame)} ${Theme.colors.muted(this.message)}`);
             this.frameIndex = (this.frameIndex + 1) % Spinner.frames.length;
         }, 80);
     }
@@ -262,7 +268,7 @@ class Spinner {
     succeed(message) {
         this.stop();
         const finalMessage = message || this.message;
-        this.stream.write(`\r${Theme.colors.success('✓')} ${finalMessage}\n`);
+        this.stream.write(`\r\x1B[K${Theme.colors.success('✓')} ${finalMessage}\n`);
     }
     /**
      * Stop the spinner and show failure
@@ -270,7 +276,7 @@ class Spinner {
     fail(message) {
         this.stop();
         const finalMessage = message || this.message;
-        this.stream.write(`\r${Theme.colors.error('✗')} ${finalMessage}\n`);
+        this.stream.write(`\r\x1B[K${Theme.colors.error('✗')} ${finalMessage}\n`);
     }
     /**
      * Stop the spinner without message

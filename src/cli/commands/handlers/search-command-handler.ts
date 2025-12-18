@@ -181,6 +181,9 @@ export class SearchCommandHandler extends BaseCommandHandler {
           for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
             const chunk = chunks[chunkIndex];
             try {
+              // Generate the actual embedding vector
+              const embeddingVector = await embeddingService.generateEmbedding(chunk, file);
+
               const embedding = {
                 project_id: projectId,
                 file_path: file,
@@ -188,6 +191,7 @@ export class SearchCommandHandler extends BaseCommandHandler {
                 content_type: 'code' as const,
                 content_text: chunk,
                 content_hash: crypto.createHash('md5').update(chunk).digest('hex'),
+                embedding: embeddingVector, // Include the actual embedding vector
                 // Store full file hash in metadata for incremental indexing
                 metadata: {
                   full_file_hash: fullFileHash,

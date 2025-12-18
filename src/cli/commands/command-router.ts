@@ -36,6 +36,9 @@ export class CommandRouter {
   private rl?: readline.Interface;
   private workflowOrchestrator: WorkflowOrchestrator;
   private transparentMode = false;
+  private verboseMode = false;
+  private commandMode = false;  // True when running with -c flag (always search)
+  private noSearchMode = false; // True when --no-search flag is used (overrides commandMode)
   private historyCallbacks?: HistoryCallbacks;
 
   constructor(
@@ -64,6 +67,56 @@ export class CommandRouter {
    */
   setTransparentMode(enabled: boolean): void {
     this.transparentMode = enabled;
+  }
+
+  /**
+   * Set verbose mode (show full debug output: files, relationships, prompt)
+   */
+  setVerboseMode(enabled: boolean): void {
+    this.verboseMode = enabled;
+    this.workflowOrchestrator.setVerboseMode(enabled);
+  }
+
+  /**
+   * Set command mode (when running with -c flag)
+   * In command mode, search is always forced on
+   */
+  setCommandMode(enabled: boolean): void {
+    this.commandMode = enabled;
+  }
+
+  /**
+   * Set no-search mode (skip semantic search)
+   * When enabled, prompts go directly to Claude without file discovery
+   * This flag overrides commandMode - if noSearchMode is true, search is always OFF
+   */
+  setNoSearchMode(enabled: boolean): void {
+    this.noSearchMode = enabled;
+    // Immediately set search mode in the user interaction service
+    this.workflowOrchestrator.getUserInteractionService().setSearchMode(!enabled);
+  }
+
+  /**
+   * Prepare for a new prompt (manages search toggle state)
+   * Call this before processing each new prompt
+   */
+  prepareForNewPrompt(): void {
+    // If --no-search flag was set, always keep search OFF
+    if (this.noSearchMode) {
+      this.workflowOrchestrator.getUserInteractionService().setSearchMode(false);
+      return;
+    }
+    // In command mode (-c), always force search on
+    // In REPL mode, use prepareForNewPrompt to manage state
+    this.workflowOrchestrator.getUserInteractionService().prepareForNewPrompt(this.commandMode);
+  }
+
+  /**
+   * Mark conversation as complete (for REPL mode)
+   * After workflow completes, search will default to OFF for next prompt
+   */
+  markConversationComplete(): void {
+    this.workflowOrchestrator.getUserInteractionService().markConversationComplete();
   }
 
   /**
@@ -100,6 +153,11 @@ export class CommandRouter {
 
     if (!trimmedInput) {
       return { success: false, message: 'Empty command' };
+    }
+
+    // Handle search toggle command (s or /s) - short circuit before other processing
+    if (trimmedInput.toLowerCase() === 's' || trimmedInput.toLowerCase() === '/s') {
+      return this.handleSearchToggle();
     }
 
     // Handle slash commands (explicit commands)
@@ -203,6 +261,7 @@ ${Theme.colors.success('Synchronization:')}
   watch [subcommand]     File watching operations
 
 ${Theme.colors.success('General:')}
+  s, /s                  Toggle semantic search on/off
   help                   Show this help message
   history                View/clear command history
   exit, quit             Exit CodeMind
@@ -224,6 +283,36 @@ ${Theme.colors.info('Natural Language:')}
   private handleExit(): CommandResult {
     console.log(Theme.colors.success('👋 Goodbye! CodeMind session ended.'));
     return { success: true, message: 'exit', data: { shouldExit: true } };
+  }
+
+  /**
+   * Handle search toggle command (s or /s)
+   */
+  private handleSearchToggle(): CommandResult {
+    const userInteractionService = this.workflowOrchestrator.getUserInteractionService();
+    const newState = userInteractionService.toggleSearchMode();
+    const indicator = userInteractionService.getSearchToggleIndicator();
+    console.log(`\n  ${indicator}\n`);
+    return {
+      success: true,
+      message: `Search ${newState ? 'enabled' : 'disabled'}`
+    };
+  }
+
+  /**
+   * Display the search toggle indicator
+   * Called before showing the prompt in REPL mode
+   */
+  displaySearchToggleIndicator(): void {
+    this.workflowOrchestrator.getUserInteractionService().displaySearchToggleIndicator();
+  }
+
+  /**
+   * Get the user interaction service
+   * Allows access to search toggle state and methods
+   */
+  getUserInteractionService() {
+    return this.workflowOrchestrator.getUserInteractionService();
   }
 
   /**

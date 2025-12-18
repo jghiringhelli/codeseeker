@@ -27,7 +27,11 @@ export interface ProposedChange {
 /**
  * User's choice for file changes approval
  */
-export type ApprovalChoice = 'yes' | 'yes_always' | 'no_feedback' | 'cancelled';
+export type ApprovalChoice = 'yes' | 'yes_always' | 'yes_per_file' | 'no_feedback' | 'cancelled';
+/**
+ * User's choice for how to continue after interruption
+ */
+export type ContinuationChoice = 'continue' | 'new_search' | 'cancel';
 /**
  * Result of approval prompt
  */
@@ -56,10 +60,41 @@ export interface FailureAction {
     action: 'fix' | 'continue' | 'show_error' | 'abort';
     errorMessage: string;
 }
+/**
+ * Language-agnostic test result summary
+ */
+export interface TestResultSummary {
+    passed: number;
+    failed: number;
+    skipped?: number;
+    total: number;
+    framework?: string;
+}
+/**
+ * Search mode options for the pre-prompt menu
+ */
+export type SearchMode = 'enabled' | 'disabled';
+/**
+ * Result of the pre-prompt menu
+ */
+export interface PrePromptResult {
+    searchEnabled: boolean;
+    prompt: string;
+    cancelled: boolean;
+}
 export declare class UserInteractionService {
     private rl?;
     private skipApproval;
+    private verboseMode;
+    private activeChild;
+    private isCancelled;
+    private searchModeEnabled;
+    private isFirstPromptInSession;
     constructor();
+    /**
+     * Set verbose mode (when user uses -v/--verbose flag)
+     */
+    setVerboseMode(enabled: boolean): void;
     /**
      * Set skip approval mode (when user selects "Yes, always")
      */
@@ -119,14 +154,9 @@ export declare class UserInteractionService {
     private askToContinue;
     /**
      * Show compact context summary - just a single line showing what's being sent
+     * In verbose mode, shows full context details
      */
     private showCompactContextSummary;
-    /**
-     * Show Claude's plan (with minimal filtering for any residual permission messages)
-     * Note: The enhanced prompt now instructs Claude to avoid permission-related messages,
-     * but we keep light filtering as a fallback for any that slip through.
-     */
-    private showClaudePlan;
     /**
      * Deduplicate proposed changes (same file path should only appear once)
      */
@@ -142,6 +172,7 @@ export declare class UserInteractionService {
     private executeClaudeFirstPhase;
     /**
      * Phase 2: Resume the session with permissions to apply changes
+     * Uses streaming output to show Claude's reasoning and progress in real-time
      */
     private executeClaudeSecondPhase;
     /**
@@ -166,6 +197,78 @@ export declare class UserInteractionService {
      */
     promptFailureAction(failureType: 'build' | 'test', errorMessage: string): Promise<FailureAction>;
     /**
+     * Ask user how to continue after an interruption
+     * Used when user provides new input while a Claude session is active
+     * @param hasActiveSession Whether there's an active Claude session that can be resumed
+     * @returns The user's choice: continue (forward to Claude), new_search (fresh CodeMind search), or cancel
+     */
+    promptContinuationChoice(hasActiveSession: boolean): Promise<ContinuationChoice>;
+    /**
+     * Check if cancellation was requested
+     */
+    wasCancelled(): boolean;
+    /**
+     * Reset cancellation flag
+     */
+    resetCancellation(): void;
+    /**
+     * Get current search mode status
+     */
+    isSearchEnabled(): boolean;
+    /**
+     * Set search mode enabled/disabled
+     */
+    setSearchMode(enabled: boolean): void;
+    /**
+     * Toggle search mode on/off
+     */
+    toggleSearchMode(): boolean;
+    /**
+     * Prepare search mode for a new prompt
+     * In REPL mode: First prompt = ON, subsequent prompts = OFF by default
+     * In -c mode: Always ON (called with forceOn=true)
+     * @param forceOn If true, always enable search (used for -c mode)
+     */
+    prepareForNewPrompt(forceOn?: boolean): void;
+    /**
+     * Mark a conversation as complete (for REPL mode)
+     * After a conversation, search defaults to OFF for the next prompt
+     */
+    markConversationComplete(): void;
+    /**
+     * Reset session state (for new REPL sessions)
+     */
+    resetSession(): void;
+    /**
+     * Show a compact pre-prompt menu for search mode toggle
+     * Returns the user's choice and their prompt
+     * @param hasActiveSession Whether there's an active Claude session (for context)
+     */
+    promptWithSearchToggle(hasActiveSession?: boolean): Promise<PrePromptResult>;
+    /**
+     * Show a minimal inline search toggle (single key press style)
+     * For quick mode switching without a full menu
+     * Format: "[S] Search: ON/OFF | Enter prompt:"
+     */
+    promptWithInlineToggle(): Promise<PrePromptResult>;
+    /**
+     * Get the search toggle indicator string for display
+     * Returns a radio-button style indicator like "( * ) Search files" or "( ) Search files"
+     * @param enabled Optional override for the search state, defaults to current state
+     */
+    getSearchToggleIndicator(enabled?: boolean): string;
+    /**
+     * Display the search toggle indicator (for use before prompts)
+     * Shows: "( * ) Search files and knowledge graph" or "( ) Search files and knowledge graph"
+     * Also shows toggle hint: "[s] to toggle"
+     */
+    displaySearchToggleIndicator(): void;
+    /**
+     * Check if input is a search toggle command
+     * Returns true if input is 's' or '/s' (toggle search)
+     */
+    isSearchToggleCommand(input: string): boolean;
+    /**
      * Display execution summary
      */
     displayExecutionSummary(summary: string, stats: any): void;
@@ -173,6 +276,20 @@ export declare class UserInteractionService {
      * Generate clarification questions based on analysis
      */
     private generateClarificationQuestions;
+    /**
+     * Parse test results from Claude's output (language-agnostic)
+     * Supports: Jest, Mocha, pytest, Go test, Cargo test, PHPUnit, RSpec, JUnit, etc.
+     */
+    parseTestResults(output: string): TestResultSummary | null;
+    /**
+     * Display test result summary in a user-friendly format
+     */
+    displayTestSummary(summary: TestResultSummary): void;
+    /**
+     * Format tool invocation for display
+     * Shows human-readable descriptions like "Reading src/file.ts" or "Editing config.json"
+     */
+    private formatToolDisplay;
     /**
      * Parse Claude Code response to extract files and summary
      */

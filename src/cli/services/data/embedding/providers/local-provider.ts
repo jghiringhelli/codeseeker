@@ -18,7 +18,7 @@ export class LocalEmbeddingProvider implements IEmbeddingProvider {
 
   async initialize(): Promise<void> {
     // No initialization needed for local embeddings
-    this.logger.info('✅ Local embedding provider initialized');
+    this.logger.debug('Local embedding provider initialized');
   }
 
   async generateEmbedding(text: string, context?: string): Promise<number[]> {

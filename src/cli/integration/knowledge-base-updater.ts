@@ -48,9 +48,10 @@ export class KnowledgeBaseUpdater {
 
     try {
       const { EmbeddingService } = await import('../services/data/embedding/embedding-service');
+      // IMPORTANT: Must use same model as search-command-handler.ts and embedding-generator-adapter.ts
       const embeddingService = new EmbeddingService({
-        provider: 'local',
-        model: 'local',
+        provider: 'xenova',
+        model: 'Xenova/all-MiniLM-L6-v2',
         batchSize: 100
       });
       await embeddingService.generateProjectEmbeddings(analysis.projectId, changedFiles);

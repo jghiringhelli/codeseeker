@@ -1,7 +1,12 @@
 /**
- * Enhanced Graph Analysis Service with Knowledge Graph Integration
- * Single Responsibility: Analyze code relationships using sophisticated knowledge graph
- * Interfaces with SemanticKnowledgeGraph for proper Neo4j-based analysis
+ * Graph Analysis Service - Queries Persisted Neo4j Graph
+ * Single Responsibility: Query existing Neo4j graph to find relationships between semantic search results
+ *
+ * Strategy: "Seed + Expand"
+ * 1. Take top N files from semantic search (seeds)
+ * 2. Look up corresponding ENTITY nodes in Neo4j by filePath
+ * 3. Get direct relationships between seed nodes
+ * 4. Optionally expand 1-hop to include important dependencies
  */
 export interface GraphContext {
     classes: Array<{
@@ -10,6 +15,8 @@ export interface GraphContext {
         type: string;
         description: string;
         confidence: number;
+        startLine?: number;
+        endLine?: number;
         relationships: Array<{
             target: string;
             relation: string;
@@ -50,96 +57,70 @@ export interface GraphContext {
     };
 }
 export declare class GraphAnalysisService {
-    private knowledgeGraph;
+    private dbConnections;
     private logger;
     private projectPath;
-    constructor(projectPath: string);
+    private projectId?;
+    constructor(projectPath: string, projectId?: string);
     /**
-     * Perform sophisticated graph analysis using knowledge graph
-     * Falls back to basic analysis if knowledge graph doesn't produce results
+     * Set project ID for scoped queries
      */
-    performGraphAnalysis(query: string, semanticResults: any[]): Promise<GraphContext>;
+    setProjectId(projectId: string): void;
+    /**
+     * Main entry point: Perform graph analysis using persisted Neo4j graph
+     * Uses "Seed + Expand" strategy
+     */
+    performGraphAnalysis(_query: string, semanticResults: any[]): Promise<GraphContext>;
+    /**
+     * Resolve project ID from database by project path
+     * Queries both :Project and :PROJECT labels for compatibility
+     */
+    private resolveProjectId;
+    /**
+     * Step 1: Look up nodes by file path from Neo4j graph
+     * Current schema: Project-[:CONTAINS]->File-[:DEFINES]->Class/Function
+     * File nodes have `path` property, entities have `name`, `startLine`, `endLine`
+     */
+    private lookupNodesFromFiles;
+    /**
+     * Step 2: Get relationships between seed nodes
+     * Current schema: File-[:DEFINES]->Class/Function
+     * Returns DEFINES relationships between files and their entities
+     */
+    private getRelationshipsBetweenNodes;
+    /**
+     * Step 3: One-hop expansion - find important neighbors not in seed set
+     * Current schema: File-[:DEFINES]->Class/Function
+     * Expands to find other files that define related entities
+     */
+    private expandOneHop;
+    /**
+     * Convert Neo4j entities to GraphContext classes format
+     */
+    private convertToClasses;
+    /**
+     * Generate description for a node
+     */
+    private generateDescription;
+    /**
+     * Extract package names from nodes
+     */
+    private extractPackages;
+    /**
+     * Calculate graph insights
+     */
+    private calculateInsights;
+    /**
+     * Parse metadata JSON safely
+     */
+    private parseMetadata;
+    /**
+     * Fallback: Create basic analysis from semantic results when graph unavailable
+     */
+    private createBasicAnalysis;
     /**
      * Extract class name from file path
      */
     private extractClassNameFromFile;
-    /**
-     * Extract package name from file path
-     */
-    private extractPackageFromFile;
-    /**
-     * Generate class description based on file path and type
-     */
-    private generateClassDescription;
-    /**
-     * Generate relationships based on actual class structure
-     * Note: This no longer uses hardcoded keyword detection.
-     * Relationships are derived from actual class types detected in the codebase.
-     */
-    private generateRelationships;
-    /**
-     * Build knowledge graph from semantic search results
-     */
-    private buildKnowledgeGraph;
-    /**
-     * Convert semantic result types to knowledge graph node types
-     */
-    private mapToNodeType;
-    /**
-     * Add structural relationships based on file analysis
-     */
-    private addStructuralRelationships;
-    /**
-     * Extract import statements from file content
-     */
-    private extractImports;
-    /**
-     * Extract source location (file path and line numbers) for a class/function
-     */
-    private extractSourceLocation;
-    /**
-     * Extract method calls from file content (simple version for backward compatibility)
-     */
-    private extractMethodCalls;
-    /**
-     * Extract method calls with full context (caller method, target class, line number)
-     */
-    private extractMethodCallsWithContext;
-    /**
-     * Extract query terms for knowledge graph search
-     */
-    private extractQueryTerms;
-    /**
-     * Convert knowledge graph nodes to GraphContext classes
-     */
-    private convertNodesToClasses;
-    /**
-     * Get relationships for a specific node
-     */
-    private getNodeRelationships;
-    /**
-     * Extract relationships from knowledge graph nodes
-     */
-    private extractRelationships;
-    /**
-     * Extract class-based relationships from nodes (using actual class names)
-     */
-    private extractClassBasedRelationships;
-    /**
-     * Extract a human-readable name from node ID or metadata
-     */
-    private extractNameFromMetadata;
-    /**
-     * Generate architectural insights from graph analysis
-     */
-    private generateGraphInsights;
-    /**
-     * Extract packages from semantic results
-     */
-    private extractPackages;
-    /**
-     * Fallback to basic analysis if knowledge graph fails
-     */
-    private performBasicAnalysis;
 }
 //# sourceMappingURL=graph-analysis-service.d.ts.map

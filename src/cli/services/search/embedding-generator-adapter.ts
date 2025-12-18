@@ -10,10 +10,11 @@ export class EmbeddingGeneratorAdapter implements IEmbeddingGenerator {
   private embeddingService: EmbeddingService;
 
   constructor() {
-    // Default embedding configuration
+    // IMPORTANT: Use same embedding model as indexing (search-command-handler.ts)
+    // Both must use Xenova/all-MiniLM-L6-v2 for proper similarity matching
     const defaultConfig = {
-      provider: 'local' as const,
-      model: 'local' as const,
+      provider: 'xenova' as const,
+      model: 'Xenova/all-MiniLM-L6-v2' as const,
       batchSize: 32
     };
     this.embeddingService = new EmbeddingService(defaultConfig);

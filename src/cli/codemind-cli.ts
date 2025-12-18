@@ -31,10 +31,13 @@ export class CodeMindCLI {
   private activeOperations: Set<Promise<unknown>> = new Set();
   private currentAbortController?: AbortController;
   private transparentMode = false;
+  private verboseMode = false; // True when -v/--verbose flag is used
+  private noSearchMode = false; // True when --no-search flag is used (skip semantic search)
   private commandMode = false; // True when running single command with -c flag
   private commandModeCompleted = false; // True when command mode has finished
   private replMode = false; // True when in interactive REPL mode
   private explicitExitRequested = false; // True when user explicitly requests exit
+  private isProcessingCommand = false; // True when actively processing a command (blocks input)
   private commandHistory: string[] = [];
   private historyFile: string;
   private historyDir: string;
@@ -184,7 +187,10 @@ export class CodeMindCLI {
       }
 
       // Show ready message and prompt AFTER all initialization is complete
-      console.log(Theme.colors.primary('\n🎯 CodeMind CLI is ready! Type /help for commands or ask questions directly.\n'));
+      console.log(Theme.colors.primary('\n🎯 CodeMind CLI is ready! Type /help for commands or ask questions directly.'));
+
+      // Display search toggle indicator before initial prompt
+      this.commandProcessor.displaySearchToggleIndicator();
       this.rl.prompt();
 
     } catch (error: unknown) {
@@ -200,6 +206,16 @@ export class CodeMindCLI {
   private setupEventHandlers(): void {
     // Handle user input with robust error handling
     this.rl.on('line', async (input: string) => {
+      // Ignore input while already processing a command
+      // This prevents the Enter key from showing the prompt during execution
+      if (this.isProcessingCommand) {
+        // Silently ignore - don't show prompt or process input
+        return;
+      }
+
+      // Mark as processing to block further input
+      this.isProcessingCommand = true;
+
       // Pause readline to prevent input during processing
       this.rl.pause();
 
@@ -208,6 +224,9 @@ export class CodeMindCLI {
           // Add to history before processing
           this.addToHistory(input.trim());
           await this.processInput(input.trim());
+        } else {
+          // Empty input - just mark as not processing and show prompt
+          this.isProcessingCommand = false;
         }
       } catch (error: unknown) {
         // Ensure errors don't break the readline interface
@@ -216,8 +235,18 @@ export class CodeMindCLI {
         console.error(Theme.colors.muted('CLI will continue running. Type "/help" for available commands.'));
       }
 
-      // Resume and show prompt AFTER processing completes
+      // Mark processing as complete
+      this.isProcessingCommand = false;
+
+      // Resume readline
       this.rl.resume();
+
+      // Display search toggle indicator before showing prompt (REPL mode only)
+      if (this.replMode && !this.commandMode) {
+        this.commandProcessor.displaySearchToggleIndicator();
+      }
+
+      // Show prompt AFTER processing completes
       this.rl.prompt();
     });
 
@@ -339,6 +368,11 @@ export class CodeMindCLI {
         this.currentAbortController = new AbortController();
       }
 
+      // Prepare search toggle state for this prompt
+      // In command mode (-c), search is always ON
+      // In REPL mode, first prompt has search ON, subsequent prompts have search OFF by default
+      this.commandProcessor.prepareForNewPrompt();
+
       // Process input through command processor (SOLID delegation)
       // No global timeout - user prompts (inquirer) should wait indefinitely
       // Individual operations (DB, Claude CLI) have their own timeouts
@@ -361,6 +395,12 @@ export class CodeMindCLI {
       // Update current project if it changed
       if (result.data?.projectId) {
         this.currentProject = result.data;
+      }
+
+      // Mark conversation as complete (for REPL mode search toggle behavior)
+      // After a successful workflow, search will default to OFF for the next prompt
+      if (result.success) {
+        this.commandProcessor.markConversationComplete();
       }
 
       // Don't show redundant completion message - commands show their own success/failure
@@ -451,11 +491,30 @@ export class CodeMindCLI {
   }
 
   /**
+   * Set verbose mode (show full debug output: files, relationships, prompt)
+   */
+  setVerboseMode(enabled: boolean): void {
+    this.verboseMode = enabled;
+    this.commandProcessor.setVerboseMode(enabled);
+  }
+
+  /**
    * Set command mode (single command execution with -c flag)
    * This prevents premature exit during inquirer prompts
+   * Also configures search toggle behavior (always ON in command mode)
    */
   setCommandMode(enabled: boolean): void {
     this.commandMode = enabled;
+    this.commandProcessor.setCommandMode(enabled);
+  }
+
+  /**
+   * Set no-search mode (skip semantic search)
+   * When enabled, prompts go directly to Claude without file discovery
+   */
+  setNoSearchMode(enabled: boolean): void {
+    this.noSearchMode = enabled;
+    this.commandProcessor.setNoSearchMode(enabled);
   }
 
   /**
@@ -761,6 +820,8 @@ export async function main(): Promise<void> {
   const hasCommand = args.includes('-c') || args.includes('--command');
   const hasProject = args.includes('-p') || args.includes('--project');
   const hasTransparent = args.includes('-t') || args.includes('--transparent');
+  const hasVerbose = args.includes('-v') || args.includes('--verbose');
+  const hasNoSearch = args.includes('--no-search');
 
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
@@ -774,6 +835,8 @@ ${Theme.colors.secondary('Options:')}
   -p, --project <path>  Project path
   -c, --command <cmd>   Execute single command
   -t, --transparent     Skip interactive prompts, output context directly
+  -v, --verbose         Show full debug output (files, relationships, prompt)
+  --no-search           Skip semantic search (send directly to Claude)
   --no-color            Disable colored output
   -h, --help            display help for command
 
@@ -813,6 +876,16 @@ ${Theme.colors.secondary('Examples:')}
   // Set transparent mode if needed
   if (useTransparentMode) {
     cli.setTransparentMode(true);
+  }
+
+  // Set verbose mode if requested
+  if (hasVerbose) {
+    cli.setVerboseMode(true);
+  }
+
+  // Set no-search mode if requested (skip semantic search)
+  if (hasNoSearch) {
+    cli.setNoSearchMode(true);
   }
 
   // Handle command option

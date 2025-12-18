@@ -81,18 +81,43 @@ Assumptions detected: 1
 • Assuming REST API structure exists
 ```
 
-### Step 2: User Clarification (Optional)
+### Step 2: User Clarification & Search Toggle (Optional)
 **File**: `src/cli/commands/services/user-interaction-service.ts`
 
 - Prompts user when assumptions/ambiguities detected
 - Generates smart questions based on patterns
 - Enhances original query with user responses
+- **NEW**: Users can toggle semantic search on/off before each prompt
 
 ```
 🤔 CodeMind detected some assumptions in your request.
 1. What authentication method should be used? (JWT, session-based, OAuth, etc.)
 > JWT with refresh tokens
 ```
+
+#### Search Toggle Feature
+Before entering a prompt, users can enable/disable semantic search:
+
+**Menu-Based Interface:**
+```
+  Search: ON
+
+? Options:
+  > Enter prompt (with search)
+    Turn OFF search (skip file discovery)
+    Cancel
+```
+
+**Inline Interface:**
+```
+  [s] to toggle search | Search: ON
+>
+```
+
+This allows users to:
+- Skip file discovery for simple/direct prompts
+- Get faster responses when context isn't needed
+- Send prompts directly to Claude without CodeMind enhancement
 
 ### Step 3: Semantic Search
 **File**: `src/cli/commands/services/semantic-search-orchestrator.ts`

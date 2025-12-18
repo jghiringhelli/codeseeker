@@ -131,7 +131,7 @@ export class ContextBuilder {
 
   /**
    * Create enhanced prompt for Claude Code
-   * Uses structured prompt engineering: Role → Context → Task → Format → Constraints
+   * Uses structured prompt engineering: Pre-Search Info → Role → Context → Task → Format → Constraints
    */
   private createEnhancedPrompt(
     originalQuery: string,
@@ -141,6 +141,26 @@ export class ContextBuilder {
     graphContext: GraphContext
   ): string {
     const sections: string[] = [];
+
+    // ===========================================
+    // PRE-SEARCH METHODOLOGY: Explain how we found the context
+    // ===========================================
+    const fileCount = relevantFiles.length;
+    const componentCount = graphContext.classes?.length || 0;
+    const relationshipCount = graphContext.relationshipDetails?.length || 0;
+
+    sections.push(`# Enhanced Context from CodeMind Pre-Search
+
+**IMPORTANT**: This prompt has been enhanced by CodeMind, a codebase analysis tool. The context below was gathered BEFORE this request reached you using:
+
+1. **Semantic Vector Search** (PostgreSQL + pgvector): Found ${fileCount} relevant files by analyzing code embeddings for semantic similarity to the query
+2. **Knowledge Graph Analysis** (Neo4j): Discovered ${componentCount} components and ${relationshipCount} relationships by traversing the project's dependency graph
+
+**How to use this context**:
+- The files and components listed below are the MOST RELEVANT to the user's query based on our analysis
+- You can trust this as a reliable starting point - no need to re-search for the same information
+- If you need additional context beyond what's provided, you may search further
+- Focus on analyzing and working with the discovered files rather than searching from scratch`);
 
     // ===========================================
     // ROLE: Task-specific role based on intent
@@ -165,7 +185,8 @@ export class ContextBuilder {
     // CONTEXT: Discovered files and relationships
     // ===========================================
     if (relevantFiles.length > 0 || (graphContext.classes && graphContext.classes.length > 0)) {
-      sections.push(`# Context from Codebase Analysis`);
+      sections.push(`# Pre-Discovered Context (Use This First)
+The following files, components, and relationships were discovered through automated analysis. **Start here** rather than searching from scratch.`);
 
       // Files with previews
       if (relevantFiles.length > 0) {
@@ -303,12 +324,15 @@ Follow CLAUDE.md project guidelines:
   }
 
   /**
-   * Create a preview of file content
+   * Create a meaningful preview of file content
+   * Shows ~50 lines - enough to see class signatures, imports, and key methods
+   * This reduces Claude's need to Read files, saving tool call tokens
    */
   private createFilePreview(result: SemanticResult): string {
     const lines = result.content.split('\n');
-    const previewLines = lines.slice(0, 3); // First 3 lines
-    return previewLines.join('\n') + (lines.length > 3 ? '\n...' : '');
+    const PREVIEW_LINES = 50; // Enough to see class structure and key methods
+    const previewLines = lines.slice(0, PREVIEW_LINES);
+    return previewLines.join('\n') + (lines.length > PREVIEW_LINES ? `\n... (${lines.length - PREVIEW_LINES} more lines)` : '');
   }
 
   /**

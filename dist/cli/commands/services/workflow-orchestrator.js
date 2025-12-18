@@ -1,16 +1,19 @@
 "use strict";
 /**
- * Workflow Orchestrator Service - STREAMLINED MVP
- * Single Responsibility: Coordinate the CodeMind Core Cycle with minimal friction
+ * Workflow Orchestrator Service - TRANSPARENT MODE
+ * Single Responsibility: Coordinate CodeMind workflow OR pass through to Claude transparently
  *
- * Simplified workflow:
- * 1. Query Analysis (ONE Claude call for intent + complexity + clarification check)
- * 2. Semantic Search (find relevant files)
- * 3. Graph Analysis (show relationships if found)
- * 4. Build Context & Execute Claude
- * 5. Apply Changes (with user approval)
- * 6. Quality Check (auto build/test)
- * 7. Database Sync (silent)
+ * Workflow when DBs are UP:
+ * 1. Semantic Search (find relevant files using embeddings)
+ * 2. Graph Analysis (show relationships)
+ * 3. Build Context & Execute Claude with enhanced context
+ * 4. Quality Check (auto build/test)
+ * 5. Database Sync
+ *
+ * When DBs are DOWN:
+ * - Inform user that CodeMind is running in transparent mode
+ * - Pass query directly to Claude (same as using `claude` directly)
+ * - Only difference: quality checks at the end
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -45,12 +48,8 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkflowOrchestrator = void 0;
-const unified_query_analyzer_1 = require("./unified-query-analyzer");
 const semantic_search_orchestrator_1 = require("./semantic-search-orchestrator");
 const graph_analysis_service_1 = require("./graph-analysis-service");
 const context_builder_1 = require("./context-builder");
@@ -61,11 +60,8 @@ const theme_1 = require("../../ui/theme");
 const child_process_1 = require("child_process");
 const util_1 = require("util");
 const path = __importStar(require("path"));
-const inquirer_1 = __importDefault(require("inquirer"));
-const logger_1 = require("../../../utils/logger");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
 class WorkflowOrchestrator {
-    _unifiedAnalyzer;
     _searchOrchestrator;
     _graphAnalysisService;
     _contextBuilder;
@@ -75,13 +71,6 @@ class WorkflowOrchestrator {
     projectPath;
     projectId;
     _readlineInterface;
-    // Lazy initialization
-    get unifiedAnalyzer() {
-        if (!this._unifiedAnalyzer) {
-            this._unifiedAnalyzer = unified_query_analyzer_1.UnifiedQueryAnalyzer.getInstance();
-        }
-        return this._unifiedAnalyzer;
-    }
     get searchOrchestrator() {
         if (!this._searchOrchestrator) {
             this._searchOrchestrator = new semantic_search_orchestrator_1.SemanticSearchOrchestrator(this.dbConnections);
@@ -134,6 +123,21 @@ class WorkflowOrchestrator {
             this._userInteractionService.setReadlineInterface(rl);
         }
     }
+    /**
+     * Set verbose mode (show full debug output: files, relationships, prompt)
+     */
+    setVerboseMode(enabled) {
+        if (this._userInteractionService) {
+            this._userInteractionService.setVerboseMode(enabled);
+        }
+    }
+    /**
+     * Get the UserInteractionService for external access
+     * Used by CommandRouter for search toggle management
+     */
+    getUserInteractionService() {
+        return this.userInteractionService;
+    }
     setProject(projectId, projectPath) {
         this.projectId = projectId;
         this.projectPath = projectPath;
@@ -145,7 +149,51 @@ class WorkflowOrchestrator {
         }
     }
     /**
-     * Execute the streamlined CodeMind workflow
+     * Check if databases are available for enhanced workflow
+     */
+    async checkDatabaseAvailability() {
+        const status = { postgres: false, redis: false, neo4j: false };
+        try {
+            // Check PostgreSQL
+            const pgClient = await this.dbConnections.getPostgresConnection();
+            if (pgClient) {
+                await pgClient.query('SELECT 1');
+                status.postgres = true;
+            }
+        }
+        catch {
+            status.postgres = false;
+        }
+        try {
+            // Check Redis
+            const redisClient = await this.dbConnections.getRedisConnection();
+            if (redisClient) {
+                await redisClient.ping();
+                status.redis = true;
+            }
+        }
+        catch {
+            status.redis = false;
+        }
+        try {
+            // Check Neo4j
+            const neo4jDriver = await this.dbConnections.getNeo4jConnection();
+            if (neo4jDriver) {
+                const session = neo4jDriver.session();
+                await session.run('RETURN 1');
+                await session.close();
+                status.neo4j = true;
+            }
+        }
+        catch {
+            status.neo4j = false;
+        }
+        return status;
+    }
+    /**
+     * Execute the CodeMind workflow
+     * - If DBs are available: enhanced workflow with semantic search + context
+     * - If DBs are down: transparent mode - pass through to Claude directly
      */
     async executeWorkflow(query, projectPath, options = {}) {
         try {
@@ -155,32 +203,78 @@ class WorkflowOrchestrator {
             if (options.projectId) {
                 this.projectId = options.projectId;
             }
-            const isTransparentMode = options.transparentMode === true;
             // ==========================================
-            // STEP 1: Unified Query Analysis (ONE Claude call)
+            // CHECK DATABASE AVAILABILITY
             // ==========================================
-            console.log(theme_1.Theme.colors.muted('⏳ Analyzing query...'));
-            const analysisResult = await this.unifiedAnalyzer.analyzeQuery(query);
-            const analysis = analysisResult.analysis;
-            // Show minimal analysis result
-            const intentIcon = this.getIntentIcon(analysis.intent);
-            console.log(theme_1.Theme.colors.primary(`${intentIcon} ${analysis.intent.toUpperCase()}`) +
-                theme_1.Theme.colors.muted(` (${Math.round(analysis.confidence * 100)}% confidence)`));
-            // Handle clarification if Claude says it's critical
-            let finalQuery = query;
-            if (analysis.clarificationNeeded && analysis.clarificationQuestion && !isTransparentMode) {
-                const answer = await this.askClarification(analysis.clarificationQuestion);
-                if (answer) {
-                    finalQuery = `${query}\n\nClarification: ${answer}`;
-                }
+            const dbStatus = await this.checkDatabaseAvailability();
+            const anyDbAvailable = dbStatus.postgres || dbStatus.redis || dbStatus.neo4j;
+            if (!anyDbAvailable) {
+                // TRANSPARENT MODE - DBs are down
+                return await this.executeTransparentMode(query, projectPath, options);
             }
-            // Convert to legacy QueryAnalysis format
-            const queryAnalysis = this.toLegacyAnalysis(analysis);
             // ==========================================
-            // STEP 2: Semantic Search
+            // ENHANCED MODE - DBs are available
             // ==========================================
+            return await this.executeEnhancedMode(query, projectPath, options);
+        }
+        catch (error) {
+            console.error(theme_1.Theme.colors.error('❌ Workflow failed'));
+            return {
+                success: false,
+                queryAnalysis: this.createDefaultQueryAnalysis(),
+                semanticResults: [],
+                graphContext: this.createEmptyGraphContext(),
+                enhancedContext: this.createEmptyEnhancedContext(query),
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Transparent mode - pass query directly to Claude
+     * Used when databases are unavailable
+     */
+    async executeTransparentMode(query, projectPath, options) {
+        console.log(theme_1.Theme.colors.warning('\n📡 CodeMind Transparent Mode'));
+        console.log(theme_1.Theme.colors.muted('   Databases unavailable - passing query directly to Claude.'));
+        console.log(theme_1.Theme.colors.muted('   Tip: Using `claude` directly would give the same result.'));
+        console.log(theme_1.Theme.colors.muted('   CodeMind adds: quality checks (build/test) after execution.\n'));
+        // Execute Claude directly without enhanced context
+        console.log(theme_1.Theme.colors.claudeCode('🤖 Claude is working...'));
+        const claudeResponse = await this.userInteractionService.executeClaudeCode(query);
+        // Quality check (the value-add of CodeMind even in transparent mode)
+        let buildResult;
+        if (!options.skipBuildTest && claudeResponse.filesToModify.length > 0) {
+            buildResult = await this.runAutonomousQualityCheck(projectPath);
+        }
+        // Show summary
+        this.showCompletionSummary(0, this.createEmptyGraphContext(), buildResult);
+        return {
+            success: true,
+            queryAnalysis: this.createDefaultQueryAnalysis(),
+            semanticResults: [],
+            graphContext: this.createEmptyGraphContext(),
+            enhancedContext: this.createEmptyEnhancedContext(query),
+            claudeResponse,
+            buildResult,
+            transparentMode: true
+        };
+    }
+    /**
+     * Enhanced mode - full workflow with semantic search and context building
+     * Used when databases are available
+     */
+    async executeEnhancedMode(query, projectPath, options) {
+        // ==========================================
+        // STEP 1: Semantic Search (if enabled)
+        // ==========================================
+        let semanticResults = [];
+        // Check if search should be performed
+        // forceSearch = true means always search (for -c mode)
+        // Otherwise, check if user has enabled search via toggle
+        const shouldSearch = options.forceSearch || this.userInteractionService.isSearchEnabled();
+        if (shouldSearch) {
             console.log(theme_1.Theme.colors.muted('⏳ Searching codebase...'));
-            const semanticResults = await this.searchOrchestrator.performSemanticSearch(analysis.searchTerms.length > 0 ? analysis.searchTerms.join(' ') : finalQuery, projectPath);
+            semanticResults = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
             // Show compact results
             if (semanticResults.length > 0) {
                 console.log(theme_1.Theme.colors.success(`✓ Found ${semanticResults.length} relevant files`));
@@ -197,100 +291,62 @@ class WorkflowOrchestrator {
             else {
                 console.log(theme_1.Theme.colors.muted('  No specific file matches (will use general context)'));
             }
-            // ==========================================
-            // STEP 3: Graph Analysis (only show if results found)
-            // ==========================================
-            let graphContext = this.createEmptyGraphContext();
-            if (semanticResults.length > 0) {
-                const graphResult = await this.graphAnalysisService.performGraphAnalysis(finalQuery, semanticResults);
-                if (graphResult.relationships.length > 0 || (graphResult.classes && graphResult.classes.length > 0)) {
-                    graphContext = graphResult;
-                    // Show compact relationship info
-                    const classCount = graphResult.classes?.length || 0;
-                    const relCount = graphResult.relationships.length;
-                    if (classCount > 0 || relCount > 0) {
-                        console.log(theme_1.Theme.colors.success(`✓ Found ${classCount} components, ${relCount} relationships`));
-                    }
+        }
+        else {
+            console.log(theme_1.Theme.colors.muted('🔍 Search: OFF (sending directly to Claude)'));
+        }
+        // ==========================================
+        // STEP 2: Graph Analysis (only if results found)
+        // ==========================================
+        let graphContext = this.createEmptyGraphContext();
+        if (semanticResults.length > 0) {
+            const graphResult = await this.graphAnalysisService.performGraphAnalysis(query, semanticResults);
+            if (graphResult.relationships.length > 0 || (graphResult.classes && graphResult.classes.length > 0)) {
+                graphContext = graphResult;
+                // Show compact relationship info
+                const classCount = graphResult.classes?.length || 0;
+                const relCount = graphResult.relationships.length;
+                if (classCount > 0 || relCount > 0) {
+                    console.log(theme_1.Theme.colors.success(`✓ Found ${classCount} components, ${relCount} relationships`));
                 }
             }
-            // ==========================================
-            // STEP 4: Build Context & Execute Claude
-            // ==========================================
-            console.log(theme_1.Theme.colors.muted('⏳ Building context...'));
-            const enhancedContext = this.contextBuilder.buildEnhancedContext(finalQuery, queryAnalysis, [], semanticResults, graphContext);
-            // Execute Claude with enhanced context
-            console.log(theme_1.Theme.colors.claudeCode('\n🤖 Claude is working...'));
-            const claudeResponse = await this.userInteractionService.executeClaudeCode(semanticResults.length > 0 ? enhancedContext.enhancedPrompt : finalQuery);
-            // ==========================================
-            // STEP 5: Quality Check (auto build/test if files changed)
-            // ==========================================
-            let buildResult;
-            if (!options.skipBuildTest && claudeResponse.filesToModify.length > 0 && !isTransparentMode) {
-                buildResult = await this.runAutonomousQualityCheck(projectPath);
-            }
-            // ==========================================
-            // STEP 6: Database Sync (silent)
-            // ==========================================
-            let syncResult;
-            if (!options.skipDatabaseSync && claudeResponse.filesToModify.length > 0) {
-                syncResult = await this.syncDatabases(claudeResponse.filesToModify);
-            }
-            // Final summary
-            this.showCompletionSummary(semanticResults.length, graphContext, buildResult);
-            return {
-                success: true,
-                queryAnalysis,
-                semanticResults,
-                graphContext,
-                enhancedContext,
-                claudeResponse,
-                buildResult,
-                syncResult
-            };
         }
-        catch (error) {
-            console.error(theme_1.Theme.colors.error('❌ Workflow failed'));
-            return {
-                success: false,
-                queryAnalysis: { assumptions: [], ambiguities: [], intent: 'general', confidence: 0.5 },
-                semanticResults: [],
-                graphContext: this.createEmptyGraphContext(),
-                enhancedContext: this.createEmptyEnhancedContext(query),
-                error: error instanceof Error ? error.message : String(error)
-            };
+        // ==========================================
+        // STEP 3: Build Context & Execute Claude
+        // ==========================================
+        console.log(theme_1.Theme.colors.muted('⏳ Building context...'));
+        const queryAnalysis = this.createDefaultQueryAnalysis();
+        const enhancedContext = this.contextBuilder.buildEnhancedContext(query, queryAnalysis, [], semanticResults, graphContext);
+        // Execute Claude with enhanced context
+        console.log(theme_1.Theme.colors.claudeCode('\n🤖 Claude is working...'));
+        const claudeResponse = await this.userInteractionService.executeClaudeCode(enhancedContext.enhancedPrompt || query);
+        // ==========================================
+        // STEP 4: Quality Check (auto build/test if files changed)
+        // ==========================================
+        let buildResult;
+        if (!options.skipBuildTest && claudeResponse.filesToModify.length > 0) {
+            buildResult = await this.runAutonomousQualityCheck(projectPath);
         }
-    }
-    /**
-     * Ask a clarification question (only when Claude says it's critical)
-     */
-    async askClarification(question) {
-        if (this._readlineInterface) {
-            this._readlineInterface.pause();
+        // ==========================================
+        // STEP 5: Database Sync (silent)
+        // ==========================================
+        let syncResult;
+        if (!options.skipDatabaseSync && claudeResponse.filesToModify.length > 0) {
+            syncResult = await this.syncDatabases(claudeResponse.filesToModify);
         }
-        logger_1.Logger.mute();
-        try {
-            console.log(theme_1.Theme.colors.warning('\n❓ Clarification needed:'));
-            const answer = await inquirer_1.default.prompt([{
-                    type: 'input',
-                    name: 'response',
-                    message: question,
-                    validate: (input) => input.trim().length > 0 || 'Please provide an answer (or press Ctrl+C to skip)'
-                }]);
-            return answer.response;
-        }
-        catch (error) {
-            if (error.name === 'ExitPromptError' || error.message?.includes('force closed')) {
-                console.log(theme_1.Theme.colors.muted('  Skipped - proceeding with best guess'));
-                return undefined;
-            }
-            throw error;
-        }
-        finally {
-            logger_1.Logger.unmute();
-            if (this._readlineInterface) {
-                this._readlineInterface.resume();
-            }
-        }
+        // Final summary
+        this.showCompletionSummary(semanticResults.length, graphContext, buildResult);
+        return {
+            success: true,
+            queryAnalysis,
+            semanticResults,
+            graphContext,
+            enhancedContext,
+            claudeResponse,
+            buildResult,
+            syncResult,
+            transparentMode: false
+        };
     }
     /**
      * Run autonomous quality check - build and test without prompts
@@ -367,30 +423,18 @@ class WorkflowOrchestrator {
         console.log('');
     }
     /**
-     * Convert UnifiedAnalysis to legacy QueryAnalysis format
+     * Create default query analysis (no longer using Claude for intent detection)
      */
-    toLegacyAnalysis(analysis) {
+    createDefaultQueryAnalysis() {
         return {
             assumptions: [],
-            ambiguities: analysis.clarificationNeeded && analysis.clarificationQuestion
-                ? [analysis.clarificationQuestion]
-                : [],
-            intent: analysis.intent,
-            confidence: analysis.confidence,
-            reasoning: analysis.reasoning,
-            requiresModifications: ['create', 'modify', 'fix', 'delete'].includes(analysis.intent),
-            targetEntities: analysis.targetEntities
+            ambiguities: [],
+            intent: 'general',
+            confidence: 1.0,
+            reasoning: 'Direct execution without intent analysis',
+            requiresModifications: true,
+            targetEntities: []
         };
-    }
-    /**
-     * Get icon for intent
-     */
-    getIntentIcon(intent) {
-        const icons = {
-            'create': '✨', 'modify': '📝', 'fix': '🔧', 'delete': '🗑️',
-            'understand': '💡', 'analyze': '🔍', 'search': '🔎', 'general': '📌'
-        };
-        return icons[intent] || '📌';
     }
     /**
      * Run build
@@ -437,10 +481,63 @@ class WorkflowOrchestrator {
         };
     }
     /**
-     * Check if workflow should be used
+     * Check if workflow should be used (natural language vs command)
+     * This is simple command routing, NOT intent detection
      */
     shouldUseWorkflow(input) {
-        return this.unifiedAnalyzer.isNaturalLanguageQuery(input);
+        const trimmed = input.trim();
+        // Empty or very short inputs are not natural language
+        if (trimmed.length <= 2) {
+            return false;
+        }
+        // Known single-word commands
+        const knownCommands = new Set([
+            'help', 'exit', 'quit', 'status', 'setup', 'init', 'project', 'sync',
+            'search', 'analyze', 'dedup', 'solid', 'docs', 'instructions', 'watch', 'watcher', 'history'
+        ]);
+        // Known subcommands for each command (to recognize "project duplicates", "project cleanup", etc.)
+        const knownSubcommands = {
+            'project': new Set(['list', 'ls', 'cleanup', 'clean', 'duplicates', 'dups', 'info', 'id', 'help']),
+            'search': new Set(['semantic', 'files', 'code', 'help']),
+            'analyze': new Set(['solid', 'dedup', 'quality', 'help']),
+            'sync': new Set(['full', 'incremental', 'status', 'help']),
+            'docs': new Set(['generate', 'update', 'help']),
+            'init': new Set(['reset', 'force', 'help'])
+        };
+        const words = trimmed.split(/\s+/);
+        const firstWord = words[0].toLowerCase();
+        const secondWord = words.length > 1 ? words[1].toLowerCase() : '';
+        // Single word that matches a known command = command
+        if (words.length === 1 && knownCommands.has(firstWord)) {
+            return false;
+        }
+        // If first word is a known command...
+        if (knownCommands.has(firstWord)) {
+            // Check if second word is a known subcommand for this command
+            const commandSubcommands = knownSubcommands[firstWord];
+            if (commandSubcommands && commandSubcommands.has(secondWord)) {
+                return false; // This is a command with a valid subcommand
+            }
+            // Check if all remaining words look like command arguments
+            // Arguments are: flags (--flag, -f), paths, short words
+            const allArgsLookLikeCommandArgs = words.slice(1).every(word => {
+                // Flags like --reset, -v, --new-config
+                if (word.startsWith('-'))
+                    return true;
+                // File paths (contains / or \)
+                if (word.includes('/') || word.includes('\\') || word.includes('.'))
+                    return true;
+                // Short argument (less than 8 chars and no spaces)
+                if (word.length < 8)
+                    return true;
+                return false;
+            });
+            if (allArgsLookLikeCommandArgs) {
+                return false;
+            }
+        }
+        // Multi-word = natural language
+        return true;
     }
     /**
      * Create empty graph context
