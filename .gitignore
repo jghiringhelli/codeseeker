@@ -34,3 +34,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Test fixtures - extracted from zip (the zip is committed)
+tests/fixtures/ContractMaster-Test-Original/
+tests/fixtures/.temp/
