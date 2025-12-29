@@ -31,10 +31,10 @@ This directory contains detailed documentation for CodeMind. For a quick overvie
 
 - **[Main README](../README.md)** - Project overview and quick start
 - **[CLAUDE.md](../CLAUDE.md)** - Instructions for Claude Code integration
-- **[ROOT_FILES.md](../ROOT_FILES.md)** - Explanation of all root-level files
+- **[root_files.md](technical/root_files.md)** - Explanation of all root-level files
 - **[CHANGELOG.md](../CHANGELOG.md)** - Version history and release notes
 - **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines
-- **[TESTING_GUIDE.md](../TESTING_GUIDE.md)** - Testing documentation and E2E tests
+- **[testing_guide.md](testing/testing_guide.md)** - Testing documentation and E2E tests
 
 ## Directory Structure
 
@@ -44,12 +44,13 @@ docs/
 ├── install/                  # Installation guides
 │   ├── cli_commands_manual.md    # CLI commands reference
 │   ├── manual_setup.md           # Manual setup instructions
+│   ├── mcp-server.md             # MCP server setup
 │   └── vscode_extension.md       # VSCode extension setup
 ├── technical/                # Technical documentation
 │   ├── architecture.md       # Architecture overview
 │   ├── core_cycle.md         # Core cycle implementation
-│   ├── mcp-server.md         # MCP server setup
 │   ├── graphrag.md           # GraphRAG documentation
+│   ├── root_files.md         # Explanation of files in root folder
 │   └── storage.md            # Storage modes
 └── db/                       # Database documentation
     └── schema.md             # Database schema reference
