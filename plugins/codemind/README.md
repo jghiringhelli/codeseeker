@@ -23,6 +23,16 @@ The plugin includes skills that Claude automatically uses:
 - **Semantic Context Skill**: Gets related code context when exploring files
 - **Project Indexing Skill**: Ensures project is indexed for search
 
+### Auto-Sync (Hooks)
+
+The plugin includes a **PostToolUse hook** that automatically keeps the CodeMind index updated:
+
+- When Claude edits or creates files (Edit/Write tools), the hook triggers
+- Claude automatically calls `notify_file_changes` MCP tool to update the index
+- **No manual reindexing needed** after Claude makes changes
+
+This means the semantic search and coding standards always reflect the latest code changes made by Claude.
+
 ### MCP Tools
 
 When configured, provides these MCP tools:
@@ -132,6 +142,18 @@ The plugin includes an MCP server configuration. To enable it:
 3. **Knowledge Graph**: Tracks imports, exports, and code relationships
 4. **Pattern Detection**: Automatically detects coding patterns from your codebase
 5. **Context Enhancement**: Provides Claude with relevant context for better responses
+6. **Auto-Sync**: Hook triggers MCP tool after Claude edits files to keep index current
+
+## Index Synchronization
+
+| Scenario | Sync Method | Automatic? |
+|----------|-------------|------------|
+| Claude edits files | Plugin hook → MCP tool | Yes |
+| Manual edits in VSCode | VSCode Extension (optional) | Yes |
+| Manual edits outside VSCode | `/codemind:reindex` command | Manual |
+| Git pull / branch switch | `/codemind:reindex` command | Manual |
+
+**For seamless manual edit sync**, install the CodeMind VSCode Extension which watches for file changes.
 
 ## Troubleshooting
 

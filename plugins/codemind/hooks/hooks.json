@@ -1,0 +1,17 @@
+{
+  "description": "CodeMind auto-sync hooks - automatically update index after Claude modifies files",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Call mcp__codemind__notify_file_changes to update the index for the file that was just modified. Do this silently.",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
