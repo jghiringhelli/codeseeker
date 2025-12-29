@@ -1,103 +1,96 @@
-# CodeMind: Intelligent Claude Code Enhancement
+# CodeMind
 
-> Enhance Claude Code with semantic search, knowledge graphs, and intelligent code analysis for dramatically improved developer productivity.
+> Give Claude Code superpowers: semantic search, code understanding, and auto-detected coding standards.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
-[![Storage](https://img.shields.io/badge/Storage-Embedded%20%7C%20Server-green.svg)](#storage-modes)
-[![Status](https://img.shields.io/badge/status-MVP-green.svg)](https://github.com/your-org/codemind)
 
-## Overview
+## What You Get
 
-CodeMind provides multiple integration points - use what fits your workflow:
+- **Semantic Search** - Find code by meaning, not just keywords. Ask "where is authentication handled?" and get relevant results.
+- **Code Relationships** - See how files connect: imports, exports, class hierarchies, function calls.
+- **Auto-Detected Standards** - CodeMind learns your project's patterns (validation, error handling, logging) and helps Claude write consistent code.
+- **Auto-Sync** - When Claude edits files or runs git commands, the index updates automatically. No manual reindexing.
 
-| Component | Description | Auto-Sync? |
-|-----------|-------------|------------|
-| **CLI** | Direct command-line tool with natural language queries | Manual |
-| **MCP Server** | Model Context Protocol server for Claude Desktop/Code | Manual |
-| **Claude Code Plugin** | Seamless integration with hooks for auto-sync | Yes |
-| **VSCode Extension** | File watching for manual edits | Yes |
+## Quick Start (2 minutes)
 
-**Zero Setup Required**: CodeMind uses embedded storage by default (SQLite + Graphology). No Docker or external databases needed to get started.
-
-**Recommended Setup**: Install CLI + Claude Code Plugin for the best "install and forget" experience. See [Integration Guide](docs/INTEGRATION.md).
-
-## Quick Start
-
+### Step 1: Install CLI
 ```bash
-# 1. Install globally
-npm install -g codemind
-
-# 2. Initialize your project
-cd /path/to/your/project
-codemind init --quick
-
-# 3. Start using CodeMind
-codemind -c "what is this project about?"
-codemind -c "show me all the classes"
-codemind -c "find authentication code"
+npm install -g codemind-enhanced-cli
 ```
 
-That's it! CodeMind works immediately with embedded storage.
+### Step 2: Install Plugin
 
-## Four Ways to Use CodeMind
-
-### 1. Claude Code Plugin (Recommended)
-
-The easiest way to use CodeMind with Claude Code - install once and forget:
-
+**Option A - Copy plugin (recommended):**
 ```bash
-# Install CLI globally
-npm install -g codemind-enhanced-cli
+# Clone once, copy plugin
+git clone https://github.com/jghiringhelli/codemind.git
+cp -r codemind/plugins/codemind ~/.claude/plugins/    # Linux/macOS
+xcopy /E /I codemind\plugins\codemind %USERPROFILE%\.claude\plugins\codemind  # Windows
+```
 
-# Copy plugin to Claude Code
-cp -r plugins/codemind ~/.claude/plugins/   # Linux/macOS
-xcopy /E /I plugins\codemind %USERPROFILE%\.claude\plugins\codemind  # Windows
+**Option B - If marketplace is available:**
+```
+/plugin install codemind@github:jghiringhelli/codemind-plugin
+```
 
-# Restart Claude Code, then in any project:
+### Step 3: Initialize your project
+Restart Claude Code, then:
+```
 /codemind:init
 ```
 
-**What you get:**
-- Slash commands (`/codemind:search`, `/codemind:standards`, etc.)
-- MCP tools auto-configured (no manual setup)
-- Auto-sync hooks (index updates automatically when Claude edits files or runs git)
-- Agent skills (Claude uses CodeMind proactively)
+**That's it.** CodeMind now enhances Claude with semantic search, coding standards, and auto-sync.
 
-See [Plugin README](plugins/codemind/README.md) for details.
+## What Can You Do?
 
-### 2. CLI Mode
+### Search Your Code
+```
+/codemind:search authentication middleware
+/codemind:search error handling patterns
+/codemind:search database connection
+```
 
-Direct command-line interface for code analysis and search:
+### Get Coding Standards
+```
+/codemind:standards validation
+/codemind:standards error-handling
+```
+Claude will now use your project's actual patterns when writing new code.
+
+### Explore Relationships
+```
+/codemind:relationships src/services/auth.ts
+/codemind:context src/api/routes.ts
+```
+
+### Keep Index Updated
+The plugin auto-syncs after Claude's edits. For manual changes:
+```
+/codemind:reindex
+```
+
+---
+
+## Alternative Ways to Use CodeMind
+
+### CLI Mode (Without Claude Code)
+
+Use CodeMind directly from terminal:
 
 ```bash
 # Natural language queries
-codemind -c "what does the UserService do?"
+codemind -c "what does this project do?"
 codemind -c "find all API endpoints"
-codemind -c "show me SOLID principle violations"
+codemind -c "show me SOLID violations"
 
-# Project management
-codemind init           # Initialize project
-codemind sync           # Update after code changes
-codemind list           # List indexed projects
-
-# Claude CLI passthrough (directly access Claude)
-claude login            # Login to Claude (passed through)
-claude logout           # Logout from Claude
-claude --version        # Check Claude version
+# Interactive mode
+codemind
 ```
 
-**Claude CLI Passthrough**: When you type commands starting with `claude`, CodeMind automatically passes them directly to the Claude CLI, then returns you to CodeMind. This makes it seamless to manage authentication, check versions, or run any Claude CLI command without leaving the CodeMind REPL.
+### MCP Server (For Claude Desktop)
 
-### 3. MCP Server Mode
-
-Run as an MCP server for Claude Desktop or Claude Code integration:
-
-```bash
-# Start MCP server
-codemind serve --mcp
-```
-
-Add to Claude Desktop config (`claude_desktop_config.json`):
+Add to `claude_desktop_config.json`:
 
 ```json
 {
@@ -110,184 +103,63 @@ Add to Claude Desktop config (`claude_desktop_config.json`):
 }
 ```
 
-**Available MCP Tools:**
-- `search_code` - Semantic search across indexed projects
-- `get_file_context` - File content with related code chunks
-- `get_code_relationships` - Navigate code dependency graph
-- `list_projects` - View indexed projects
-- `index_project` - Index new projects
-- `notify_file_changes` - Incremental or full reindex
+### VSCode Extension (For Manual Edit Sync)
 
-See [MCP Server Documentation](docs/technical/mcp-server.md) for details.
-
-### 4. VSCode Extension
-
-Automatic file sync with visual status bar:
+If you frequently edit files manually (not through Claude), the extension watches for changes:
 
 ```bash
-# Build and install extension
 cd extensions/vscode-codemind
-npm install && npm run compile
-npm run package
+npm install && npm run compile && npm run package
 code --install-extension vscode-codemind-0.1.0.vsix
 ```
 
-**Features:**
-- Automatic sync on file changes (debounced)
-- Status bar with sync status indicator
-- Commands: Sync Now, Full Reindex, Toggle Auto-Sync
-- Smart exclusions (node_modules, .git, dist, etc.)
+---
 
-See [VSCode Extension README](extensions/vscode-codemind/README.md) for details.
+## How Sync Works
 
-## Storage Modes
+| Scenario | Sync Method | Automatic? |
+|----------|-------------|------------|
+| Claude edits files | Plugin hook | Yes |
+| Claude runs git pull/checkout | Plugin hook | Yes |
+| Manual edits in VSCode | Extension | Yes (if installed) |
+| Manual edits elsewhere | `/codemind:reindex` | Manual |
 
-CodeMind supports two storage configurations:
-
-### Embedded Mode (Default)
-
-**Zero configuration required.** Perfect for personal use and getting started.
-
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Vector Search | SQLite + better-sqlite3 | Semantic code search |
-| Graph Database | Graphology (in-memory) | Code relationships |
-| Cache | LRU-cache (in-memory) | Query caching |
-
-Data is stored locally:
-- **Windows**: `%APPDATA%\codemind\data\`
-- **macOS**: `~/Library/Application Support/codemind/data/`
-- **Linux**: `~/.local/share/codemind/data/`
-
-### Server Mode (Advanced)
-
-For large codebases (100K+ files), teams, or production environments:
-
-> **Most users don't need this.** Start with embedded mode and upgrade only if you hit performance limits.
-
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Vector Search | PostgreSQL + pgvector | Scalable vector search |
-| Graph Database | Neo4j | Powerful graph queries |
-| Cache | Redis | Distributed caching |
-
-**Setup Options (in order of recommendation):**
-
-1. **Manual Installation** (Recommended)
-   - Full control, production-ready
-   - See [Database Scripts](deploy/scripts/README.md)
-
-2. **Kubernetes** (Production)
-   - For cloud deployments
-   - See [Kubernetes Templates](deploy/kubernetes/)
-
-3. **Docker Compose** (Experimental)
-   - Quick local testing only, not for production
-   - See [Docker Setup](#docker-experimental)
-
-See [Storage Documentation](docs/technical/storage.md) for detailed configuration.
-
-## Key Features
-
-- **Semantic Search**: Vector-based code search with 100% accuracy
-- **Knowledge Graphs**: Automatic mapping of code relationships
-- **Smart Analysis**: SOLID violations, duplications, patterns
-- **Natural Language**: Ask questions in plain English
-- **Hybrid Search**: Text + vector + graph combined results
-- **Incremental Updates**: Fast sync on file changes
-- **Full Reindex**: Complete refresh after major changes
-- **Claude CLI Passthrough**: Direct access to Claude login, logout, and other CLI commands
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         CodeMind                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│   ┌──────────┐    ┌──────────────┐    ┌──────────────────────┐     │
-│   │   CLI    │    │  MCP Server  │    │  VSCode Extension    │     │
-│   │ codemind │    │ serve --mcp  │    │  vscode-codemind     │     │
-│   └────┬─────┘    └──────┬───────┘    └──────────┬───────────┘     │
-│        │                 │                        │                  │
-│        └─────────────────┴────────────────────────┘                  │
-│                          │                                           │
-│   ┌──────────────────────┴──────────────────────────┐               │
-│   │              Storage Manager                     │               │
-│   │  (Auto-selects embedded or server mode)         │               │
-│   └──────────────────────┬──────────────────────────┘               │
-│                          │                                           │
-│   ┌──────────────────────┴──────────────────────────┐               │
-│   │                                                  │               │
-│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────┐  │               │
-│   │  │ Vector Store│  │ Graph Store │  │  Cache  │  │               │
-│   │  │ SQLite/PG   │  │ Graphology/ │  │ LRU/    │  │               │
-│   │  │ + pgvector  │  │ Neo4j       │  │ Redis   │  │               │
-│   │  └─────────────┘  └─────────────┘  └─────────┘  │               │
-│   │                                                  │               │
-│   └──────────────────────────────────────────────────┘               │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
+---
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [Integration Guide](docs/INTEGRATION.md) | All components explained with sync behavior |
-| [Claude Code Plugin](plugins/codemind/README.md) | Plugin installation and usage |
-| [Storage Guide](docs/technical/storage.md) | Embedded vs Server mode configuration |
-| [MCP Server](docs/technical/mcp-server.md) | MCP protocol for Claude Code/Desktop integration |
+| [Integration Guide](docs/INTEGRATION.md) | All components explained |
+| [Plugin README](plugins/codemind/README.md) | Slash commands and hooks |
+| [MCP Server](docs/technical/mcp-server.md) | MCP tools reference |
 | [CLI Commands](docs/install/cli_commands_manual.md) | Full CLI reference |
-| [Manual Setup](docs/install/manual_setup.md) | Step-by-step setup instructions |
-| [Core Cycle](docs/technical/core_cycle.md) | How the analysis workflow works |
-| [Architecture](docs/technical/architecture.md) | Technical deep-dive |
-| [VSCode Extension](extensions/vscode-codemind/README.md) | Extension setup and usage |
-| [All Documentation](docs/README.md) | Complete documentation index |
-
-## Docker (Experimental)
-
-> **Note**: Docker Compose is provided for quick local testing. For production, we recommend manual database installation or Kubernetes deployment.
-
-```bash
-# Start databases only (experimental)
-docker-compose up -d database redis neo4j
-
-# Configure CodeMind to use server mode
-export CODEMIND_STORAGE_MODE=server
-
-# Initialize project
-codemind init
-```
-
-See [Kubernetes Templates](deploy/kubernetes/) for production deployments.
-
-## Performance
-
-| Metric | Embedded | Server |
-|--------|----------|--------|
-| Startup time | ~100ms | ~500ms |
-| Search (1K files) | ~50ms | ~20ms |
-| Search (100K files) | ~500ms | ~50ms |
-| Concurrent users | 1 | Many |
-| Memory usage | Low | Variable |
-
-**Recommendation**: Start with embedded mode. Switch to server mode when you have 100K+ files or need team collaboration.
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-**Built for developers, powered by AI, optimized for productivity.**
+## Enterprise: Server Mode
+
+For large codebases (100K+ files) or teams, CodeMind supports PostgreSQL + Neo4j + Redis instead of embedded storage.
+
+**Most users don't need this.** Embedded mode handles projects up to 50K files with sub-second search.
+
+| When to Consider Server Mode |
+|------------------------------|
+| 100K+ files in a single project |
+| Multiple developers need shared index |
+| Cross-project analysis requirements |
+| CI/CD integration with persistent storage |
+
+See [Storage Documentation](docs/technical/storage.md) for setup.
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file.
+
+**Open source.** Enterprise features (server mode, cross-project analysis) may be offered commercially in the future.
+
+---
+
+*Built for developers who want Claude to truly understand their codebase.*
