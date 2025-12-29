@@ -1,0 +1,19 @@
+{
+  "name": "codemind",
+  "version": "1.0.0",
+  "description": "CodeMind - Intelligent code understanding with semantic search, knowledge graphs, and auto-detected coding standards",
+  "author": {
+    "name": "CodeMind Team",
+    "url": "https://github.com/jghiringhelli/codemind"
+  },
+  "homepage": "https://github.com/jghiringhelli/codemind",
+  "repository": "https://github.com/jghiringhelli/codemind",
+  "license": "MIT",
+  "keywords": [
+    "semantic-search",
+    "code-analysis",
+    "knowledge-graph",
+    "coding-standards",
+    "context-enhancement"
+  ]
+}
