@@ -669,6 +669,44 @@ docker-compose up dashboard -d
 - **Path Validation**: Ensure project paths are correct in database
 - **Access Monitoring**: Monitor file system warnings in dashboard
 
+## Semantic Versioning (MANDATORY)
+
+**CRITICAL**: Claude MUST update version numbers when making changes. Follow SemVer strictly.
+
+### Version Format: `MAJOR.MINOR.PATCH`
+
+| Bump | When to Use | Examples |
+|------|-------------|----------|
+| **PATCH** (x.x.+1) | Bug fixes, performance, refactoring, docs | Fixed search bug, improved speed, updated README |
+| **MINOR** (x.+1.0) | New features (backward compatible) | New command, new MCP tool, new option |
+| **MAJOR** (+1.0.0) | Breaking changes (not backward compatible) | Renamed command, removed feature, schema migration |
+
+### Files to Update (ALL of them)
+
+When bumping version, update these files:
+1. `package.json` → `"version": "X.Y.Z"`
+2. `plugins/codemind/.claude-plugin/plugin.json` → `"version": "X.Y.Z"`
+3. `plugins/codemind/version.json` → `"version": "X.Y.Z"` and `"releaseDate"`
+
+### Commit Message Format
+
+- **PATCH**: `fix: <description>` or `perf: <description>` or `docs: <description>`
+- **MINOR**: `feat: <description>`
+- **MAJOR**: `feat!: <description>` or include `BREAKING CHANGE:` in body
+
+### Plugin Branch Sync
+
+After version bump on master, sync to plugin branch:
+```bash
+git checkout plugin
+# Update version files
+git commit -m "chore: bump version to X.Y.Z"
+git push origin plugin
+git checkout master
+```
+
+See `.github/VERSIONING.md` for full details.
+
 ## Important Development Reminders
 
 ### SOLID Principles Enforcement
