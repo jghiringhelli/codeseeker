@@ -149,11 +149,13 @@ The plugin includes an MCP server configuration. To enable it:
 | Scenario | Sync Method | Automatic? |
 |----------|-------------|------------|
 | Claude edits files | Plugin hook → MCP tool | Yes |
+| Claude runs git pull/checkout | Plugin hook → full reindex | Yes |
 | Manual edits in VSCode | VSCode Extension (optional) | Yes |
 | Manual edits outside VSCode | `/codemind:reindex` command | Manual |
-| Git pull / branch switch | `/codemind:reindex` command | Manual |
 
 **For seamless manual edit sync**, install the CodeMind VSCode Extension which watches for file changes.
+
+For complete integration documentation, see [INTEGRATION.md](../../docs/INTEGRATION.md).
 
 ## Troubleshooting
 

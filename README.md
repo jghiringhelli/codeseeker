@@ -8,15 +8,18 @@
 
 ## Overview
 
-CodeMind provides three ways to enhance your development workflow:
+CodeMind provides multiple integration points - use what fits your workflow:
 
-| Mode | Description | Best For |
-|------|-------------|----------|
-| **CLI** | Direct command-line tool with natural language queries | Quick searches, project analysis |
-| **MCP Server** | Model Context Protocol server for Claude Desktop/Code | AI-assisted development |
-| **VSCode Extension** | Real-time file sync with status bar UI | Automatic index updates |
+| Component | Description | Auto-Sync? |
+|-----------|-------------|------------|
+| **CLI** | Direct command-line tool with natural language queries | Manual |
+| **MCP Server** | Model Context Protocol server for Claude Desktop/Code | Manual |
+| **Claude Code Plugin** | Seamless integration with hooks for auto-sync | Yes |
+| **VSCode Extension** | File watching for manual edits | Yes |
 
 **Zero Setup Required**: CodeMind uses embedded storage by default (SQLite + Graphology). No Docker or external databases needed to get started.
+
+**Recommended Setup**: Install CLI + Claude Code Plugin for the best "install and forget" experience. See [Integration Guide](docs/INTEGRATION.md).
 
 ## Quick Start
 
@@ -36,9 +39,33 @@ codemind -c "find authentication code"
 
 That's it! CodeMind works immediately with embedded storage.
 
-## Three Ways to Use CodeMind
+## Four Ways to Use CodeMind
 
-### 1. CLI Mode
+### 1. Claude Code Plugin (Recommended)
+
+The easiest way to use CodeMind with Claude Code - install once and forget:
+
+```bash
+# Install CLI globally
+npm install -g codemind-enhanced-cli
+
+# Copy plugin to Claude Code
+cp -r plugins/codemind ~/.claude/plugins/   # Linux/macOS
+xcopy /E /I plugins\codemind %USERPROFILE%\.claude\plugins\codemind  # Windows
+
+# Restart Claude Code, then in any project:
+/codemind:init
+```
+
+**What you get:**
+- Slash commands (`/codemind:search`, `/codemind:standards`, etc.)
+- MCP tools auto-configured (no manual setup)
+- Auto-sync hooks (index updates automatically when Claude edits files or runs git)
+- Agent skills (Claude uses CodeMind proactively)
+
+See [Plugin README](plugins/codemind/README.md) for details.
+
+### 2. CLI Mode
 
 Direct command-line interface for code analysis and search:
 
@@ -61,7 +88,7 @@ claude --version        # Check Claude version
 
 **Claude CLI Passthrough**: When you type commands starting with `claude`, CodeMind automatically passes them directly to the Claude CLI, then returns you to CodeMind. This makes it seamless to manage authentication, check versions, or run any Claude CLI command without leaving the CodeMind REPL.
 
-### 2. MCP Server Mode
+### 3. MCP Server Mode
 
 Run as an MCP server for Claude Desktop or Claude Code integration:
 
@@ -93,7 +120,7 @@ Add to Claude Desktop config (`claude_desktop_config.json`):
 
 See [MCP Server Documentation](docs/technical/mcp-server.md) for details.
 
-### 3. VSCode Extension
+### 4. VSCode Extension
 
 Automatic file sync with visual status bar:
 
@@ -207,6 +234,8 @@ See [Storage Documentation](docs/technical/storage.md) for detailed configuratio
 
 | Document | Description |
 |----------|-------------|
+| [Integration Guide](docs/INTEGRATION.md) | All components explained with sync behavior |
+| [Claude Code Plugin](plugins/codemind/README.md) | Plugin installation and usage |
 | [Storage Guide](docs/technical/storage.md) | Embedded vs Server mode configuration |
 | [MCP Server](docs/technical/mcp-server.md) | MCP protocol for Claude Code/Desktop integration |
 | [CLI Commands](docs/install/cli_commands_manual.md) | Full CLI reference |
