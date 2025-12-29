@@ -1,56 +1,60 @@
-# CodeMind Documentation
+# CodeMind Documentation Index
 
-This directory contains the official documentation for CodeMind.
-
-## Quick Links
-
-### For Users
-- **[CLI Commands Manual](cli_commands_manual.md)** - Complete guide to all CLI commands, options, and usage examples
-- **[Manual Setup Guide](manual_setup.md)** - Step-by-step manual setup instructions when automated setup fails
-
-### For Developers
-- **[MVP Core Cycle](mvp_core_cycle.md)** - The definitive reference for the 10-step CodeMind workflow
-- **[Technical Implementation Guide](technical/CODEMIND_CORE_CYCLE_TECHNICAL_GUIDE.md)** - Detailed code-level implementation reference
-- **[Architecture Summary](technical/ARCHITECTURE_SUMMARY.md)** - Three-layer architecture and SOLID principles implementation
-
-### Database Documentation
-- **[Database Schema](db/CONSOLIDATED_SCHEMA.md)** - Complete PostgreSQL, Neo4j, and Redis schema documentation
-- **[Database README](db/README.md)** - Overview of database consolidation and migration
-
-### Architecture Decision Records
-- **[ADR Index](adr/README.md)** - Index of architectural decision records
-- **[ADR-001: Granular Embeddings](adr/001-granular-semantic-embeddings.md)** - Method and class-level embedding strategy
-
-### Historical Records
-- **[Feature Removal Record](feature_removal_record.md)** - Record of features removed during MVP cleanup
-
-## Documentation Structure
-
-```
-docs/
-├── README.md                    # This file - documentation index
-├── cli_commands_manual.md       # CLI commands reference
-├── manual_setup.md              # Manual setup instructions
-├── mvp_core_cycle.md            # MVP core cycle reference
-├── feature_removal_record.md    # Historical feature removal record
-├── adr/                         # Architecture Decision Records
-│   ├── README.md
-│   └── 001-granular-semantic-embeddings.md
-├── db/                          # Database documentation
-│   ├── README.md
-│   └── CONSOLIDATED_SCHEMA.md
-└── technical/                   # Technical documentation
-    ├── ARCHITECTURE_SUMMARY.md
-    └── CODEMIND_CORE_CYCLE_TECHNICAL_GUIDE.md
-```
+This directory contains detailed documentation for CodeMind. For a quick overview, see the [main README](../README.md).
 
 ## Getting Started
 
-1. **New Users**: Start with `cli_commands_manual.md` for usage instructions
-2. **Contributors**: Read `mvp_core_cycle.md` and `technical/CODEMIND_CORE_CYCLE_TECHNICAL_GUIDE.md`
-3. **Database Work**: Reference `db/CONSOLIDATED_SCHEMA.md` for schema details
+| Document | Description |
+|----------|-------------|
+| [CLI Commands Manual](install/cli_commands_manual.md) | Full reference for all CLI commands |
+| [MCP Server Guide](technical/mcp-server.md) | Setup MCP server for Claude Code/Desktop integration |
+| [Storage Guide](technical/storage.md) | Embedded vs Server mode configuration |
+| [Manual Setup Guide](install/manual_setup.md) | Step-by-step setup instructions |
 
-## Main Project Entry Points
+## Technical Reference
 
-- **CLAUDE.md** (project root) - Claude Code integration instructions and project guidelines
-- **README.md** (project root) - Project overview and quick start
+| Document | Description |
+|----------|-------------|
+| [Core Cycle Technical Guide](technical/core_cycle.md) | Code-level implementation details for the 11-step workflow |
+| [Architecture Summary](technical/architecture.md) | Three-layer architecture and SOLID principles |
+| [Database Schema](db/schema.md) | PostgreSQL, Neo4j, and Redis schema reference |
+
+## Extensions & Deployment
+
+| Document | Description |
+|----------|-------------|
+| [VSCode Extension](../extensions/vscode-codemind/README.md) | Real-time file sync extension |
+| [Database Scripts](../deploy/scripts/README.md) | Manual PostgreSQL, Neo4j, Redis installation |
+| [Kubernetes Deployment](../deploy/kubernetes/README.md) | Production Kubernetes manifests |
+
+## Quick Links
+
+- **[Main README](../README.md)** - Project overview and quick start
+- **[CLAUDE.md](../CLAUDE.md)** - Instructions for Claude Code integration
+- **[ROOT_FILES.md](../ROOT_FILES.md)** - Explanation of all root-level files
+- **[CHANGELOG.md](../CHANGELOG.md)** - Version history and release notes
+- **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines
+- **[TESTING_GUIDE.md](../TESTING_GUIDE.md)** - Testing documentation and E2E tests
+
+## Directory Structure
+
+```
+docs/
+├── README.md                 # This file - documentation index
+├── install/                  # Installation guides
+│   ├── cli_commands_manual.md    # CLI commands reference
+│   ├── manual_setup.md           # Manual setup instructions
+│   └── vscode_extension.md       # VSCode extension setup
+├── technical/                # Technical documentation
+│   ├── architecture.md       # Architecture overview
+│   ├── core_cycle.md         # Core cycle implementation
+│   ├── mcp-server.md         # MCP server setup
+│   ├── graphrag.md           # GraphRAG documentation
+│   └── storage.md            # Storage modes
+└── db/                       # Database documentation
+    └── schema.md             # Database schema reference
+
+extensions/vscode-codemind/   # VSCode extension
+deploy/scripts/               # Database setup scripts
+deploy/kubernetes/            # Kubernetes manifests
+```

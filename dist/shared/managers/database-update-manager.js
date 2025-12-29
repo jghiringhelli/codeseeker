@@ -4,10 +4,11 @@
  * SOLID Principles: Single Responsibility - Handle database updates across all systems
  *
  * This manager coordinates updates to:
- * - PostgreSQL (semantic search embeddings)
- * - Neo4j (knowledge graph relationships)
- * - Redis (caching layer)
+ * - Vector Store (semantic search embeddings) - SQLite or PostgreSQL
+ * - Graph Store (knowledge graph relationships) - Graphology or Neo4j
+ * - Cache Store (caching layer) - LRU-cache or Redis
  *
+ * Uses storage abstraction to work with either embedded or server mode.
  * Used after each Claude Code execution to keep databases in sync with code changes.
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -47,6 +48,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseUpdateManager = void 0;
 const logger_1 = require("../logger");
 const database_config_1 = require("../../config/database-config");
+const storage_1 = require("../../storage");
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
@@ -55,10 +57,29 @@ class DatabaseUpdateManager {
     dbConnections;
     projectId;
     projectPath;
+    useEmbedded;
+    // Cached storage interfaces
+    vectorStore;
+    graphStore;
+    cacheStore;
+    projectStore;
     constructor(projectId, projectPath) {
         this.dbConnections = new database_config_1.DatabaseConnections();
         this.projectId = projectId || 'default';
         this.projectPath = projectPath || process.cwd();
+        this.useEmbedded = (0, storage_1.isUsingEmbeddedStorage)();
+    }
+    /**
+     * Initialize storage interfaces (lazy loading)
+     */
+    async initStorage() {
+        if (this.vectorStore)
+            return; // Already initialized
+        const storageManager = await (0, storage_1.getStorageManager)();
+        this.vectorStore = storageManager.getVectorStore();
+        this.graphStore = storageManager.getGraphStore();
+        this.cacheStore = storageManager.getCacheStore();
+        this.projectStore = storageManager.getProjectStore();
     }
     /**
      * Set project context for updates
@@ -68,13 +89,100 @@ class DatabaseUpdateManager {
         this.projectPath = projectPath;
     }
     // ============================================
-    // NEO4J GRAPH DATABASE OPERATIONS
+    // GRAPH DATABASE OPERATIONS
     // ============================================
     /**
-     * Update Neo4j graph with new/modified file nodes and relationships
+     * Update graph with new/modified file nodes and relationships
+     * Uses storage abstraction - embedded uses Graphology, server uses Neo4j
      */
     async updateGraphDatabase(files) {
         this.logger.debug(`Updating graph database for ${files.length} files`);
+        // Use embedded storage if available
+        if (this.useEmbedded) {
+            return this.updateGraphDatabaseEmbedded(files);
+        }
+        // Server mode: use Neo4j directly
+        return this.updateGraphDatabaseNeo4j(files);
+    }
+    /**
+     * Embedded mode: Update graph using Graphology store
+     */
+    async updateGraphDatabaseEmbedded(files) {
+        await this.initStorage();
+        if (!this.graphStore)
+            return { nodesCreated: 0, relationshipsCreated: 0 };
+        let nodesCreated = 0;
+        let relationshipsCreated = 0;
+        try {
+            for (const filePath of files) {
+                const absolutePath = path.isAbsolute(filePath)
+                    ? filePath
+                    : path.join(this.projectPath, filePath);
+                try {
+                    await fs.access(absolutePath);
+                }
+                catch {
+                    continue;
+                }
+                const content = await fs.readFile(absolutePath, 'utf-8');
+                const fileName = path.basename(filePath);
+                const fileId = `file:${this.projectId}:${filePath}`;
+                // Create file node
+                await this.graphStore.upsertNode({
+                    id: fileId,
+                    type: 'file',
+                    name: fileName,
+                    filePath: filePath,
+                    projectId: this.projectId,
+                    properties: { hash: this.computeHash(content) }
+                });
+                nodesCreated++;
+                // Extract classes and create nodes + relationships
+                const classes = this.extractClasses(content);
+                for (const className of classes) {
+                    const classId = `class:${this.projectId}:${className}`;
+                    await this.graphStore.upsertNode({
+                        id: classId,
+                        type: 'class',
+                        name: className,
+                        filePath: filePath,
+                        projectId: this.projectId
+                    });
+                    nodesCreated++;
+                    await this.graphStore.upsertEdge({
+                        id: `edge:${fileId}:contains:${classId}`,
+                        source: fileId,
+                        target: classId,
+                        type: 'contains'
+                    });
+                    relationshipsCreated++;
+                }
+                // Extract imports and create relationships
+                const imports = this.extractImports(content);
+                for (const importPath of imports) {
+                    const importFileId = `file:${this.projectId}:${importPath}`;
+                    await this.graphStore.upsertEdge({
+                        id: `edge:${fileId}:imports:${importFileId}`,
+                        source: fileId,
+                        target: importFileId,
+                        type: 'imports'
+                    });
+                    relationshipsCreated++;
+                }
+            }
+            await this.graphStore.flush();
+            this.logger.debug(`Graph updated: ${nodesCreated} nodes, ${relationshipsCreated} relationships`);
+            return { nodesCreated, relationshipsCreated };
+        }
+        catch (error) {
+            this.logger.debug(`Graph update error: ${error instanceof Error ? error.message : error}`);
+            return { nodesCreated: 0, relationshipsCreated: 0 };
+        }
+    }
+    /**
+     * Server mode: Update graph using Neo4j
+     */
+    async updateGraphDatabaseNeo4j(files) {
         let nodesCreated = 0;
         let relationshipsCreated = 0;
         try {
@@ -85,42 +193,23 @@ class DatabaseUpdateManager {
                     const absolutePath = path.isAbsolute(filePath)
                         ? filePath
                         : path.join(this.projectPath, filePath);
-                    // Check if file exists
                     try {
                         await fs.access(absolutePath);
                     }
                     catch {
-                        this.logger.debug(`File not found, skipping: ${filePath}`);
                         continue;
                     }
                     const content = await fs.readFile(absolutePath, 'utf-8');
                     const fileHash = this.computeHash(content);
                     const fileName = path.basename(filePath);
                     const fileType = this.determineFileType(filePath);
-                    // Create or update file node
                     await session.run(`
             MERGE (f:File {path: $path, projectId: $projectId})
-            ON CREATE SET
-              f.name = $name,
-              f.type = $type,
-              f.hash = $hash,
-              f.createdAt = datetime(),
-              f.updatedAt = datetime()
-            ON MATCH SET
-              f.hash = $hash,
-              f.updatedAt = datetime()
-          `, {
-                        path: filePath,
-                        projectId: this.projectId,
-                        name: fileName,
-                        type: fileType,
-                        hash: fileHash
-                    });
+            ON CREATE SET f.name = $name, f.type = $type, f.hash = $hash, f.createdAt = datetime(), f.updatedAt = datetime()
+            ON MATCH SET f.hash = $hash, f.updatedAt = datetime()
+          `, { path: filePath, projectId: this.projectId, name: fileName, type: fileType, hash: fileHash });
                     nodesCreated++;
-                    // Extract and create class/function nodes with relationships
                     const classes = this.extractClasses(content);
-                    const imports = this.extractImports(content);
-                    // Create class nodes
                     for (const className of classes) {
                         await session.run(`
               MERGE (c:Class {name: $className, projectId: $projectId})
@@ -129,26 +218,18 @@ class DatabaseUpdateManager {
               WITH c
               MATCH (f:File {path: $filePath, projectId: $projectId})
               MERGE (f)-[:DEFINES]->(c)
-            `, {
-                            className,
-                            projectId: this.projectId,
-                            filePath
-                        });
+            `, { className, projectId: this.projectId, filePath });
                         nodesCreated++;
                         relationshipsCreated++;
                     }
-                    // Create import relationships
+                    const imports = this.extractImports(content);
                     for (const importPath of imports) {
                         await session.run(`
               MATCH (f1:File {path: $filePath, projectId: $projectId})
               MERGE (f2:File {path: $importPath, projectId: $projectId})
               ON CREATE SET f2.createdAt = datetime(), f2.type = 'dependency'
               MERGE (f1)-[:IMPORTS]->(f2)
-            `, {
-                            filePath,
-                            importPath,
-                            projectId: this.projectId
-                        });
+            `, { filePath, importPath, projectId: this.projectId });
                         relationshipsCreated++;
                     }
                 }
@@ -165,9 +246,14 @@ class DatabaseUpdateManager {
         }
     }
     /**
-     * Test Neo4j connection
+     * Test graph connection
      */
     async testGraphConnection() {
+        if (this.useEmbedded) {
+            await this.initStorage();
+            // Embedded is always available
+            return;
+        }
         const neo4j = await this.dbConnections.getNeo4jConnection();
         const session = neo4j.session();
         try {
@@ -181,6 +267,20 @@ class DatabaseUpdateManager {
      * Update properties on existing node
      */
     async updateNodeProperties(filePath, metadata) {
+        if (this.useEmbedded) {
+            await this.initStorage();
+            if (this.graphStore) {
+                const fileId = `file:${this.projectId}:${filePath}`;
+                const existing = await this.graphStore.getNode(fileId);
+                if (existing) {
+                    await this.graphStore.upsertNode({
+                        ...existing,
+                        properties: { ...existing.properties, ...metadata }
+                    });
+                }
+            }
+            return;
+        }
         try {
             const neo4j = await this.dbConnections.getNeo4jConnection();
             const session = neo4j.session();
@@ -188,24 +288,24 @@ class DatabaseUpdateManager {
                 await session.run(`
           MATCH (f:File {path: $path, projectId: $projectId})
           SET f += $metadata, f.updatedAt = datetime()
-        `, {
-                    path: filePath,
-                    projectId: this.projectId,
-                    metadata
-                });
+        `, { path: filePath, projectId: this.projectId, metadata });
             }
             finally {
                 await session.close();
             }
         }
-        catch (error) {
-            this.logger.debug(`Neo4j node update skipped for ${filePath}`);
+        catch {
+            this.logger.debug(`Graph node update skipped for ${filePath}`);
         }
     }
     /**
      * Clean up old graph data
      */
-    async cleanupOldGraphData(olderThanDays) {
+    async cleanupOldGraphData(_olderThanDays) {
+        // For embedded mode, we don't track timestamps - skip cleanup
+        if (this.useEmbedded) {
+            return { nodesDeleted: 0, relationshipsDeleted: 0 };
+        }
         try {
             const neo4j = await this.dbConnections.getNeo4jConnection();
             const session = neo4j.session();
@@ -215,10 +315,7 @@ class DatabaseUpdateManager {
           WHERE n.updatedAt < datetime() - duration({days: $days})
           DETACH DELETE n
           RETURN count(n) as deleted
-        `, {
-                    projectId: this.projectId,
-                    days: olderThanDays
-                });
+        `, { projectId: this.projectId, days: _olderThanDays });
                 const deleted = result.records[0]?.get('deleted')?.toNumber() || 0;
                 return { nodesDeleted: deleted, relationshipsDeleted: deleted };
             }
@@ -226,19 +323,71 @@ class DatabaseUpdateManager {
                 await session.close();
             }
         }
-        catch (error) {
-            this.logger.debug('Neo4j cleanup skipped');
+        catch {
+            this.logger.debug('Graph cleanup skipped');
             return { nodesDeleted: 0, relationshipsDeleted: 0 };
         }
     }
     // ============================================
-    // REDIS CACHE OPERATIONS
+    // CACHE OPERATIONS
     // ============================================
     /**
-     * Update Redis cache with file hashes and metadata
+     * Update cache with file hashes and metadata
+     * Uses storage abstraction - embedded uses LRU-cache, server uses Redis
      */
     async updateRedisCache(files) {
-        this.logger.debug(`Updating Redis cache for ${files.length} files`);
+        this.logger.debug(`Updating cache for ${files.length} files`);
+        // Use embedded storage if available
+        if (this.useEmbedded) {
+            return this.updateCacheEmbedded(files);
+        }
+        // Server mode: use Redis directly
+        return this.updateCacheRedis(files);
+    }
+    /**
+     * Embedded mode: Update cache using LRU-cache store
+     */
+    async updateCacheEmbedded(files) {
+        await this.initStorage();
+        if (!this.cacheStore)
+            return { filesUpdated: 0, hashesUpdated: 0 };
+        let filesUpdated = 0;
+        let hashesUpdated = 0;
+        for (const filePath of files) {
+            const absolutePath = path.isAbsolute(filePath)
+                ? filePath
+                : path.join(this.projectPath, filePath);
+            try {
+                const content = await fs.readFile(absolutePath, 'utf-8');
+                const hash = this.computeHash(content);
+                // Store file hash
+                await this.cacheStore.set(`hash:${this.projectId}:${filePath}`, hash);
+                hashesUpdated++;
+                // Store file metadata
+                const metadata = {
+                    path: filePath,
+                    hash,
+                    size: content.length,
+                    type: this.determineFileType(filePath),
+                    updatedAt: new Date().toISOString()
+                };
+                await this.cacheStore.set(`meta:${this.projectId}:${filePath}`, metadata);
+                filesUpdated++;
+                // Invalidate search cache for this project
+                await this.cacheStore.deletePattern(`search:${this.projectId}:*`);
+            }
+            catch {
+                // Ignore individual file errors
+            }
+        }
+        await this.cacheStore.flush();
+        this.logger.debug(`Cache updated: ${filesUpdated} files, ${hashesUpdated} hashes`);
+        return { filesUpdated, hashesUpdated };
+    }
+    /**
+     * Server mode: Update cache using Redis
+     */
+    async updateCacheRedis(files) {
         let filesUpdated = 0;
         let hashesUpdated = 0;
         try {
@@ -250,12 +399,8 @@ class DatabaseUpdateManager {
                 try {
                     const content = await fs.readFile(absolutePath, 'utf-8');
                     const hash = this.computeHash(content);
-                    // Store file hash
-                    const hashKey = `codemind:hash:${this.projectId}:${filePath}`;
-                    await redis.set(hashKey, hash);
+                    await redis.set(`codemind:hash:${this.projectId}:${filePath}`, hash);
                     hashesUpdated++;
-                    // Store file metadata
-                    const metaKey = `codemind:meta:${this.projectId}:${filePath}`;
                     const metadata = {
                         path: filePath,
                         hash,
@@ -263,11 +408,9 @@ class DatabaseUpdateManager {
                         type: this.determineFileType(filePath),
                         updatedAt: new Date().toISOString()
                     };
-                    await redis.set(metaKey, JSON.stringify(metadata));
+                    await redis.set(`codemind:meta:${this.projectId}:${filePath}`, JSON.stringify(metadata));
                     filesUpdated++;
-                    // Invalidate any cached search results for this project
-                    const cachePattern = `codemind:search:${this.projectId}:*`;
-                    const keys = await redis.keys(cachePattern);
+                    const keys = await redis.keys(`codemind:search:${this.projectId}:*`);
                     if (keys.length > 0) {
                         await redis.del(keys);
                     }
@@ -279,45 +422,62 @@ class DatabaseUpdateManager {
             this.logger.debug(`Redis cache updated: ${filesUpdated} files, ${hashesUpdated} hashes`);
             return { filesUpdated, hashesUpdated };
         }
-        catch (error) {
+        catch {
             this.logger.warn('Redis update skipped (connection unavailable)');
             return { filesUpdated: 0, hashesUpdated: 0 };
         }
     }
     /**
-     * Test Redis connection
+     * Test cache connection
      */
     async testRedisConnection() {
+        if (this.useEmbedded) {
+            await this.initStorage();
+            // Embedded is always available
+            return;
+        }
         const redis = await this.dbConnections.getRedisConnection();
         await redis.ping();
     }
     /**
-     * Update Redis hash for a file
+     * Update cache hash for a file
      */
     async updateRedisHash(filePath, metadata) {
+        if (this.useEmbedded) {
+            await this.initStorage();
+            if (this.cacheStore) {
+                await this.cacheStore.set(`meta:${this.projectId}:${filePath}`, {
+                    ...metadata,
+                    updatedAt: new Date().toISOString()
+                });
+            }
+            return;
+        }
         try {
             const redis = await this.dbConnections.getRedisConnection();
-            const key = `codemind:meta:${this.projectId}:${filePath}`;
-            await redis.set(key, JSON.stringify({
+            await redis.set(`codemind:meta:${this.projectId}:${filePath}`, JSON.stringify({
                 ...metadata,
                 updatedAt: new Date().toISOString()
             }));
         }
         catch {
-            this.logger.debug(`Redis hash update skipped for ${filePath}`);
+            this.logger.debug(`Cache hash update skipped for ${filePath}`);
         }
     }
     /**
      * Clean up old cache data
      */
-    async cleanupOldCacheData(olderThanDays) {
+    async cleanupOldCacheData(_olderThanDays) {
+        if (this.useEmbedded) {
+            // LRU cache handles its own eviction
+            return { keysDeleted: 0 };
+        }
         try {
             const redis = await this.dbConnections.getRedisConnection();
-            const pattern = `codemind:meta:${this.projectId}:*`;
-            const keys = await redis.keys(pattern);
+            const keys = await redis.keys(`codemind:meta:${this.projectId}:*`);
             let keysDeleted = 0;
             const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+            cutoffDate.setDate(cutoffDate.getDate() - _olderThanDays);
             for (const key of keys) {
                 const value = await redis.get(key);
                 if (value) {
@@ -337,18 +497,71 @@ class DatabaseUpdateManager {
             return { keysDeleted };
         }
         catch {
-            this.logger.debug('Redis cleanup skipped');
+            this.logger.debug('Cache cleanup skipped');
             return { keysDeleted: 0 };
         }
     }
     // ============================================
-    // POSTGRESQL OPERATIONS
+    // VECTOR STORE OPERATIONS
     // ============================================
     /**
-     * Update PostgreSQL with file embeddings and metadata
+     * Update vector store with file embeddings and metadata
+     * Uses storage abstraction - embedded uses SQLite, server uses PostgreSQL
      */
     async updateMainDatabase(files) {
-        this.logger.debug(`Updating PostgreSQL for ${files.length} files`);
+        this.logger.debug(`Updating vector store for ${files.length} files`);
+        // Use embedded storage if available
+        if (this.useEmbedded) {
+            return this.updateVectorStoreEmbedded(files);
+        }
+        // Server mode: use PostgreSQL directly
+        return this.updateVectorStorePostgres(files);
+    }
+    /**
+     * Embedded mode: Update vector store using SQLite
+     */
+    async updateVectorStoreEmbedded(files) {
+        await this.initStorage();
+        if (!this.vectorStore)
+            return { recordsUpdated: 0 };
+        let recordsUpdated = 0;
+        for (const filePath of files) {
+            const absolutePath = path.isAbsolute(filePath)
+                ? filePath
+                : path.join(this.projectPath, filePath);
+            try {
+                const content = await fs.readFile(absolutePath, 'utf-8');
+                const classes = this.extractClasses(content);
+                const functions = this.extractFunctions(content);
+                const imports = this.extractImports(content);
+                const metadata = {
+                    classes,
+                    functions: functions.slice(0, 20),
+                    imports,
+                    lineCount: content.split('\n').length
+                };
+                await this.vectorStore.upsert({
+                    id: `${this.projectId}:${filePath}:0`,
+                    projectId: this.projectId,
+                    filePath: filePath,
+                    content: content.substring(0, 10000),
+                    embedding: [], // Embedding will be generated by the store if needed
+                    metadata
+                });
+                recordsUpdated++;
+            }
+            catch {
+                // Ignore individual file errors
+            }
+        }
+        await this.vectorStore.flush();
+        this.logger.debug(`Vector store updated: ${recordsUpdated} records`);
+        return { recordsUpdated };
+    }
+    /**
+     * Server mode: Update vector store using PostgreSQL
+     */
+    async updateVectorStorePostgres(files) {
         let recordsUpdated = 0;
         try {
             const postgres = await this.dbConnections.getPostgresConnection();
@@ -359,7 +572,6 @@ class DatabaseUpdateManager {
                 try {
                     const content = await fs.readFile(absolutePath, 'utf-8');
                     const hash = this.computeHash(content);
-                    // Extract metadata from file
                     const classes = this.extractClasses(content);
                     const functions = this.extractFunctions(content);
                     const imports = this.extractImports(content);
@@ -369,8 +581,6 @@ class DatabaseUpdateManager {
                         imports,
                         lineCount: content.split('\n').length
                     };
-                    // Upsert into semantic_search_embeddings
-                    // Using column names from master schema v3.0.0
                     await postgres.query(`
             INSERT INTO semantic_search_embeddings (
               chunk_id, project_id, file_path, content_text, chunk_start_line, chunk_end_line,
@@ -402,15 +612,20 @@ class DatabaseUpdateManager {
             this.logger.debug(`PostgreSQL updated: ${recordsUpdated} records`);
             return { recordsUpdated };
         }
-        catch (error) {
+        catch {
             this.logger.warn('PostgreSQL update skipped (connection unavailable)');
             return { recordsUpdated: 0 };
         }
     }
     /**
-     * Test PostgreSQL connection
+     * Test vector store connection
      */
     async testMainDatabaseConnection() {
+        if (this.useEmbedded) {
+            await this.initStorage();
+            // Embedded is always available
+            return;
+        }
         const postgres = await this.dbConnections.getPostgresConnection();
         await postgres.query('SELECT 1');
     }
@@ -418,6 +633,12 @@ class DatabaseUpdateManager {
      * Update file record with metadata
      */
     async updateFileRecord(filePath, metadata) {
+        if (this.useEmbedded) {
+            // For embedded, we'd need to read and re-upsert the document
+            // This is a simplified implementation
+            this.logger.debug(`Embedded file record update for ${filePath}`);
+            return;
+        }
         try {
             const postgres = await this.dbConnections.getPostgresConnection();
             await postgres.query(`
@@ -427,13 +648,17 @@ class DatabaseUpdateManager {
       `, [JSON.stringify(metadata), filePath, this.projectId]);
         }
         catch {
-            this.logger.debug(`PostgreSQL record update skipped for ${filePath}`);
+            this.logger.debug(`Vector store record update skipped for ${filePath}`);
         }
     }
     /**
      * Clean up old database records
      */
     async cleanupOldMainData(olderThanDays) {
+        if (this.useEmbedded) {
+            // Embedded SQLite doesn't track timestamps the same way
+            return { recordsDeleted: 0 };
+        }
         try {
             const postgres = await this.dbConnections.getPostgresConnection();
             const result = await postgres.query(`
@@ -444,7 +669,7 @@ class DatabaseUpdateManager {
             return { recordsDeleted: result.rowCount || 0 };
         }
         catch {
-            this.logger.debug('PostgreSQL cleanup skipped');
+            this.logger.debug('Vector store cleanup skipped');
             return { recordsDeleted: 0 };
         }
     }

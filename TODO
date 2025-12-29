@@ -1,24 +1,13 @@
-Priority 0 - MVP Core
-- add a doc with feature list and core functionality, with main classes and logical path. Another with step by step of commands, specially /init
-- Ask if starting from the root node or add embeddings to the nodes/identifiers that cross references classes and nodes would help
 
 Priority 1 - Post-MVP Features
-- RAG for documentation on specific tech stack version. Figure out how to add it
-- Store our own documentation for RAG in the form of ADRs
-- Add an option to accept all changes for that prompt
 - Abstract CLI interface to use copilot and gemini CLI
-- Include direction and scope everything, only change that code, limit scope
-- Set modes for large code changes, scoped code changes, no code changes, no file changes. Set flag to lock certain files\folders if desired, superset logic. This is somehow done with paths
 - summaries of past sessions
 
 Priority 2 - Future Enhancements
 - MCP to connect to stable diffusion/image generator
-- Add automatic horizontal sharding if needed, mongodb.
 - Layer 2, orchestrator
 - Layer 3, planner
 - Check if binding API and dashboard makes sense
-- ADRs
-- Tool bundling system
 
 FEATURE BACKLOG (from FEATURE_REMOVAL_RECORD.md)
 - Real-time file monitoring (file watchers)

@@ -34,10 +34,12 @@ export declare class AnalyzeCommandHandler extends BaseCommandHandler {
     private clarifyQuery;
     /**
      * Step 3: Perform semantic search for relevant code
+     * Uses storage abstraction for both embedded and server modes
      */
     private performSemanticSearch;
     /**
      * Step 4: Query knowledge graph for relationships
+     * Uses storage abstraction for both embedded and server modes
      */
     private queryKnowledgeGraph;
     /**
@@ -90,6 +92,7 @@ export declare class AnalyzeCommandHandler extends BaseCommandHandler {
     private calculateEnhancementQuality;
     /**
      * Get existing project ID from database or generate fallback
+     * Uses storage abstraction for both embedded and server modes
      */
     private generateProjectId;
 }

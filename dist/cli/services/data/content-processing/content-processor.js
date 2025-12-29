@@ -590,8 +590,9 @@ class ContentProcessor {
         // Extract function names, class names, important identifiers
         const matches = content.match(/\b[a-zA-Z_$][a-zA-Z0-9_$]*\b/g) || [];
         matches.forEach(match => {
-            if (match.length > 3 && !this.isCommonWord(match)) {
-                keywords.add(match.toLowerCase());
+            const m = String(match);
+            if (m.length > 3 && !this.isCommonWord(m)) {
+                keywords.add(m.toLowerCase());
             }
         });
         return Array.from(keywords).slice(0, 10); // Limit to top 10 keywords

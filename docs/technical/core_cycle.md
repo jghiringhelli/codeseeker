@@ -1,12 +1,14 @@
 # CodeMind Core Cycle - Technical Implementation Guide
 
-**Version**: 1.0
-**Date**: 2025-11-15
-**Purpose**: Technical reference for debugging and code review of the 8-step CodeMind workflow
+**Version**: 2.0
+**Date**: 2025-12-26
+**Purpose**: Technical reference for debugging and code review of the 11-step CodeMind workflow
 
 ## Overview
 
-The CodeMind Core Cycle is an 8-step intelligent enhancement workflow that transforms natural language queries into enhanced Claude Code interactions. This document provides detailed technical mapping of each step to the actual implementation.
+The CodeMind Core Cycle is an 11-step intelligent enhancement workflow that transforms natural language queries into enhanced Claude Code interactions. This document provides detailed technical mapping of each step to the actual implementation.
+
+> **Note**: The workflow expanded from 8 steps to 11 steps with the addition of Task Decomposition (Step 2), Sub-Task Context Generation (Step 6), and Database Sync (Step 11).
 
 ## Architecture Entry Points
 

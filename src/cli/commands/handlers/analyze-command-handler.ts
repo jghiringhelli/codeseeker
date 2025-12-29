@@ -9,6 +9,7 @@ import { CommandResult } from '../command-context';
 import { Theme } from '../../ui/theme';
 import { analysisRepository } from '../../../shared/analysis-repository-consolidated';
 import { Logger } from '../../../utils/logger';
+import { getStorageManager, isUsingEmbeddedStorage } from '../../../storage';
 import * as path from 'path';
 
 export class AnalyzeCommandHandler extends BaseCommandHandler {
@@ -261,13 +262,30 @@ export class AnalyzeCommandHandler extends BaseCommandHandler {
 
   /**
    * Step 3: Perform semantic search for relevant code
+   * Uses storage abstraction for both embedded and server modes
    */
   private async performSemanticSearch(query: string, projectId: string): Promise<any[]> {
     try {
-      // Try to get existing embeddings first
-      const embeddings = await analysisRepository.getEmbeddings(projectId, {
-        limit: 10
-      });
+      let embeddings: any[] = [];
+
+      // Use storage abstraction for embedded mode
+      if (isUsingEmbeddedStorage()) {
+        const storageManager = await getStorageManager();
+        const vectorStore = storageManager.getVectorStore();
+
+        // Use text search for embedded mode
+        const results = await vectorStore.searchByText(query, projectId, 10);
+        embeddings = results.map(r => ({
+          file_path: r.document.filePath,
+          content_text: r.document.content,
+          content_type: r.document.metadata?.content_type || 'code'
+        }));
+      } else {
+        // Server mode - use PostgreSQL
+        embeddings = await analysisRepository.getEmbeddings(projectId, {
+          limit: 10
+        });
+      }
 
       if (embeddings.length === 0) {
         console.log(Theme.colors.warning('   ⚠️ No embeddings found - run "search --index" first'));
@@ -306,9 +324,46 @@ export class AnalyzeCommandHandler extends BaseCommandHandler {
 
   /**
    * Step 4: Query knowledge graph for relationships
+   * Uses storage abstraction for both embedded and server modes
    */
   private async queryKnowledgeGraph(query: string, projectId: string): Promise<any[]> {
     try {
+      // Use storage abstraction - works for both embedded (Graphology) and server (Neo4j)
+      if (isUsingEmbeddedStorage()) {
+        const storageManager = await getStorageManager();
+        const graphStore = storageManager.getGraphStore();
+
+        // Get file nodes for the project
+        const fileNodes = await graphStore.findNodes(projectId, 'file');
+        const classNodes = await graphStore.findNodes(projectId, 'class');
+        const functionNodes = await graphStore.findNodes(projectId, 'function');
+
+        const relationships: any[] = [];
+
+        // Build relationships from graph data
+        for (const fileNode of fileNodes) {
+          const edges = await graphStore.getEdges(fileNode.id, 'out');
+          for (const edge of edges) {
+            if (edge.type === 'contains') {
+              const targetNode = await graphStore.getNode(edge.target);
+              if (targetNode) {
+                relationships.push({
+                  type: 'definition',
+                  source: fileNode.properties?.relativePath || fileNode.name,
+                  target: targetNode.name,
+                  relationship: 'DEFINES',
+                  nodeType: targetNode.type
+                });
+              }
+            }
+          }
+        }
+
+        console.log(`   🕸️ Found ${relationships.length} relationships in knowledge graph`);
+        return relationships;
+      }
+
+      // Server mode - use Neo4j directly
       const neo4j = require('neo4j-driver');
 
       const driver = neo4j.driver(
@@ -334,13 +389,13 @@ export class AnalyzeCommandHandler extends BaseCommandHandler {
           LIMIT 20
         `, { projectId });
 
-        const relationships = result.records.map(record => ({
+        const relationships = result.records.map((record: any) => ({
           type: 'definition',
           source: record.get('file'),
           target: record.get('name'),
           relationship: record.get('relationship'),
           nodeType: record.get('nodeType')?.[0] || 'unknown'
-        })).filter(rel => rel.target); // Filter out null targets
+        })).filter((rel: any) => rel.target); // Filter out null targets
 
         // Also query for any cross-file relationships (future enhancement)
         const crossFileResult = await session.run(`
@@ -352,7 +407,7 @@ export class AnalyzeCommandHandler extends BaseCommandHandler {
           LIMIT 10
         `, { projectId });
 
-        const crossFileRels = crossFileResult.records.map(record => ({
+        const crossFileRels = crossFileResult.records.map((record: any) => ({
           type: 'cross_reference',
           source: record.get('source'),
           target: record.get('target'),
@@ -372,26 +427,8 @@ export class AnalyzeCommandHandler extends BaseCommandHandler {
 
     } catch (error) {
       this.logger.error('Knowledge graph query failed:', error);
-      console.log(Theme.colors.warning('   ⚠️ Knowledge graph unavailable - using fallback mock data'));
-
-      // Fallback to mock data if Neo4j is unavailable
-      const mockRelationships = [
-        {
-          type: 'dependency',
-          source: 'UserController',
-          target: 'AuthService',
-          relationship: 'USES'
-        },
-        {
-          type: 'inheritance',
-          source: 'AdminUser',
-          target: 'User',
-          relationship: 'EXTENDS'
-        }
-      ];
-
-      console.log(`   🕸️ Using ${mockRelationships.length} mock relationships`);
-      return mockRelationships;
+      console.log(Theme.colors.warning('   ⚠️ Knowledge graph unavailable'));
+      return [];
     }
   }
 
@@ -712,13 +749,24 @@ Focus on being specific to this codebase, not generic advice.
 
   /**
    * Get existing project ID from database or generate fallback
+   * Uses storage abstraction for both embedded and server modes
    */
   private async generateProjectId(projectPath: string): Promise<string> {
     try {
-      // Try to find existing project by path
-      const projects = await analysisRepository.getProjects({ projectPath });
-      if (projects.length > 0) {
-        return projects[0].id;
+      // Use storage abstraction for embedded mode
+      if (isUsingEmbeddedStorage()) {
+        const storageManager = await getStorageManager();
+        const projectStore = storageManager.getProjectStore();
+        const project = await projectStore.findByPath(projectPath);
+        if (project) {
+          return project.id;
+        }
+      } else {
+        // Server mode - use PostgreSQL
+        const projects = await analysisRepository.getProjects({ projectPath });
+        if (projects.length > 0) {
+          return projects[0].id;
+        }
       }
 
       // Fallback: generate a new UUID (should rarely happen if init was run)

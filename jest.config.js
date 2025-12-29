@@ -6,6 +6,11 @@ module.exports = {
     '**/__tests__/**/*.ts',
     '**/?(*.)+(spec|test).ts'
   ],
+  // Ignore test fixtures to prevent haste module collisions
+  modulePathIgnorePatterns: [
+    '<rootDir>/tests/fixtures/.temp',
+    '<rootDir>/tests/fixtures/ContractMaster-Test-Original'
+  ],
   transform: {
     '^.+\\.ts$': 'ts-jest'
   },
@@ -31,6 +36,10 @@ module.exports = {
   testTimeout: 30000,
   forceExit: true,
   detectOpenHandles: true,
+  // Set NODE_ENV for tests
+  testEnvironmentOptions: {
+    NODE_ENV: 'test'
+  },
   // Fix for Jest 30.x compatibility
   transformIgnorePatterns: [
     'node_modules/(?!(chalk|ora)/)'

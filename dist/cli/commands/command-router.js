@@ -21,6 +21,7 @@ const solid_command_handler_1 = require("./handlers/solid-command-handler");
 const docs_command_handler_1 = require("./handlers/docs-command-handler");
 const instructions_command_handler_1 = require("./handlers/instructions-command-handler");
 const watcher_command_handler_1 = require("./handlers/watcher-command-handler");
+const synonyms_command_handler_1 = require("./handlers/synonyms-command-handler");
 class CommandRouter {
     context;
     handlers = new Map();
@@ -85,12 +86,12 @@ class CommandRouter {
             return;
         }
         // In command mode (-c), always force search on
-        // In REPL mode, use prepareForNewPrompt to manage state
+        // In REPL mode, search state persists (user can toggle with /s)
         this.workflowOrchestrator.getUserInteractionService().prepareForNewPrompt(this.commandMode);
     }
     /**
      * Mark conversation as complete (for REPL mode)
-     * After workflow completes, search will default to OFF for next prompt
+     * Note: Search state now persists between prompts (no auto-disable)
      */
     markConversationComplete() {
         this.workflowOrchestrator.getUserInteractionService().markConversationComplete();
@@ -118,6 +119,7 @@ class CommandRouter {
         this.handlers.set('instructions', new instructions_command_handler_1.InstructionsCommandHandler(this.context));
         this.handlers.set('watch', new watcher_command_handler_1.WatcherCommandHandler(this.context));
         this.handlers.set('watcher', new watcher_command_handler_1.WatcherCommandHandler(this.context)); // Alias
+        this.handlers.set('synonyms', new synonyms_command_handler_1.SynonymsCommandHandler(this.context));
     }
     /**
      * Process user input and route to appropriate handler
@@ -130,6 +132,10 @@ class CommandRouter {
         // Handle search toggle command (s or /s) - short circuit before other processing
         if (trimmedInput.toLowerCase() === 's' || trimmedInput.toLowerCase() === '/s') {
             return this.handleSearchToggle();
+        }
+        // Detect and passthrough Claude CLI commands (login, logout, version, etc.)
+        if (this.isClaudeCLICommand(trimmedInput)) {
+            return await this.passthroughClaudeCLI(trimmedInput);
         }
         // Handle slash commands (explicit commands)
         if (trimmedInput.startsWith('/')) {
@@ -229,6 +235,10 @@ ${theme_1.Theme.colors.success('General:')}
   help                   Show this help message
   history                View/clear command history
   exit, quit             Exit CodeMind
+
+${theme_1.Theme.colors.success('Claude CLI Passthrough:')}
+  claude login           Pass through to Claude CLI (login, logout, version, etc.)
+  claude <command>       Any Claude CLI command will be passed through directly
 
 ${theme_1.Theme.colors.info('Natural Language:')}
   You can also use natural language queries like:
@@ -394,6 +404,79 @@ ${theme_1.Theme.colors.primary('History Command:')}
             console.log(theme_1.Theme.colors.error('❌ Error in natural language processing: ' + errorMessage));
             return { success: false, message: errorMessage };
         }
+    }
+    /**
+     * Detect if the user input is a Claude CLI command that should be passed through
+     * Handles commands like: claude login, claude logout, claude --version, etc.
+     */
+    isClaudeCLICommand(input) {
+        const trimmed = input.trim().toLowerCase();
+        // Check if it starts with "claude " (user explicitly wants Claude CLI)
+        if (trimmed.startsWith('claude ')) {
+            return true;
+        }
+        // Check for standalone "claude" (might be checking if it's installed)
+        if (trimmed === 'claude') {
+            return true;
+        }
+        return false;
+    }
+    /**
+     * Pass a command directly through to Claude CLI
+     * Used for commands like "claude login", "claude logout", etc.
+     */
+    async passthroughClaudeCLI(input) {
+        const { spawn } = require('child_process');
+        return new Promise((resolve) => {
+            // Extract the claude command (remove "claude " prefix if present)
+            let claudeCommand = input.trim();
+            if (claudeCommand.toLowerCase().startsWith('claude ')) {
+                claudeCommand = claudeCommand.substring(7); // Remove "claude " prefix
+            }
+            else {
+                claudeCommand = ''; // Just "claude" with no args
+            }
+            console.log(theme_1.Theme.colors.muted(`\n  Passing through to Claude CLI...\n`));
+            // Spawn Claude CLI with inherited stdio so user can interact directly
+            const child = spawn('claude', claudeCommand ? claudeCommand.split(' ') : [], {
+                stdio: 'inherit', // Inherit stdin/stdout/stderr for direct user interaction
+                shell: true
+            });
+            child.on('close', (code) => {
+                if (code === 0) {
+                    console.log(theme_1.Theme.colors.muted(`\n  Returned to CodeMind.\n`));
+                    resolve({
+                        success: true,
+                        message: 'Claude CLI command completed'
+                    });
+                }
+                else if (code === null) {
+                    // Process was killed/terminated
+                    resolve({
+                        success: false,
+                        message: 'Claude CLI command was terminated'
+                    });
+                }
+                else {
+                    // Non-zero exit code
+                    resolve({
+                        success: false,
+                        message: `Claude CLI command failed with exit code ${code}`
+                    });
+                }
+            });
+            child.on('error', (err) => {
+                let errorMessage = `Error: ${err.message}`;
+                if (err.message.includes('ENOENT') || err.message.includes('not found')) {
+                    errorMessage = '❌ Claude CLI not found. Please install it with: npm install -g @anthropic-ai/claude-code';
+                }
+                console.error(theme_1.Theme.colors.error(`\n  ${errorMessage}\n`));
+                resolve({
+                    success: false,
+                    message: errorMessage
+                });
+            });
+        });
     }
     /**
      * Get the workflow orchestrator instance for testing

@@ -55,11 +55,12 @@ const graph_analysis_service_1 = require("./graph-analysis-service");
 const context_builder_1 = require("./context-builder");
 const user_interaction_service_1 = require("./user-interaction-service");
 const database_update_manager_1 = require("../../../shared/managers/database-update-manager");
-const database_config_1 = require("../../../config/database-config");
+const search_quality_metrics_1 = require("./search-quality-metrics");
 const theme_1 = require("../../ui/theme");
 const child_process_1 = require("child_process");
 const util_1 = require("util");
 const path = __importStar(require("path"));
+const storage_1 = require("../../../storage");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
 class WorkflowOrchestrator {
     _searchOrchestrator;
@@ -67,13 +68,14 @@ class WorkflowOrchestrator {
     _contextBuilder;
     _userInteractionService;
     _databaseUpdateManager;
-    _dbConnections;
+    _storageManager;
+    _qualityMetrics;
     projectPath;
     projectId;
     _readlineInterface;
     get searchOrchestrator() {
         if (!this._searchOrchestrator) {
-            this._searchOrchestrator = new semantic_search_orchestrator_1.SemanticSearchOrchestrator(this.dbConnections);
+            this._searchOrchestrator = new semantic_search_orchestrator_1.SemanticSearchOrchestrator();
             if (this.projectId) {
                 this._searchOrchestrator.setProjectId(this.projectId);
             }
@@ -101,11 +103,11 @@ class WorkflowOrchestrator {
         }
         return this._userInteractionService;
     }
-    get dbConnections() {
-        if (!this._dbConnections) {
-            this._dbConnections = new database_config_1.DatabaseConnections();
+    async getStorageManager() {
+        if (!this._storageManager) {
+            this._storageManager = await (0, storage_1.getStorageManager)();
         }
-        return this._dbConnections;
+        return this._storageManager;
     }
     get databaseUpdateManager() {
         if (!this._databaseUpdateManager) {
@@ -116,6 +118,7 @@ class WorkflowOrchestrator {
     constructor(projectPath, projectId) {
         this.projectPath = projectPath;
         this.projectId = projectId || 'default';
+        this._qualityMetrics = (0, search_quality_metrics_1.getSearchQualityMetrics)();
     }
     setReadlineInterface(rl) {
         this._readlineInterface = rl;
@@ -149,46 +152,58 @@ class WorkflowOrchestrator {
         }
     }
     /**
-     * Check if databases are available for enhanced workflow
+     * Convert similarity score (0-1) to star rating display
+     * ★★★★★ = 90-100% (Excellent match)
+     * ★★★★☆ = 75-89%  (Very good match)
+     * ★★★☆☆ = 60-74%  (Good match)
+     * ★★☆☆☆ = 45-59%  (Fair match)
+     * ★☆☆☆☆ = 30-44%  (Weak match)
+     * ☆☆☆☆☆ = 0-29%   (Poor match)
+     */
+    getStarRating(score) {
+        const percentage = Math.max(0, Math.min(100, score * 100));
+        if (percentage >= 90)
+            return '★★★★★';
+        if (percentage >= 75)
+            return '★★★★☆';
+        if (percentage >= 60)
+            return '★★★☆☆';
+        if (percentage >= 45)
+            return '★★☆☆☆';
+        if (percentage >= 30)
+            return '★☆☆☆☆';
+        return '☆☆☆☆☆';
+    }
+    /**
+     * Check if storage is available for enhanced workflow
+     * Uses the StorageManager to determine availability in both embedded and server modes
      */
     async checkDatabaseAvailability() {
-        const status = { postgres: false, redis: false, neo4j: false };
         try {
-            // Check PostgreSQL
-            const pgClient = await this.dbConnections.getPostgresConnection();
-            if (pgClient) {
-                await pgClient.query('SELECT 1');
-                status.postgres = true;
+            const storageManager = await this.getStorageManager();
+            const health = await storageManager.healthCheck();
+            const status = storageManager.getStatus();
+            // If using embedded mode, all storage is "embedded"
+            if (status.mode === 'embedded') {
+                return {
+                    postgres: false,
+                    redis: false,
+                    neo4j: false,
+                    embedded: health.healthy
+                };
             }
+            // Server mode: report individual component availability
+            return {
+                postgres: status.components.vectorStore === 'server',
+                redis: status.components.cacheStore === 'server',
+                neo4j: status.components.graphStore === 'server',
+                embedded: false
+            };
         }
         catch {
-            status.postgres = false;
+            // If storage manager fails, assume embedded is available (no external deps)
+            return { postgres: false, redis: false, neo4j: false, embedded: true };
         }
-        try {
-            // Check Redis
-            const redisClient = await this.dbConnections.getRedisConnection();
-            if (redisClient) {
-                await redisClient.ping();
-                status.redis = true;
-            }
-        }
-        catch {
-            status.redis = false;
-        }
-        try {
-            // Check Neo4j
-            const neo4jDriver = await this.dbConnections.getNeo4jConnection();
-            if (neo4jDriver) {
-                const session = neo4jDriver.session();
-                await session.run('RETURN 1');
-                await session.close();
-                status.neo4j = true;
-            }
-        }
-        catch {
-            status.neo4j = false;
-        }
-        return status;
     }
     /**
      * Execute the CodeMind workflow
@@ -207,7 +222,7 @@ class WorkflowOrchestrator {
             // CHECK DATABASE AVAILABILITY
             // ==========================================
             const dbStatus = await this.checkDatabaseAvailability();
-            const anyDbAvailable = dbStatus.postgres || dbStatus.redis || dbStatus.neo4j;
+            const anyDbAvailable = dbStatus.embedded || dbStatus.postgres || dbStatus.redis || dbStatus.neo4j;
             if (!anyDbAvailable) {
                 // TRANSPARENT MODE - DBs are down
                 return await this.executeTransparentMode(query, projectPath, options);
@@ -278,14 +293,30 @@ class WorkflowOrchestrator {
             // Show compact results
             if (semanticResults.length > 0) {
                 console.log(theme_1.Theme.colors.success(`✓ Found ${semanticResults.length} relevant files`));
-                // Show top 3 files inline
-                const topFiles = semanticResults.slice(0, 3);
+                // Check if verbose mode is enabled
+                const isVerbose = this.userInteractionService.isVerboseMode();
+                // Show top files with star ratings (more in verbose mode)
+                const showCount = isVerbose ? 5 : 3;
+                const topFiles = semanticResults.slice(0, showCount);
                 topFiles.forEach(f => {
-                    const match = Math.round(f.similarity * 100);
-                    console.log(theme_1.Theme.colors.muted(`  → ${f.file}`) + theme_1.Theme.colors.success(` (${match}%)`));
+                    const normalizedSimilarity = Math.min(1, f.similarity);
+                    const stars = this.getStarRating(normalizedSimilarity);
+                    const percentage = Math.round(normalizedSimilarity * 100);
+                    // In verbose mode, show debug breakdown of score sources
+                    if (isVerbose && f.debug) {
+                        const semanticPct = Math.round(f.debug.vectorScore * 100);
+                        const textNorm = Math.min(1, f.debug.textScore / 20); // Normalize BM25 (0-20+) to 0-1
+                        const textPct = Math.round(textNorm * 100);
+                        const pathMatch = f.debug.pathMatch ? '✓' : '✗';
+                        const debugInfo = theme_1.Theme.colors.muted(` [sem:${semanticPct}% txt:${textPct}% path:${pathMatch}]`);
+                        console.log(theme_1.Theme.colors.muted(`  → ${f.file}`) + theme_1.Theme.colors.success(` ${stars} ${percentage}%`) + debugInfo);
+                    }
+                    else {
+                        console.log(theme_1.Theme.colors.muted(`  → ${f.file}`) + theme_1.Theme.colors.success(` ${stars}`));
+                    }
                 });
-                if (semanticResults.length > 3) {
-                    console.log(theme_1.Theme.colors.muted(`  ... +${semanticResults.length - 3} more`));
+                if (semanticResults.length > showCount) {
+                    console.log(theme_1.Theme.colors.muted(`  ... +${semanticResults.length - showCount} more`));
                 }
             }
             else {
@@ -303,11 +334,23 @@ class WorkflowOrchestrator {
             const graphResult = await this.graphAnalysisService.performGraphAnalysis(query, semanticResults);
             if (graphResult.relationships.length > 0 || (graphResult.classes && graphResult.classes.length > 0)) {
                 graphContext = graphResult;
-                // Show compact relationship info
-                const classCount = graphResult.classes?.length || 0;
+                // Show compact relationship info with type breakdown
+                const classes = graphResult.classes || [];
                 const relCount = graphResult.relationships.length;
-                if (classCount > 0 || relCount > 0) {
-                    console.log(theme_1.Theme.colors.success(`✓ Found ${classCount} components, ${relCount} relationships`));
+                if (classes.length > 0 || relCount > 0) {
+                    // Count components by type
+                    const typeCounts = new Map();
+                    for (const c of classes) {
+                        const type = c.type?.toLowerCase() || 'unknown';
+                        typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
+                    }
+                    // Build type breakdown string (e.g., "24 classes, 12 functions")
+                    const typeBreakdown = Array.from(typeCounts.entries())
+                        .sort((a, b) => b[1] - a[1]) // Sort by count descending
+                        .map(([type, count]) => `${count} ${type}${count > 1 ? 's' : ''}`)
+                        .join(', ');
+                    const componentSummary = typeBreakdown || `${classes.length} components`;
+                    console.log(theme_1.Theme.colors.success(`✓ Found ${componentSummary}, ${relCount} relationships`));
                 }
             }
         }
@@ -317,9 +360,25 @@ class WorkflowOrchestrator {
         console.log(theme_1.Theme.colors.muted('⏳ Building context...'));
         const queryAnalysis = this.createDefaultQueryAnalysis();
         const enhancedContext = this.contextBuilder.buildEnhancedContext(query, queryAnalysis, [], semanticResults, graphContext);
+        // Start search quality tracking session if we performed a search
+        if (semanticResults.length > 0) {
+            const suggestedFiles = semanticResults.map(r => r.file);
+            this._qualityMetrics.startSession(query, suggestedFiles);
+        }
         // Execute Claude with enhanced context
         console.log(theme_1.Theme.colors.claudeCode('\n🤖 Claude is working...'));
-        const claudeResponse = await this.userInteractionService.executeClaudeCode(enhancedContext.enhancedPrompt || query);
+        let claudeResponse = await this.userInteractionService.executeClaudeCode(enhancedContext.enhancedPrompt || query);
+        // Check if user wants to run a different command (keep same context)
+        while (claudeResponse.summary.startsWith('new_command:')) {
+            const newCommand = claudeResponse.summary.substring('new_command:'.length);
+            console.log(theme_1.Theme.colors.claudeCode('\n🤖 Processing new command...'));
+            claudeResponse = await this.userInteractionService.executeClaudeCode(newCommand);
+        }
+        // Record Claude's file usage for quality metrics
+        // Note: filesToModify is used as a proxy since we don't track reads directly
+        if (semanticResults.length > 0 && claudeResponse.filesToModify.length > 0) {
+            this._qualityMetrics.recordClaudeModifications(claudeResponse.filesToModify);
+        }
         // ==========================================
         // STEP 4: Quality Check (auto build/test if files changed)
         // ==========================================
@@ -420,6 +479,14 @@ class WorkflowOrchestrator {
         if (parts.length > 0) {
             console.log(theme_1.Theme.colors.muted(`\n📊 ${parts.join(' | ')}`));
         }
+        // Show search quality metrics in verbose mode
+        const isVerbose = this.userInteractionService.isVerboseMode();
+        if (isVerbose && filesFound > 0) {
+            const sessionMetrics = this._qualityMetrics.getLatestSessionMetrics();
+            if (sessionMetrics) {
+                console.log(theme_1.Theme.colors.muted('\n' + this._qualityMetrics.formatMetricsForDisplay(sessionMetrics, true)));
+            }
+        }
         console.log('');
     }
     /**
@@ -493,7 +560,7 @@ class WorkflowOrchestrator {
         // Known single-word commands
         const knownCommands = new Set([
             'help', 'exit', 'quit', 'status', 'setup', 'init', 'project', 'sync',
-            'search', 'analyze', 'dedup', 'solid', 'docs', 'instructions', 'watch', 'watcher', 'history'
+            'search', 'analyze', 'dedup', 'solid', 'docs', 'instructions', 'watch', 'watcher', 'history', 'synonyms'
         ]);
         // Known subcommands for each command (to recognize "project duplicates", "project cleanup", etc.)
         const knownSubcommands = {
@@ -502,7 +569,8 @@ class WorkflowOrchestrator {
             'analyze': new Set(['solid', 'dedup', 'quality', 'help']),
             'sync': new Set(['full', 'incremental', 'status', 'help']),
             'docs': new Set(['generate', 'update', 'help']),
-            'init': new Set(['reset', 'force', 'help'])
+            'init': new Set(['reset', 'force', 'help']),
+            'synonyms': new Set(['list', 'add', 'remove', 'import-defaults', 'clear', 'help'])
         };
         const words = trimmed.split(/\s+/);
         const firstWord = words[0].toLowerCase();
@@ -577,8 +645,8 @@ class WorkflowOrchestrator {
         if (this._databaseUpdateManager) {
             await this._databaseUpdateManager.close();
         }
-        if (this._dbConnections) {
-            await this._dbConnections.closeAll();
+        if (this._storageManager) {
+            await this._storageManager.closeAll();
         }
     }
     /**

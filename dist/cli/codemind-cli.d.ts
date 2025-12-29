@@ -106,6 +106,8 @@ export declare class CodeMindCLI {
     private handleEscapeKey;
     /**
      * Check database connections on startup
+     * For embedded mode: Shows SQLite + MiniSearch status
+     * For server mode: Checks PostgreSQL, Redis, Neo4j connections
      */
     private checkDatabaseConnections;
     /**

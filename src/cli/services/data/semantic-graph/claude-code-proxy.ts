@@ -235,7 +235,7 @@ Focus on accuracy and only include relationships you're confident about.`;
     const functionMatches = response.match(/function\s+(\w+)/gi) || [];
 
     classMatches.forEach((match, index) => {
-      const className = match.split(' ')[1];
+      const className = String(match).split(' ')[1];
       if (className) {
         entities.push({
           id: this.generateEntityId(),

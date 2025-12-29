@@ -68,7 +68,8 @@ export declare class WorkflowOrchestrator {
     private _contextBuilder?;
     private _userInteractionService?;
     private _databaseUpdateManager?;
-    private _dbConnections?;
+    private _storageManager?;
+    private _qualityMetrics;
     private projectPath;
     private projectId;
     private _readlineInterface?;
@@ -76,7 +77,7 @@ export declare class WorkflowOrchestrator {
     private get graphAnalysisService();
     private get contextBuilder();
     private get userInteractionService();
-    private get dbConnections();
+    private getStorageManager;
     private get databaseUpdateManager();
     constructor(projectPath: string, projectId?: string);
     setReadlineInterface(rl: any): void;
@@ -91,7 +92,18 @@ export declare class WorkflowOrchestrator {
     getUserInteractionService(): UserInteractionService;
     setProject(projectId: string, projectPath: string): void;
     /**
-     * Check if databases are available for enhanced workflow
+     * Convert similarity score (0-1) to star rating display
+     * ★★★★★ = 90-100% (Excellent match)
+     * ★★★★☆ = 75-89%  (Very good match)
+     * ★★★☆☆ = 60-74%  (Good match)
+     * ★★☆☆☆ = 45-59%  (Fair match)
+     * ★☆☆☆☆ = 30-44%  (Weak match)
+     * ☆☆☆☆☆ = 0-29%   (Poor match)
+     */
+    private getStarRating;
+    /**
+     * Check if storage is available for enhanced workflow
+     * Uses the StorageManager to determine availability in both embedded and server modes
      */
     private checkDatabaseAvailability;
     /**

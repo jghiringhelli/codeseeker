@@ -43,6 +43,7 @@ const base_command_handler_1 = require("../base-command-handler");
 const theme_1 = require("../../ui/theme");
 const analysis_repository_consolidated_1 = require("../../../shared/analysis-repository-consolidated");
 const logger_1 = require("../../../utils/logger");
+const storage_1 = require("../../../storage");
 const path = __importStar(require("path"));
 class AnalyzeCommandHandler extends base_command_handler_1.BaseCommandHandler {
     logger = logger_1.Logger.getInstance().child('AnalyzeCommandHandler');
@@ -253,13 +254,29 @@ class AnalyzeCommandHandler extends base_command_handler_1.BaseCommandHandler {
     }
     /**
      * Step 3: Perform semantic search for relevant code
+     * Uses storage abstraction for both embedded and server modes
      */
     async performSemanticSearch(query, projectId) {
         try {
-            // Try to get existing embeddings first
-            const embeddings = await analysis_repository_consolidated_1.analysisRepository.getEmbeddings(projectId, {
-                limit: 10
-            });
+            let embeddings = [];
+            // Use storage abstraction for embedded mode
+            if ((0, storage_1.isUsingEmbeddedStorage)()) {
+                const storageManager = await (0, storage_1.getStorageManager)();
+                const vectorStore = storageManager.getVectorStore();
+                // Use text search for embedded mode
+                const results = await vectorStore.searchByText(query, projectId, 10);
+                embeddings = results.map(r => ({
+                    file_path: r.document.filePath,
+                    content_text: r.document.content,
+                    content_type: r.document.metadata?.content_type || 'code'
+                }));
+            }
+            else {
+                // Server mode - use PostgreSQL
+                embeddings = await analysis_repository_consolidated_1.analysisRepository.getEmbeddings(projectId, {
+                    limit: 10
+                });
+            }
             if (embeddings.length === 0) {
                 console.log(theme_1.Theme.colors.warning('   ⚠️ No embeddings found - run "search --index" first'));
                 return [];
@@ -292,9 +309,41 @@ class AnalyzeCommandHandler extends base_command_handler_1.BaseCommandHandler {
     }
     /**
      * Step 4: Query knowledge graph for relationships
+     * Uses storage abstraction for both embedded and server modes
      */
     async queryKnowledgeGraph(query, projectId) {
         try {
+            // Use storage abstraction - works for both embedded (Graphology) and server (Neo4j)
+            if ((0, storage_1.isUsingEmbeddedStorage)()) {
+                const storageManager = await (0, storage_1.getStorageManager)();
+                const graphStore = storageManager.getGraphStore();
+                // Get file nodes for the project
+                const fileNodes = await graphStore.findNodes(projectId, 'file');
+                const classNodes = await graphStore.findNodes(projectId, 'class');
+                const functionNodes = await graphStore.findNodes(projectId, 'function');
+                const relationships = [];
+                // Build relationships from graph data
+                for (const fileNode of fileNodes) {
+                    const edges = await graphStore.getEdges(fileNode.id, 'out');
+                    for (const edge of edges) {
+                        if (edge.type === 'contains') {
+                            const targetNode = await graphStore.getNode(edge.target);
+                            if (targetNode) {
+                                relationships.push({
+                                    type: 'definition',
+                                    source: fileNode.properties?.relativePath || fileNode.name,
+                                    target: targetNode.name,
+                                    relationship: 'DEFINES',
+                                    nodeType: targetNode.type
+                                });
+                            }
+                        }
+                    }
+                }
+                console.log(`   🕸️ Found ${relationships.length} relationships in knowledge graph`);
+                return relationships;
+            }
+            // Server mode - use Neo4j directly
             const neo4j = require('neo4j-driver');
             const driver = neo4j.driver(process.env.NEO4J_URI || 'bolt://localhost:7687', neo4j.auth.basic(process.env.NEO4J_USER || 'neo4j', process.env.NEO4J_PASSWORD || 'codemind123'));
             const session = driver.session();
@@ -310,13 +359,13 @@ class AnalyzeCommandHandler extends base_command_handler_1.BaseCommandHandler {
           ORDER BY f.relativePath
           LIMIT 20
         `, { projectId });
-                const relationships = result.records.map(record => ({
+                const relationships = result.records.map((record) => ({
                     type: 'definition',
                     source: record.get('file'),
                     target: record.get('name'),
                     relationship: record.get('relationship'),
                     nodeType: record.get('nodeType')?.[0] || 'unknown'
-                })).filter(rel => rel.target); // Filter out null targets
+                })).filter((rel) => rel.target); // Filter out null targets
                 // Also query for any cross-file relationships (future enhancement)
                 const crossFileResult = await session.run(`
           MATCH (f1:File)-[:DEFINES]->(n1), (f2:File)-[:DEFINES]->(n2)
@@ -326,7 +375,7 @@ class AnalyzeCommandHandler extends base_command_handler_1.BaseCommandHandler {
                  n1.name as sharedElement
           LIMIT 10
         `, { projectId });
-                const crossFileRels = crossFileResult.records.map(record => ({
+                const crossFileRels = crossFileResult.records.map((record) => ({
                     type: 'cross_reference',
                     source: record.get('source'),
                     target: record.get('target'),
@@ -344,24 +393,8 @@ class AnalyzeCommandHandler extends base_command_handler_1.BaseCommandHandler {
         }
         catch (error) {
             this.logger.error('Knowledge graph query failed:', error);
-            console.log(theme_1.Theme.colors.warning('   ⚠️ Knowledge graph unavailable - using fallback mock data'));
-            // Fallback to mock data if Neo4j is unavailable
-            const mockRelationships = [
-                {
-                    type: 'dependency',
-                    source: 'UserController',
-                    target: 'AuthService',
-                    relationship: 'USES'
-                },
-                {
-                    type: 'inheritance',
-                    source: 'AdminUser',
-                    target: 'User',
-                    relationship: 'EXTENDS'
-                }
-            ];
-            console.log(`   🕸️ Using ${mockRelationships.length} mock relationships`);
-            return mockRelationships;
+            console.log(theme_1.Theme.colors.warning('   ⚠️ Knowledge graph unavailable'));
+            return [];
         }
     }
     /**
@@ -635,13 +668,25 @@ Focus on being specific to this codebase, not generic advice.
     }
     /**
      * Get existing project ID from database or generate fallback
+     * Uses storage abstraction for both embedded and server modes
      */
     async generateProjectId(projectPath) {
         try {
-            // Try to find existing project by path
-            const projects = await analysis_repository_consolidated_1.analysisRepository.getProjects({ projectPath });
-            if (projects.length > 0) {
-                return projects[0].id;
+            // Use storage abstraction for embedded mode
+            if ((0, storage_1.isUsingEmbeddedStorage)()) {
+                const storageManager = await (0, storage_1.getStorageManager)();
+                const projectStore = storageManager.getProjectStore();
+                const project = await projectStore.findByPath(projectPath);
+                if (project) {
+                    return project.id;
+                }
+            }
+            else {
+                // Server mode - use PostgreSQL
+                const projects = await analysis_repository_consolidated_1.analysisRepository.getProjects({ projectPath });
+                if (projects.length > 0) {
+                    return projects[0].id;
+                }
             }
             // Fallback: generate a new UUID (should rarely happen if init was run)
             const crypto = await Promise.resolve().then(() => __importStar(require('crypto')));

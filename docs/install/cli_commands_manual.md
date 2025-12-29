@@ -354,7 +354,7 @@ CodeMind uses deterministic project IDs based on SHA-256 hash of normalized path
 
 ## Code Analysis (`analyze`)
 
-Perform AI-enhanced code analysis using the 8-step workflow.
+Perform AI-enhanced code analysis using the 11-step workflow.
 
 ### Syntax
 
@@ -362,16 +362,19 @@ Perform AI-enhanced code analysis using the 8-step workflow.
 codemind analyze <query>
 ```
 
-### What It Does (8-Step Workflow)
+### What It Does (11-Step Workflow)
 
 1. **Query Analysis** - Detects assumptions and ambiguities
-2. **User Clarification** - Prompts for clarification when needed
-3. **Semantic Search** - Finds relevant code segments
-4. **Knowledge Graph Query** - Analyzes code relationships
-5. **Context Building** - Combines all sources into enhanced context
-6. **AI Analysis** - Generates contextual recommendations
-7. **File Approval** - Confirms any file modifications
-8. **Summary** - Displays comprehensive results
+2. **Task Decomposition** - Splits complex queries into focused sub-tasks
+3. **User Clarification** - Prompts for clarification when needed
+4. **Hybrid Search** - Semantic + text + path search with RRF fusion
+5. **Knowledge Graph Query** - Analyzes code relationships
+6. **Sub-Task Context** - Generates tailored context per sub-task
+7. **Context Building** - Combines all sources into enhanced context
+8. **AI Analysis** - Generates contextual recommendations
+9. **File Approval** - Confirms any file modifications
+10. **Build/Test Verification** - Validates code changes
+11. **Database Sync** - Updates embeddings and knowledge graph
 
 ### Examples
 

@@ -1,12 +1,16 @@
 /**
- * Graph Analysis Service - Queries Persisted Neo4j Graph
- * Single Responsibility: Query existing Neo4j graph to find relationships between semantic search results
+ * Graph Analysis Service - Queries Persisted Knowledge Graph
+ * Single Responsibility: Query existing knowledge graph to find relationships between semantic search results
  *
  * Strategy: "Seed + Expand"
  * 1. Take top N files from semantic search (seeds)
- * 2. Look up corresponding ENTITY nodes in Neo4j by filePath
+ * 2. Look up corresponding ENTITY nodes in graph by filePath
  * 3. Get direct relationships between seed nodes
  * 4. Optionally expand 1-hop to include important dependencies
+ *
+ * Storage Mode Support:
+ * - Embedded mode: Uses Graphology graph store (no Docker required)
+ * - Server mode: Uses Neo4j (for production)
  */
 export interface GraphContext {
     classes: Array<{
@@ -61,7 +65,13 @@ export declare class GraphAnalysisService {
     private logger;
     private projectPath;
     private projectId?;
+    private graphStore?;
+    private useEmbedded;
     constructor(projectPath: string, projectId?: string);
+    /**
+     * Initialize the graph store (for embedded mode)
+     */
+    private initializeGraphStore;
     /**
      * Set project ID for scoped queries
      */
@@ -73,27 +83,48 @@ export declare class GraphAnalysisService {
     performGraphAnalysis(_query: string, semanticResults: any[]): Promise<GraphContext>;
     /**
      * Resolve project ID from database by project path
-     * Queries both :Project and :PROJECT labels for compatibility
+     * Uses storage abstraction - embedded mode uses SQLite project store, server mode uses Neo4j
      */
     private resolveProjectId;
     /**
-     * Step 1: Look up nodes by file path from Neo4j graph
-     * Current schema: Project-[:CONTAINS]->File-[:DEFINES]->Class/Function
-     * File nodes have `path` property, entities have `name`, `startLine`, `endLine`
+     * Step 1: Look up nodes by file path from knowledge graph
+     * Uses storage abstraction - embedded mode uses Graphology, server mode uses Neo4j
      */
     private lookupNodesFromFiles;
     /**
+     * Embedded mode: Look up nodes using Graphology graph store
+     */
+    private lookupNodesEmbedded;
+    /**
+     * Server mode: Look up nodes using Neo4j
+     */
+    private lookupNodesNeo4j;
+    /**
      * Step 2: Get relationships between seed nodes
-     * Current schema: File-[:DEFINES]->Class/Function
-     * Returns DEFINES relationships between files and their entities
+     * Uses storage abstraction - embedded mode uses Graphology, server mode uses Neo4j
      */
     private getRelationshipsBetweenNodes;
     /**
+     * Embedded mode: Get relationships using Graphology graph store
+     */
+    private getRelationshipsEmbedded;
+    /**
+     * Server mode: Get relationships using Neo4j
+     */
+    private getRelationshipsNeo4j;
+    /**
      * Step 3: One-hop expansion - find important neighbors not in seed set
-     * Current schema: File-[:DEFINES]->Class/Function
-     * Expands to find other files that define related entities
+     * Uses storage abstraction - embedded mode uses Graphology, server mode uses Neo4j
      */
     private expandOneHop;
+    /**
+     * Embedded mode: One-hop expansion using Graphology graph store
+     */
+    private expandOneHopEmbedded;
+    /**
+     * Server mode: One-hop expansion using Neo4j
+     */
+    private expandOneHopNeo4j;
     /**
      * Convert Neo4j entities to GraphContext classes format
      */

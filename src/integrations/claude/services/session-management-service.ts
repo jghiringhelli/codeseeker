@@ -15,16 +15,32 @@ export class SessionManagementService implements ISessionManagementService {
   private activeSessions: Map<string, string> = new Map(); // projectPath -> sessionId
   private sessionTimestamps: Map<string, number> = new Map(); // sessionId -> timestamp
   private readonly SESSION_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours
+  private cleanupTimer?: NodeJS.Timeout;
 
   constructor(conversationManager?: ClaudeConversationManager) {
     this.conversationManager = conversationManager || new ClaudeConversationManager();
 
-    // Start cleanup timer
-    setInterval(() => {
-      this.cleanupExpiredSessions().catch(error => {
-        this.logger.error('Failed to cleanup expired sessions:', error);
-      });
-    }, 30 * 60 * 1000); // Cleanup every 30 minutes
+    // Start cleanup timer only in production (not during tests)
+    if (process.env.NODE_ENV !== 'test') {
+      this.cleanupTimer = setInterval(() => {
+        this.cleanupExpiredSessions().catch(error => {
+          this.logger.error('Failed to cleanup expired sessions:', error);
+        });
+      }, 30 * 60 * 1000); // Cleanup every 30 minutes
+    }
+  }
+
+  /**
+   * Cleanup method to stop timers and release resources
+   * Should be called when shutting down the service
+   */
+  async destroy(): Promise<void> {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = undefined;
+    }
+    this.activeSessions.clear();
+    this.sessionTimestamps.clear();
   }
 
   async getSessionForProject(projectPath: string): Promise<string> {

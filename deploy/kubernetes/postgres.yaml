@@ -1,0 +1,171 @@
+# PostgreSQL with pgvector for CodeMind
+# Provides: Vector search, project storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: codemind-postgres-pvc
+  labels:
+    app: codemind
+    component: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: codemind-postgres-init
+  labels:
+    app: codemind
+    component: postgres
+data:
+  init.sql: |
+    -- Enable pgvector extension
+    CREATE EXTENSION IF NOT EXISTS vector;
+
+    -- Create CodeMind database
+    CREATE DATABASE codemind;
+
+    -- Connect and setup schema
+    \c codemind
+
+    CREATE EXTENSION IF NOT EXISTS vector;
+
+    -- Projects table
+    CREATE TABLE IF NOT EXISTS projects (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      project_name VARCHAR(255) NOT NULL,
+      project_path TEXT NOT NULL UNIQUE,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      settings JSONB DEFAULT '{}'
+    );
+
+    -- Semantic search embeddings
+    CREATE TABLE IF NOT EXISTS semantic_search_embeddings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+      file_path TEXT NOT NULL,
+      chunk_index INTEGER DEFAULT 0,
+      content_text TEXT NOT NULL,
+      embedding vector(1536),
+      metadata JSONB DEFAULT '{}',
+      content_hash VARCHAR(64),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      content_tsvector TSVECTOR
+    );
+
+    -- Indexes for performance
+    CREATE INDEX IF NOT EXISTS idx_embeddings_project ON semantic_search_embeddings(project_id);
+    CREATE INDEX IF NOT EXISTS idx_embeddings_file ON semantic_search_embeddings(file_path);
+    CREATE INDEX IF NOT EXISTS idx_embeddings_vector ON semantic_search_embeddings
+      USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+    CREATE INDEX IF NOT EXISTS idx_embeddings_fts ON semantic_search_embeddings USING gin(content_tsvector);
+
+    -- Update tsvector trigger
+    CREATE OR REPLACE FUNCTION update_content_tsvector() RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.content_tsvector :=
+        setweight(to_tsvector('english', COALESCE(NEW.file_path, '')), 'A') ||
+        setweight(to_tsvector('english', COALESCE(NEW.content_text, '')), 'B');
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS tsvector_update ON semantic_search_embeddings;
+    CREATE TRIGGER tsvector_update
+      BEFORE INSERT OR UPDATE ON semantic_search_embeddings
+      FOR EACH ROW EXECUTE FUNCTION update_content_tsvector();
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: codemind-postgres
+  labels:
+    app: codemind
+    component: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: codemind
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: codemind
+        component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: codemind
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: codemind-postgres-secret
+                  key: password
+            - name: POSTGRES_DB
+              value: codemind
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - codemind
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - codemind
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: codemind-postgres-pvc
+        - name: postgres-init
+          configMap:
+            name: codemind-postgres-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: codemind-postgres
+  labels:
+    app: codemind
+    component: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: codemind
+    component: postgres

@@ -11,6 +11,7 @@ class ContextBuilder {
      * Build enhanced context from all analysis results
      */
     buildEnhancedContext(originalQuery, queryAnalysis, userClarifications, semanticResults, graphContext) {
+        const intent = queryAnalysis.intent;
         // Map relevant files and find their line numbers from graphContext classes
         const relevantFiles = semanticResults.map(result => {
             // Try to find corresponding class info with line numbers
@@ -20,7 +21,7 @@ class ContextBuilder {
                 path: result.file,
                 type: result.type,
                 similarity: result.similarity,
-                preview: this.createFilePreview(result),
+                preview: this.createFilePreview(result, intent),
                 startLine: classInfo?.filePath ? this.extractLineFromMetadata(classInfo) : undefined,
                 endLine: classInfo?.filePath ? this.extractEndLineFromMetadata(classInfo) : undefined
             };
@@ -104,13 +105,22 @@ class ContextBuilder {
 **How to use this context**:
 - The files and components listed below are the MOST RELEVANT to the user's query based on our analysis
 - You can trust this as a reliable starting point - no need to re-search for the same information
-- If you need additional context beyond what's provided, you may search further
+- Code snippets are sized based on task complexity - they show key patterns and signatures
+- **When to use Read tool**: Use Read when you need to see implementation details, understand full context, or work with code not shown in snippets
+- **Why snippets help**: They provide enough context to understand structure and patterns without bloating token usage
 - Focus on analyzing and working with the discovered files rather than searching from scratch`);
         // ===========================================
         // ROLE: Task-specific role based on intent
         // ===========================================
         const role = this.getRoleForIntent(queryAnalysis.intent);
         sections.push(`# Role\n${role}`);
+        // ===========================================
+        // FILE READING GUIDANCE: Intent-specific pitch
+        // ===========================================
+        const readGuidance = this.getReadGuidanceForIntent(queryAnalysis.intent);
+        if (readGuidance) {
+            sections.push(`# When to Read Files\n${readGuidance}`);
+        }
         // ===========================================
         // TASK: The user's request with clarifications
         // ===========================================
@@ -127,7 +137,7 @@ class ContextBuilder {
         if (relevantFiles.length > 0 || (graphContext.classes && graphContext.classes.length > 0)) {
             sections.push(`# Pre-Discovered Context (Use This First)
 The following files, components, and relationships were discovered through automated analysis. **Start here** rather than searching from scratch.`);
-            // Files with previews
+            // Files with intent-based previews
             if (relevantFiles.length > 0) {
                 const fileEntries = relevantFiles
                     .slice(0, 5)
@@ -136,6 +146,7 @@ The following files, components, and relationships were discovered through autom
                         ? `${file.path}:${file.startLine}${file.endLine ? `-${file.endLine}` : ''}`
                         : file.path;
                     let entry = `**${location}** (${file.type}, ${(file.similarity * 100).toFixed(0)}% match)`;
+                    // Include intent-based code snippet if available
                     if (file.preview && file.preview.trim()) {
                         entry += `\n\`\`\`\n${file.preview}\n\`\`\``;
                     }
@@ -203,6 +214,22 @@ Follow CLAUDE.md project guidelines:
         return sections.join('\n\n');
     }
     /**
+     * Get intent-specific guidance on when Claude should read files
+     * This "pitches" Claude on why and when to use the Read tool
+     */
+    getReadGuidanceForIntent(intent) {
+        const guidance = {
+            'fix': `**Read files when**: You need to trace the bug through the full call stack or see error handling logic not shown in snippets. The snippets show the relevant code area, but bugs often span multiple functions.`,
+            'analyze': `**Read files when**: You need to understand implementation details, measure complexity, or trace data flow. The snippets provide structure overview - use Read for deep analysis.`,
+            'explain': `**Read files when**: The user asks about specific implementation details or you need to trace execution flow. Snippets show signatures and patterns, but full explanation may require seeing the logic.`,
+            'modify': `**Read files when**: You need to understand the current implementation before making changes. The snippets show signatures - read full code to ensure your changes integrate properly.`,
+            'create': `**Read files when**: You need to see complete examples of similar functionality to match the project's patterns. Snippets show structure, but you may need full implementations as templates.`,
+            'refactor': `**Read files when**: You need to understand the full scope of what you're refactoring. Snippets show structure, but refactoring requires seeing all usages and dependencies.`,
+            'test': `**Read files when**: You need to understand the full behavior you're testing. The snippets show what to test, but you need implementation details to write comprehensive tests.`
+        };
+        return guidance[intent] || null;
+    }
+    /**
      * Get role description based on detected intent
      */
     getRoleForIntent(intent) {
@@ -253,15 +280,38 @@ Follow CLAUDE.md project guidelines:
         return formats[intent] || formats['general'];
     }
     /**
-     * Create a meaningful preview of file content
-     * Shows ~50 lines - enough to see class signatures, imports, and key methods
-     * This reduces Claude's need to Read files, saving tool call tokens
+     * Create intent-based file preview optimized for GraphRAG
+     * Adaptive chunk sizing based on task complexity and file size
+     *
+     * Strategy:
+     * - Complex tasks (fix, analyze, explain) need more context
+     * - Simple tasks (create, modify) need pattern examples only
+     * - Large files (>1000 lines) get no preview to avoid token bloat
      */
-    createFilePreview(result) {
+    createFilePreview(result, intent) {
         const lines = result.content.split('\n');
-        const PREVIEW_LINES = 50; // Enough to see class structure and key methods
-        const previewLines = lines.slice(0, PREVIEW_LINES);
-        return previewLines.join('\n') + (lines.length > PREVIEW_LINES ? `\n... (${lines.length - PREVIEW_LINES} more lines)` : '');
+        // Adaptive chunk sizing based on intent (following RAG best practices)
+        const CHUNK_SIZES = {
+            'fix': 80, // Bug fixes need more context (512-1024 tokens ≈ 80 lines)
+            'analyze': 40, // Analysis needs decent context (256-512 tokens ≈ 40 lines)
+            'explain': 40, // Explanation needs decent context (256-512 tokens ≈ 40 lines)
+            'refactor': 30, // Refactoring needs structure (256 tokens ≈ 30 lines)
+            'modify': 20, // Modifications need signatures (128-256 tokens ≈ 20 lines)
+            'create': 20, // Creation needs pattern examples (128-256 tokens ≈ 20 lines)
+            'test': 25, // Tests need example patterns (256 tokens ≈ 25 lines)
+            'document': 15, // Documentation needs minimal context (128 tokens ≈ 15 lines)
+            'general': 0 // General queries: no snippets (Claude decides what to read)
+        };
+        const chunkLines = CHUNK_SIZES[intent] || 0;
+        // Large files or general queries: no preview to save tokens
+        if (chunkLines === 0 || lines.length > 1000) {
+            return '';
+        }
+        const previewLines = lines.slice(0, chunkLines);
+        const suffix = lines.length > chunkLines
+            ? `\n... (${lines.length - chunkLines} more lines - use Read tool for full content)`
+            : '';
+        return previewLines.join('\n') + suffix;
     }
     /**
      * Generate context statistics for logging

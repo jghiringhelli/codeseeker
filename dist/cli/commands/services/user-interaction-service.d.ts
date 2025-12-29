@@ -27,7 +27,7 @@ export interface ProposedChange {
 /**
  * User's choice for file changes approval
  */
-export type ApprovalChoice = 'yes' | 'yes_always' | 'yes_per_file' | 'no_feedback' | 'cancelled';
+export type ApprovalChoice = 'yes' | 'yes_always' | 'yes_per_file' | 'no_feedback' | 'new_command' | 'cancelled';
 /**
  * User's choice for how to continue after interruption
  */
@@ -38,6 +38,7 @@ export type ContinuationChoice = 'continue' | 'new_search' | 'cancel';
 export interface ApprovalResult {
     choice: ApprovalChoice;
     feedback?: string;
+    newCommand?: string;
 }
 /**
  * Test type for generation
@@ -89,12 +90,16 @@ export declare class UserInteractionService {
     private activeChild;
     private isCancelled;
     private searchModeEnabled;
-    private isFirstPromptInSession;
+    private keyInputHandler;
     constructor();
     /**
      * Set verbose mode (when user uses -v/--verbose flag)
      */
     setVerboseMode(enabled: boolean): void;
+    /**
+     * Check if verbose mode is enabled
+     */
+    isVerboseMode(): boolean;
     /**
      * Set skip approval mode (when user selects "Yes, always")
      */
@@ -111,6 +116,15 @@ export declare class UserInteractionService {
      * Resume readline after inquirer prompts
      */
     private resumeReadline;
+    /**
+     * Set up key input passthrough to forward Escape key to Claude
+     * This enables users to interrupt Claude's processing just like using Claude directly
+     */
+    private setupKeyPassthrough;
+    /**
+     * Clean up key input passthrough
+     */
+    private cleanupKeyPassthrough;
     /**
      * Prompt user for clarifications based on detected assumptions and ambiguities
      */
@@ -225,14 +239,19 @@ export declare class UserInteractionService {
     toggleSearchMode(): boolean;
     /**
      * Prepare search mode for a new prompt
-     * In REPL mode: First prompt = ON, subsequent prompts = OFF by default
-     * In -c mode: Always ON (called with forceOn=true)
+     *
+     * NEW BEHAVIOR (simpler):
+     * - Search mode PERSISTS between prompts (respects user's manual toggle)
+     * - Default is ON (enabled at session start)
+     * - User can toggle with /s at any time
+     * - Only --no-search flag overrides this (handled in command-router.ts)
+     *
      * @param forceOn If true, always enable search (used for -c mode)
      */
     prepareForNewPrompt(forceOn?: boolean): void;
     /**
      * Mark a conversation as complete (for REPL mode)
-     * After a conversation, search defaults to OFF for the next prompt
+     * NOTE: This no longer changes search mode - search persists between prompts
      */
     markConversationComplete(): void;
     /**
@@ -260,7 +279,7 @@ export declare class UserInteractionService {
     /**
      * Display the search toggle indicator (for use before prompts)
      * Shows: "( * ) Search files and knowledge graph" or "( ) Search files and knowledge graph"
-     * Also shows toggle hint: "[s] to toggle"
+     * Also shows toggle hint: "/s to toggle"
      */
     displaySearchToggleIndicator(): void;
     /**
@@ -282,14 +301,23 @@ export declare class UserInteractionService {
      */
     parseTestResults(output: string): TestResultSummary | null;
     /**
+     * Parse Claude CLI stderr output to detect specific errors
+     * Returns user-friendly error message or null if no error detected
+     */
+    private parseClaudeError;
+    /**
      * Display test result summary in a user-friendly format
      */
     displayTestSummary(summary: TestResultSummary): void;
     /**
      * Format tool invocation for display
-     * Shows human-readable descriptions like "Reading src/file.ts" or "Editing config.json"
+     * Shows detailed tool info with IN/OUT style display like Claude Code
      */
     private formatToolDisplay;
+    /**
+     * Format tool result output for display (abbreviated)
+     */
+    private formatToolResult;
     /**
      * Parse Claude Code response to extract files and summary
      */

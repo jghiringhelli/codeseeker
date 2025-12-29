@@ -18,7 +18,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import {
   TestConfig,
-  DEFAULT_CONFIG,
+  createTestConfig,
   setupTestProject,
   teardownTestProject,
   MockClaudeExecutor,
@@ -44,10 +44,10 @@ const COMMAND_TIMEOUT = 180000; // 3 minutes per command (Claude operations can 
 const isLiveMode = process.argv.includes('--live');
 const mockClaude = isLiveMode ? undefined : new MockClaudeExecutor();
 
-const testConfig: TestConfig = {
-  ...DEFAULT_CONFIG,
+// Create test config (auto-detects embedded vs server mode from environment)
+const testConfig: TestConfig = createTestConfig({
   useMockClaude: !isLiveMode
-};
+});
 
 // Test queries from user specification
 const TEST_QUERIES = [
@@ -111,6 +111,9 @@ describe('CodeMind E2E Integration Tests', () => {
       console.log(`  Errors: ${cleanupResult.errors.join(', ')}`);
     }
     console.log('='.repeat(60) + '\n');
+
+    // Give time for async cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }, TEST_TIMEOUT);
 
   // --------------------------------------------------------------------------

@@ -1,12 +1,17 @@
 /**
  * Search Command Handler
  * Single Responsibility: Handle search commands including semantic search
+ *
+ * STORAGE MODES:
+ * - Embedded (default): Uses SQLite vector store via StorageManager
+ * - Server: Uses PostgreSQL via analysisRepository
  */
 
 import { BaseCommandHandler } from '../base-command-handler';
 import { CommandResult } from '../command-context';
 import { EmbeddingService } from '../../services/data/embedding/embedding-service';
 import { analysisRepository } from '../../../shared/analysis-repository-consolidated';
+import { getStorageManager, isUsingEmbeddedStorage } from '../../../storage';
 import { Logger } from '../../../utils/logger';
 import path from 'path';
 import { glob } from 'fast-glob';
@@ -14,6 +19,28 @@ import * as fs from 'fs/promises';
 
 export class SearchCommandHandler extends BaseCommandHandler {
   private logger = Logger.getInstance();
+
+  /**
+   * Convert similarity score (0-1) to star rating display
+   * ★★★★★ = 90-100% (Excellent match)
+   * ★★★★☆ = 75-89%  (Very good match)
+   * ★★★☆☆ = 60-74%  (Good match)
+   * ★★☆☆☆ = 45-59%  (Fair match)
+   * ★☆☆☆☆ = 30-44%  (Weak match)
+   * ☆☆☆☆☆ = 0-29%   (Poor match)
+   */
+  private getStarRating(score: number): string {
+    // Ensure score is in 0-1 range
+    const normalizedScore = Math.max(0, Math.min(1, score));
+    const percentage = normalizedScore * 100;
+
+    if (percentage >= 90) return '★★★★★';
+    if (percentage >= 75) return '★★★★☆';
+    if (percentage >= 60) return '★★★☆☆';
+    if (percentage >= 45) return '★★☆☆☆';
+    if (percentage >= 30) return '★☆☆☆☆';
+    return '☆☆☆☆☆';
+  }
 
   async handle(args: string): Promise<CommandResult> {
     // Parse arguments first to check for --index flag
@@ -215,9 +242,31 @@ export class SearchCommandHandler extends BaseCommandHandler {
         }
       }
 
-      // Save embeddings to database
+      // Save embeddings to appropriate storage (embedded or server)
       if (embeddings.length > 0) {
-        await analysisRepository.saveMultipleEmbeddings(embeddings);
+        // Get storage manager first to ensure singleton is initialized
+        const storageManager = await getStorageManager();
+
+        if (storageManager.getMode() === 'embedded') {
+          // Use embedded SQLite vector store
+          const vectorStore = storageManager.getVectorStore();
+
+          // Convert to VectorDocument format and upsert
+          const docs = embeddings.map(e => ({
+            id: `${e.project_id}-${e.file_path}-${e.chunk_index}`,
+            projectId: e.project_id,
+            filePath: e.file_path,
+            content: e.content_text,
+            embedding: e.embedding || [],
+            metadata: e.metadata
+          }));
+
+          await vectorStore.upsertMany(docs);
+        } else {
+          // Use PostgreSQL (server mode)
+          await analysisRepository.saveMultipleEmbeddings(embeddings);
+        }
+
         console.log(`✅ Generated embeddings for ${embeddings.length} code segments`);
         console.log(`📊 Processed ${processedFiles} new/changed files (${files.length - filesToProcess.length} unchanged)`);
 
@@ -253,6 +302,12 @@ export class SearchCommandHandler extends BaseCommandHandler {
    */
   private async getExistingFileHashes(projectId: string): Promise<Map<string, string>> {
     try {
+      const storageManager = await getStorageManager();
+      if (storageManager.getMode() === 'embedded') {
+        // For embedded mode, return empty map (always reindex for now)
+        // TODO: Add incremental indexing support for embedded storage
+        return new Map<string, string>();
+      }
       return await analysisRepository.getFileHashes(projectId);
     } catch (error) {
       this.logger.warn('Could not get existing file hashes:', error);
@@ -267,7 +322,14 @@ export class SearchCommandHandler extends BaseCommandHandler {
     if (files.length === 0) return;
 
     try {
-      await analysisRepository.deleteEmbeddingsForFiles(projectId, files);
+      const storageManager = await getStorageManager();
+      if (storageManager.getMode() === 'embedded') {
+        // For embedded mode, we'll delete all and re-add during upsert
+        const vectorStore = storageManager.getVectorStore();
+        await vectorStore.deleteByProject(projectId);
+      } else {
+        await analysisRepository.deleteEmbeddingsForFiles(projectId, files);
+      }
     } catch (error) {
       this.logger.warn('Could not delete file embeddings:', error);
     }
@@ -280,34 +342,71 @@ export class SearchCommandHandler extends BaseCommandHandler {
     console.log(`🔍 Searching for: "${query}"`);
 
     try {
-      // Get embeddings from database
-      const embeddings = await analysisRepository.getEmbeddings(projectId, {
-        limit: options.limit
-      });
+      // Get storage manager first to ensure singleton is initialized
+      const storageManager = await getStorageManager();
 
-      if (embeddings.length === 0) {
-        console.log('   No embeddings found - run "search --index" first');
-        return {
-          success: false,
-          message: 'No embeddings found. Please run "search --index" first to index the codebase.'
-        };
+      let results: Array<{
+        file_path: string;
+        content_type: string;
+        content_text: string;
+        similarity_score: number;
+        chunk_index: number;
+      }> = [];
+
+      if (storageManager.getMode() === 'embedded') {
+        // Use embedded SQLite + MiniSearch for text search
+        const vectorStore = storageManager.getVectorStore();
+        const searchResults = await vectorStore.searchByText(query, projectId, options.limit);
+
+        if (searchResults.length === 0) {
+          console.log('   No indexed content found - run "search --index" first');
+          return {
+            success: false,
+            message: 'No indexed content found. Please run "search --index" first to index the codebase.'
+          };
+        }
+
+        console.log(`🧠 Found ${searchResults.length} matching code segments`);
+
+        results = searchResults
+          .filter(r => r.score >= options.threshold)
+          .map(r => ({
+            file_path: r.document.filePath,
+            content_type: 'code',
+            content_text: r.document.content,
+            similarity_score: r.score,
+            chunk_index: 0
+          }));
+      } else {
+        // Use PostgreSQL (server mode)
+        const embeddings = await analysisRepository.getEmbeddings(projectId, {
+          limit: options.limit
+        });
+
+        if (embeddings.length === 0) {
+          console.log('   No embeddings found - run "search --index" first');
+          return {
+            success: false,
+            message: 'No embeddings found. Please run "search --index" first to index the codebase.'
+          };
+        }
+
+        console.log(`🧠 Found ${embeddings.length} code segments to search`);
+
+        // For server mode, do simple text-based search
+        const queryLower = query.toLowerCase();
+        results = embeddings
+          .map((embedding) => ({
+            file_path: embedding.file_path,
+            content_type: embedding.content_type,
+            content_text: embedding.content_text,
+            similarity_score: this.calculateTextSimilarity(queryLower, embedding.content_text?.toLowerCase() || ''),
+            chunk_index: embedding.chunk_index
+          }))
+          .filter(result => result.similarity_score >= options.threshold)
+          .sort((a, b) => b.similarity_score - a.similarity_score)
+          .slice(0, options.limit);
       }
-
-      console.log(`🧠 Found ${embeddings.length} code segments to search`);
-
-      // For MVP, do simple text-based search without actual vector similarity
-      const queryLower = query.toLowerCase();
-      const results = embeddings
-        .map((embedding, index) => ({
-          file_path: embedding.file_path,
-          content_type: embedding.content_type,
-          content_text: embedding.content_text,
-          similarity_score: this.calculateTextSimilarity(queryLower, embedding.content_text?.toLowerCase() || ''),
-          chunk_index: embedding.chunk_index
-        }))
-        .filter(result => result.similarity_score >= options.threshold)
-        .sort((a, b) => b.similarity_score - a.similarity_score)
-        .slice(0, options.limit);
 
       console.log(`\n🔍 Search Results (${results.length} found):`);
 
@@ -316,12 +415,16 @@ export class SearchCommandHandler extends BaseCommandHandler {
         console.log('   Try lowering the similarity threshold or using different search terms');
       } else {
         results.forEach((result, index) => {
+          const stars = this.getStarRating(result.similarity_score);
+
           console.log(`\n📄 Result ${index + 1}:`);
           console.log(`   File: ${result.file_path}`);
           console.log(`   Type: ${result.content_type}`);
-          console.log(`   Similarity: ${(result.similarity_score * 100).toFixed(1)}%`);
+          console.log(`   Match: ${stars}`);
 
           if (options.verbose) {
+            const percentage = Math.min(100, result.similarity_score * 100).toFixed(0);
+            console.log(`   Score: ${percentage}%`);
             console.log(`   Content Preview:`);
             const preview = result.content_text.substring(0, 200);
             console.log(`   ${preview}${result.content_text.length > 200 ? '...' : ''}`);

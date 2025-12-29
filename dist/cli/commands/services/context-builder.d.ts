@@ -54,6 +54,11 @@ export declare class ContextBuilder {
      */
     private createEnhancedPrompt;
     /**
+     * Get intent-specific guidance on when Claude should read files
+     * This "pitches" Claude on why and when to use the Read tool
+     */
+    private getReadGuidanceForIntent;
+    /**
      * Get role description based on detected intent
      */
     private getRoleForIntent;
@@ -62,9 +67,13 @@ export declare class ContextBuilder {
      */
     private getFormatForIntent;
     /**
-     * Create a meaningful preview of file content
-     * Shows ~50 lines - enough to see class signatures, imports, and key methods
-     * This reduces Claude's need to Read files, saving tool call tokens
+     * Create intent-based file preview optimized for GraphRAG
+     * Adaptive chunk sizing based on task complexity and file size
+     *
+     * Strategy:
+     * - Complex tasks (fix, analyze, explain) need more context
+     * - Simple tasks (create, modify) need pattern examples only
+     * - Large files (>1000 lines) get no preview to avoid token bloat
      */
     private createFilePreview;
     /**

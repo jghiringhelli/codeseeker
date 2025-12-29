@@ -53,6 +53,7 @@ const command_service_factory_1 = require("../core/factories/command-service-fac
 const command_processor_1 = require("./managers/command-processor");
 const database_manager_1 = require("./managers/database-manager");
 const platform_utils_1 = require("../shared/platform-utils");
+const storage_1 = require("../storage");
 // Environment variables will be loaded in start() method based on current working directory
 class CodeMindCLI {
     rl;
@@ -355,7 +356,7 @@ class CodeMindCLI {
             }
             // Prepare search toggle state for this prompt
             // In command mode (-c), search is always ON
-            // In REPL mode, first prompt has search ON, subsequent prompts have search OFF by default
+            // In REPL mode, search state persists (user can toggle with /s)
             this.commandProcessor.prepareForNewPrompt();
             // Process input through command processor (SOLID delegation)
             // No global timeout - user prompts (inquirer) should wait indefinitely
@@ -378,8 +379,8 @@ class CodeMindCLI {
             if (result.data?.projectId) {
                 this.currentProject = result.data;
             }
-            // Mark conversation as complete (for REPL mode search toggle behavior)
-            // After a successful workflow, search will default to OFF for the next prompt
+            // Mark conversation as complete (for REPL mode)
+            // Note: Search state now persists between prompts - no auto-disable
             if (result.success) {
                 this.commandProcessor.markConversationComplete();
             }
@@ -551,10 +552,22 @@ class CodeMindCLI {
     }
     /**
      * Check database connections on startup
+     * For embedded mode: Shows SQLite + MiniSearch status
+     * For server mode: Checks PostgreSQL, Redis, Neo4j connections
      */
     async checkDatabaseConnections() {
-        console.log(theme_1.Theme.colors.muted('\n🔍 Checking database connections...'));
         try {
+            // Initialize storage manager to detect mode (also initializes the storage system)
+            await (0, storage_1.getStorageManager)();
+            const useEmbedded = (0, storage_1.isUsingEmbeddedStorage)();
+            if (useEmbedded) {
+                // Embedded mode - show lightweight local storage info
+                console.log(theme_1.Theme.colors.muted('\n📦 Storage: Embedded mode (SQLite + MiniSearch)'));
+                console.log(theme_1.Theme.colors.success('   ✓ Local storage ready - no external databases needed'));
+                return;
+            }
+            // Server mode - check external database connections
+            console.log(theme_1.Theme.colors.muted('\n🔍 Checking database connections (server mode)...'));
             const databaseManager = new database_manager_1.DatabaseManager();
             // Quick connection test with short timeout
             const connectionPromise = databaseManager.getDatabaseStatus();
@@ -753,12 +766,24 @@ async function main() {
     const hasTransparent = args.includes('-t') || args.includes('--transparent');
     const hasVerbose = args.includes('-v') || args.includes('--verbose');
     const hasNoSearch = args.includes('--no-search');
+    // Check for MCP server mode: codemind serve --mcp
+    const isServeCommand = args[0] === 'serve';
+    const hasMcpFlag = args.includes('--mcp');
+    if (isServeCommand && hasMcpFlag) {
+        // Start MCP server mode
+        const { startMcpServer } = await Promise.resolve().then(() => __importStar(require('../mcp')));
+        await startMcpServer();
+        return;
+    }
     if (args.includes('--help') || args.includes('-h')) {
         console.log(`
 ${theme_1.Theme.colors.primary('CodeMind Interactive CLI - Intelligent Code Assistant')}
 
 ${theme_1.Theme.colors.secondary('Usage:')}
   codemind [options] [command]
+
+${theme_1.Theme.colors.secondary('Commands:')}
+  serve --mcp           Start as MCP server for Claude Desktop/Claude Code
 
 ${theme_1.Theme.colors.secondary('Options:')}
   -V, --version         output the version number
@@ -776,6 +801,7 @@ ${theme_1.Theme.colors.secondary('Examples:')}
   codemind -c "analyze main"  Execute single command and exit
   codemind -t -c "query"      Execute in transparent mode (no prompts)
   codemind "what is this project about"  Execute direct command and exit
+  codemind serve --mcp        Start MCP server for Claude Desktop
 `);
         return;
     }

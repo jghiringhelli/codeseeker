@@ -192,8 +192,9 @@ class NodeBuilder {
         // Extract key terms from content
         const keyTerms = content.match(/\b[A-Z][a-z]+(?:[A-Z][a-z]*)*\b/g) || [];
         keyTerms.forEach(term => {
-            if (term.length > 3)
-                keywords.add(term.toLowerCase());
+            const t = String(term);
+            if (t.length > 3)
+                keywords.add(t.toLowerCase());
         });
         return Array.from(keywords).slice(0, 20); // Limit keywords
     }

@@ -54,7 +54,7 @@ export declare class CommandRouter {
     prepareForNewPrompt(): void;
     /**
      * Mark conversation as complete (for REPL mode)
-     * After workflow completes, search will default to OFF for next prompt
+     * Note: Search state now persists between prompts (no auto-disable)
      */
     markConversationComplete(): void;
     /**
@@ -113,6 +113,16 @@ export declare class CommandRouter {
      * Delegates to WorkflowOrchestrator following SOLID principles
      */
     private handleNaturalLanguage;
+    /**
+     * Detect if the user input is a Claude CLI command that should be passed through
+     * Handles commands like: claude login, claude logout, claude --version, etc.
+     */
+    private isClaudeCLICommand;
+    /**
+     * Pass a command directly through to Claude CLI
+     * Used for commands like "claude login", "claude logout", etc.
+     */
+    private passthroughClaudeCLI;
     /**
      * Get the workflow orchestrator instance for testing
      */

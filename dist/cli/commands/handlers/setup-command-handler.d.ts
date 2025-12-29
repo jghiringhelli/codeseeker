@@ -18,6 +18,7 @@ export declare class SetupCommandHandler extends BaseCommandHandler {
     private checkProjectPathMismatch;
     /**
      * Perform complete database cleanup and reinitialization
+     * Uses storage abstraction for both embedded and server modes
      */
     private handleCompleteReset;
     /**
@@ -38,10 +39,16 @@ export declare class SetupCommandHandler extends BaseCommandHandler {
     private initializeDatabase;
     /**
      * Build initial knowledge graph for the project
+     * Uses embedded Graphology store by default, Neo4j if in server mode
      */
     private buildInitialKnowledgeGraph;
     /**
+     * Generate coding standards file from detected patterns
+     */
+    private generateCodingStandards;
+    /**
      * Apply the consolidated database schema
+     * Uses embedded storage by default (no Docker required)
      */
     private applyConsolidatedSchema;
     /**
@@ -50,6 +57,7 @@ export declare class SetupCommandHandler extends BaseCommandHandler {
     private createBasicTables;
     /**
      * Initialize project record in database
+     * Uses embedded storage by default, PostgreSQL in server mode
      */
     private initializeProject;
     /**
@@ -57,9 +65,13 @@ export declare class SetupCommandHandler extends BaseCommandHandler {
      */
     private generateInitialEmbeddings;
     /**
-     * Create CODEMIND.md instructions file
+     * Create CODEMIND.md instructions file with detected platforms
      */
     private createInstructionsFile;
+    /**
+     * Append platform detection to existing CODEMIND.md
+     */
+    private appendPlatformDetection;
     /**
      * Update local project configuration file
      */

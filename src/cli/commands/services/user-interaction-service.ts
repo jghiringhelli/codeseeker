@@ -47,7 +47,7 @@ interface ClaudeFirstPhaseResult {
 /**
  * User's choice for file changes approval
  */
-export type ApprovalChoice = 'yes' | 'yes_always' | 'yes_per_file' | 'no_feedback' | 'cancelled';
+export type ApprovalChoice = 'yes' | 'yes_always' | 'yes_per_file' | 'no_feedback' | 'new_command' | 'cancelled';
 
 /**
  * User's choice for how to continue after interruption
@@ -60,6 +60,7 @@ export type ContinuationChoice = 'continue' | 'new_search' | 'cancel';
 export interface ApprovalResult {
   choice: ApprovalChoice;
   feedback?: string;  // User feedback when choice is 'no_feedback'
+  newCommand?: string;  // New command when choice is 'new_command'
 }
 
 /**
@@ -117,8 +118,8 @@ export class UserInteractionService {
   private verboseMode = false;   // When true, show full debug output (files, relationships, prompt)
   private activeChild: any = null;  // Track active child process for cancellation
   private isCancelled = false;      // Flag to track user cancellation
-  private searchModeEnabled = true;  // Toggle for semantic search (default: enabled)
-  private isFirstPromptInSession = true;  // Track if this is the first prompt (for REPL mode)
+  private searchModeEnabled = true;  // Toggle for semantic search (default: enabled, persists between prompts)
+  private keyInputHandler: ((data: Buffer) => void) | null = null;  // Handler for key passthrough
 
   constructor() {
     // No initialization needed - we pipe directly to claude stdin
@@ -142,6 +143,13 @@ export class UserInteractionService {
    */
   setVerboseMode(enabled: boolean): void {
     this.verboseMode = enabled;
+  }
+
+  /**
+   * Check if verbose mode is enabled
+   */
+  isVerboseMode(): boolean {
+    return this.verboseMode;
   }
 
   /**
@@ -173,6 +181,62 @@ export class UserInteractionService {
   private resumeReadline(): void {
     if (this.rl) {
       this.rl.resume();
+    }
+  }
+
+  /**
+   * Set up key input passthrough to forward Escape key to Claude
+   * This enables users to interrupt Claude's processing just like using Claude directly
+   */
+  private setupKeyPassthrough(childStdin: NodeJS.WritableStream | null): void {
+    if (!childStdin || !process.stdin.isTTY) {
+      return;  // Can't set up raw mode if not a TTY or no stdin
+    }
+
+    // Save current raw mode state and enable raw mode
+    const wasRaw = process.stdin.isRaw;
+    if (!wasRaw) {
+      process.stdin.setRawMode(true);
+    }
+    process.stdin.resume();
+
+    // Handler for key input - forward Escape key to Claude
+    this.keyInputHandler = (data: Buffer) => {
+      // Check for Escape key (0x1B)
+      if (data[0] === 0x1B) {
+        // Forward Escape to Claude's stdin
+        try {
+          childStdin.write(data);
+        } catch {
+          // Child stdin may already be closed
+        }
+      }
+      // Check for Ctrl+C (0x03) - let SIGINT handler deal with it
+      else if (data[0] === 0x03) {
+        process.emit('SIGINT', 'SIGINT');
+      }
+    };
+
+    process.stdin.on('data', this.keyInputHandler);
+  }
+
+  /**
+   * Clean up key input passthrough
+   */
+  private cleanupKeyPassthrough(): void {
+    if (this.keyInputHandler) {
+      process.stdin.removeListener('data', this.keyInputHandler);
+      this.keyInputHandler = null;
+    }
+
+    // Restore stdin state
+    if (process.stdin.isTTY) {
+      try {
+        process.stdin.setRawMode(false);
+        process.stdin.pause();
+      } catch {
+        // Ignore errors during cleanup
+      }
     }
   }
 
@@ -501,6 +565,16 @@ ${enhancedPrompt}`;
           // Continue loop to retry
           continue;
 
+        } else if (approval.choice === 'new_command' && approval.newCommand) {
+          // User wants to enter a different command entirely
+          // Return with special flag so caller can handle re-execution with new command
+          console.log(Theme.colors.info('\n  Starting new command...'));
+          return {
+            response: firstPhase.response,
+            filesToModify: allModifiedFiles,
+            summary: `new_command:${approval.newCommand}`  // Special marker for caller to detect
+          };
+
         } else if (approval.choice === 'cancelled') {
           // User explicitly cancelled (Ctrl+C)
           console.log(Theme.colors.muted('\n  Operation cancelled.'));
@@ -630,7 +704,7 @@ Please revise your approach based on this feedback and propose new changes.`;
         console.log(Theme.colors.muted('  │'));
         console.log(Theme.colors.info('  │ Files:'));
         fileMatches.forEach(match => {
-          const fileName = match.replace(/\*\*/g, '');
+          const fileName = String(match).replace(/\*\*/g, '');
           console.log(Theme.colors.muted('  │   ') + Theme.colors.highlight(fileName));
         });
       }
@@ -735,18 +809,60 @@ Please revise your approach based on this feedback and propose new changes.`;
       let currentToolName = '';
       let lastToolStatus = '';
 
-      // Rotating spinner characters for thinking/processing states
+      // Spinner configuration - only show briefly before Claude responds
       const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
       let spinnerIdx = 0;
+      let hasReceivedOutput = false;
+      let stderrBuffer = '';
+      const isTTY = process.stdout.isTTY;
 
-      // Status verbs that Claude Code shows during processing
-      const thinkingVerbs = ['Thinking', 'Reasoning', 'Analyzing', 'Processing', 'Planning', 'Considering'];
-      let verbIdx = 0;
+      // Show a brief waiting indicator until Claude starts responding
+      // Once Claude sends data, we'll show its actual thinking messages
+      let spinnerInterval: NodeJS.Timeout | null = null;
 
+      if (isTTY) {
+        // Interactive terminal: minimal spinner just until Claude responds
+        spinnerInterval = setInterval(() => {
+          if (!hasReceivedOutput) {
+            const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
+            // Simple spinner without verb - Claude will show its own thinking messages
+            process.stdout.write(`\r  ${spinner} Waiting for Claude...`);
+          }
+        }, 100);
+      } else {
+        // Non-interactive: show static message
+        process.stdout.write('  ⏳ Waiting for Claude...\n');
+      }
+
+      const stopSpinner = () => {
+        if (spinnerInterval) {
+          clearInterval(spinnerInterval);
+          spinnerInterval = null;
+          // Clear the spinner line in TTY mode
+          if (isTTY && !hasReceivedOutput) {
+            process.stdout.write('\r' + ' '.repeat(30) + '\r');
+          }
+        }
+      };
+
+      // Track active child for cancellation and key passthrough
+      this.activeChild = child;
+
+      // Write prompt to stdin but keep it open for Escape key passthrough
       child.stdin?.write(prompt);
-      child.stdin?.end();
+      // Note: We don't call child.stdin?.end() here - Claude reads until newline
+      // and we need stdin open to forward Escape key presses
+
+      // Set up key passthrough for Escape key interruption
+      this.setupKeyPassthrough(child.stdin);
 
       child.stdout?.on('data', (data: Buffer) => {
+        // Stop the initial spinner once we receive any stdout data
+        if (!hasReceivedOutput) {
+          hasReceivedOutput = true;
+          stopSpinner();
+        }
+
         buffer += data.toString();
 
         // Process complete JSON lines
@@ -769,14 +885,12 @@ Please revise your approach based on this feedback and propose new changes.`;
                     const thinkingText = block.thinking || '';
                     if (thinkingText.length > lastDisplayedThinking.length) {
                       const delta = thinkingText.substring(lastDisplayedThinking.length);
-                      // Show thinking with a distinct prefix
-                      const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
-                      const verb = thinkingVerbs[verbIdx % thinkingVerbs.length];
+                      // First thinking block - show header with spinner
                       if (lastDisplayedThinking === '') {
-                        process.stdout.write(Theme.colors.muted(`\n  ${spinner} ${verb}...\n`));
-                        verbIdx++;
+                        const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
+                        process.stdout.write(Theme.colors.muted(`\n  ${spinner} Claude is thinking...\n`));
                       }
-                      // Show reasoning in muted/dim color with thinking prefix
+                      // Show Claude's actual thinking/reasoning in muted color
                       const formattedDelta = delta.replace(/\n/g, Theme.colors.muted('\n  │ '));
                       process.stdout.write(Theme.colors.muted(`  │ ${formattedDelta}`));
                       lastDisplayedThinking = thinkingText;
@@ -806,6 +920,10 @@ Please revise your approach based on this feedback and propose new changes.`;
                     // Show tool invocation with spinner
                     const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
                     const toolDisplay = this.formatToolDisplay(toolName, block.input);
+                    // Skip permission denial notices - we handle these with our own prompt
+                    if (toolDisplay.includes('permission') || toolDisplay.includes("haven't")) {
+                      continue;
+                    }
                     if (toolDisplay !== lastToolStatus) {
                       process.stdout.write(Theme.colors.info(`\n  ${spinner} ${toolDisplay}`));
                       lastToolStatus = toolDisplay;
@@ -822,13 +940,53 @@ Please revise your approach based on this feedback and propose new changes.`;
                 const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
                 process.stdout.write(Theme.colors.info(`\n  ${spinner} Using ${toolName}...`));
               } else if (event.content_block?.type === 'thinking') {
-                const verb = thinkingVerbs[verbIdx++ % thinkingVerbs.length];
                 const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
-                process.stdout.write(Theme.colors.muted(`\n  ${spinner} ${verb}...`));
+                process.stdout.write(Theme.colors.muted(`\n  ${spinner} Claude is thinking...`));
               }
             }
-            // Handle tool result events
-            else if (event.type === 'tool_result' || event.type === 'content_block_stop') {
+            // Handle tool result events (can come as 'tool_result' or nested in 'user' message)
+            else if (event.type === 'tool_result') {
+              if (currentToolName) {
+                // Show tool output using formatted display
+                const output = event.content || event.output || '';
+                const outputStr = typeof output === 'string' ? output : JSON.stringify(output);
+                const formattedResult = this.formatToolResult(currentToolName, outputStr);
+
+                if (formattedResult) {
+                  process.stdout.write(formattedResult);
+                } else {
+                  process.stdout.write(Theme.colors.success(' ✓'));
+                }
+                currentToolName = '';
+              }
+            }
+            // Handle 'user' type events which contain tool results in Claude Code stream-json
+            else if (event.type === 'user' && event.message?.content) {
+              for (const block of event.message.content) {
+                if (block.type === 'tool_result') {
+                  // Extract tool result content
+                  let resultContent = '';
+                  if (typeof block.content === 'string') {
+                    resultContent = block.content;
+                  } else if (Array.isArray(block.content)) {
+                    resultContent = block.content
+                      .map((c: { type?: string; text?: string }) => c.type === 'text' ? c.text : '')
+                      .filter(Boolean)
+                      .join('\n');
+                  }
+
+                  if (resultContent && currentToolName) {
+                    const formattedResult = this.formatToolResult(currentToolName, resultContent);
+                    if (formattedResult) {
+                      process.stdout.write(formattedResult);
+                    }
+                    currentToolName = '';
+                  }
+                }
+              }
+            }
+            else if (event.type === 'content_block_stop') {
+              // Just mark as complete if no result shown
               if (currentToolName) {
                 process.stdout.write(Theme.colors.success(' ✓'));
                 currentToolName = '';
@@ -872,14 +1030,40 @@ Please revise your approach based on this feedback and propose new changes.`;
       });
 
       child.stderr?.on('data', (data: Buffer) => {
-        // Show stderr in real-time as errors
         const text = data.toString().trim();
+        stderrBuffer += text + '\n';
+
         if (text) {
-          console.error(Theme.colors.error(`\n  ${text}`));
+          // Filter out Claude's permission denial messages - we handle these ourselves
+          if (text.includes('requested permissions') && text.includes("haven't")) {
+            return;
+          }
+          if (text.includes('permission') && text.includes('denied')) {
+            return;
+          }
+          // Don't show raw stderr during normal operation - we'll analyze it on close
         }
       });
 
-      child.on('close', () => {
+      child.on('close', (code) => {
+        // Always stop spinner and clean up
+        stopSpinner();
+        this.cleanupKeyPassthrough();
+        this.activeChild = null;
+
+        // Check for Claude CLI specific errors in stderr
+        const claudeError = this.parseClaudeError(stderrBuffer, code);
+        if (claudeError) {
+          console.error(Theme.colors.error(`\n  ${claudeError}`));
+          resolve({
+            sessionId: '',
+            response: claudeError,
+            proposedChanges: [],
+            hasPermissionDenials: false
+          });
+          return;
+        }
+
         // Process any remaining buffer
         if (buffer.trim()) {
           try {
@@ -908,9 +1092,21 @@ Please revise your approach based on this feedback and propose new changes.`;
       });
 
       child.on('error', (err) => {
+        // Stop spinner and clean up on error
+        stopSpinner();
+        this.cleanupKeyPassthrough();
+        this.activeChild = null;
+
+        // Handle specific spawn errors
+        let errorMessage = `Error: ${err.message}`;
+        if (err.message.includes('ENOENT') || err.message.includes('not found')) {
+          errorMessage = '❌ Claude CLI not found. Please install it with: npm install -g @anthropic-ai/claude-code';
+        }
+
+        console.error(Theme.colors.error(`\n  ${errorMessage}`));
         resolve({
           sessionId: '',
-          response: `Error: ${err.message}`,
+          response: errorMessage,
           proposedChanges: [],
           hasPermissionDenials: false
         });
@@ -959,9 +1155,15 @@ Please revise your approach based on this feedback and propose new changes.`;
       const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
       let spinnerIdx = 0;
 
-      // Send a simple "proceed" message
+      // Track active child for cancellation and key passthrough
+      this.activeChild = child;
+
+      // Send a simple "proceed" message but keep stdin open for Escape key passthrough
       child.stdin?.write('Please proceed with the file changes.');
-      child.stdin?.end();
+      // Note: We don't call child.stdin?.end() here - we need stdin open for Escape key
+
+      // Set up key passthrough for Escape key interruption
+      this.setupKeyPassthrough(child.stdin);
 
       child.stdout?.on('data', (data: Buffer) => {
         buffer += data.toString();
@@ -1009,7 +1211,47 @@ Please revise your approach based on this feedback and propose new changes.`;
                 const spinner = spinnerFrames[spinnerIdx++ % spinnerFrames.length];
                 process.stdout.write(Theme.colors.info(`\n  ${spinner} Using ${toolName}...`));
               }
-            } else if (event.type === 'tool_result' || event.type === 'content_block_stop') {
+            } else if (event.type === 'tool_result') {
+              if (currentToolName) {
+                // Show tool output using formatted display
+                const output = event.content || event.output || '';
+                const outputStr = typeof output === 'string' ? output : JSON.stringify(output);
+                const formattedResult = this.formatToolResult(currentToolName, outputStr);
+
+                if (formattedResult) {
+                  process.stdout.write(formattedResult);
+                } else {
+                  process.stdout.write(Theme.colors.success(' ✓'));
+                }
+                currentToolName = '';
+              }
+            }
+            // Handle 'user' type events which contain tool results in Claude Code stream-json
+            else if (event.type === 'user' && event.message?.content) {
+              for (const block of event.message.content) {
+                if (block.type === 'tool_result') {
+                  // Extract tool result content
+                  let resultContent = '';
+                  if (typeof block.content === 'string') {
+                    resultContent = block.content;
+                  } else if (Array.isArray(block.content)) {
+                    resultContent = block.content
+                      .map((c: { type?: string; text?: string }) => c.type === 'text' ? c.text : '')
+                      .filter(Boolean)
+                      .join('\n');
+                  }
+
+                  if (resultContent && currentToolName) {
+                    const formattedResult = this.formatToolResult(currentToolName, resultContent);
+                    if (formattedResult) {
+                      process.stdout.write(formattedResult);
+                    }
+                    currentToolName = '';
+                  }
+                }
+              }
+            }
+            else if (event.type === 'content_block_stop') {
               if (currentToolName) {
                 process.stdout.write(Theme.colors.success(' ✓'));
                 currentToolName = '';
@@ -1034,6 +1276,10 @@ Please revise your approach based on this feedback and propose new changes.`;
       });
 
       child.on('close', () => {
+        // Clean up key passthrough and active child reference
+        this.cleanupKeyPassthrough();
+        this.activeChild = null;
+
         // Process any remaining buffer
         if (buffer.trim()) {
           try {
@@ -1050,6 +1296,10 @@ Please revise your approach based on this feedback and propose new changes.`;
       });
 
       child.on('error', (err) => {
+        // Clean up on error too
+        this.cleanupKeyPassthrough();
+        this.activeChild = null;
+
         resolve(`Error applying changes: ${err.message}`);
       });
 
@@ -1111,9 +1361,10 @@ Please revise your approach based on this feedback and propose new changes.`;
 
     console.log(Theme.colors.muted('│'));
     console.log(Theme.colors.warning('└───────────────────────────────────────────────────────────┘'));
+    console.log(Theme.colors.muted('  Tip: Use ↑↓ to select, Enter to confirm, Ctrl+C to cancel'));
 
     // Ask for confirmation with list-style prompt (like Claude Code)
-    // Note: No standalone "No" option - user must provide feedback or cancel with Ctrl+C
+    // Options: Yes, Yes always, Modify request, Enter new command, or Ctrl+C to cancel
     this.pauseReadline();
     Logger.mute();
 
@@ -1126,20 +1377,20 @@ Please revise your approach based on this feedback and propose new changes.`;
           choices: [
             { name: 'Yes', value: 'yes' },
             { name: 'Yes, and don\'t ask again', value: 'yes_always' },
-            { name: 'No, and tell me what to do differently', value: 'no_feedback' }
+            { name: 'No, enter new request', value: 'no_feedback' }
           ],
           default: 'yes'
         }
       ]);
 
-      // If user wants to provide feedback, prompt for it
+      // If user wants to enter a new request (keeps context)
       if (answer.choice === 'no_feedback') {
         const feedbackAnswer = await inquirer.prompt([
           {
             type: 'input',
             name: 'feedback',
-            message: 'What should be done differently?',
-            validate: (input) => input.trim().length > 0 || 'Please provide feedback (or Ctrl+C to cancel)'
+            message: 'Enter your request:',
+            validate: (input) => input.trim().length > 0 || 'Please enter a request (or Ctrl+C to cancel)'
           }
         ]);
         return { choice: 'no_feedback', feedback: feedbackAnswer.feedback };
@@ -1369,38 +1620,37 @@ Please revise your approach based on this feedback and propose new changes.`;
 
   /**
    * Prepare search mode for a new prompt
-   * In REPL mode: First prompt = ON, subsequent prompts = OFF by default
-   * In -c mode: Always ON (called with forceOn=true)
+   *
+   * NEW BEHAVIOR (simpler):
+   * - Search mode PERSISTS between prompts (respects user's manual toggle)
+   * - Default is ON (enabled at session start)
+   * - User can toggle with /s at any time
+   * - Only --no-search flag overrides this (handled in command-router.ts)
+   *
    * @param forceOn If true, always enable search (used for -c mode)
    */
   prepareForNewPrompt(forceOn: boolean = false): void {
     if (forceOn) {
       // -c mode: always search
       this.searchModeEnabled = true;
-    } else if (this.isFirstPromptInSession) {
-      // REPL mode first prompt: enable search
-      this.searchModeEnabled = true;
-      this.isFirstPromptInSession = false;
-    } else {
-      // REPL mode subsequent prompts: disable search by default
-      this.searchModeEnabled = false;
     }
+    // Otherwise: preserve current searchModeEnabled state
+    // User can manually toggle with /s, and that preference persists
   }
 
   /**
    * Mark a conversation as complete (for REPL mode)
-   * After a conversation, search defaults to OFF for the next prompt
+   * NOTE: This no longer changes search mode - search persists between prompts
    */
   markConversationComplete(): void {
-    // Don't change isFirstPromptInSession - it stays false after first use
-    // searchModeEnabled will be set to false on next prepareForNewPrompt() call
+    // No-op - search mode persists between prompts
+    // Users can toggle manually with /s if needed
   }
 
   /**
    * Reset session state (for new REPL sessions)
    */
   resetSession(): void {
-    this.isFirstPromptInSession = true;
     this.searchModeEnabled = true;
   }
 
@@ -1497,7 +1747,7 @@ Please revise your approach based on this feedback and propose new changes.`;
       const searchStatus = this.searchModeEnabled ? 'ON' : 'OFF';
       const statusColor = this.searchModeEnabled ? Theme.colors.success : Theme.colors.muted;
 
-      console.log(Theme.colors.muted(`\n  [s] to toggle search | `) + statusColor(`Search: ${searchStatus}`));
+      console.log(Theme.colors.muted(`\n  /s to toggle search | `) + statusColor(`Search: ${searchStatus}`));
 
       const answer = await inquirer.prompt([
         {
@@ -1506,9 +1756,9 @@ Please revise your approach based on this feedback and propose new changes.`;
           message: '›',
           validate: (input) => {
             const trimmed = input.trim().toLowerCase();
-            // Allow 's' to toggle, empty is not allowed, anything else is the prompt
+            // Allow '/s' to toggle, empty is not allowed, anything else is the prompt
             if (trimmed === '') {
-              return 'Enter your prompt, or type "s" to toggle search mode';
+              return 'Enter your prompt, or type /s to toggle search mode';
             }
             return true;
           }
@@ -1517,8 +1767,8 @@ Please revise your approach based on this feedback and propose new changes.`;
 
       const input = answer.input.trim();
 
-      // Check if user wants to toggle
-      if (input.toLowerCase() === 's') {
+      // Check if user wants to toggle (accepts /s or just s for convenience)
+      if (input.toLowerCase() === '/s' || input.toLowerCase() === 's') {
         this.toggleSearchMode();
         Logger.unmute();
         this.resumeReadline();
@@ -1558,11 +1808,11 @@ Please revise your approach based on this feedback and propose new changes.`;
   /**
    * Display the search toggle indicator (for use before prompts)
    * Shows: "( * ) Search files and knowledge graph" or "( ) Search files and knowledge graph"
-   * Also shows toggle hint: "[s] to toggle"
+   * Also shows toggle hint: "/s to toggle"
    */
   displaySearchToggleIndicator(): void {
     const indicator = this.getSearchToggleIndicator();
-    const toggleHint = Theme.colors.muted('[s] toggle');
+    const toggleHint = Theme.colors.muted('/s toggle');
     console.log(`\n  ${indicator}  ${toggleHint}`);
   }
 
@@ -1782,6 +2032,64 @@ Please revise your approach based on this feedback and propose new changes.`;
   }
 
   /**
+   * Parse Claude CLI stderr output to detect specific errors
+   * Returns user-friendly error message or null if no error detected
+   */
+  private parseClaudeError(stderr: string, exitCode: number | null): string | null {
+    const lowerStderr = stderr.toLowerCase();
+
+    // Check for authentication/login errors
+    if (lowerStderr.includes('not logged in') || lowerStderr.includes('authentication') ||
+        lowerStderr.includes('api key') || lowerStderr.includes('unauthorized') ||
+        lowerStderr.includes('login required')) {
+      return '❌ Claude authentication required. Please run: claude login';
+    }
+
+    // Check for rate limiting
+    if (lowerStderr.includes('rate limit') || lowerStderr.includes('too many requests') ||
+        lowerStderr.includes('429')) {
+      return '⏳ Claude rate limit exceeded. Please wait a moment and try again.';
+    }
+
+    // Check for usage/quota exceeded
+    if (lowerStderr.includes('usage limit') || lowerStderr.includes('quota exceeded') ||
+        lowerStderr.includes('billing') || lowerStderr.includes('maximum usage')) {
+      return '💳 Claude usage limit reached. Please check your subscription or wait for reset.';
+    }
+
+    // Check for network/connectivity issues
+    if (lowerStderr.includes('network') || lowerStderr.includes('connection') ||
+        lowerStderr.includes('timeout') || lowerStderr.includes('econnrefused') ||
+        lowerStderr.includes('offline') || lowerStderr.includes('dns')) {
+      return '🌐 Network error connecting to Claude. Please check your internet connection.';
+    }
+
+    // Check for server errors
+    if (lowerStderr.includes('500') || lowerStderr.includes('502') ||
+        lowerStderr.includes('503') || lowerStderr.includes('service unavailable') ||
+        lowerStderr.includes('server error')) {
+      return '🔧 Claude server temporarily unavailable. Please try again in a few minutes.';
+    }
+
+    // Check for model not available
+    if (lowerStderr.includes('model not found') || lowerStderr.includes('model unavailable')) {
+      return '🤖 Requested Claude model is not available. Try updating Claude CLI.';
+    }
+
+    // Generic error with non-zero exit code and stderr content
+    if (exitCode !== 0 && stderr.trim() && !stderr.includes('permission')) {
+      // Only show first line of error to keep it clean
+      const firstLine = stderr.trim().split('\n')[0];
+      if (firstLine.length > 100) {
+        return `❌ Claude error: ${firstLine.substring(0, 100)}...`;
+      }
+      return `❌ Claude error: ${firstLine}`;
+    }
+
+    return null;
+  }
+
+  /**
    * Display test result summary in a user-friendly format
    */
   displayTestSummary(summary: TestResultSummary): void {
@@ -1808,34 +2116,130 @@ Please revise your approach based on this feedback and propose new changes.`;
 
   /**
    * Format tool invocation for display
-   * Shows human-readable descriptions like "Reading src/file.ts" or "Editing config.json"
+   * Shows detailed tool info with IN/OUT style display like Claude Code
    */
   private formatToolDisplay(toolName: string, input?: any): string {
     const filePath = input?.file_path || input?.path || '';
-    const fileName = filePath ? filePath.split(/[/\\]/).pop() : '';
+    const muted = Theme.colors.muted;
 
     switch (toolName.toLowerCase()) {
       case 'read':
-        return fileName ? `Reading ${fileName}` : 'Reading file...';
+        return filePath ? `Read ${filePath}` : 'Read file...';
       case 'edit':
-        return fileName ? `Editing ${fileName}` : 'Editing file...';
+        if (filePath && input?.old_string) {
+          const preview = input.old_string.substring(0, 60).replace(/\n/g, '↵');
+          return `Edit ${filePath}\n${muted('    ├─ old: "' + preview + (input.old_string.length > 60 ? '...' : '') + '"')}`;
+        }
+        return filePath ? `Edit ${filePath}` : 'Edit file...';
       case 'write':
-        return fileName ? `Writing ${fileName}` : 'Writing file...';
+        if (filePath && input?.content) {
+          const lineCount = (input.content.match(/\n/g) || []).length + 1;
+          return `Write ${filePath} (${lineCount} lines)`;
+        }
+        return filePath ? `Write ${filePath}` : 'Write file...';
       case 'bash':
         const cmd = input?.command || '';
-        const shortCmd = cmd.length > 40 ? cmd.substring(0, 37) + '...' : cmd;
-        return shortCmd ? `Running: ${shortCmd}` : 'Running command...';
+        const desc = input?.description || '';
+        const cmdPreview = cmd.length > 80 ? cmd.substring(0, 80) + '...' : cmd;
+        if (desc) {
+          return `Bash: ${desc}\n${muted('    ├─ $ ' + cmdPreview)}`;
+        }
+        return cmd ? `Bash\n${muted('    ├─ $ ' + cmdPreview)}` : 'Bash...';
       case 'glob':
-        return input?.pattern ? `Searching: ${input.pattern}` : 'Searching files...';
+        const pattern = input?.pattern || '';
+        const globPath = input?.path || '.';
+        return pattern ? `Glob "${pattern}" in ${globPath}` : 'Glob...';
       case 'grep':
-        return input?.pattern ? `Grep: ${input.pattern}` : 'Searching content...';
+        const grepPattern = input?.pattern || '';
+        const grepPath = input?.path || '.';
+        return grepPattern ? `Grep "${grepPattern}" in ${grepPath}` : 'Grep...';
       case 'todowrite':
-        return 'Updating task list...';
+        const todoCount = input?.todos?.length || 0;
+        return `TodoWrite (${todoCount} items)`;
       case 'task':
-        return 'Launching sub-agent...';
+        const agentType = input?.subagent_type || 'general';
+        const taskDesc = input?.description || '';
+        return taskDesc ? `Task [${agentType}]: ${taskDesc}` : `Task launching ${agentType} agent`;
+      case 'webfetch':
+        return input?.url ? `WebFetch ${input.url}` : 'WebFetch...';
+      case 'websearch':
+        return input?.query ? `WebSearch "${input.query}"` : 'WebSearch...';
       default:
-        return `${toolName}...`;
+        return `${toolName}`;
     }
+  }
+
+  /**
+   * Format tool result output for display (abbreviated)
+   */
+  private formatToolResult(toolName: string, output: string): string {
+    if (!output || !output.trim()) return '';
+
+    // Filter out permission denial messages - we handle these separately
+    if (output.includes('requested permissions') && output.includes("haven't")) {
+      return '';
+    }
+    if (output.includes('permission') && output.includes('denied')) {
+      return '';
+    }
+
+    const lines = output.split('\n').filter(l => l.trim());
+    const muted = Theme.colors.muted;
+
+    // In verbose mode, show more content
+    const maxLines = this.verboseMode ? 15 : 8;
+    const summaryLines = this.verboseMode ? 10 : 5;
+
+    // For file reads, show content preview
+    if (toolName.toLowerCase() === 'read') {
+      if (lines.length > maxLines) {
+        const preview = lines.slice(0, summaryLines).map(l => l.substring(0, 120)).join('\n       ');
+        return `\n${muted('    └─ ' + preview)}\n${muted('       ... (' + (lines.length - summaryLines) + ' more lines)')}`;
+      }
+      const preview = lines.slice(0, maxLines).map(l => l.substring(0, 120)).join('\n       ');
+      return `\n${muted('    └─ ' + preview)}`;
+    }
+
+    // For glob/grep, show files found
+    if (toolName.toLowerCase() === 'glob' || toolName.toLowerCase() === 'grep') {
+      const fileCount = lines.length;
+      if (fileCount > maxLines) {
+        const preview = lines.slice(0, summaryLines).join('\n       ');
+        return `\n${muted('    └─ ' + preview)}\n${muted('       ... (' + (fileCount - summaryLines) + ' more matches)')}`;
+      }
+      return `\n${muted('    └─ ' + lines.join('\n       '))}`;
+    }
+
+    // For bash, show command output
+    if (toolName.toLowerCase() === 'bash') {
+      if (lines.length > maxLines) {
+        const preview = lines.slice(0, summaryLines).map(l => l.substring(0, 120)).join('\n       ');
+        return `\n${muted('    └─ ' + preview)}\n${muted('       ... (' + (lines.length - summaryLines) + ' more lines)')}`;
+      }
+      const preview = lines.map(l => l.substring(0, 120)).join('\n       ');
+      return `\n${muted('    └─ ' + preview)}`;
+    }
+
+    // For Task (subagent), show agent output
+    if (toolName.toLowerCase() === 'task') {
+      if (lines.length > maxLines) {
+        const preview = lines.slice(0, summaryLines).map(l => l.substring(0, 120)).join('\n       ');
+        return `\n${muted('    └─ ' + preview)}\n${muted('       ... (' + (lines.length - summaryLines) + ' more lines)')}`;
+      }
+      const preview = lines.map(l => l.substring(0, 120)).join('\n       ');
+      return `\n${muted('    └─ ' + preview)}`;
+    }
+
+    // Default: show abbreviated with reasonable limits
+    if (lines.length > summaryLines) {
+      const preview = lines.slice(0, summaryLines - 1).map(l => l.substring(0, 120)).join('\n       ');
+      return `\n${muted('    └─ ' + preview)}${muted('\n       ... (' + (lines.length - summaryLines + 1) + ' more)')}`;
+    }
+    if (output.length < 100) {
+      return ` → ${output.trim()}`;
+    }
+    const preview = lines.map(l => l.substring(0, 120)).join('\n       ');
+    return `\n${muted('    └─ ' + preview)}`;
   }
 
   /**

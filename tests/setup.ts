@@ -3,6 +3,9 @@
  * Global test configuration and setup for CodeMind test suite
  */
 
+// Set NODE_ENV to test to prevent resource leaks
+process.env.NODE_ENV = 'test';
+
 // Set up test timeout for long-running operations
 jest.setTimeout(30000);
 

@@ -3,124 +3,249 @@
 > Enhance Claude Code with semantic search, knowledge graphs, and intelligent code analysis for dramatically improved developer productivity.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
-[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
+[![Storage](https://img.shields.io/badge/Storage-Embedded%20%7C%20Server-green.svg)](#storage-modes)
 [![Status](https://img.shields.io/badge/status-MVP-green.svg)](https://github.com/your-org/codemind)
 
-## 🚀 Quick Start
+## Overview
+
+CodeMind provides three ways to enhance your development workflow:
+
+| Mode | Description | Best For |
+|------|-------------|----------|
+| **CLI** | Direct command-line tool with natural language queries | Quick searches, project analysis |
+| **MCP Server** | Model Context Protocol server for Claude Desktop/Code | AI-assisted development |
+| **VSCode Extension** | Real-time file sync with status bar UI | Automatic index updates |
+
+**Zero Setup Required**: CodeMind uses embedded storage by default (SQLite + Graphology). No Docker or external databases needed to get started.
+
+## Quick Start
 
 ```bash
-# 1. Clone and install
-git clone <repository-url>
-cd CodeMind
-npm install && npm run build && npm link
+# 1. Install globally
+npm install -g codemind
 
-# 2. Start databases
-docker-compose up -d
-
-# 3. One-time setup (creates database schema)
-codemind setup
-
-# 4. Initialize your project
+# 2. Initialize your project
 cd /path/to/your/project
-codemind init
+codemind init --quick
 
-# 5. Ask questions about your code
+# 3. Start using CodeMind
 codemind -c "what is this project about?"
 codemind -c "show me all the classes"
-codemind -c "find SOLID principle violations"
+codemind -c "find authentication code"
 ```
 
-## ✨ Key Features
+That's it! CodeMind works immediately with embedded storage.
 
-- **🎯 Enhanced Claude Code**: Provides rich context that makes Claude Code dramatically more effective
-- **🧠 Semantic Search**: Vector-based code search finds relevant files with 100% accuracy
-- **🕸️ Knowledge Graphs**: Maps code relationships, dependencies, and patterns automatically
-- **🔍 Smart Analysis**: Detects SOLID violations, duplications, and architectural patterns
-- **⚡ Natural Language**: Ask questions about your code in plain English
-- **🚀 MVP Ready**: Battle-tested core functionality for immediate productivity gains
+## Three Ways to Use CodeMind
 
-## 🏗️ How It Works
+### 1. CLI Mode
 
-CodeMind enhances Claude Code with an 8-step intelligent workflow:
-
-```
-User Query → Analysis → Semantic Search → Knowledge Graph → Enhanced Context → Claude Code → Results
-```
-
-**Core Technologies:**
-- **PostgreSQL + pgvector**: Vector embeddings for semantic search
-- **Neo4j**: Knowledge graphs for code relationships (optional)
-- **Redis**: High-performance caching (optional)
-- **Claude Code CLI**: Direct integration, no APIs needed
-
-## 📖 Documentation
-
-- **[Getting Started Guide](docs/user/getting-started.md)** - Installation and basic usage
-- **[Core Cycle Diagram](CODEMIND_CORE_CYCLE_DIAGRAM.md)** - 8-step intelligent workflow explanation
-- **[Claude Code Guidelines](CLAUDE.md)** - Essential Claude Code integration guidance
-- **[Feature Backlog](FEATURE_REMOVAL_RECORD.md)** - Removed MVP features for future development
-- **[Development TODO](TODO)** - Current priorities and future enhancements
-
-## 🛠️ Core Commands
+Direct command-line interface for code analysis and search:
 
 ```bash
-# Setup (one-time)
-codemind setup          # Create database schema and infrastructure
-
-# Project initialization
-codemind init           # Initialize current project with CodeMind
-
 # Natural language queries
-codemind -c "what is this project about?"
-codemind -c "show me all the classes"
-codemind -c "find SOLID principle violations"
-codemind -c "show me user management code"
+codemind -c "what does the UserService do?"
+codemind -c "find all API endpoints"
+codemind -c "show me SOLID principle violations"
 
-# Project maintenance
-codemind sync           # Update analysis after code changes
+# Project management
+codemind init           # Initialize project
+codemind sync           # Update after code changes
+codemind list           # List indexed projects
+
+# Claude CLI passthrough (directly access Claude)
+claude login            # Login to Claude (passed through)
+claude logout           # Logout from Claude
+claude --version        # Check Claude version
 ```
 
-## 🔧 Technology Stack
+**Claude CLI Passthrough**: When you type commands starting with `claude`, CodeMind automatically passes them directly to the Claude CLI, then returns you to CodeMind. This makes it seamless to manage authentication, check versions, or run any Claude CLI command without leaving the CodeMind REPL.
 
-- **Runtime**: Node.js 18+, TypeScript
-- **Primary Database**: PostgreSQL with pgvector for semantic search
-- **Optional Databases**: Neo4j (knowledge graphs), Redis (caching)
-- **AI Integration**: Direct Claude Code CLI integration (no APIs)
-- **Deployment**: Docker, Docker Compose
+### 2. MCP Server Mode
 
-## 🚢 Deployment Options
+Run as an MCP server for Claude Desktop or Claude Code integration:
 
-### Standard Deployment (Recommended)
 ```bash
-# Use Docker Compose (works locally and in production)
-docker-compose up -d
+# Start MCP server
+codemind serve --mcp
 ```
 
-### Rancher/Kubernetes Deployment
+Add to Claude Desktop config (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "codemind": {
+      "command": "codemind",
+      "args": ["serve", "--mcp"]
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+- `search_code` - Semantic search across indexed projects
+- `get_file_context` - File content with related code chunks
+- `get_code_relationships` - Navigate code dependency graph
+- `list_projects` - View indexed projects
+- `index_project` - Index new projects
+- `notify_file_changes` - Incremental or full reindex
+
+See [MCP Server Documentation](docs/technical/mcp-server.md) for details.
+
+### 3. VSCode Extension
+
+Automatic file sync with visual status bar:
+
 ```bash
-# Rancher Desktop can run Docker Compose files directly
-# Or use Kubernetes manifests (generated from docker-compose.yml)
+# Build and install extension
+cd extensions/vscode-codemind
+npm install && npm run compile
+npm run package
+code --install-extension vscode-codemind-0.1.0.vsix
 ```
 
-**Note**: Rancher Compose (`.rancher-compose.yml`) is deprecated. Use Docker Compose for all deployments.
+**Features:**
+- Automatic sync on file changes (debounced)
+- Status bar with sync status indicator
+- Commands: Sync Now, Full Reindex, Toggle Auto-Sync
+- Smart exclusions (node_modules, .git, dist, etc.)
 
-## 📊 Performance
+See [VSCode Extension README](extensions/vscode-codemind/README.md) for details.
 
-| Metric | Performance |
-|--------|------------|
-| **Embedding Generation** | 50-100 files/min (local) |
-| **Similarity Search** | <10ms (HNSW index) |
-| **Memory Usage** | ~2MB per 1000 files |
-| **Supported Files** | 1M+ files per project |
+## Storage Modes
 
-## 🚀 Enterprise Features
+CodeMind supports two storage configurations:
 
-- **Scalable Architecture**: Multi-container deployment with horizontal scaling
-- **Security**: Project isolation, audit logging, compliance ready
-- **Cost Optimization**: 60% reduction in AI API costs through intelligent context management
-- **Team Collaboration**: Shared analysis, centralized knowledge base
+### Embedded Mode (Default)
 
-## 🤝 Contributing
+**Zero configuration required.** Perfect for personal use and getting started.
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Vector Search | SQLite + better-sqlite3 | Semantic code search |
+| Graph Database | Graphology (in-memory) | Code relationships |
+| Cache | LRU-cache (in-memory) | Query caching |
+
+Data is stored locally:
+- **Windows**: `%APPDATA%\codemind\data\`
+- **macOS**: `~/Library/Application Support/codemind/data/`
+- **Linux**: `~/.local/share/codemind/data/`
+
+### Server Mode (Advanced)
+
+For large codebases (100K+ files), teams, or production environments:
+
+> **Most users don't need this.** Start with embedded mode and upgrade only if you hit performance limits.
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Vector Search | PostgreSQL + pgvector | Scalable vector search |
+| Graph Database | Neo4j | Powerful graph queries |
+| Cache | Redis | Distributed caching |
+
+**Setup Options (in order of recommendation):**
+
+1. **Manual Installation** (Recommended)
+   - Full control, production-ready
+   - See [Database Scripts](deploy/scripts/README.md)
+
+2. **Kubernetes** (Production)
+   - For cloud deployments
+   - See [Kubernetes Templates](deploy/kubernetes/)
+
+3. **Docker Compose** (Experimental)
+   - Quick local testing only, not for production
+   - See [Docker Setup](#docker-experimental)
+
+See [Storage Documentation](docs/technical/storage.md) for detailed configuration.
+
+## Key Features
+
+- **Semantic Search**: Vector-based code search with 100% accuracy
+- **Knowledge Graphs**: Automatic mapping of code relationships
+- **Smart Analysis**: SOLID violations, duplications, patterns
+- **Natural Language**: Ask questions in plain English
+- **Hybrid Search**: Text + vector + graph combined results
+- **Incremental Updates**: Fast sync on file changes
+- **Full Reindex**: Complete refresh after major changes
+- **Claude CLI Passthrough**: Direct access to Claude login, logout, and other CLI commands
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CodeMind                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌──────────┐    ┌──────────────┐    ┌──────────────────────┐     │
+│   │   CLI    │    │  MCP Server  │    │  VSCode Extension    │     │
+│   │ codemind │    │ serve --mcp  │    │  vscode-codemind     │     │
+│   └────┬─────┘    └──────┬───────┘    └──────────┬───────────┘     │
+│        │                 │                        │                  │
+│        └─────────────────┴────────────────────────┘                  │
+│                          │                                           │
+│   ┌──────────────────────┴──────────────────────────┐               │
+│   │              Storage Manager                     │               │
+│   │  (Auto-selects embedded or server mode)         │               │
+│   └──────────────────────┬──────────────────────────┘               │
+│                          │                                           │
+│   ┌──────────────────────┴──────────────────────────┐               │
+│   │                                                  │               │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────┐  │               │
+│   │  │ Vector Store│  │ Graph Store │  │  Cache  │  │               │
+│   │  │ SQLite/PG   │  │ Graphology/ │  │ LRU/    │  │               │
+│   │  │ + pgvector  │  │ Neo4j       │  │ Redis   │  │               │
+│   │  └─────────────┘  └─────────────┘  └─────────┘  │               │
+│   │                                                  │               │
+│   └──────────────────────────────────────────────────┘               │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Storage Guide](docs/technical/storage.md) | Embedded vs Server mode configuration |
+| [MCP Server](docs/technical/mcp-server.md) | MCP protocol for Claude Code/Desktop integration |
+| [CLI Commands](docs/install/cli_commands_manual.md) | Full CLI reference |
+| [Manual Setup](docs/install/manual_setup.md) | Step-by-step setup instructions |
+| [Core Cycle](docs/technical/core_cycle.md) | How the analysis workflow works |
+| [Architecture](docs/technical/architecture.md) | Technical deep-dive |
+| [VSCode Extension](extensions/vscode-codemind/README.md) | Extension setup and usage |
+| [All Documentation](docs/README.md) | Complete documentation index |
+
+## Docker (Experimental)
+
+> **Note**: Docker Compose is provided for quick local testing. For production, we recommend manual database installation or Kubernetes deployment.
+
+```bash
+# Start databases only (experimental)
+docker-compose up -d database redis neo4j
+
+# Configure CodeMind to use server mode
+export CODEMIND_STORAGE_MODE=server
+
+# Initialize project
+codemind init
+```
+
+See [Kubernetes Templates](deploy/kubernetes/) for production deployments.
+
+## Performance
+
+| Metric | Embedded | Server |
+|--------|----------|--------|
+| Startup time | ~100ms | ~500ms |
+| Search (1K files) | ~50ms | ~20ms |
+| Search (100K files) | ~500ms | ~50ms |
+| Concurrent users | 1 | Many |
+| Memory usage | Low | Variable |
+
+**Recommendation**: Start with embedded mode. Switch to server mode when you have 100K+ files or need team collaboration.
+
+## Contributing
 
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/amazing-feature`)
@@ -128,15 +253,11 @@ docker-compose up -d
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open Pull Request
 
-## 📄 License
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- **Documentation**: [Full Documentation](docs/)
-- **Issues**: [GitHub Issues](https://github.com/your-org/codemind/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/codemind/discussions)
 
 ---
 

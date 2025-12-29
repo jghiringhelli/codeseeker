@@ -1,4 +1,16 @@
 # CodeMind Docker Compose - Unified Configuration
+#
+# ⚠️  EXPERIMENTAL: Docker Compose is provided for quick local testing only.
+# For production deployments, we recommend:
+#   1. Manual database installation (see deploy/scripts/README.md)
+#   2. Kubernetes deployment (see deploy/kubernetes/README.md)
+#   3. Managed database services (RDS, Cloud SQL, Neo4j Aura, ElastiCache)
+#
+# Usage:
+#   docker-compose up -d                    # Start all core services
+#   docker-compose --profile dev up -d      # Include dashboard + orchestrator
+#   docker-compose down                     # Stop all services
+#
 # Core services: PostgreSQL, Redis, Neo4j, API
 # Optional services: Dashboard, Orchestrator (use --profile dev)
 

@@ -42,11 +42,20 @@ export class EmbeddingGeneratorAdapter implements IEmbeddingGenerator {
 
   async generateQueryEmbedding(query: string): Promise<number[]> {
     try {
-      return await this.embeddingService.generateEmbedding(query, 'search query');
-    } catch (error) {
+      const embedding = await this.embeddingService.generateEmbedding(query, 'search query');
+
+      // Validate embedding is not a zero vector
+      const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+      if (magnitude < 0.001) {
+        console.warn('Generated embedding has near-zero magnitude - embedding may have failed');
+        throw new Error('Zero-magnitude embedding generated');
+      }
+
+      return embedding;
+    } catch (error: any) {
       console.warn(`Failed to generate query embedding: ${error.message}`);
-      // Return zero vector as fallback
-      return new Array(384).fill(0);
+      // Re-throw to let caller handle the failure (e.g., fall back to FTS-only search)
+      throw error;
     }
   }
 
