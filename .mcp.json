@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "codemind": {
-      "command": "codemind",
-      "args": ["serve", "--mcp"],
+      "command": "npx",
+      "args": ["-y", "codemind-enhanced-cli", "serve", "--mcp"],
       "env": {
         "CODEMIND_STORAGE_MODE": "embedded"
       },
