@@ -1,0 +1,43 @@
+{
+  "mcpServers": {
+    "codemind": {
+      "command": "node",
+      "args": ["${CODEMIND_PATH}/dist/mcp/mcp-server.js"],
+      "env": {
+        "CODEMIND_STORAGE_MODE": "embedded",
+        "CODEMIND_DATA_DIR": "${HOME}/.codemind/data"
+      },
+      "description": "CodeMind semantic search and code analysis MCP server",
+      "tools": [
+        {
+          "name": "search_code",
+          "description": "Search codebase using semantic similarity"
+        },
+        {
+          "name": "get_file_context",
+          "description": "Read a file with semantically related code context"
+        },
+        {
+          "name": "get_code_relationships",
+          "description": "Explore code dependencies and relationships"
+        },
+        {
+          "name": "list_projects",
+          "description": "List all indexed projects"
+        },
+        {
+          "name": "index_project",
+          "description": "Index a project for semantic search"
+        },
+        {
+          "name": "notify_file_changes",
+          "description": "Update index after file modifications"
+        },
+        {
+          "name": "get_coding_standards",
+          "description": "Get auto-detected coding patterns and standards"
+        }
+      ]
+    }
+  }
+}

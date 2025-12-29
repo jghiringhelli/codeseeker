@@ -6,8 +6,9 @@ This directory contains detailed documentation for CodeMind. For a quick overvie
 
 | Document | Description |
 |----------|-------------|
+| [Claude Code Plugin](install/claude-code-plugin.md) | **Recommended** - Install CodeMind as a Claude Code plugin |
 | [CLI Commands Manual](install/cli_commands_manual.md) | Full reference for all CLI commands |
-| [MCP Server Guide](technical/mcp-server.md) | Setup MCP server for Claude Code/Desktop integration |
+| [MCP Server Guide](install/mcp-server.md) | Setup MCP server for Claude Code/Desktop integration |
 | [Storage Guide](technical/storage.md) | Embedded vs Server mode configuration |
 | [Manual Setup Guide](install/manual_setup.md) | Step-by-step setup instructions |
 
@@ -23,7 +24,8 @@ This directory contains detailed documentation for CodeMind. For a quick overvie
 
 | Document | Description |
 |----------|-------------|
-| [VSCode Extension](../extensions/vscode-codemind/README.md) | Real-time file sync extension |
+| [Claude Code Plugin](../plugins/codemind/README.md) | Claude Code plugin with slash commands and skills |
+| [VSCode Extension](../extensions/vscode-codemind/README.md) | Real-time file sync extension (legacy) |
 | [Database Scripts](../deploy/scripts/README.md) | Manual PostgreSQL, Neo4j, Redis installation |
 | [Kubernetes Deployment](../deploy/kubernetes/README.md) | Production Kubernetes manifests |
 
@@ -42,10 +44,11 @@ This directory contains detailed documentation for CodeMind. For a quick overvie
 docs/
 ├── README.md                 # This file - documentation index
 ├── install/                  # Installation guides
+│   ├── claude-code-plugin.md     # Claude Code plugin setup (recommended)
 │   ├── cli_commands_manual.md    # CLI commands reference
 │   ├── manual_setup.md           # Manual setup instructions
 │   ├── mcp-server.md             # MCP server setup
-│   └── vscode_extension.md       # VSCode extension setup
+│   └── vscode_extension.md       # VSCode extension setup (legacy)
 ├── technical/                # Technical documentation
 │   ├── architecture.md       # Architecture overview
 │   ├── core_cycle.md         # Core cycle implementation
