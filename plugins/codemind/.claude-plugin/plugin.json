@@ -2,8 +2,12 @@
   "name": "codemind",
   "version": "1.0.0",
   "description": "CodeMind - Intelligent code understanding with semantic search, knowledge graphs, and auto-detected coding standards",
-  "author": "CodeMind Team",
-  "homepage": "https://github.com/anthropics/codemind",
+  "author": {
+    "name": "CodeMind Team",
+    "url": "https://github.com/jghiringhelli/codemind"
+  },
+  "homepage": "https://github.com/jghiringhelli/codemind",
+  "repository": "https://github.com/jghiringhelli/codemind",
   "license": "MIT",
   "keywords": [
     "semantic-search",
@@ -11,13 +15,5 @@
     "knowledge-graph",
     "coding-standards",
     "context-enhancement"
-  ],
-  "engines": {
-    "claude-code": ">=1.0.0"
-  },
-  "capabilities": {
-    "commands": true,
-    "skills": true,
-    "mcp": true
-  }
+  ]
 }
