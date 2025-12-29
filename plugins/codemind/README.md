@@ -1,41 +1,81 @@
 # CodeMind Plugin for Claude Code
 
-This plugin integrates CodeMind's intelligent code understanding capabilities into Claude Code (CLI and VSCode extension).
+Give Claude Code superpowers: semantic search, code understanding, and auto-detected coding standards.
 
-## Features
+## What Happens After Installation
 
-### Slash Commands
+Once installed, **Claude automatically gets enhanced context** for your requests:
+
+- **Semantic Search**: When you ask about code, Claude searches by meaning, not just keywords
+- **Code Relationships**: Claude understands imports, exports, and dependencies
+- **Coding Standards**: Claude follows your project's existing patterns (validation, error handling, logging)
+- **Auto-Sync**: The index updates automatically when Claude edits files or runs git commands
+
+**You don't need to do anything special** - just ask Claude questions and it will use CodeMind's enhanced context when helpful.
+
+## Installation
+
+### One-Time Setup
+
+1. **Install the plugin** (run this in Claude Code chat, not bash):
+   ```
+   /plugin install codemind@github:jghiringhelli/codemind#plugin
+   ```
+
+2. **Restart Claude Code** to load the plugin
+
+3. **Initialize your project** (run this in Claude Code chat):
+   ```
+   /codemind:init
+   ```
+
+That's it. The MCP server is auto-configured and will download on first use via npx.
+
+### Per-Project Configuration (Optional)
+
+The plugin applies globally, but you can customize per-project by adding to your project's `.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "codemind": {
+      "command": "npx",
+      "args": ["-y", "codemind-enhanced-cli", "serve", "--mcp"],
+      "env": {
+        "CODEMIND_STORAGE_MODE": "embedded"
+      }
+    }
+  }
+}
+```
+
+Or for team projects, add `.mcp.json` at project root with the same content.
+
+## Available Commands
+
+These commands are run **in Claude Code chat** (not in terminal):
 
 | Command | Description |
 |---------|-------------|
 | `/codemind:init` | Initialize CodeMind for the current project |
 | `/codemind:search <query>` | Semantic search across the codebase |
-| `/codemind:standards [category]` | Get auto-detected coding standards |
+| `/codemind:standards [category]` | View auto-detected coding standards |
 | `/codemind:relationships <file>` | Explore code dependencies |
 | `/codemind:context <file>` | Get file with related context |
 | `/codemind:reindex` | Trigger full project reindex |
 
-### Agent Skills
+**Note**: Most users won't need these commands - Claude uses the MCP tools automatically when relevant.
 
-The plugin includes skills that Claude automatically uses:
+## How It Works
 
-- **Code Standards Skill**: Automatically checks coding standards before writing new code
-- **Semantic Context Skill**: Gets related code context when exploring files
-- **Project Indexing Skill**: Ensures project is indexed for search
+1. **Project Indexing**: `/codemind:init` indexes your code into vector embeddings
+2. **Automatic Enhancement**: Claude's MCP tools query the index when answering your questions
+3. **Pattern Detection**: CodeMind detects validation, error handling, and logging patterns
+4. **Auto-Sync**: Hooks trigger index updates after Claude edits files or runs git operations
 
-### Auto-Sync (Hooks)
+### MCP Tools (Used Automatically)
 
-The plugin includes a **PostToolUse hook** that automatically keeps the CodeMind index updated:
-
-- When Claude edits or creates files (Edit/Write tools), the hook triggers
-- Claude automatically calls `notify_file_changes` MCP tool to update the index
-- **No manual reindexing needed** after Claude makes changes
-
-This means the semantic search and coding standards always reflect the latest code changes made by Claude.
-
-### MCP Tools
-
-When configured, provides these MCP tools:
+The plugin provides these MCP tools that Claude uses behind the scenes:
 
 - `search_code` - Semantic code search
 - `get_file_context` - File with related context
@@ -43,106 +83,6 @@ When configured, provides these MCP tools:
 - `get_coding_standards` - Auto-detected patterns
 - `index_project` - Project indexing
 - `notify_file_changes` - Incremental updates
-
-## Installation
-
-### Prerequisites
-
-1. **Claude Code** installed (CLI or VSCode extension)
-2. **Node.js 18+** installed
-3. **CodeMind CLI** installed globally:
-   ```bash
-   npm install -g codemind-enhanced-cli
-   ```
-
-### Install Plugin
-
-#### Option 1: Via Claude Code CLI (Recommended)
-
-```bash
-# Install from local path
-claude /plugin install /path/to/CodeMind/plugins/codemind
-
-# Or if published to registry
-claude /plugin install codemind
-```
-
-#### Option 2: Manual Installation
-
-1. Copy the plugin folder to your Claude Code plugins directory:
-   ```bash
-   # Linux/macOS
-   cp -r plugins/codemind ~/.claude/plugins/
-
-   # Windows
-   xcopy /E /I plugins\codemind %USERPROFILE%\.claude\plugins\codemind
-   ```
-
-2. Restart Claude Code to load the plugin
-
-### Configure MCP Server
-
-The plugin includes an MCP server configuration. To enable it:
-
-1. The plugin's `.mcp.json` will be loaded automatically
-2. Or manually add to your Claude Code MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "codemind": {
-      "command": "node",
-      "args": ["/path/to/CodeMind/dist/mcp/mcp-server.js"]
-    }
-  }
-}
-```
-
-## Usage
-
-### Quick Start
-
-1. Open your project in Claude Code
-2. Initialize CodeMind:
-   ```
-   /codemind:init
-   ```
-3. Search your codebase:
-   ```
-   /codemind:search authentication middleware
-   ```
-4. Check coding standards:
-   ```
-   /codemind:standards validation
-   ```
-
-### Example Workflows
-
-#### Understanding Code
-```
-/codemind:context src/services/auth.ts
-/codemind:relationships src/services/auth.ts
-```
-
-#### Writing Consistent Code
-```
-/codemind:standards validation
-# Now write code using the detected patterns
-```
-
-#### Finding Related Code
-```
-/codemind:search error handling patterns
-```
-
-## How It Works
-
-1. **Indexing**: CodeMind indexes your project files into vector embeddings
-2. **Semantic Search**: Queries find semantically similar code, not just keyword matches
-3. **Knowledge Graph**: Tracks imports, exports, and code relationships
-4. **Pattern Detection**: Automatically detects coding patterns from your codebase
-5. **Context Enhancement**: Provides Claude with relevant context for better responses
-6. **Auto-Sync**: Hook triggers MCP tool after Claude edits files to keep index current
 
 ## Index Synchronization
 
@@ -153,9 +93,7 @@ The plugin includes an MCP server configuration. To enable it:
 | Manual edits in VSCode | VSCode Extension (optional) | Yes |
 | Manual edits outside VSCode | `/codemind:reindex` command | Manual |
 
-**For seamless manual edit sync**, install the CodeMind VSCode Extension which watches for file changes.
-
-For complete integration documentation, see [INTEGRATION.md](../../docs/INTEGRATION.md).
+**For seamless manual edit sync**, install the [CodeMind VSCode Extension](../../extensions/vscode-codemind/).
 
 ## Troubleshooting
 
@@ -165,9 +103,9 @@ For complete integration documentation, see [INTEGRATION.md](../../docs/INTEGRAT
 - Restart Claude Code
 
 ### MCP tools not available
-- Ensure CodeMind is installed: `codemind --version`
-- Check MCP server path in `.mcp.json`
+- First use downloads via npx - wait a moment
 - Verify Node.js 18+ is installed
+- Check Claude Code's MCP server logs
 
 ### Search returns no results
 - Run `/codemind:init` to index the project
@@ -179,9 +117,11 @@ For complete integration documentation, see [INTEGRATION.md](../../docs/INTEGRAT
 - Check `.codemind/coding-standards.json` exists
 - Standards require 2+ uses of a pattern to be detected
 
-## Contributing
+## More Information
 
-See the main [CodeMind repository](https://github.com/anthropics/codemind) for contribution guidelines.
+- [Integration Guide](../../docs/INTEGRATION.md) - All components explained
+- [MCP Server Reference](../../docs/technical/mcp-server.md) - MCP tools reference
+- [Main Repository](https://github.com/jghiringhelli/codemind) - Full documentation
 
 ## License
 

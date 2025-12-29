@@ -14,32 +14,27 @@
 
 ## Quick Start (2 minutes)
 
-### Step 1: Install CLI
-```bash
-npm install -g codemind-enhanced-cli
-```
+### Step 1: Install Plugin
 
-### Step 2: Install Plugin
-
-**Option A - From GitHub (recommended):**
+Run this command **in Claude Code chat** (not terminal):
 ```
 /plugin install codemind@github:jghiringhelli/codemind#plugin
 ```
 
-**Option B - Manual copy:**
-```bash
-git clone https://github.com/jghiringhelli/codemind.git
-cp -r codemind/plugins/codemind ~/.claude/plugins/    # Linux/macOS
-xcopy /E /I codemind\plugins\codemind %USERPROFILE%\.claude\plugins\codemind  # Windows
-```
+### Step 2: Restart Claude Code
+
+Close and reopen Claude Code to load the plugin.
 
 ### Step 3: Initialize your project
-Restart Claude Code, then:
+
+Run this command **in Claude Code chat**:
 ```
 /codemind:init
 ```
 
-**That's it.** CodeMind now enhances Claude with semantic search, coding standards, and auto-sync.
+**That's it.** The MCP server downloads automatically on first use. Claude now has semantic search, coding standards, and auto-sync.
+
+> **Note**: Commands like `/codemind:init` are typed in Claude Code chat, not in a terminal.
 
 ## What Can You Do?
 
@@ -75,9 +70,11 @@ The plugin auto-syncs after Claude's edits. For manual changes:
 
 ### CLI Mode (Without Claude Code)
 
-Use CodeMind directly from terminal:
+Install the CLI globally, then use CodeMind directly from terminal:
 
 ```bash
+npm install -g codemind-enhanced-cli
+
 # Natural language queries
 codemind -c "what does this project do?"
 codemind -c "find all API endpoints"
@@ -95,8 +92,8 @@ Add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "codemind": {
-      "command": "codemind",
-      "args": ["serve", "--mcp"]
+      "command": "npx",
+      "args": ["-y", "codemind-enhanced-cli", "serve", "--mcp"]
     }
   }
 }
