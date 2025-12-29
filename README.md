@@ -21,17 +21,16 @@ npm install -g codemind-enhanced-cli
 
 ### Step 2: Install Plugin
 
-**Option A - Copy plugin (recommended):**
+**Option A - From GitHub (recommended):**
+```
+/plugin install codemind@github:jghiringhelli/codemind#plugin
+```
+
+**Option B - Manual copy:**
 ```bash
-# Clone once, copy plugin
 git clone https://github.com/jghiringhelli/codemind.git
 cp -r codemind/plugins/codemind ~/.claude/plugins/    # Linux/macOS
 xcopy /E /I codemind\plugins\codemind %USERPROFILE%\.claude\plugins\codemind  # Windows
-```
-
-**Option B - If marketplace is available:**
-```
-/plugin install codemind@github:jghiringhelli/codemind-plugin
 ```
 
 ### Step 3: Initialize your project
