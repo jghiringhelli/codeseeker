@@ -13,6 +13,9 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Logger } from '../../../utils/logger';
 import { SearchCommandHandler } from './search-command-handler';
+import { platformDetector } from '../../services/platform-detector';
+import { getStorageManager, isUsingEmbeddedStorage } from '../../../storage';
+import { CodingStandardsGenerator } from '../../services/analysis/coding-standards-generator';
 
 export class SetupCommandHandler extends BaseCommandHandler {
   // NOTE: This handler is for PROJECT initialization, not infrastructure setup
@@ -118,60 +121,79 @@ export class SetupCommandHandler extends BaseCommandHandler {
 
   /**
    * Perform complete database cleanup and reinitialization
+   * Uses storage abstraction for both embedded and server modes
    */
   private async handleCompleteReset(): Promise<CommandResult> {
     const projectPath = this.context.currentProject?.projectPath || process.cwd();
     console.log(Theme.colors.warning(`🗑️ Resetting CodeMind project: ${path.basename(projectPath)}`));
-    console.log(Theme.colors.warning('⚠️ This will delete ALL project data from the database'));
+    console.log(Theme.colors.warning('⚠️ This will delete ALL project data'));
 
     try {
-      // Connect to database
-      const pool = new Pool({
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'codemind',
-        user: process.env.DB_USER || 'codemind',
-        password: process.env.DB_PASSWORD || 'codemind123'
-      });
+      console.log(Theme.colors.info('\n🧹 Cleaning up existing data...'));
 
-      const client = await pool.connect();
+      // Use storage abstraction for cleanup
+      if (isUsingEmbeddedStorage()) {
+        // Embedded mode - use storage manager
+        const storageManager = await getStorageManager();
+        const projectStore = storageManager.getProjectStore();
+        const vectorStore = storageManager.getVectorStore();
+        const graphStore = storageManager.getGraphStore();
 
-      try {
-        console.log(Theme.colors.info('\n🧹 Cleaning up existing data...'));
+        // Find project by path
+        const project = await projectStore.findByPath(projectPath);
+        if (project) {
+          // Delete all related data
+          await vectorStore.deleteByProject(project.id);
+          await graphStore.deleteByProject(project.id);
+          await projectStore.delete(project.id);
+          console.log(Theme.colors.success('✅ Deleted all embedded project data'));
+        } else {
+          console.log(Theme.colors.muted('   No existing project found'));
+        }
+      } else {
+        // Server mode - use PostgreSQL directly
+        const pool = new Pool({
+          host: process.env.DB_HOST || 'localhost',
+          port: parseInt(process.env.DB_PORT || '5432'),
+          database: process.env.DB_NAME || 'codemind',
+          user: process.env.DB_USER || 'codemind',
+          password: process.env.DB_PASSWORD || 'codemind123'
+        });
 
-        // Delete all data related to this project path
-        await client.query('DELETE FROM semantic_search_embeddings WHERE project_id IN (SELECT id FROM projects WHERE project_path = $1)', [projectPath]);
-        await client.query('DELETE FROM analysis_results WHERE project_id IN (SELECT id FROM projects WHERE project_path = $1)', [projectPath]);
-        await client.query('DELETE FROM initialization_progress WHERE project_id IN (SELECT id FROM projects WHERE project_path = $1)', [projectPath]);
-        await client.query('DELETE FROM projects WHERE project_path = $1', [projectPath]);
-
-        console.log(Theme.colors.success('✅ Deleted all PostgreSQL project data'));
-
-        // Clean up Neo4j knowledge graph data
-        console.log(Theme.colors.info('\n🕸️ Cleaning up Neo4j knowledge graph...'));
-        await this.cleanupNeo4jData(projectPath);
-
-        // Apply fresh schema to ensure everything is correct
-        console.log(Theme.colors.info('\n🔄 Applying fresh database schema...'));
-        await this.applyConsolidatedSchema();
-
-        // Initialize fresh project
-        console.log(Theme.colors.info('\n🚀 Initializing fresh project...'));
-        const initResult = await this.handleInit();
-
-        if (initResult.success) {
-          console.log(Theme.colors.success('\n🎉 Complete reset successful!'));
-          console.log(Theme.colors.muted('💡 Next steps:'));
-          console.log(Theme.colors.muted('   • Run "/search --index" to index your codebase'));
-          console.log(Theme.colors.muted('   • Try "/analyze <question>" for AI assistance'));
+        const client = await pool.connect();
+        try {
+          // Delete all data related to this project path
+          await client.query('DELETE FROM semantic_search_embeddings WHERE project_id IN (SELECT id FROM projects WHERE project_path = $1)', [projectPath]);
+          await client.query('DELETE FROM analysis_results WHERE project_id IN (SELECT id FROM projects WHERE project_path = $1)', [projectPath]);
+          await client.query('DELETE FROM initialization_progress WHERE project_id IN (SELECT id FROM projects WHERE project_path = $1)', [projectPath]);
+          await client.query('DELETE FROM projects WHERE project_path = $1', [projectPath]);
+          console.log(Theme.colors.success('✅ Deleted all PostgreSQL project data'));
+        } finally {
+          client.release();
+          await pool.end();
         }
 
-        return initResult;
-
-      } finally {
-        client.release();
-        await pool.end();
+        // Clean up Neo4j knowledge graph data (server mode only)
+        console.log(Theme.colors.info('\n🕸️ Cleaning up Neo4j knowledge graph...'));
+        await this.cleanupNeo4jData(projectPath);
       }
+
+      // Apply fresh schema to ensure everything is correct
+      console.log(Theme.colors.info('\n🔄 Applying fresh database schema...'));
+      await this.applyConsolidatedSchema();
+
+      // Initialize fresh project
+      console.log(Theme.colors.info('\n🚀 Initializing fresh project...'));
+      const initResult = await this.handleInit();
+
+      if (initResult.success) {
+        console.log(Theme.colors.success('\n🎉 Complete reset successful!'));
+        console.log(Theme.colors.muted('💡 Next steps:'));
+        console.log(Theme.colors.muted('   • Run "/search --index" to index your codebase'));
+        console.log(Theme.colors.muted('   • Try "/analyze <question>" for AI assistance'));
+      }
+
+      return initResult;
 
     } catch (error) {
       console.error(Theme.colors.error(`❌ Reset failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
@@ -277,8 +299,17 @@ export class SetupCommandHandler extends BaseCommandHandler {
         await this.buildInitialKnowledgeGraph(projectPath, projectResult.data.projectId);
         console.log(Theme.colors.success('✅ Knowledge graph created with triads'));
       } catch (error) {
-        console.log(Theme.colors.warning(`⚠️ Knowledge graph building skipped: ${error instanceof Error ? error.message : 'Connection failed'}`));
-        console.log(Theme.colors.muted('   (Will be built during first analysis)'));
+        console.log(Theme.colors.warning(`⚠️ Knowledge graph creation skipped: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+
+      // Step 3.6: Generate coding standards (if project is indexed)
+      if (!skipIndexing) {
+        console.log(Theme.colors.info('\n📐 Generating coding standards...'));
+        try {
+          await this.generateCodingStandards(projectResult.data.projectId, projectPath);
+        } catch (error) {
+          console.log(Theme.colors.warning(`⚠️ Coding standards generation skipped: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        }
       }
 
       // Step 4: Create CODEMIND.md if it doesn't exist
@@ -363,7 +394,12 @@ export class SetupCommandHandler extends BaseCommandHandler {
       await analysisRepository.initialize();
       console.log(Theme.colors.success('✅ Database connection established'));
 
-      // Test database connectivity
+      // In embedded mode, skip PostgreSQL connection test
+      if (isUsingEmbeddedStorage()) {
+        return { success: true, message: 'Embedded storage initialized' };
+      }
+
+      // Test database connectivity (server mode only)
       const pool = new Pool({
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
@@ -396,132 +432,136 @@ export class SetupCommandHandler extends BaseCommandHandler {
 
   /**
    * Build initial knowledge graph for the project
+   * Uses embedded Graphology store by default, Neo4j if in server mode
    */
   private async buildInitialKnowledgeGraph(projectPath: string, projectId: string): Promise<void> {
     try {
-      const neo4j = require('neo4j-driver');
+      // Get the appropriate graph store based on storage mode
+      const storageManager = await getStorageManager();
+      const graphStore = storageManager.getGraphStore();
 
-      const driver = neo4j.driver(
-        process.env.NEO4J_URI || 'bolt://localhost:7687',
-        neo4j.auth.basic(
-          process.env.NEO4J_USER || 'neo4j',
-          process.env.NEO4J_PASSWORD || 'codemind123'
-        )
-      );
+      // First, delete any existing data for this project to ensure clean state
+      await graphStore.deleteByProject(projectId);
 
-      const session = driver.session();
+      // Scan for code files and create basic nodes and relationships
+      const { glob } = require('fast-glob');
+      const files = await glob(['**/*.{ts,js,jsx,tsx}'], {
+        cwd: projectPath,
+        ignore: ['**/node_modules/**', '**/dist/**', '**/build/**']
+      });
 
-      try {
-        // First, delete any existing data for this project to ensure clean state
-        await session.run(`
-          MATCH (p:Project {id: $projectId})
-          OPTIONAL MATCH (p)-[*]->(n)
-          DETACH DELETE n, p
-        `, { projectId });
+      const nodesToCreate: import('../../../storage/interfaces').GraphNode[] = [];
+      const edgesToCreate: import('../../../storage/interfaces').GraphEdge[] = [];
 
-        // Create project node fresh
-        await session.run(`
-          CREATE (p:Project {
-            id: $projectId,
-            name: $projectName,
-            path: $projectPath,
-            created_at: datetime()
-          })
-        `, {
+      // Create a project "file" node to represent the project root
+      const projectNodeId = `project-${projectId}`;
+      nodesToCreate.push({
+        id: projectNodeId,
+        type: 'file',
+        name: path.basename(projectPath),
+        filePath: projectPath,
+        projectId,
+        properties: {
+          isProjectRoot: true,
+          createdAt: new Date().toISOString()
+        }
+      });
+
+      for (const file of files.slice(0, 20)) { // Limit to 20 files for performance
+        const filePath = path.join(projectPath, file);
+        const content = await fs.readFile(filePath, 'utf-8');
+
+        // Create file node
+        const fileNodeId = `file-${projectId}-${file}`;
+        nodesToCreate.push({
+          id: fileNodeId,
+          type: 'file',
+          name: path.basename(file),
+          filePath: filePath,
           projectId,
-          projectName: path.basename(projectPath),
-          projectPath
-        });
-
-        // Scan for code files and create basic nodes and relationships
-        const { glob } = require('fast-glob');
-        const files = await glob(['**/*.{ts,js,jsx,tsx}'], {
-          cwd: projectPath,
-          ignore: ['**/node_modules/**', '**/dist/**', '**/build/**']
-        });
-
-        let nodeCount = 0;
-        let relationshipCount = 0;
-
-        for (const file of files.slice(0, 20)) { // Limit to 20 files for performance
-          const filePath = path.join(projectPath, file);
-          const content = await fs.readFile(filePath, 'utf-8');
-
-          // Create file node
-          await session.run(`
-            MATCH (p:Project {id: $projectId})
-            CREATE (f:File {
-              name: $fileName,
-              path: $filePath,
-              relativePath: $relativePath,
-              projectId: $projectId
-            })
-            CREATE (p)-[:CONTAINS]->(f)
-          `, {
-            projectId,
-            fileName: path.basename(file),
-            filePath,
+          properties: {
             relativePath: file
-          });
-
-          nodeCount++;
-
-          // Extract basic code elements (classes, functions)
-          const classMatches = content.match(/class\s+(\w+)/g) || [];
-          const functionMatches = content.match(/(?:function\s+(\w+)|(\w+)\s*=\s*(?:async\s+)?(?:\(.*?\)|[^=]*?)\s*=>)/g) || [];
-
-          for (const classMatch of classMatches) {
-            const className = classMatch.match(/class\s+(\w+)/)?.[1];
-            if (className) {
-              await session.run(`
-                MATCH (f:File {relativePath: $relativePath, projectId: $projectId})
-                CREATE (c:Class {
-                  name: $className,
-                  file: $relativePath,
-                  projectId: $projectId
-                })
-                CREATE (f)-[:DEFINES]->(c)
-              `, {
-                projectId,
-                relativePath: file,
-                className
-              });
-
-              nodeCount++;
-              relationshipCount++;
-            }
           }
+        });
 
-          for (const funcMatch of functionMatches.slice(0, 5)) { // Limit functions per file
-            const functionName = funcMatch.match(/function\s+(\w+)/)?.[1] ||
-                                funcMatch.match(/(\w+)\s*=/)?.[1];
-            if (functionName && functionName.length > 1) {
-              await session.run(`
-                MATCH (f:File {relativePath: $relativePath, projectId: $projectId})
-                CREATE (fn:Function {
-                  name: $functionName,
-                  file: $relativePath,
-                  projectId: $projectId
-                })
-                CREATE (f)-[:DEFINES]->(fn)
-              `, {
-                projectId,
-                relativePath: file,
-                functionName
-              });
+        // Create edge from project to file
+        edgesToCreate.push({
+          id: `contains-${projectNodeId}-${fileNodeId}`,
+          source: projectNodeId,
+          target: fileNodeId,
+          type: 'contains'
+        });
 
-              nodeCount++;
-              relationshipCount++;
-            }
+        // Extract basic code elements (classes, functions)
+        const classMatches = content.match(/class\s+(\w+)/g) || [];
+        const functionMatches = content.match(/(?:function\s+(\w+)|(\w+)\s*=\s*(?:async\s+)?(?:\(.*?\)|[^=]*?)\s*=>)/g) || [];
+
+        for (const classMatch of classMatches) {
+          const className = classMatch.match(/class\s+(\w+)/)?.[1];
+          if (className) {
+            const classNodeId = `class-${projectId}-${file}-${className}`;
+            nodesToCreate.push({
+              id: classNodeId,
+              type: 'class',
+              name: className,
+              filePath: filePath,
+              projectId,
+              properties: {
+                relativePath: file
+              }
+            });
+
+            // Create edge from file to class
+            edgesToCreate.push({
+              id: `defines-${fileNodeId}-${classNodeId}`,
+              source: fileNodeId,
+              target: classNodeId,
+              type: 'contains'
+            });
           }
         }
 
-        console.log(Theme.colors.success(`   📊 Created ${nodeCount} nodes and ${relationshipCount} relationships`));
+        for (const funcMatch of functionMatches.slice(0, 5)) { // Limit functions per file
+          const functionName = funcMatch.match(/function\s+(\w+)/)?.[1] ||
+                              funcMatch.match(/(\w+)\s*=/)?.[1];
+          if (functionName && functionName.length > 1) {
+            const funcNodeId = `function-${projectId}-${file}-${functionName}`;
+            nodesToCreate.push({
+              id: funcNodeId,
+              type: 'function',
+              name: functionName,
+              filePath: filePath,
+              projectId,
+              properties: {
+                relativePath: file
+              }
+            });
 
-      } finally {
-        await session.close();
-        await driver.close();
+            // Create edge from file to function
+            edgesToCreate.push({
+              id: `defines-${fileNodeId}-${funcNodeId}`,
+              source: fileNodeId,
+              target: funcNodeId,
+              type: 'contains'
+            });
+          }
+        }
       }
+
+      // Bulk insert all nodes and edges
+      if (nodesToCreate.length > 0) {
+        await graphStore.upsertNodes(nodesToCreate);
+      }
+      if (edgesToCreate.length > 0) {
+        await graphStore.upsertEdges(edgesToCreate);
+      }
+
+      // Flush to persist to disk
+      await graphStore.flush();
+
+      const nodeCount = nodesToCreate.length;
+      const relationshipCount = edgesToCreate.length;
+      console.log(Theme.colors.success(`   📊 Created ${nodeCount} nodes and ${relationshipCount} relationships`));
 
     } catch (error) {
       // Re-throw to be handled by caller
@@ -530,10 +570,48 @@ export class SetupCommandHandler extends BaseCommandHandler {
   }
 
   /**
+   * Generate coding standards file from detected patterns
+   */
+  private async generateCodingStandards(projectId: string, projectPath: string): Promise<void> {
+    try {
+      const storageManager = await getStorageManager();
+      const vectorStore = storageManager.getVectorStore();
+
+      const generator = new CodingStandardsGenerator(vectorStore);
+      await generator.generateStandards(projectId, projectPath);
+
+      console.log(Theme.colors.success('   ✓ Coding standards file created'));
+    } catch (error) {
+      // Re-throw to be handled by caller
+      throw error;
+    }
+  }
+
+  /**
    * Apply the consolidated database schema
+   * Uses embedded storage by default (no Docker required)
    */
   private async applyConsolidatedSchema(): Promise<CommandResult> {
     try {
+      // Check if we're using embedded storage (default, no Docker needed)
+      const storageManager = await getStorageManager();
+
+      if (isUsingEmbeddedStorage()) {
+        // Embedded mode - SQLite + Graphology + LRU-cache
+        // Schema is automatically created by the storage providers
+        const status = storageManager.getStatus();
+        console.log(Theme.colors.success('📦 Using embedded storage (no Docker required)'));
+        console.log(Theme.colors.muted(`   Data directory: ${status.dataDir}`));
+        console.log(Theme.colors.muted(`   Vector store: SQLite + FTS5`));
+        console.log(Theme.colors.muted(`   Graph store: Graphology (in-memory + JSON)`));
+        console.log(Theme.colors.muted(`   Cache: LRU-cache (in-memory + JSON)`));
+
+        return { success: true, message: 'Embedded storage ready' };
+      }
+
+      // Server mode - use PostgreSQL (legacy behavior)
+      console.log(Theme.colors.info('🔌 Using server storage mode (PostgreSQL + Neo4j + Redis)'));
+
       const pool = new Pool({
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
@@ -582,6 +660,22 @@ export class SetupCommandHandler extends BaseCommandHandler {
       }
 
     } catch (error) {
+      // If server connection fails, fall back to embedded mode
+      if (String(error).includes('ECONNREFUSED') || String(error).includes('connection')) {
+        console.log(Theme.colors.warning('⚠️ Server databases not available, using embedded storage'));
+        try {
+          // Force embedded mode
+          process.env.CODEMIND_STORAGE_MODE = 'embedded';
+          const storageManager = await getStorageManager({ mode: 'embedded' });
+          const status = storageManager.getStatus();
+          console.log(Theme.colors.success('📦 Embedded storage initialized'));
+          console.log(Theme.colors.muted(`   Data directory: ${status.dataDir}`));
+          return { success: true, message: 'Using embedded storage (fallback)' };
+        } catch (embeddedError) {
+          this.logger.error('Embedded storage fallback failed:', embeddedError);
+        }
+      }
+
       this.logger.error('Schema application failed:', error);
       return {
         success: false,
@@ -661,6 +755,7 @@ export class SetupCommandHandler extends BaseCommandHandler {
 
   /**
    * Initialize project record in database
+   * Uses embedded storage by default, PostgreSQL in server mode
    */
   private async initializeProject(projectPath: string): Promise<CommandResult> {
     try {
@@ -670,6 +765,43 @@ export class SetupCommandHandler extends BaseCommandHandler {
       const crypto = await import('crypto');
       const projectId = crypto.randomUUID();
 
+      // Check if we're using embedded storage (default)
+      if (isUsingEmbeddedStorage()) {
+        const storageManager = await getStorageManager();
+        const projectStore = storageManager.getProjectStore();
+
+        // Upsert project in embedded storage
+        const project = await projectStore.upsert({
+          id: projectId,
+          name: projectName,
+          path: projectPath,
+          metadata: {
+            initialized_at: new Date().toISOString(),
+            cli_version: '2.0.0'
+          }
+        });
+
+        console.log(Theme.colors.success(`✅ Project registered: ${project.name} (${project.id})`));
+
+        // Update local config file
+        await this.updateLocalProjectConfig(projectPath, {
+          projectId: project.id,
+          projectName: project.name,
+          projectPath,
+          createdAt: new Date().toISOString(),
+          languages: ['javascript'],
+          primaryLanguage: 'javascript',
+          installedParsers: []
+        });
+
+        return {
+          success: true,
+          message: 'Project registered successfully',
+          data: { projectId: project.id, projectName: project.name, projectPath }
+        };
+      }
+
+      // Server mode - use PostgreSQL
       const pool = new Pool({
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
@@ -756,7 +888,7 @@ export class SetupCommandHandler extends BaseCommandHandler {
   }
 
   /**
-   * Create CODEMIND.md instructions file
+   * Create CODEMIND.md instructions file with detected platforms
    */
   private async createInstructionsFile(projectPath: string): Promise<void> {
     const instructionsPath = path.join(projectPath, 'CODEMIND.md');
@@ -765,8 +897,22 @@ export class SetupCommandHandler extends BaseCommandHandler {
       // Check if file already exists
       await fs.access(instructionsPath);
       console.log(Theme.colors.success('✅ CODEMIND.md already exists'));
+
+      // Even if file exists, try to append platform detection if not already present
+      const existingContent = await fs.readFile(instructionsPath, 'utf-8');
+      if (!existingContent.includes('## Detected Platforms')) {
+        await this.appendPlatformDetection(projectPath, instructionsPath, existingContent);
+      }
     } catch {
-      // Create new instructions file
+      // Create new instructions file with platform detection
+      console.log(Theme.colors.info('🔍 Detecting platforms...'));
+      const platforms = await platformDetector.detectPlatforms(projectPath);
+      const platformsSection = platformDetector.formatPlatformsMarkdown(platforms);
+
+      if (platforms.length > 0) {
+        console.log(Theme.colors.success(`   Found ${platforms.length} platforms: ${platforms.map(p => p.name).join(', ')}`));
+      }
+
       const defaultInstructions = `# CODEMIND.md - ${path.basename(projectPath)}
 
 This file provides instructions to CodeMind for analyzing and working with this project.
@@ -781,6 +927,7 @@ This file provides instructions to CodeMind for analyzing and working with this 
 **Testing Strategy**: Unit + Integration Testing
 **Coding Standards**: ESLint/Prettier
 
+${platformsSection}
 ## Development Guidelines
 
 ### Architecture Principles
@@ -809,7 +956,45 @@ Generated by CodeMind CLI v2.0.0
 `;
 
       await fs.writeFile(instructionsPath, defaultInstructions);
-      console.log(Theme.colors.success('✅ Created CODEMIND.md with default instructions'));
+      console.log(Theme.colors.success('✅ Created CODEMIND.md with platform detection'));
+    }
+  }
+
+  /**
+   * Append platform detection to existing CODEMIND.md
+   */
+  private async appendPlatformDetection(
+    projectPath: string,
+    instructionsPath: string,
+    existingContent: string
+  ): Promise<void> {
+    try {
+      console.log(Theme.colors.info('🔍 Detecting platforms for existing CODEMIND.md...'));
+      const platforms = await platformDetector.detectPlatforms(projectPath);
+
+      if (platforms.length === 0) {
+        return;
+      }
+
+      console.log(Theme.colors.success(`   Found ${platforms.length} platforms: ${platforms.map(p => p.name).join(', ')}`));
+      const platformsSection = platformDetector.formatPlatformsMarkdown(platforms);
+
+      // Insert before "## Development Guidelines" or at the end if not found
+      let newContent: string;
+      if (existingContent.includes('## Development Guidelines')) {
+        newContent = existingContent.replace(
+          '## Development Guidelines',
+          `${platformsSection}\n## Development Guidelines`
+        );
+      } else {
+        newContent = existingContent + '\n\n' + platformsSection;
+      }
+
+      await fs.writeFile(instructionsPath, newContent);
+      console.log(Theme.colors.success('✅ Added platform detection to CODEMIND.md'));
+    } catch (error) {
+      // Don't fail the entire init for this
+      console.log(Theme.colors.warning(`⚠️ Could not append platforms: ${error instanceof Error ? error.message : 'Unknown error'}`));
     }
   }
 

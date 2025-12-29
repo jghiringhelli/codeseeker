@@ -94,11 +94,105 @@ try {
 5. **Fallback strategy**: When CLI fails → transparent passthrough mode
 6. **Error handling**: Always provide local fallback options
 
+## Auto-Detected Coding Standards - NEW ✨
+
+**Status**: Fully implemented (2025-12-28)
+
+CodeMind automatically detects and generates coding standards from your indexed codebase, helping Claude write code that follows your project's conventions.
+
+### How It Works
+
+1. **Pattern Detection**: During `codemind init`, CodeMind analyzes indexed code to identify common patterns
+2. **Standards File**: Auto-generates `.codemind/coding-standards.json` with detected patterns
+3. **Incremental Updates**: Standards update automatically when pattern-related files change
+4. **MCP Integration**: New `get_coding_standards` MCP tool exposes standards to Claude
+5. **CLI Integration**: Standards can be queried via natural language commands
+
+### Pattern Categories
+
+CodeMind detects patterns in four categories:
+
+| Category | Examples | Detection Method |
+|----------|----------|------------------|
+| **Validation** | `validator.isEmail()`, email regex, `Joi.string().email()` | Searches for validation keywords, analyzes usage frequency |
+| **Error Handling** | `res.status().json({error})`, custom Error classes, try-catch patterns | Detects error handling patterns and response structures |
+| **Logging** | `console.log`, `logger.info/error/warn` (Winston/Bunyan) | Identifies logging approaches and structured logging |
+| **Testing** | `beforeEach` setup, `expect().toBe` assertions | Finds test framework patterns and assertion styles |
+
+### Standards File Format
+
+```json
+{
+  "generated_at": "2025-12-28T10:30:00.000Z",
+  "project_id": "abc123",
+  "project_path": "/path/to/project",
+  "standards": {
+    "validation": {
+      "email": {
+        "preferred": "validator.isEmail()",
+        "import": "const validator = require('validator');",
+        "usage_count": 5,
+        "files": ["src/auth.ts", "src/user.ts"],
+        "confidence": "high",
+        "rationale": "Project standard - uses validator library in 5 files. Battle-tested validation with comprehensive edge case handling.",
+        "example": "if (!validator.isEmail(email)) { return res.status(400).json({ error: 'Invalid email' }); }",
+        "alternatives": [
+          {
+            "pattern": "email-regex: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/",
+            "usage_count": 2,
+            "recommendation": "Consider using \"validator.isEmail()\" instead (5 vs 2 occurrences)"
+          }
+        ]
+      }
+    },
+    "error-handling": { ... },
+    "logging": { ... },
+    "testing": { ... }
+  }
+}
+```
+
+### MCP Tool Usage
+
+```typescript
+// Claude can call this tool via MCP
+get_coding_standards({
+  project: "my-app",
+  category: "validation"  // or "all", "error-handling", "logging", "testing"
+})
+```
+
+**Response**: Returns the coding standards JSON with pattern recommendations, usage counts, confidence levels, and rationale.
+
+### CLI Usage
+
+Standards are automatically available when using natural language commands:
+
+```bash
+# CodeMind will use detected standards when implementing validation
+codemind -c "add email validation to the registerUser function"
+```
+
+### Benefits
+
+- **Consistency**: Claude uses the same patterns your project already uses
+- **Auto-Learning**: No manual configuration - learns from your codebase
+- **Evidence-Based**: Recommendations backed by usage frequency and file locations
+- **Alternatives**: Shows alternative patterns with usage counts
+- **Confidence Levels**: High (3+ uses), Medium (2 uses), Low (1 use)
+
+### Implementation Files
+
+- `src/cli/services/analysis/coding-patterns-analyzer.ts` - Pattern detection logic
+- `src/cli/services/analysis/coding-standards-generator.ts` - Standards file generation
+- `src/cli/commands/handlers/setup-command-handler.ts` - CLI integration (init time)
+- `src/mcp/mcp-server.ts` - MCP tool + incremental updates
+
 ## CodeMind Core Cycle - WORKING ✅
 
 **Status**: Fully implemented and tested (2025-11-15)
 
-The CodeMind Core Cycle is the heart of the intelligent Claude Code enhancement system. When a user provides natural language input, CodeMind executes an 8-step workflow to enhance Claude Code's capabilities.
+The CodeMind Core Cycle is the heart of the intelligent Claude Code enhancement system. When a user provides natural language input, CodeMind executes an 11-step workflow to enhance Claude Code's capabilities.
 
 ### How to Trigger the Core Cycle
 
@@ -133,10 +227,10 @@ codemind -c "implement error handling for database operations"
 
 **4️⃣ Hybrid Search**
 - Executes **true hybrid search** running multiple methods in parallel
-- **Full-Text Search (FTS)**: PostgreSQL `tsvector`/`tsquery` for keyword and term matching
-- **Pattern Matching (ILIKE)**: Full phrase pattern matching for exact query terms
-- **Weighted Merge**: Combines results with configurable weights (FTS: 0.6, ILIKE: 0.4)
-- Results found by both methods get combined weighted scores for higher relevance
+- **Vector Similarity**: Semantic understanding via embeddings (weight: 50%)
+- **Text Search**: MiniSearch (embedded) or PostgreSQL tsvector (server) with synonym expansion (weight: 35%)
+- **File Path Matching**: Directory/filename pattern matching (weight: 15%)
+- Results fused using Reciprocal Rank Fusion (RRF) for optimal ranking
 
 **5️⃣ Code Relationship Analysis**
 - Analyzes relationships between relevant files
@@ -179,7 +273,7 @@ The core cycle is implemented using SOLID principles with these services:
 
 - **NaturalLanguageProcessor**: Query analysis and intent detection
 - **TaskDecompositionService**: Complex query splitting and sub-task context filtering
-- **SemanticSearchOrchestrator**: Hybrid search (FTS + ILIKE) with weighted merge
+- **SemanticSearchOrchestrator**: Hybrid search (Vector + Text + Path) with RRF fusion
 - **GraphAnalysisService**: Code relationship mapping via knowledge graph
 - **ContextBuilder**: Enhanced prompt generation with token optimization
 - **UserInteractionService**: User prompts and Claude Code execution
@@ -239,60 +333,88 @@ When you need to gather requirements, consider asking:
 
 ## Hybrid Search Architecture
 
-**Updated**: 2025-12-03 - True hybrid search with parallel execution
+**Updated**: 2025-12-25 - Vector + Text Search + Path with RRF fusion
 
-The semantic search system uses a **true hybrid approach** that runs multiple search methods in parallel and merges results with weighted scoring.
+The semantic search system uses a **true hybrid approach** that runs multiple search methods in parallel and merges results using Reciprocal Rank Fusion (RRF).
+
+### Storage Modes
+
+CodeMind supports two storage modes with different text search implementations:
+
+| Mode | Vector Store | Text Search | When to Use |
+|------|--------------|-------------|-------------|
+| **Embedded** (default) | SQLite + cosine similarity | MiniSearch (BM25 + synonyms) | Local development, no Docker |
+| **Server** | PostgreSQL + pgvector | PostgreSQL tsvector/tsquery | Production, team environments |
 
 ### Why Hybrid Search?
 
-Traditional keyword extraction (stop word removal) fails for natural language queries like "what does this project do" - extracting only "project" loses the semantic meaning. The full phrase carries more meaning than individual words.
+Different search methods excel at different query types:
+- **Vector similarity** understands semantic meaning ("authentication" finds "login", "auth", "session")
+- **Text search** handles exact terms and linguistic variations (stemming, word boundaries)
+- **Path matching** finds files by name/location patterns
+
+Combining all three with RRF fusion provides the best recall and precision.
 
 ### Search Methods (Run in Parallel)
 
-1. **PostgreSQL Full-Text Search (FTS)**
-   - Uses `tsvector` and `tsquery` for linguistic analysis
-   - Provides stemming, stop word handling, and ranking
-   - Indexed with GIN for fast lookups
-   - Weight: **60%** of combined score
+1. **Vector Similarity**
+   - Generates query embedding using transformer model
+   - Uses cosine similarity against stored embeddings
+   - Captures semantic meaning beyond exact keyword matches
+   - Weight: **50%** in RRF fusion
 
-2. **ILIKE Pattern Matching**
-   - Full phrase matching preserving the complete query
-   - Catches exact matches FTS might miss
-   - Weight: **40%** of combined score
+2. **Text Search**
+   - **Embedded mode**: MiniSearch with BM25 scoring, CamelCase tokenization, synonym expansion
+   - **Server mode**: PostgreSQL tsvector/tsquery with GIN indexing
+   - Includes synonym expansion (handler → controller, auth → authentication)
+   - Weight: **35%** in RRF fusion
 
-### Weighted Merge Algorithm
+3. **File Path Matching**
+   - Matches query terms against directory and file names
+   - Pattern matching on file paths
+   - Weight: **15%** in RRF fusion
+
+### Reciprocal Rank Fusion (RRF) Algorithm
 
 ```typescript
-// Results found by BOTH methods get combined weighted score
-if (ftsResult && ilikeResult) {
-  combinedScore = (ftsScore * 0.6) + (ilikeScore * 0.4);
-}
-// Single-method results get boosted weight
-else if (ftsResult) {
-  combinedScore = ftsScore * 0.6 * 1.2; // Semantic boost
-} else {
-  combinedScore = ilikeScore * 0.4 * 1.2;
-}
+const k = 60; // RRF constant
+
+// For each search method, calculate RRF score based on result rank
+vectorResults.forEach((result, rank) => {
+  rrfScore = 0.50 / (k + rank + 1);  // Vector weight
+});
+textResults.forEach((result, rank) => {
+  rrfScore = 0.35 / (k + rank + 1);  // Text search weight
+});
+pathResults.forEach((result, rank) => {
+  rrfScore = 0.15 / (k + rank + 1);  // Path weight
+});
+
+// Files found by multiple methods get combined scores
+// Final results sorted by total RRF score
 ```
 
-### Database Schema Enhancement
+### Database Schema
 
 The `semantic_search_embeddings` table includes:
 ```sql
--- Full-text search column
-content_tsvector TSVECTOR
+-- Vector embeddings (pgvector)
+embedding VECTOR(384)  -- Stored embeddings for similarity search
 
--- Weighted tsvector generation
-setweight(to_tsvector('english', file_path), 'A') ||  -- File paths highest
-setweight(to_tsvector('english', content_text), 'B') || -- Content medium
-setweight(to_tsvector('english', metadata::text), 'C')  -- Metadata lowest
+-- Full-text search column
+content_tsvector TSVECTOR  -- GIN-indexed for fast FTS
+
+-- Content and metadata
+content_text TEXT
+file_path TEXT
+metadata JSONB
 ```
 
 ### Key Files
 
-- `src/database/hybrid-search-schema.sql` - FTS schema and functions
 - `src/database/semantic-search-schema.sql` - Vector embedding schema
 - `src/cli/commands/services/semantic-search-orchestrator.ts` - Hybrid search implementation
+- `src/cli/services/search/embedding-generator-adapter.ts` - Query embedding generation
 
 ## Task Decomposition Architecture - IMPLEMENTED ✅
 
@@ -412,7 +534,7 @@ The command routing system has been fully refactored to follow SOLID principles:
 src/cli/commands/services/
 ├── natural-language-processor.ts     # Query analysis and intent detection
 ├── task-decomposition-service.ts     # Complex query splitting and sub-task context
-├── semantic-search-orchestrator.ts   # Hybrid search (FTS + ILIKE)
+├── semantic-search-orchestrator.ts   # Hybrid search (Vector + Text + Path)
 ├── graph-analysis-service.ts         # Code relationship mapping
 ├── context-builder.ts                # Enhanced prompt generation
 ├── user-interaction-service.ts       # User prompts and Claude Code execution
