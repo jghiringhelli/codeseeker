@@ -1,0 +1,64 @@
+name: Documentation Issue
+description: Report missing, unclear, or incorrect documentation
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve our documentation!
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation issue is this?
+      options:
+        - Missing documentation
+        - Unclear/confusing explanation
+        - Incorrect/outdated information
+        - Typo or formatting issue
+        - Example needed
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Document Location
+      description: Which document or page has the issue?
+      placeholder: docs/technical/core_cycle.md, README.md, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: Issue Description
+      description: Describe what's wrong or missing
+      placeholder: The documentation for X is...
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How should the documentation be improved?
+      placeholder: It should explain...
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other context or examples
+      placeholder: Related documentation, screenshots, etc.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked that this documentation issue doesn't already exist
+          required: true

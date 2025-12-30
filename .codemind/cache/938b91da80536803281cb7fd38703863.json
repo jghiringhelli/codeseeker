@@ -1,0 +1,13 @@
+{
+  "content": "#!/usr/bin/env node\n\r\n/**\r\n * Global CodeMind CLI entry point\r\n * Allows running `codemind` from anywhere after npm install -g\r\n */\r\n\r\nconst path = require('path');\r\nconst { execSync } = require('child_process');\r\n\r\n// Find the actual CLI file\r\nconst cliPath = path.join(__dirname, '..', 'dist', 'cli', 'CodeMindCLI.js');\r\n\r\ntry {\r\n  // Execute the CLI directly\r\n  execSync(`node \"${cliPath}\"`, { \r\n    stdio: 'inherit', \r\n    cwd: process.cwd() \r\n  });\r\n} catch (error) {\r\n  if (error.status !== 0) {\r\n    process.exit(error.status || 1);\r\n  }\r\n}",
+  "hash": "475afdfb56bfd7403a4ada8c355e68c50aa920077bb4d8cc0694dc3a7e2c3436",
+  "lastModified": 1757980313549,
+  "language": "JavaScript",
+  "exports": [],
+  "imports": [],
+  "functions": [
+    "const",
+    "const"
+  ],
+  "classes": []
+}

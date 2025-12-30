@@ -1,0 +1,673 @@
+/**
+ * ClaudeCodeOrchestrator - Handles all AI operations and Claude Code integration
+ * Single Responsibility: AI-powered analysis, request processing, and quality assurance
+ */
+
+import { exec, spawn } from 'child_process';
+import { promisify } from 'util';
+import * as path from 'path';
+import * as fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
+import { DatabaseConnections } from '../../config/database-config';
+import { Theme } from '../ui/theme';
+
+const execAsync = promisify(exec);
+
+export interface AnalysisResult {
+  architecture: {
+    type: string;
+    patterns: string[];
+    frameworks: string[];
+    designPrinciples: string[];
+  };
+  dependencies: {
+    files: Array<{
+      file: string;
+      dependencies: string[];
+      type: 'import' | 'require' | 'reference';
+    }>;
+    relationships: Array<{
+      from: string;
+      to: string;
+      type: string;
+      strength: number;
+    }>;
+  };
+  useCases: Array<{
+    name: string;
+    description: string;
+    actors: string[];
+    preconditions: string[];
+    steps: string[];
+    postconditions: string[];
+    businessValue: string;
+  }>;
+  codeQuality: {
+    score: number;
+    issues: string[];
+    recommendations: string[];
+  };
+  resumeToken: string;
+}
+
+export interface ProcessingResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+  tokensUsed?: number;
+  resumeToken?: string;
+}
+
+export interface UserIntent {
+  category: 'feature_request' | 'bug_fix' | 'refactoring' | 'documentation' | 'testing' | 'analysis' | 'optimization';
+  confidence: number;
+  params: Record<string, any>;
+}
+
+export interface TaskDecomposition {
+  id: string;
+  description: string;
+  type: string;
+  dependencies: string[];
+  estimatedTokens: number;
+}
+
+export class ClaudeCodeOrchestrator {
+  private dbConnections: DatabaseConnections;
+
+  constructor() {
+    this.dbConnections = new DatabaseConnections();
+  }
+
+  /**
+   * Comprehensive AI-powered project analysis using Claude Code
+   */
+  async analyzeProject(projectPath: string, resumeToken?: string): Promise<AnalysisResult> {
+    console.log('🤖 Starting comprehensive AI analysis...');
+    
+    try {
+      // Check for resume token
+      const actualResumeToken = resumeToken || await this.getStoredResumeToken(projectPath);
+      
+      if (actualResumeToken) {
+        console.log('🔄 Resuming previous analysis...');
+      }
+
+      // Build project context for Claude Code
+      const context = await this.buildProjectContext(projectPath);
+      
+      // Execute Claude Code for analysis
+      const analysisPrompt = this.buildAnalysisPrompt();
+      const claudeResult = await this.executeClaudeCode(analysisPrompt, context, {
+        maxTokens: 8000,
+        resumeToken: actualResumeToken
+      });
+
+      if (!claudeResult.success) {
+        throw new Error(claudeResult.error || 'Claude Code analysis failed');
+      }
+
+      // Parse and validate the AI response
+      const analysis = this.parseAnalysisResponse(claudeResult.data);
+      
+      // Store results in all databases
+      await this.storeAnalysisResults(projectPath, analysis);
+      
+      // Save resume token for future use
+      if (analysis.resumeToken) {
+        await this.storeResumeToken(projectPath, analysis.resumeToken);
+      }
+
+      console.log('✅ AI analysis completed successfully');
+      return analysis;
+
+    } catch (error) {
+      console.error(`❌ AI analysis failed: ${error.message}`);
+      
+      // Return fallback analysis
+      return this.createFallbackAnalysis(projectPath, error.message);
+    }
+  }
+
+  /**
+   * Process user requests through the complete AI pipeline
+   */
+  async processRequest(userRequest: string, projectPath: string): Promise<ProcessingResult> {
+    console.log('🎯 Starting AI processing pipeline...');
+    
+    try {
+      // Step 1: Intent Detection
+      const intent = await this.detectUserIntent(userRequest);
+      console.log(`📋 Intent: ${intent.category} (${Math.round(intent.confidence * 100)}% confidence)`);
+
+      // Step 2: Semantic Search for relevant context
+      const relevantFiles = await this.performSemanticSearch(userRequest, projectPath);
+      console.log(`📁 Found ${relevantFiles.length} relevant files`);
+
+      // Step 3: Build Enhanced Context
+      const enhancedContext = await this.buildEnhancedContext(
+        userRequest,
+        projectPath,
+        relevantFiles,
+        intent
+      );
+
+      // Step 4: Task Decomposition
+      const tasks = await this.decomposeIntoTasks(userRequest, intent);
+      console.log(`🔄 Decomposed into ${tasks.length} tasks`);
+
+      // Step 5: Execute tasks sequentially with Claude Code
+      const results = [];
+      let totalTokensUsed = 0;
+
+      for (const task of tasks) {
+        console.log(`⚡ Executing: ${task.description}`);
+        
+        const taskResult = await this.executeTask(task, enhancedContext);
+        results.push(taskResult);
+        totalTokensUsed += taskResult.tokensUsed || 0;
+
+        // Quality check after each task
+        const qualityCheck = await this.performQualityCheck(taskResult, task);
+        if (!qualityCheck.passed) {
+          console.log(`⚠️  Quality issues: ${qualityCheck.issues.join(', ')}`);
+          // Retry with improvements
+          const improved = await this.improveTaskResult(taskResult, qualityCheck, enhancedContext);
+          results[results.length - 1] = improved;
+          totalTokensUsed += improved.tokensUsed || 0;
+        }
+      }
+
+      // Step 6: Final integration and validation
+      const finalResult = await this.integrateResults(results, userRequest);
+
+      // Step 7: Update knowledge base
+      await this.updateKnowledgeBase(userRequest, finalResult, projectPath);
+
+      return {
+        success: true,
+        data: finalResult,
+        tokensUsed: totalTokensUsed
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Generate semantic embeddings for the entire project
+   */
+  async generateSemanticEmbeddings(projectPath: string): Promise<void> {
+    console.log('🔍 Generating semantic embeddings...');
+    
+    try {
+      const sourceFiles = this.getSourceFiles(projectPath);
+      console.log(`📁 Processing ${sourceFiles.length} files...`);
+
+      // Process in batches to avoid overwhelming Claude Code
+      const batchSize = 20;
+      let processed = 0;
+
+      for (let i = 0; i < sourceFiles.length; i += batchSize) {
+        const batch = sourceFiles.slice(i, i + batchSize);
+        
+        // Generate embeddings for this batch using Claude Code
+        await this.processBatchEmbeddings(batch, projectPath);
+        
+        processed += batch.length;
+        const progress = Math.round((processed / sourceFiles.length) * 100);
+        console.log(`📊 Progress: ${progress}% (${processed}/${sourceFiles.length})`);
+      }
+
+      console.log('✅ Semantic embeddings generated successfully');
+
+    } catch (error) {
+      console.error(`❌ Embedding generation failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Perform semantic search to find relevant files
+   */
+  async performSemanticSearch(
+    query: string, 
+    projectPath: string
+  ): Promise<Array<{ file: string; relevance: number; summary: string }>> {
+    try {
+      const pgClient = await this.dbConnections.getPostgresConnection();
+      
+      const searchQuery = `
+        SELECT 
+          file_path,
+          content_text,
+          metadata,
+          -- Use text search on content for now (TODO: implement vector similarity)
+          CASE 
+            WHEN LOWER(content_text) LIKE LOWER('%' || $1 || '%') THEN 1.0
+            WHEN LOWER(file_path) LIKE LOWER('%' || $1 || '%') THEN 0.8
+            ELSE 0.5
+          END as relevance
+        FROM semantic_search_embeddings
+        WHERE project_id = $2
+          AND (
+            LOWER(content_text) LIKE LOWER('%' || $1 || '%') OR
+            LOWER(file_path) LIKE LOWER('%' || $1 || '%') OR
+            LOWER(metadata::text) LIKE LOWER('%' || $1 || '%')
+          )
+        ORDER BY relevance DESC
+        LIMIT 10;
+      `;
+      
+      const result = await pgClient.query(searchQuery, [query, 'current-project']);
+      
+      return result.rows.map(row => ({
+        file: row.file_path,
+        relevance: parseFloat(row.relevance),
+        summary: JSON.parse(row.metadata || '{}').summary || 'No summary available'
+      }));
+    } catch (error) {
+      console.warn('Semantic search failed, using fallback');
+      return [];
+    }
+  }
+
+  // Private helper methods
+
+  private async executeClaudeCode(
+    prompt: string, 
+    context: string, 
+    options: { maxTokens?: number; resumeToken?: string } = {}
+  ): Promise<ProcessingResult> {
+    try {
+      // Build Claude Code command
+      const command = `claude --prompt "${prompt.replace(/"/g, '\\"')}" --context "${context.replace(/"/g, '\\"')}" --max-tokens ${options.maxTokens || 4000}`;
+      
+      // Execute Claude Code
+      const { stdout, stderr } = await execAsync(command, { 
+        timeout: 300000, // 5 minute timeout
+        maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+      });
+
+      if (stderr) {
+        console.warn(`Claude Code warning: ${stderr}`);
+      }
+
+      return {
+        success: true,
+        data: stdout,
+        tokensUsed: this.estimateTokensUsed(prompt + context),
+        resumeToken: options.resumeToken || uuidv4()
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: `Claude Code execution failed: ${error.message}`
+      };
+    }
+  }
+
+  private buildAnalysisPrompt(): string {
+    return `You are an expert software architect analyzing a codebase. Provide comprehensive analysis including:
+
+1. **Architecture Analysis**:
+   - Identify architectural pattern (MVC, microservices, layered, etc.)
+   - List design patterns used
+   - Identify frameworks and technologies
+   - Assess SOLID principles adherence
+
+2. **Dependency Analysis**:
+   - Map file-to-file dependencies
+   - Identify circular dependencies
+   - Rate relationship strength (1-10)
+   - Categorize dependency types
+
+3. **Use Case Inference**:
+   - Infer business use cases from code structure
+   - Identify key user journeys
+   - Map actors and interactions
+   - Assess business value
+
+4. **Code Quality Assessment**:
+   - Overall quality score (1-10)
+   - Identify technical debt
+   - Security concerns
+   - Performance bottlenecks
+   - Improvement recommendations
+
+Return structured JSON matching the AnalysisResult interface.`;
+  }
+
+  private async buildProjectContext(projectPath: string): Promise<string> {
+    const context = [];
+    
+    // Project structure
+    const structure = await this.getProjectStructure(projectPath);
+    context.push(`PROJECT STRUCTURE:\n${structure}\n`);
+    
+    // Key configuration files
+    const configs = await this.getKeyConfigurations(projectPath);
+    context.push(`CONFIGURATIONS:\n${configs}\n`);
+    
+    // Recent changes (if git available)
+    try {
+      const { stdout } = await execAsync('git log --oneline -10', { cwd: projectPath });
+      context.push(`RECENT COMMITS:\n${stdout}\n`);
+    } catch {
+      // Git not available or not a git repo
+    }
+    
+    return context.join('\n---\n');
+  }
+
+  private async detectUserIntent(userRequest: string): Promise<UserIntent> {
+    const intentPrompt = `Analyze this user request and determine intent:
+"${userRequest}"
+
+Categorize as: feature_request, bug_fix, refactoring, documentation, testing, analysis, optimization
+
+Return JSON: { "category": "...", "confidence": 0.0-1.0, "params": {...} }`;
+
+    try {
+      const result = await this.executeClaudeCode(intentPrompt, userRequest);
+      if (result.success) {
+        return JSON.parse(result.data);
+      }
+    } catch {
+      // Fallback to analysis
+    }
+
+    return { category: 'analysis', confidence: 0.5, params: {} };
+  }
+
+  private async decomposeIntoTasks(userRequest: string, intent: UserIntent): Promise<TaskDecomposition[]> {
+    // For now, create a simple task decomposition
+    // In full implementation, this would use Claude Code to intelligently break down the request
+    
+    return [{
+      id: uuidv4(),
+      description: userRequest,
+      type: intent.category,
+      dependencies: [],
+      estimatedTokens: 2000
+    }];
+  }
+
+  private async executeTask(task: TaskDecomposition, context: string): Promise<any> {
+    const taskPrompt = `Execute this task: ${task.description}
+
+Context: ${context}
+
+Provide detailed implementation following SOLID principles and best practices.`;
+
+    const result = await this.executeClaudeCode(taskPrompt, context);
+    
+    return {
+      taskId: task.id,
+      result: result.data,
+      success: result.success,
+      tokensUsed: result.tokensUsed
+    };
+  }
+
+  private async performQualityCheck(taskResult: any, task: TaskDecomposition): Promise<{
+    passed: boolean;
+    issues: string[];
+    score: number;
+  }> {
+    // Quality check implementation
+    // Would check: compilation, tests, code quality, security, performance
+    
+    return {
+      passed: true, // Placeholder
+      issues: [],
+      score: 8.5
+    };
+  }
+
+  private async improveTaskResult(taskResult: any, qualityCheck: any, context: string): Promise<any> {
+    // Improvement implementation using Claude Code
+    return taskResult; // Placeholder
+  }
+
+  private async integrateResults(results: any[], userRequest: string): Promise<any> {
+    return {
+      summary: `Processed ${results.length} tasks for: ${userRequest}`,
+      results,
+      files_modified: [],
+      tests_run: { passed: 0, total: 0 },
+      quality_score: 8.5
+    };
+  }
+
+  private async updateKnowledgeBase(userRequest: string, result: any, projectPath: string): Promise<void> {
+    // Store interaction in database for future learning
+    try {
+      const pgClient = await this.dbConnections.getPostgresConnection();
+      
+      const insertQuery = `
+        INSERT INTO user_interactions (project_path, query, result, timestamp)
+        VALUES ($1, $2, $3, NOW())
+      `;
+      
+      await pgClient.query(insertQuery, [
+        projectPath,
+        userRequest,
+        JSON.stringify(result)
+      ]);
+    } catch (error) {
+      console.warn(`Failed to update knowledge base: ${error.message}`);
+    }
+  }
+
+  // Additional helper methods would be implemented here...
+  
+  private async getStoredResumeToken(projectPath: string): Promise<string | null> {
+    try {
+      const tokenFile = path.join(projectPath, '.codemind', 'resume-token.json');
+      if (fs.existsSync(tokenFile)) {
+        const data = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
+        return data.resumeToken;
+      }
+    } catch {
+      // Ignore errors
+    }
+    return null;
+  }
+
+  private async storeResumeToken(projectPath: string, resumeToken: string): Promise<void> {
+    try {
+      const codemindDir = path.join(projectPath, '.codemind');
+      if (!fs.existsSync(codemindDir)) {
+        fs.mkdirSync(codemindDir, { recursive: true });
+      }
+      
+      const tokenFile = path.join(codemindDir, 'resume-token.json');
+      fs.writeFileSync(tokenFile, JSON.stringify({ resumeToken, timestamp: new Date().toISOString() }, null, 2));
+    } catch (error) {
+      console.warn(`Warning: Could not store resume token: ${error.message}`);
+    }
+  }
+
+  private parseAnalysisResponse(rawResponse: string): AnalysisResult {
+    try {
+      return JSON.parse(rawResponse);
+    } catch {
+      throw new Error('Failed to parse Claude Code analysis response');
+    }
+  }
+
+  private createFallbackAnalysis(projectPath: string, errorMessage: string): AnalysisResult {
+    return {
+      architecture: {
+        type: 'unknown',
+        patterns: [],
+        frameworks: [],
+        designPrinciples: []
+      },
+      dependencies: {
+        files: [],
+        relationships: []
+      },
+      useCases: [],
+      codeQuality: {
+        score: 5,
+        issues: [`Analysis failed: ${errorMessage}`],
+        recommendations: ['Retry analysis with proper Claude Code setup']
+      },
+      resumeToken: ''
+    };
+  }
+
+  private async storeAnalysisResults(projectPath: string, analysis: AnalysisResult): Promise<void> {
+    // Store in PostgreSQL, Neo4j, Redis
+    console.log('💾 Storing analysis results...');
+    // Implementation would store in all relevant databases
+  }
+
+  private getSourceFiles(projectPath: string): string[] {
+    const files: string[] = [];
+    const extensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cs', '.cpp', '.c', '.h'];
+    
+    const walk = (dir: string) => {
+      try {
+        const items = fs.readdirSync(dir, { withFileTypes: true });
+        
+        for (const item of items) {
+          const fullPath = path.join(dir, item.name);
+          
+          if (item.isDirectory()) {
+            if (!['node_modules', '.git', 'dist', 'build', '.codemind'].includes(item.name)) {
+              walk(fullPath);
+            }
+          } else if (extensions.some(ext => item.name.endsWith(ext))) {
+            files.push(fullPath);
+          }
+        }
+      } catch (error) {
+        // Skip directories we can't read
+      }
+    };
+    
+    walk(projectPath);
+    return files;
+  }
+
+  private async processBatchEmbeddings(files: string[], projectPath: string): Promise<void> {
+    try {
+      // Import semantic graph services
+      const { CodeRelationshipOrchestrator } = await import('../../../services/semantic-graph/CodeRelationshipOrchestrator');
+      const { SemanticGraphService } = await import('../../../services/semantic-graph');
+      
+      // Update semantic graph for these specific files
+      const semanticGraph = new SemanticGraphService();
+      const orchestrator = new CodeRelationshipOrchestrator(semanticGraph);
+      
+      console.log(`🔍 Processing semantic relationships for ${files.length} files...`);
+      await orchestrator.updateFilesInGraph(files, projectPath, 'current-project');
+      
+      // Generate embeddings for PostgreSQL vector search
+      const pgClient = await this.dbConnections.getPostgresConnection();
+      
+      for (const file of files) {
+        try {
+          const fs = require('fs').promises;
+          const content = await fs.readFile(file, 'utf-8');
+          const summary = this.generateFileSummary(content, file);
+          
+          // Store in PostgreSQL for semantic search 
+          const contentHash = require('crypto').createHash('sha256').update(content).digest('hex');
+          
+          await pgClient.query(`
+            INSERT INTO semantic_search_embeddings (
+              project_id, file_path, content_type, content_text, content_hash, metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (project_id, file_path) DO UPDATE SET
+              content_text = EXCLUDED.content_text,
+              content_hash = EXCLUDED.content_hash,
+              metadata = EXCLUDED.metadata,
+              updated_at = NOW()
+          `, [
+            'current-project', 
+            file, 
+            'code',
+            content.substring(0, 2000), // Limit content size
+            contentHash,
+            JSON.stringify({ 
+              summary, 
+              language: this.detectLanguageFromPath(file),
+              fileSize: content.length 
+            })
+          ]);
+          
+        } catch (error) {
+          console.warn(`Failed to process embeddings for ${file}: ${error.message}`);
+        }
+      }
+      
+    } catch (error) {
+      console.error(`Failed to process batch embeddings: ${error.message}`);
+      throw error;
+    }
+  }
+
+  private generateFileSummary(content: string, filePath: string): string {
+    // Generate a summary of the file for search purposes
+    const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || '';
+    const lines = content.split('\n');
+    const imports = lines.filter(line => line.trim().startsWith('import') || line.trim().startsWith('from'));
+    const exports = lines.filter(line => line.trim().startsWith('export'));
+    const classes = lines.filter(line => line.includes('class '));
+    const functions = lines.filter(line => line.includes('function ') || line.includes('const ') && line.includes('=>'));
+    
+    return `File: ${fileName}. Contains ${classes.length} classes, ${functions.length} functions, ${imports.length} imports, ${exports.length} exports.`;
+  }
+
+  private async getProjectStructure(projectPath: string): Promise<string> {
+    // Generate a tree-like structure of the project
+    return 'Project structure...'; // Placeholder
+  }
+
+  private async getKeyConfigurations(projectPath: string): Promise<string> {
+    // Read key configuration files
+    return 'Configuration files...'; // Placeholder
+  }
+
+  private async buildEnhancedContext(
+    userRequest: string,
+    projectPath: string,
+    relevantFiles: any[],
+    intent: UserIntent
+  ): Promise<string> {
+    // Build rich context for Claude Code execution
+    return `Request: ${userRequest}\nIntent: ${intent.category}\nRelevant files: ${relevantFiles.length}`;
+  }
+
+  private estimateTokensUsed(text: string): number {
+    // Rough estimation: ~4 characters per token
+    return Math.ceil(text.length / 4);
+  }
+
+  private detectLanguageFromPath(filePath: string): string {
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    const languageMap: Record<string, string> = {
+      'ts': 'typescript',
+      'tsx': 'typescript',
+      'js': 'javascript', 
+      'jsx': 'javascript',
+      'py': 'python',
+      'java': 'java',
+      'cpp': 'cpp',
+      'c': 'c',
+      'cs': 'csharp',
+      'go': 'go',
+      'rs': 'rust'
+    };
+    return languageMap[ext || ''] || 'unknown';
+  }
+}

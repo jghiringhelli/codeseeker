@@ -1,0 +1,12 @@
+{
+  "content": "/**\n * Interface for data persistence operations following SOLID principles\n */\nclass IDataPersister {\n  /**\n   * Initialize the data persister\n   * @returns {Promise<boolean>} Success status\n   */\n  async initialize() {\n    throw new Error('initialize() must be implemented by subclass');\n  }\n\n  /**\n   * Persist analysis results\n   * @param {Object} data Data to persist\n   * @returns {Promise<Object>} Persistence results\n   */\n  async persist(data) {\n    throw new Error('persist() must be implemented by subclass');\n  }\n\n  /**\n   * Retrieve persisted data\n   * @param {Object} query Query parameters\n   * @returns {Promise<Object>} Retrieved data\n   */\n  async retrieve(query) {\n    throw new Error('retrieve() must be implemented by subclass');\n  }\n\n  /**\n   * Cleanup resources\n   * @returns {Promise<void>}\n   */\n  async cleanup() {\n    // Default implementation - can be overridden\n  }\n}\n\nmodule.exports = { IDataPersister };",
+  "hash": "0964b115483a5059107a480183d7f2545158093944e6eb26571c0871606c3d7b",
+  "lastModified": 1757699950912,
+  "language": "JavaScript",
+  "exports": [],
+  "imports": [],
+  "functions": [],
+  "classes": [
+    "IDataPersister"
+  ]
+}

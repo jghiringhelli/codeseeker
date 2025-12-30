@@ -1,124 +1,193 @@
-# CodeMind Plugin for Claude Code
+# CodeMind
 
-Give Claude Code superpowers: semantic search, code understanding, and auto-detected coding standards.
+> Give Claude Code superpowers: semantic search, code understanding, and auto-detected coding standards.
 
-## What Happens After Installation
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
 
-Once installed, **Claude automatically gets enhanced context** for your requests:
+## What You Get
 
-- **Semantic Search**: When you ask about code, Claude searches by meaning, not just keywords
-- **Code Relationships**: Claude understands imports, exports, and dependencies
-- **Coding Standards**: Claude follows your project's existing patterns (validation, error handling, logging)
-- **Auto-Sync**: The index updates automatically when Claude edits files or runs git commands
+- **Semantic Search** - Find code by meaning, not just keywords. Ask "where is authentication handled?" and get relevant results.
+- **Code Relationships** - See how files connect: imports, exports, class hierarchies, function calls.
+- **Auto-Detected Standards** - CodeMind learns your project's patterns (validation, error handling, logging) and helps Claude write consistent code.
+- **Auto-Sync** - When Claude edits files or runs git commands, the index updates automatically. No manual reindexing.
 
-**You don't need to do anything special** - just ask Claude questions and it will use CodeMind's enhanced context when helpful.
+## Quick Start (2 minutes)
 
-## Installation
+### Step 1: Install Plugin
 
-### One-Time Setup
+Run this command **in Claude Code chat** (not terminal):
+```
+/plugin install codemind@github:jghiringhelli/codemind#plugin
+```
 
-1. **Install the plugin** (run this in Claude Code chat, not bash):
-   ```
-   /plugin install codemind@github:jghiringhelli/codemind#plugin
-   ```
+### Step 2: Restart Claude Code
 
-2. **Restart Claude Code** to load the plugin
+Close and reopen Claude Code to load the plugin.
 
-3. **Initialize your project** (run this in Claude Code chat):
-   ```
-   /codemind:init
-   ```
+### Step 3: Initialize your project
 
-That's it. The MCP server is auto-configured and will download on first use via npx.
+Run this command **in Claude Code chat**:
+```
+/codemind:init
+```
 
-### Per-Project Configuration (Optional)
+**That's it.** The MCP server downloads automatically on first use. Claude now has semantic search, coding standards, and auto-sync.
 
-The plugin applies globally, but you can customize per-project by adding to your project's `.claude/settings.json`:
+> **Note**: Commands like `/codemind:init` are typed in Claude Code chat, not in a terminal.
+
+## What Can You Do?
+
+### Search Your Code
+```
+/codemind:search authentication middleware
+/codemind:search error handling patterns
+/codemind:search database connection
+```
+
+### Get Coding Standards
+```
+/codemind:standards validation
+/codemind:standards error-handling
+```
+Claude will now use your project's actual patterns when writing new code.
+
+### Explore Relationships
+```
+/codemind:relationships src/services/auth.ts
+/codemind:context src/api/routes.ts
+```
+
+### Keep Index Updated
+The plugin auto-syncs after Claude's edits. For manual changes:
+```
+/codemind:reindex
+```
+
+---
+
+## Supported Languages
+
+CodeMind uses a combination of AST parsing and intelligent regex patterns to extract code structure:
+
+| Language | Parser | Quality | Extensions |
+|----------|--------|---------|------------|
+| TypeScript | Babel AST | Excellent | `.ts`, `.tsx` |
+| JavaScript | Babel AST | Excellent | `.js`, `.jsx` |
+| Python | Tree-sitter + Regex | Excellent | `.py`, `.pyx`, `.pyi` |
+| Java | Tree-sitter + Regex | Excellent | `.java` |
+| C# | Regex | Good | `.cs` |
+| Go | Regex | Good | `.go` |
+| Rust | Regex | Good | `.rs` |
+| C/C++ | Regex | Good | `.c`, `.cpp`, `.h`, `.hpp` |
+| Ruby | Regex | Basic | `.rb` |
+| PHP | Regex | Basic | `.php` |
+| Other | Generic | Basic | Any source file |
+
+**What gets indexed:**
+- Source code files (by extension)
+- Documentation (`.md`, `.txt`, `.rst`)
+- Configuration (`.json`, `.yaml`, `.yml`, `.toml`)
+
+**What gets skipped:**
+- Binary files, images, videos, archives
+- Build artifacts (`dist/`, `build/`, `target/`, `bin/`, `obj/`)
+- Dependencies (`node_modules/`, `vendor/`, `venv/`, `packages/`)
+- IDE folders (`.idea/`, `.vscode/extensions/`)
+- Platform caches (Unity `Library/`, Xcode `DerivedData/`)
+
+---
+
+## Alternative Ways to Use CodeMind
+
+### CLI Mode (Without Claude Code)
+
+Install the CLI globally, then use CodeMind directly from terminal:
+
+```bash
+npm install -g codemind-enhanced-cli
+
+# Natural language queries
+codemind -c "what does this project do?"
+codemind -c "find all API endpoints"
+codemind -c "show me SOLID violations"
+
+# Interactive mode
+codemind
+```
+
+### MCP Server (For Claude Desktop)
+
+Add to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "codemind": {
       "command": "npx",
-      "args": ["-y", "codemind-enhanced-cli", "serve", "--mcp"],
-      "env": {
-        "CODEMIND_STORAGE_MODE": "embedded"
-      }
+      "args": ["-y", "codemind-enhanced-cli", "serve", "--mcp"]
     }
   }
 }
 ```
 
-Or for team projects, add `.mcp.json` at project root with the same content.
+### VSCode Extension (For Manual Edit Sync)
 
-## Available Commands
+If you frequently edit files manually (not through Claude), the extension watches for changes:
 
-These commands are run **in Claude Code chat** (not in terminal):
+```bash
+cd extensions/vscode-codemind
+npm install && npm run compile && npm run package
+code --install-extension vscode-codemind-0.1.0.vsix
+```
 
-| Command | Description |
-|---------|-------------|
-| `/codemind:init` | Initialize CodeMind for the current project |
-| `/codemind:search <query>` | Semantic search across the codebase |
-| `/codemind:standards [category]` | View auto-detected coding standards |
-| `/codemind:relationships <file>` | Explore code dependencies |
-| `/codemind:context <file>` | Get file with related context |
-| `/codemind:reindex` | Trigger full project reindex |
+---
 
-**Note**: Most users won't need these commands - Claude uses the MCP tools automatically when relevant.
-
-## How It Works
-
-1. **Project Indexing**: `/codemind:init` indexes your code into vector embeddings
-2. **Automatic Enhancement**: Claude's MCP tools query the index when answering your questions
-3. **Pattern Detection**: CodeMind detects validation, error handling, and logging patterns
-4. **Auto-Sync**: Hooks trigger index updates after Claude edits files or runs git operations
-
-### MCP Tools (Used Automatically)
-
-The plugin provides these MCP tools that Claude uses behind the scenes:
-
-- `search_code` - Semantic code search
-- `get_file_context` - File with related context
-- `get_code_relationships` - Dependency exploration
-- `get_coding_standards` - Auto-detected patterns
-- `index_project` - Project indexing
-- `notify_file_changes` - Incremental updates
-
-## Index Synchronization
+## How Sync Works
 
 | Scenario | Sync Method | Automatic? |
 |----------|-------------|------------|
-| Claude edits files | Plugin hook → MCP tool | Yes |
-| Claude runs git pull/checkout | Plugin hook → full reindex | Yes |
-| Manual edits in VSCode | VSCode Extension (optional) | Yes |
-| Manual edits outside VSCode | `/codemind:reindex` command | Manual |
+| Claude edits files | Plugin hook | Yes |
+| Claude runs git pull/checkout | Plugin hook | Yes |
+| Manual edits in VSCode | Extension | Yes (if installed) |
+| Manual edits elsewhere | `/codemind:reindex` | Manual |
 
-## Troubleshooting
+---
 
-### Plugin not loading
-- Verify plugin is in `~/.claude/plugins/codemind/`
-- Check that `.claude-plugin/plugin.json` exists
-- Restart Claude Code
+## Documentation
 
-### MCP tools not available
-- First use downloads via npx - wait a moment
-- Verify Node.js 18+ is installed
-- Check Claude Code's MCP server logs
+| Document | Description |
+|----------|-------------|
+| [Integration Guide](docs/INTEGRATION.md) | All components explained |
+| [Plugin README](plugins/codemind/README.md) | Slash commands and hooks |
+| [MCP Server](docs/technical/mcp-server.md) | MCP tools reference |
+| [CLI Commands](docs/install/cli_commands_manual.md) | Full CLI reference |
 
-### Search returns no results
-- Run `/codemind:init` to index the project
-- Check if `.codemind/` directory exists
-- Try `/codemind:reindex` for a full refresh
+---
 
-### Coding standards not detected
-- Ensure project is indexed first
-- Check `.codemind/coding-standards.json` exists
-- Standards require 2+ uses of a pattern to be detected
+## Enterprise: Server Mode
 
-## More Information
+For large codebases (100K+ files) or teams, CodeMind supports PostgreSQL + Neo4j + Redis instead of embedded storage.
 
-- [Full Documentation](https://github.com/jghiringhelli/codemind) - Main repository with CLI, VSCode extension, and more
+**Most users don't need this.** Embedded mode handles projects up to 50K files with sub-second search.
+
+| When to Consider Server Mode |
+|------------------------------|
+| 100K+ files in a single project |
+| Multiple developers need shared index |
+| Cross-project analysis requirements |
+| CI/CD integration with persistent storage |
+
+See [Storage Documentation](docs/technical/storage.md) for setup.
+
+---
 
 ## License
 
-MIT License - see LICENSE file in the main repository.
+MIT License - see [LICENSE](LICENSE) file.
+
+**Open source.** Enterprise features (server mode, cross-project analysis) may be offered commercially in the future.
+
+---
+
+*Built for developers who want Claude to truly understand their codebase.*

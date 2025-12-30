@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/api/server.ts",
+    "src/api/handlers/**/*",
+    "src/cli/CodeMindCLI.ts",
+    "src/cli/managers/CommandProcessor.ts", 
+    "src/cli/managers/ProjectManager.ts",
+    "src/cli/managers/DatabaseManager.ts",
+    "src/cli/managers/UserInterface.ts",
+    "src/cli/managers/WorkflowOrchestrationAdapter.ts",
+    "src/cli/ui/theme.ts",
+    "src/cli/ui/welcome-display.ts",
+    "src/utils/logger.ts",
+    "src/config/database-config.ts",
+    "src/core/codemind-workflow-orchestrator.ts",
+    "src/core/GitBranchManager.ts",
+    "src/core/QualityChecker.ts",
+    "src/shared/semantic-enhancement-engine.ts",
+    "src/shared/OfflineFirstCache.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "src/cli/managers/ClaudeCodeOrchestrator.ts"
+  ]
+}

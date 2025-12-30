@@ -1,0 +1,12 @@
+{
+  "content": "/**\n * Base interface for all analyzers following SOLID principles\n */\nclass IAnalyzer {\n  /**\n   * Initialize the analyzer\n   * @returns {Promise<boolean>} Success status\n   */\n  async initialize() {\n    throw new Error('initialize() must be implemented by subclass');\n  }\n\n  /**\n   * Analyze the project\n   * @param {Object} params Analysis parameters\n   * @returns {Promise<Object>} Analysis results\n   */\n  async analyze(params) {\n    throw new Error('analyze() must be implemented by subclass');\n  }\n\n  /**\n   * Get analysis statistics\n   * @returns {Promise<Object>} Statistics object\n   */\n  async getStatistics() {\n    throw new Error('getStatistics() must be implemented by subclass');\n  }\n\n  /**\n   * Cleanup resources\n   * @returns {Promise<void>}\n   */\n  async cleanup() {\n    // Default implementation - can be overridden\n  }\n}\n\nmodule.exports = { IAnalyzer };",
+  "hash": "aeaf90cc98948438cf1751864f83b723875f24f647488c7f8f4f185d2ae59e2d",
+  "lastModified": 1757699933252,
+  "language": "JavaScript",
+  "exports": [],
+  "imports": [],
+  "functions": [],
+  "classes": [
+    "IAnalyzer"
+  ]
+}

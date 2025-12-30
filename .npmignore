@@ -1,0 +1,66 @@
+# Source files (dist is published)
+src/
+*.ts
+tsconfig*.json
+
+# Tests
+tests/
+jest.config.js
+*.test.js
+*.spec.js
+
+# Development
+.github/
+.vscode/
+.idea/
+.codemind/
+*.log
+*.tgz
+
+# Documentation (README is included by default)
+docs/
+CHANGELOG.md
+CONTRIBUTING.md
+CODEMIND.md
+CLAUDE.md
+PROMOTION.md
+SECURITY.md
+
+# Plugins and extensions (separate distribution)
+plugins/
+extensions/
+
+# Archive and deploy
+archive/
+deploy/
+
+# Scripts (except those needed for postinstall)
+scripts/
+
+# Environment and secrets
+.env*
+*.local
+credentials*.json
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+
+# Git
+.git/
+.gitignore
+
+# Editor
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

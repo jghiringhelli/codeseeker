@@ -1,0 +1,92 @@
+# Redis for CodeMind
+# Provides: Distributed caching
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: codemind-redis-pvc
+  labels:
+    app: codemind
+    component: redis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: codemind-redis
+  labels:
+    app: codemind
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: codemind
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: codemind
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "512mb"
+            - --maxmemory-policy
+            - allkeys-lru
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: codemind-redis-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: codemind-redis
+  labels:
+    app: codemind
+    component: redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: codemind
+    component: redis
