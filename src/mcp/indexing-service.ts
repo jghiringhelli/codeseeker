@@ -50,10 +50,26 @@ export class IndexingService {
     '.md', '.txt', '.rst',
   ];
 
-  // Directories to ignore
+  // Directories to ignore (must match file-scanner-config.json)
   private readonly IGNORE_DIRS = [
-    'node_modules', '.git', 'dist', 'build', '__pycache__',
-    '.next', 'coverage', '.vscode', '.idea', 'out', 'target'
+    // Package managers / dependencies
+    'node_modules', 'vendor', 'packages', 'venv', 'virtualenv', '.venv',
+    // Version control
+    '.git', '.svn', '.hg',
+    // Build outputs
+    'dist', 'build', 'out', 'target', 'bin', 'obj',
+    // Caches
+    '.cache', 'tmp', 'temp', '__pycache__', '.pytest_cache', '.tox',
+    // Test outputs
+    'coverage', '.nyc_output', 'TestReports',
+    // IDE / Editor
+    '.idea', '.vscode', '.vs',
+    // Framework-specific
+    '.next', '.nuxt',
+    // Unity (critical - Library alone can have 35K+ files)
+    'Library', 'Temp', 'Logs', 'UserSettings', 'MemoryCaptures', 'Recordings', 'PackageCache',
+    // Other game engines / platforms
+    'Exec', 'DerivedData', 'Intermediate', 'Saved', 'Binaries'
   ];
 
   constructor() {
