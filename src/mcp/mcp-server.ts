@@ -95,7 +95,8 @@ export class CodeMindMcpServer {
         description: 'Search codebase using semantic similarity to find relevant code, documentation, and config files. ' +
           'IMPORTANT: If project is not indexed, use index_project tool FIRST to enable search. ' +
           'Accepts natural language queries or code snippets. Returns ranked file chunks with similarity scores. ' +
-          'Use this BEFORE reading files to understand what exists in the codebase.',
+          'Use this BEFORE reading files to understand what exists in the codebase. ' +
+          'If this tool returns "not indexed" error, IMMEDIATELY call index_project with the project path, then retry the search.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
           project: z.string().describe('Project path - typically the current working directory where you are working'),
@@ -140,9 +141,7 @@ export class CodeMindMcpServer {
                   content: [{
                     type: 'text' as const,
                     text: `⚠️  Project found but not indexed.\n\n` +
-                      `Use index_project tool first:\n` +
-                      `  index_project({ project_path: "${projectPath}" })\n\n` +
-                      `Then retry this search.`,
+                      `ACTION REQUIRED: Call index_project tool now with path "${projectPath}", then retry this search.`,
                   }],
                   isError: true,
                 };
@@ -153,8 +152,7 @@ export class CodeMindMcpServer {
                 content: [{
                   type: 'text' as const,
                   text: `⚠️  Project needs indexing.\n\n` +
-                    `Use index_project tool:\n` +
-                    `  index_project({ project_path: "${projectPath}" })`,
+                    `ACTION REQUIRED: Call index_project tool now with path "${projectPath}", then retry this search.`,
                 }],
                 isError: true,
               };
