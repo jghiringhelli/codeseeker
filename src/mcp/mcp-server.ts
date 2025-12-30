@@ -1165,16 +1165,20 @@ export class CodeMindMcpServer {
   }
 
   /**
-   * Graceful shutdown - flush all storage before exit
+   * Graceful shutdown - flush and close all storage before exit
    */
   async shutdown(): Promise<void> {
     console.error('Shutting down CodeMind MCP server...');
     try {
       const storageManager = await getStorageManager();
+      // Flush first to ensure data is saved
       await storageManager.flushAll();
       console.error('Storage flushed successfully');
+      // Close to stop interval timers and release resources
+      await storageManager.closeAll();
+      console.error('Storage closed successfully');
     } catch (error) {
-      console.error('Error flushing storage:', error);
+      console.error('Error during storage shutdown:', error);
     }
   }
 }
@@ -1184,35 +1188,70 @@ export class CodeMindMcpServer {
  */
 export async function startMcpServer(): Promise<void> {
   const server = new CodeMindMcpServer();
+  let isShuttingDown = false;
 
   // Register signal handlers for graceful shutdown
   const shutdown = async (signal: string) => {
+    // Prevent multiple shutdown attempts
+    if (isShuttingDown) {
+      console.error(`Already shutting down, ignoring ${signal}`);
+      return;
+    }
+    isShuttingDown = true;
+
     console.error(`\nReceived ${signal}, shutting down gracefully...`);
-    await server.shutdown();
-    process.exit(0);
+
+    // Set a hard timeout to force exit if shutdown takes too long
+    const forceExitTimeout = setTimeout(() => {
+      console.error('Shutdown timeout, forcing exit...');
+      process.exit(1);
+    }, 5000);
+
+    try {
+      await server.shutdown();
+      clearTimeout(forceExitTimeout);
+      process.exit(0);
+    } catch (error) {
+      console.error('Error during shutdown:', error);
+      clearTimeout(forceExitTimeout);
+      process.exit(1);
+    }
   };
 
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 
+  // CRITICAL: Handle stdin close - this is how MCP clients signal disconnect
+  // On Windows, signals are unreliable, so stdin close is the primary shutdown mechanism
+  process.stdin.on('close', () => shutdown('stdin-close'));
+  process.stdin.on('end', () => shutdown('stdin-end'));
+
+  // Also handle stdin errors (broken pipe, etc.)
+  process.stdin.on('error', (err) => {
+    // EPIPE and similar errors mean the parent process disconnected
+    console.error(`stdin error: ${err.message}`);
+    shutdown('stdin-error');
+  });
+
   // Handle Windows-specific signals
   if (process.platform === 'win32') {
-    // On Windows, SIGINT is triggered by Ctrl+C, but we also handle stdin close
     process.on('SIGHUP', () => shutdown('SIGHUP'));
+
+    // Windows: also listen for parent process disconnect via stdin
+    // Resume stdin to ensure we receive close/end events
+    process.stdin.resume();
   }
 
   // Handle uncaught exceptions - try to flush before crashing
   process.on('uncaughtException', async (error) => {
     console.error('Uncaught exception:', error);
-    await server.shutdown();
-    process.exit(1);
+    await shutdown('uncaughtException');
   });
 
   // Handle unhandled promise rejections
   process.on('unhandledRejection', async (reason) => {
     console.error('Unhandled rejection:', reason);
-    await server.shutdown();
-    process.exit(1);
+    await shutdown('unhandledRejection');
   });
 
   await server.start();
