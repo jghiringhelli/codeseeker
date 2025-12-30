@@ -30,6 +30,7 @@ import { getStorageManager } from '../storage';
 import { SemanticSearchOrchestrator } from '../cli/commands/services/semantic-search-orchestrator';
 import { IndexingService } from './indexing-service';
 import { CodingStandardsGenerator } from '../cli/services/analysis/coding-standards-generator';
+import { LanguageSupportService } from '../cli/services/project/language-support-service';
 
 // Version from package.json
 const VERSION = '2.0.0';
@@ -41,6 +42,7 @@ export class CodeMindMcpServer {
   private server: McpServer;
   private searchOrchestrator: SemanticSearchOrchestrator;
   private indexingService: IndexingService;
+  private languageSupportService: LanguageSupportService;
 
   constructor() {
     this.server = new McpServer({
@@ -50,6 +52,7 @@ export class CodeMindMcpServer {
 
     this.searchOrchestrator = new SemanticSearchOrchestrator();
     this.indexingService = new IndexingService();
+    this.languageSupportService = new LanguageSupportService();
     this.registerTools();
   }
 
@@ -83,6 +86,7 @@ export class CodeMindMcpServer {
     this.registerListProjectsTool();
     this.registerIndexProjectTool();
     this.registerNotifyFileChangesTool();
+    this.registerInstallLanguageSupportTool();
   }
 
   /**
@@ -981,6 +985,153 @@ export class CodeMindMcpServer {
             content: [{
               type: 'text' as const,
               text: `Failed to get coding standards: ${message}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+  }
+
+  /**
+   * Tool 7: Install language support (Tree-sitter parsers)
+   */
+  private registerInstallLanguageSupportTool(): void {
+    this.server.registerTool(
+      'install_language_support',
+      {
+        description: 'Analyze project languages and install Tree-sitter parsers for better code understanding. ' +
+          'Detects which programming languages are used in a project and installs enhanced parsers. ' +
+          'Enhanced parsers provide better AST extraction for imports, classes, functions, and relationships. ' +
+          'Example: install_language_support({project: "/path/to/project"}) to auto-detect and install. ' +
+          'Example: install_language_support({languages: ["python", "java"]}) to install specific parsers.',
+        inputSchema: {
+          project: z.string().optional().describe('Project path to analyze for languages (auto-detects needed parsers)'),
+          languages: z.array(z.string()).optional().describe('Specific languages to install parsers for (e.g., ["python", "java", "csharp"])'),
+          list_available: z.boolean().optional().default(false).describe('List all available language parsers and their status'),
+        },
+      },
+      async ({ project, languages, list_available = false }) => {
+        try {
+          // List mode - show available parsers
+          if (list_available) {
+            const parsers = await this.languageSupportService.checkInstalledParsers();
+            const installed = parsers.filter(p => p.installed);
+            const available = parsers.filter(p => !p.installed);
+
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  installed_parsers: installed.map(p => ({
+                    language: p.language,
+                    extensions: p.extensions,
+                    quality: p.quality,
+                    description: p.description,
+                  })),
+                  available_parsers: available.map(p => ({
+                    language: p.language,
+                    extensions: p.extensions,
+                    npm_package: p.npmPackage,
+                    quality: p.quality,
+                    description: p.description,
+                  })),
+                  install_command: available.length > 0
+                    ? `Use install_language_support({languages: [${available.slice(0, 3).map(p => `"${p.language.toLowerCase()}"`).join(', ')}]})`
+                    : 'All parsers are already installed!',
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Install specific languages
+          if (languages && languages.length > 0) {
+            const result = await this.languageSupportService.installLanguageParsers(languages);
+
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  success: result.success,
+                  installed: result.installed,
+                  failed: result.failed.length > 0 ? result.failed : undefined,
+                  message: result.message,
+                  next_step: result.success
+                    ? 'Reindex your project to use the new parsers: notify_file_changes({project: "...", full_reindex: true})'
+                    : 'Check the errors above and try again.',
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Analyze project and suggest parsers
+          if (project) {
+            const projectPath = path.isAbsolute(project)
+              ? project
+              : path.resolve(project);
+
+            if (!fs.existsSync(projectPath)) {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: `Directory not found: ${projectPath}`,
+                }],
+                isError: true,
+              };
+            }
+
+            const analysis = await this.languageSupportService.analyzeProjectLanguages(projectPath);
+
+            // If there are missing parsers, offer to install them
+            const missingLanguages = analysis.missingParsers.map(p => p.language.toLowerCase());
+
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  project: projectPath,
+                  detected_languages: analysis.detectedLanguages,
+                  installed_parsers: analysis.installedParsers,
+                  missing_parsers: analysis.missingParsers.map(p => ({
+                    language: p.language,
+                    npm_package: p.npmPackage,
+                    quality: p.quality,
+                    description: p.description,
+                  })),
+                  recommendations: analysis.recommendations,
+                  install_command: missingLanguages.length > 0
+                    ? `Use install_language_support({languages: [${missingLanguages.map(l => `"${l}"`).join(', ')}]}) to install enhanced parsers`
+                    : 'All detected languages have parsers installed!',
+                }, null, 2),
+              }],
+            };
+          }
+
+          // No arguments - show usage
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({
+                usage: {
+                  analyze_project: 'install_language_support({project: "/path/to/project"}) - Detect languages and suggest parsers',
+                  install_specific: 'install_language_support({languages: ["python", "java"]}) - Install parsers for specific languages',
+                  list_available: 'install_language_support({list_available: true}) - Show all available parsers',
+                },
+                supported_languages: [
+                  'TypeScript (bundled)', 'JavaScript (bundled)',
+                  'Python', 'Java', 'C#', 'Go', 'Rust',
+                  'C', 'C++', 'Ruby', 'PHP', 'Swift', 'Kotlin'
+                ],
+              }, null, 2),
+            }],
+          };
+
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Failed to manage language support: ${message}`,
             }],
             isError: true,
           };

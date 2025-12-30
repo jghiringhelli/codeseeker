@@ -37,6 +37,7 @@ export class ConfigurableExclusionFilter implements IFileFilter {
   private excludedExtensions: Set<string>;
   private excludedFileNames: Set<string>;
   private importantDotFiles: Set<string>;
+  private allowedExtensions: Set<string>;
 
   constructor(configPath?: string) {
     this.loadConfig(configPath);
@@ -61,6 +62,16 @@ export class ConfigurableExclusionFilter implements IFileFilter {
     this.excludedExtensions = new Set(this.config.exclusions.extensions);
     this.excludedFileNames = new Set(this.config.exclusions.fileNames);
     this.importantDotFiles = new Set(this.config.inclusions.importantDotFiles);
+
+    // Build allowed extensions from all inclusion categories
+    this.allowedExtensions = new Set([
+      ...this.config.inclusions.sourceExtensions,
+      ...this.config.inclusions.configExtensions,
+      ...this.config.inclusions.documentationExtensions,
+      ...this.config.inclusions.templateExtensions,
+      ...this.config.inclusions.scriptExtensions,
+      ...this.config.inclusions.schemaExtensions
+    ]);
   }
 
   private getDefaultConfig(): FilterConfig {
@@ -107,28 +118,34 @@ export class ConfigurableExclusionFilter implements IFileFilter {
       return false;
     }
 
-    // Skip directories that are excluded
+    // Skip directories that are excluded (fast path for common cases)
     if (this.containsExcludedDirectory(filePath)) {
       return false;
     }
 
-    // Skip excluded file names
+    // Skip explicitly excluded file names (lock files, etc.)
     if (this.excludedFileNames.has(fileName)) {
       return false;
     }
 
-    // Skip excluded extensions
+    // Handle dot files - only include important ones (.env, .gitignore, etc.)
+    if (fileName.startsWith('.')) {
+      return this.isImportantDotFile(fileName);
+    }
+
+    // INCLUSION-BASED: Only include files with known extensions
+    // This is the key change - instead of excluding bad extensions,
+    // we only include known good extensions
     const extension = this.getFileExtension(fileName);
+
+    // Skip files with explicitly excluded extensions (binary, media, archives)
     if (this.excludedExtensions.has(extension)) {
       return false;
     }
 
-    // Handle dot files - only include important ones
-    if (fileName.startsWith('.') && !this.isImportantDotFile(fileName)) {
-      return false;
-    }
-
-    return true;
+    // Only include files with allowed extensions (source, config, docs, etc.)
+    // Files with unknown extensions are skipped
+    return this.allowedExtensions.has(extension);
   }
 
   private containsExcludedDirectory(filePath: string): boolean {

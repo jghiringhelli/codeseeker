@@ -66,6 +66,38 @@ The plugin auto-syncs after Claude's edits. For manual changes:
 
 ---
 
+## Supported Languages
+
+CodeMind uses a combination of AST parsing and intelligent regex patterns to extract code structure:
+
+| Language | Parser | Quality | Extensions |
+|----------|--------|---------|------------|
+| TypeScript | Babel AST | Excellent | `.ts`, `.tsx` |
+| JavaScript | Babel AST | Excellent | `.js`, `.jsx` |
+| Python | Tree-sitter + Regex | Excellent | `.py`, `.pyx`, `.pyi` |
+| Java | Tree-sitter + Regex | Excellent | `.java` |
+| C# | Regex | Good | `.cs` |
+| Go | Regex | Good | `.go` |
+| Rust | Regex | Good | `.rs` |
+| C/C++ | Regex | Good | `.c`, `.cpp`, `.h`, `.hpp` |
+| Ruby | Regex | Basic | `.rb` |
+| PHP | Regex | Basic | `.php` |
+| Other | Generic | Basic | Any source file |
+
+**What gets indexed:**
+- Source code files (by extension)
+- Documentation (`.md`, `.txt`, `.rst`)
+- Configuration (`.json`, `.yaml`, `.yml`, `.toml`)
+
+**What gets skipped:**
+- Binary files, images, videos, archives
+- Build artifacts (`dist/`, `build/`, `target/`, `bin/`, `obj/`)
+- Dependencies (`node_modules/`, `vendor/`, `venv/`, `packages/`)
+- IDE folders (`.idea/`, `.vscode/extensions/`)
+- Platform caches (Unity `Library/`, Xcode `DerivedData/`)
+
+---
+
 ## Alternative Ways to Use CodeMind
 
 ### CLI Mode (Without Claude Code)

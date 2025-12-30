@@ -11,6 +11,7 @@ import { TypeScriptParser } from './parsers/typescript-parser';
 import { PythonParser } from './parsers/python-parser';
 import { JavaParser } from './parsers/java-parser';
 import { CSharpParser } from './parsers/csharp-parser';
+import { GoParser } from './parsers/go-parser';
 import { GenericParser } from './parsers/generic-parser';
 import { TreeSitterPythonParser } from './parsers/tree-sitter-python-parser';
 import { TreeSitterJavaParser } from './parsers/tree-sitter-java-parser';
@@ -68,7 +69,8 @@ export class CodeRelationshipOrchestrator {
       new TypeScriptParser(), // Always available (Babel)
       new PythonParser(),     // Regex fallback
       new JavaParser(),       // Regex fallback
-      new CSharpParser()      // C# / Unity projects
+      new CSharpParser(),     // C# / Unity projects
+      new GoParser()          // Go projects
     ];
 
     // Register Tree-sitter parsers first (they take priority)

@@ -240,6 +240,53 @@ Get the coding standards for error handling
 
 **Note:** Standards are auto-generated during `codemind init` and updated incrementally when pattern-related files change. If not yet generated, the tool will create them on first call.
 
+### `install_language_support`
+
+Analyze project languages and install Tree-sitter parsers for better code understanding. Enhanced parsers provide more accurate AST extraction for imports, classes, functions, and relationships.
+
+**Parameters:**
+- `project` (optional): Project path to analyze (auto-detects needed parsers)
+- `languages` (optional): Array of language names to install (e.g., `["python", "java", "csharp"]`)
+- `list_available` (optional): Set to `true` to list all available parsers and their status
+
+**Examples:**
+```
+# Analyze project and see which parsers are needed
+Analyze my project at /path/to/project for language support
+
+# Install specific parsers
+Install Python and Java parsers for CodeMind
+
+# List available parsers
+List all available CodeMind language parsers
+```
+
+**Supported Languages:**
+| Language | Parser | Quality |
+|----------|--------|---------|
+| TypeScript/JavaScript | Babel (bundled) | Excellent |
+| Python | Tree-sitter | Excellent |
+| Java | Tree-sitter | Excellent |
+| C# | Tree-sitter/Regex | Excellent/Good |
+| Go | Tree-sitter/Regex | Excellent/Good |
+| Rust | Tree-sitter | Excellent |
+| C/C++ | Tree-sitter | Excellent |
+| Ruby | Tree-sitter | Excellent |
+| PHP | Tree-sitter | Good |
+| Swift | Tree-sitter | Good |
+| Kotlin | Tree-sitter | Good |
+
+**Response includes:**
+- `installed_parsers`: Languages with parsers already available
+- `available_parsers`: Languages that can be installed
+- `detected_languages`: (when analyzing project) Languages found with file counts
+- `recommendations`: Installation suggestions
+
+**Use cases:**
+- Improve code understanding for non-JavaScript/TypeScript projects
+- Enable better relationship detection for Python, Java, C#, Go, etc.
+- Reduce index size by having proper AST parsing instead of regex fallback
+
 ## Architecture
 
 ```

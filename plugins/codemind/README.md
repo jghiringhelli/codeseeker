@@ -83,6 +83,7 @@ The plugin provides these MCP tools that Claude uses behind the scenes:
 - `get_coding_standards` - Auto-detected patterns
 - `index_project` - Project indexing
 - `notify_file_changes` - Incremental updates
+- `install_language_support` - Install Tree-sitter parsers for better code understanding
 
 ## Index Synchronization
 
