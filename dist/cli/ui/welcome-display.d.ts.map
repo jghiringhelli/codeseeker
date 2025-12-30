@@ -1,1 +1,0 @@
-{"version":3,"file":"welcome-display.d.ts","sourceRoot":"","sources":["../../../src/cli/ui/welcome-display.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAIH,qBAAa,cAAc;IACzB,OAAO,CAAC,MAAM,CAAC,QAAQ,CAAC,IAAI,CAQ3B;IAED;;OAEG;IACH,MAAM,CAAC,cAAc,IAAI,IAAI;IAS7B;;OAEG;IACH,MAAM,CAAC,cAAc,CAAC,WAAW,EAAE,MAAM,EAAE,WAAW,EAAE,MAAM,GAAG,IAAI;IAMrE;;OAEG;IACH,MAAM,CAAC,eAAe,IAAI,IAAI;CAI/B"}

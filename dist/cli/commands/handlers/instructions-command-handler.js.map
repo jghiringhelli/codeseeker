@@ -1,1 +1,0 @@
-{"version":3,"file":"instructions-command-handler.js","sourceRoot":"","sources":["../../../../src/cli/commands/handlers/instructions-command-handler.ts"],"names":[],"mappings":";AAAA;;;GAGG;;;AAEH,kEAA6D;AAG7D,MAAa,0BAA2B,SAAQ,yCAAkB;IAChE,KAAK,CAAC,MAAM,CAAC,IAAY;QACvB,sEAAsE;QACtE,OAAO;YACL,OAAO,EAAE,KAAK;YACd,OAAO,EAAE,mFAAmF;SAC7F,CAAC;IACJ,CAAC;CACF;AARD,gEAQC"}
