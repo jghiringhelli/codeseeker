@@ -141,9 +141,17 @@ export class LanguageDetector {
       ignore: [
         '**/node_modules/**',
         '**/dist/**',
-        '**/build/**', 
+        '**/build/**',
         '**/.git/**',
-        '**/coverage/**'
+        '**/coverage/**',
+        // Unity-specific exclusions
+        '**/Library/**',
+        '**/Temp/**',
+        '**/Logs/**',
+        '**/obj/**',
+        '**/Packages/**',
+        '**/PackageCache/**',
+        '**/UserSettings/**'
       ]
     });
 

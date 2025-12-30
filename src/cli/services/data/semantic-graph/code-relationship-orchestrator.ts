@@ -10,6 +10,7 @@ import { ILanguageParser, ParsedCodeStructure } from './parsers/ilanguage-parser
 import { TypeScriptParser } from './parsers/typescript-parser';
 import { PythonParser } from './parsers/python-parser';
 import { JavaParser } from './parsers/java-parser';
+import { CSharpParser } from './parsers/csharp-parser';
 import { GenericParser } from './parsers/generic-parser';
 import { TreeSitterPythonParser } from './parsers/tree-sitter-python-parser';
 import { TreeSitterJavaParser } from './parsers/tree-sitter-java-parser';
@@ -66,7 +67,8 @@ export class CodeRelationshipOrchestrator {
     const regexParsers = [
       new TypeScriptParser(), // Always available (Babel)
       new PythonParser(),     // Regex fallback
-      new JavaParser()        // Regex fallback
+      new JavaParser(),       // Regex fallback
+      new CSharpParser()      // C# / Unity projects
     ];
 
     // Register Tree-sitter parsers first (they take priority)
@@ -226,12 +228,20 @@ export class CodeRelationshipOrchestrator {
       absolute: true,
       ignore: [
         '**/node_modules/**',
-        '**/dist/**', 
+        '**/dist/**',
         '**/build/**',
         '**/.git/**',
         '**/coverage/**',
         '**/*.test.*',
-        '**/*.spec.*'
+        '**/*.spec.*',
+        // Unity-specific exclusions
+        '**/Library/**',
+        '**/Temp/**',
+        '**/Logs/**',
+        '**/obj/**',
+        '**/Packages/**',
+        '**/PackageCache/**',
+        '**/UserSettings/**'
       ]
     });
 

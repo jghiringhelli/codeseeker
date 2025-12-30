@@ -17,6 +17,7 @@
       "out",
       "target",
       "bin",
+      "obj",
       ".cache",
       "tmp",
       "temp",
@@ -29,7 +30,14 @@
       "virtualenv",
       ".venv",
       ".idea",
-      ".vscode/extensions"
+      ".vscode/extensions",
+      "Library",
+      "Temp",
+      "Logs",
+      "UserSettings",
+      "MemoryCaptures",
+      "Recordings",
+      "PackageCache"
     ],
     "extensions": [
       ".exe", ".dll", ".so", ".dylib", ".app",
