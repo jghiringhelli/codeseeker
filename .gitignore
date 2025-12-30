@@ -1,40 +1,114 @@
-# Dependencies (regenerable)
-node_modules/
-package-lock.json
+# =============================================================================
+# CodeMind .gitignore
+# =============================================================================
+# IMPORTANT: If files are already tracked by git, adding them here won't help.
+# Use `git rm -r --cached <folder>` to untrack, then commit.
+# =============================================================================
 
-# Build outputs (regenerable)
+# -----------------------------------------------------------------------------
+# BUILD OUTPUTS - Never commit compiled/transpiled code
+# -----------------------------------------------------------------------------
 dist/
 build/
+out/
+.next/
+.nuxt/
+target/
 
-# Logs (regenerable)
+# -----------------------------------------------------------------------------
+# DEPENDENCIES - Always regenerable via npm install
+# -----------------------------------------------------------------------------
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnp/
+.pnp.js
+
+# -----------------------------------------------------------------------------
+# LOCAL DATA - Project-specific runtime data
+# -----------------------------------------------------------------------------
+local-data/
+.codemind/
+*.db
+*.sqlite
+*.sqlite3
+
+# -----------------------------------------------------------------------------
+# LOGS - Regenerable, often contain sensitive info
+# -----------------------------------------------------------------------------
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
-# Runtime data (regenerable)
+# -----------------------------------------------------------------------------
+# RUNTIME/CACHE - Temporary runtime files
+# -----------------------------------------------------------------------------
 *.pid
 *.seed
 *.pid.lock
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
 
-# Local data (regenerable)
-local-data/
-
-# Environment files (keep .env.example, exclude actual .env)
+# -----------------------------------------------------------------------------
+# ENVIRONMENT FILES - May contain secrets
+# -----------------------------------------------------------------------------
+.env
 .env.local
 .env.*.local
+.env.development
+.env.production
+# Keep .env.example as template
 
-# IDE/Editor files
+# -----------------------------------------------------------------------------
+# IDE/EDITOR - User-specific settings
+# -----------------------------------------------------------------------------
 .vscode/settings.json
+.vscode/launch.json
+.vscode/*.code-workspace
 .idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
 
-# OS generated files
+# -----------------------------------------------------------------------------
+# OS GENERATED - Platform-specific junk
+# -----------------------------------------------------------------------------
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# Temporary files
+# -----------------------------------------------------------------------------
+# TEMPORARY FILES
+# -----------------------------------------------------------------------------
 *.tmp
 *.temp
+*.bak
+*.backup
 
-# Test fixtures - extracted from zip (the zip is committed)
+# -----------------------------------------------------------------------------
+# TEST ARTIFACTS - Generated during testing
+# -----------------------------------------------------------------------------
+coverage/
+.nyc_output/
 tests/fixtures/ContractMaster-Test-Original/
 tests/fixtures/.temp/
+
+# -----------------------------------------------------------------------------
+# CLAUDE CODE - Local settings (user-specific)
+# -----------------------------------------------------------------------------
+.claude/settings.local.json
