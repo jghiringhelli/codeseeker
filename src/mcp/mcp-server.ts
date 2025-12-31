@@ -87,6 +87,7 @@ export class CodeMindMcpServer {
     this.registerIndexProjectTool();
     this.registerNotifyFileChangesTool();
     this.registerInstallLanguageSupportTool();
+    this.registerManageIndexTool();
   }
 
   /**
@@ -1204,6 +1205,296 @@ export class CodeMindMcpServer {
         }
       }
     );
+  }
+
+  /**
+   * Tool 8: Manage index exclusions/inclusions dynamically
+   * Allows Claude to exclude files that shouldn't be indexed (like Unity's Library folder)
+   * and include files that were wrongly excluded
+   */
+  private registerManageIndexTool(): void {
+    this.server.registerTool(
+      'manage_index',
+      {
+        description: 'Dynamically manage which files are included or excluded from the index. ' +
+          'Use this to exclude files that shouldn\'t be searched (e.g., Library/, build outputs, generated files) ' +
+          'or include files that were incorrectly excluded. Exclusions persist in .codemind/exclusions.json. ' +
+          'Example: manage_index({action: "exclude", project: "my-app", paths: ["Library/**", "Temp/**"]}) ' +
+          'to exclude Unity folders. Changes take effect immediately - excluded files are removed from the index.',
+        inputSchema: {
+          action: z.enum(['exclude', 'include', 'list']).describe(
+            'Action: "exclude" adds paths to exclusion list and removes from index, ' +
+            '"include" removes paths from exclusion list (they will be indexed on next reindex), ' +
+            '"list" shows current exclusions'
+          ),
+          project: z.string().describe('Project name or path'),
+          paths: z.array(z.string()).optional().describe(
+            'File paths or glob patterns to exclude/include (e.g., ["Library/**", "Temp/**", "*.generated.cs"]). ' +
+            'Required for exclude/include actions.'
+          ),
+          reason: z.string().optional().describe('Optional reason for the exclusion (for documentation)'),
+        },
+      },
+      async ({ action, project, paths, reason }) => {
+        try {
+          // Resolve project
+          const storageManager = await getStorageManager();
+          const projectStore = storageManager.getProjectStore();
+          const vectorStore = storageManager.getVectorStore();
+          const graphStore = storageManager.getGraphStore();
+
+          const projects = await projectStore.list();
+          const found = projects.find(p =>
+            p.name === project ||
+            p.path === project ||
+            path.basename(p.path) === project
+          );
+
+          if (!found) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: `Project not found: ${project}. Use list_projects to see available projects.`,
+              }],
+              isError: true,
+            };
+          }
+
+          // Load or create exclusions file
+          const exclusionsPath = path.join(found.path, '.codemind', 'exclusions.json');
+          let exclusions: {
+            patterns: Array<{ pattern: string; reason?: string; addedAt: string }>;
+            lastModified: string;
+          } = {
+            patterns: [],
+            lastModified: new Date().toISOString()
+          };
+
+          // Ensure .codemind directory exists
+          const codemindDir = path.join(found.path, '.codemind');
+          if (!fs.existsSync(codemindDir)) {
+            fs.mkdirSync(codemindDir, { recursive: true });
+          }
+
+          // Load existing exclusions
+          if (fs.existsSync(exclusionsPath)) {
+            try {
+              exclusions = JSON.parse(fs.readFileSync(exclusionsPath, 'utf-8'));
+            } catch {
+              // Invalid JSON, start fresh
+            }
+          }
+
+          // Handle list action
+          if (action === 'list') {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  project: found.name,
+                  project_path: found.path,
+                  exclusions_file: exclusionsPath,
+                  total_exclusions: exclusions.patterns.length,
+                  patterns: exclusions.patterns,
+                  last_modified: exclusions.lastModified,
+                  usage: {
+                    exclude: 'manage_index({action: "exclude", project: "...", paths: ["pattern/**"]})',
+                    include: 'manage_index({action: "include", project: "...", paths: ["pattern/**"]})',
+                  }
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Validate paths for exclude/include
+          if (!paths || paths.length === 0) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: 'No paths provided. Please specify paths or patterns to exclude/include.',
+              }],
+              isError: true,
+            };
+          }
+
+          // Handle exclude action
+          if (action === 'exclude') {
+            const addedPatterns: string[] = [];
+            const alreadyExcluded: string[] = [];
+            let filesRemoved = 0;
+
+            for (const pattern of paths) {
+              // Normalize pattern (use forward slashes)
+              const normalizedPattern = pattern.replace(/\\/g, '/');
+
+              // Check if already excluded
+              if (exclusions.patterns.some(p => p.pattern === normalizedPattern)) {
+                alreadyExcluded.push(normalizedPattern);
+                continue;
+              }
+
+              // Add to exclusions
+              exclusions.patterns.push({
+                pattern: normalizedPattern,
+                reason: reason,
+                addedAt: new Date().toISOString()
+              });
+              addedPatterns.push(normalizedPattern);
+
+              // Remove matching files from the vector store and graph
+              // Search for files matching this pattern
+              const results = await vectorStore.searchByText(normalizedPattern, found.id, 1000);
+
+              for (const result of results) {
+                const filePath = result.document.filePath.replace(/\\/g, '/');
+
+                // Check if file matches the exclusion pattern
+                if (this.matchesExclusionPattern(filePath, normalizedPattern)) {
+                  // Delete from vector store
+                  await vectorStore.delete(result.document.id);
+                  filesRemoved++;
+                }
+              }
+            }
+
+            // Save exclusions
+            exclusions.lastModified = new Date().toISOString();
+            fs.writeFileSync(exclusionsPath, JSON.stringify(exclusions, null, 2));
+
+            // Flush to persist deletions
+            await vectorStore.flush();
+
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  success: true,
+                  action: 'exclude',
+                  project: found.name,
+                  patterns_added: addedPatterns,
+                  already_excluded: alreadyExcluded.length > 0 ? alreadyExcluded : undefined,
+                  files_removed_from_index: filesRemoved,
+                  total_exclusions: exclusions.patterns.length,
+                  message: addedPatterns.length > 0
+                    ? `Added ${addedPatterns.length} exclusion pattern(s). ${filesRemoved} file chunk(s) removed from index.`
+                    : 'No new patterns added (all were already excluded).',
+                  note: 'Excluded files will not appear in search results. Use action: "include" to re-enable indexing.'
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Handle include action (remove from exclusions)
+          if (action === 'include') {
+            const removedPatterns: string[] = [];
+            const notFound: string[] = [];
+
+            for (const pattern of paths) {
+              const normalizedPattern = pattern.replace(/\\/g, '/');
+
+              const index = exclusions.patterns.findIndex(p => p.pattern === normalizedPattern);
+              if (index >= 0) {
+                exclusions.patterns.splice(index, 1);
+                removedPatterns.push(normalizedPattern);
+              } else {
+                notFound.push(normalizedPattern);
+              }
+            }
+
+            // Save exclusions
+            exclusions.lastModified = new Date().toISOString();
+            fs.writeFileSync(exclusionsPath, JSON.stringify(exclusions, null, 2));
+
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  success: true,
+                  action: 'include',
+                  project: found.name,
+                  patterns_removed: removedPatterns,
+                  not_found: notFound.length > 0 ? notFound : undefined,
+                  total_exclusions: exclusions.patterns.length,
+                  message: removedPatterns.length > 0
+                    ? `Removed ${removedPatterns.length} exclusion pattern(s). ` +
+                      `Files matching these patterns will be indexed on next reindex.`
+                    : 'No patterns were removed (none matched).',
+                  next_step: removedPatterns.length > 0
+                    ? 'Run notify_file_changes({project: "...", full_reindex: true}) to index the previously excluded files.'
+                    : undefined
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Should not reach here
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Unknown action: ${action}`,
+            }],
+            isError: true,
+          };
+
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Failed to manage index: ${message}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+  }
+
+  /**
+   * Check if a file path matches an exclusion pattern
+   * Supports glob-like patterns: ** for any path, * for any segment
+   */
+  private matchesExclusionPattern(filePath: string, pattern: string): boolean {
+    // Normalize paths
+    const normalizedPath = filePath.replace(/\\/g, '/').toLowerCase();
+    const normalizedPattern = pattern.replace(/\\/g, '/').toLowerCase();
+
+    // Direct match
+    if (normalizedPath === normalizedPattern) {
+      return true;
+    }
+
+    // Convert glob pattern to regex
+    // ** matches any path including slashes
+    // * matches any characters except slashes
+    let regexPattern = normalizedPattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // Escape special regex chars except * and ?
+      .replace(/\*\*/g, '<<GLOBSTAR>>')      // Temporarily replace **
+      .replace(/\*/g, '[^/]*')               // * matches anything except /
+      .replace(/<<GLOBSTAR>>/g, '.*')        // ** matches anything including /
+      .replace(/\?/g, '.');                  // ? matches any single char
+
+    // Check if pattern should match at start
+    if (!regexPattern.startsWith('.*')) {
+      // Pattern like "Library/**" should match "Library/foo" but not "src/Library/foo"
+      // Unless it's a more specific path pattern
+      if (normalizedPattern.includes('/')) {
+        regexPattern = `(^|/)${regexPattern}`;
+      } else {
+        regexPattern = `(^|/)${regexPattern}`;
+      }
+    }
+
+    // Allow matching at end without trailing slash
+    regexPattern = `${regexPattern}(/.*)?$`;
+
+    try {
+      const regex = new RegExp(regexPattern);
+      return regex.test(normalizedPath);
+    } catch {
+      // If regex fails, try simple includes check
+      return normalizedPath.includes(normalizedPattern.replace(/\*/g, ''));
+    }
   }
 
   /**

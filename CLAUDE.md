@@ -94,6 +94,51 @@ try {
 5. **Fallback strategy**: When CLI fails → transparent passthrough mode
 6. **Error handling**: Always provide local fallback options
 
+## Dynamic Index Management
+
+**Status**: Fully implemented (2025-12-31)
+
+When Claude discovers files that shouldn't be indexed (like Unity's Library folder, build outputs, or generated files), use the `manage_index` MCP tool to dynamically exclude them:
+
+### Usage Examples
+
+```typescript
+// Exclude files/patterns - removes from index immediately
+manage_index({
+  action: "exclude",
+  project: "my-project",
+  paths: ["Library/**", "Temp/**", "*.generated.cs"],
+  reason: "Build artifacts and generated files"
+})
+
+// List current exclusions
+manage_index({
+  action: "list",
+  project: "my-project"
+})
+
+// Re-include previously excluded files (requires reindex to take effect)
+manage_index({
+  action: "include",
+  project: "my-project",
+  paths: ["Library/**"]
+})
+```
+
+### How It Works
+
+1. **Exclusion**: Files matching patterns are immediately deleted from the vector store
+2. **Persistence**: Exclusions saved to `.codemind/exclusions.json`
+3. **Reindexing**: User exclusions are respected during `index_project` and `notify_file_changes(full_reindex: true)`
+4. **Glob Patterns**: Supports `**` (any path), `*` (any segment), `?` (any char)
+
+### When to Use
+
+- Unity projects: `Library/**`, `Temp/**`, `Logs/**`
+- Build outputs: `dist/**`, `build/**`, `out/**`
+- Generated code: `*.generated.cs`, `*.g.cs`
+- Large binary assets: `*.asset`, `*.prefab` (if indexed by mistake)
+
 ## Auto-Detected Coding Standards - NEW ✨
 
 **Status**: Fully implemented (2025-12-28)
