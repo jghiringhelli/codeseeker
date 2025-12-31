@@ -30,6 +30,15 @@ export interface IndexingProgress {
   chunksCreated: number;
   nodesCreated: number;
   edgesCreated: number;
+  /** Warning message when file limits are reached */
+  limitWarning?: string;
+  /** Current scanning status (during scan phase) */
+  scanningStatus?: {
+    foldersScanned: number;
+    filesFound: number;
+    currentFolder?: string;
+    percentage: number;
+  };
 }
 
 export interface IndexingResult {
@@ -40,6 +49,8 @@ export interface IndexingResult {
   edgesCreated: number;
   durationMs: number;
   errors: string[];
+  /** Warning messages about limits or recommendations */
+  warnings: string[];
 }
 
 export class IndexingService {
@@ -127,12 +138,30 @@ export class IndexingService {
       const vectorStore = storageManager.getVectorStore();
       const graphStore = storageManager.getGraphStore();
 
-      // Phase 1: Scan for files
+      // Phase 1: Scan for files with progress reporting
       progress.phase = 'scanning';
+      progress.scanningStatus = { foldersScanned: 0, filesFound: 0, percentage: 0 };
       onProgress?.(progress);
 
-      const files = await this.scanForFiles(projectPath);
-      progress.filesTotal = files.length;
+      const files = await this.scanForFiles(projectPath, (scanStatus) => {
+        progress.scanningStatus = scanStatus;
+        onProgress?.(progress);
+      });
+
+      // Check file limits and generate warnings
+      const totalFiles = files.length;
+      progress.filesTotal = Math.min(totalFiles, this.FILE_LIMITS.maxFiles);
+
+      if (totalFiles > this.FILE_LIMITS.dbServerThreshold) {
+        progress.limitWarning = `⚠️ Large project detected: ${totalFiles.toLocaleString()} files found. ` +
+          `For projects with 100K+ files, we recommend using DB server mode (PostgreSQL + Neo4j) for optimal performance. ` +
+          `Run 'codemind config --storage=server' to switch. Currently indexing first ${this.FILE_LIMITS.maxFiles.toLocaleString()} files.`;
+      } else if (totalFiles > this.FILE_LIMITS.maxFiles) {
+        progress.limitWarning = `ℹ️ Project has ${totalFiles.toLocaleString()} files. ` +
+          `Indexing first ${this.FILE_LIMITS.maxFiles.toLocaleString()} files. ` +
+          `To increase limits, edit .codemind/config.json or use DB server mode for very large projects.`;
+      }
+
       onProgress?.(progress);
 
       if (files.length === 0) {
@@ -143,7 +172,8 @@ export class IndexingService {
           nodesCreated: 0,
           edgesCreated: 0,
           durationMs: Date.now() - startTime,
-          errors: ['No indexable files found']
+          errors: ['No indexable files found'],
+          warnings: []
         };
       }
 
@@ -151,7 +181,10 @@ export class IndexingService {
       progress.phase = 'indexing';
       onProgress?.(progress);
 
-      for (const file of files) {
+      // Apply file limit
+      const filesToIndex = files.slice(0, this.FILE_LIMITS.maxFiles);
+
+      for (const file of filesToIndex) {
         try {
           const chunksCreated = await this.indexFile(
             path.join(projectPath, file),
@@ -191,6 +224,12 @@ export class IndexingService {
       progress.phase = 'complete';
       onProgress?.(progress);
 
+      // Collect any warnings
+      const warnings: string[] = [];
+      if (progress.limitWarning) {
+        warnings.push(progress.limitWarning);
+      }
+
       return {
         success: true,
         filesIndexed: progress.filesProcessed,
@@ -198,7 +237,8 @@ export class IndexingService {
         nodesCreated: progress.nodesCreated,
         edgesCreated: progress.edgesCreated,
         durationMs: Date.now() - startTime,
-        errors
+        errors,
+        warnings
       };
 
     } catch (error) {
@@ -211,7 +251,8 @@ export class IndexingService {
         nodesCreated: progress.nodesCreated,
         edgesCreated: progress.edgesCreated,
         durationMs: Date.now() - startTime,
-        errors
+        errors,
+        warnings: progress.limitWarning ? [progress.limitWarning] : []
       };
     }
   }
@@ -366,10 +407,28 @@ export class IndexingService {
     }
   }
 
+  // File limits configuration
+  private readonly FILE_LIMITS = {
+    /** Maximum files to index (embedded mode). Increase for DB server mode. */
+    maxFiles: 50000,
+    /** Threshold to suggest DB server mode */
+    dbServerThreshold: 100000,
+    /** Files for knowledge graph: source folders */
+    graphSourceFiles: 30000,
+    /** Files for knowledge graph: other code */
+    graphOtherCode: 15000,
+    /** Files for knowledge graph: config/docs */
+    graphConfigFiles: 5000
+  };
+
   /**
    * Scan for indexable files in a directory
+   * Reports progress during scanning via callback
    */
-  private async scanForFiles(projectPath: string): Promise<string[]> {
+  private async scanForFiles(
+    projectPath: string,
+    onProgress?: (status: { foldersScanned: number; filesFound: number; currentFolder?: string; percentage: number }) => void
+  ): Promise<string[]> {
     const patterns = this.SUPPORTED_EXTENSIONS.map(ext => `**/*${ext}`);
 
     // Build comprehensive ignore patterns:
@@ -379,6 +438,10 @@ export class IndexingService {
       `${dir}/**`,      // Top-level: Library/**, Temp/**, etc.
       `**/${dir}/**`    // Nested: foo/Library/**, src/Temp/**, etc.
     ]);
+
+    // Track unique folders for progress reporting
+    const foldersScanned = new Set<string>();
+    let filesFound = 0;
 
     const files = await glob(patterns, {
       cwd: projectPath,
@@ -394,6 +457,33 @@ export class IndexingService {
       const pathParts = file.replace(/\\/g, '/').toLowerCase().split('/');
       return !pathParts.some(part => excludedDirSet.has(part));
     });
+
+    // Report progress by analyzing discovered files
+    if (onProgress) {
+      for (const file of filteredFiles) {
+        const folder = path.dirname(file);
+        if (!foldersScanned.has(folder)) {
+          foldersScanned.add(folder);
+          // Report progress every 10 new folders
+          if (foldersScanned.size % 10 === 0) {
+            onProgress({
+              foldersScanned: foldersScanned.size,
+              filesFound: filesFound,
+              currentFolder: folder,
+              percentage: 100 // Scanning complete, just counting
+            });
+          }
+        }
+        filesFound++;
+      }
+
+      // Final progress report
+      onProgress({
+        foldersScanned: foldersScanned.size,
+        filesFound: filteredFiles.length,
+        percentage: 100
+      });
+    }
 
     return filteredFiles;
   }
@@ -522,12 +612,14 @@ export class IndexingService {
       !sourcePatterns.some(p => f.startsWith(p)) &&
       ['.json', '.yaml', '.yml', '.toml', '.md'].some(ext => f.endsWith(ext))
     );
-    // Prioritize: source folders (500) > other code (200) > config (50)
+    // Prioritize: source folders > other code > config
+    // Use configurable limits for large project support
+    const totalGraphLimit = this.FILE_LIMITS.graphSourceFiles + this.FILE_LIMITS.graphOtherCode + this.FILE_LIMITS.graphConfigFiles;
     const filesToProcess = [
-      ...sourceFiles.slice(0, 500),
-      ...otherCodeFiles.slice(0, 200),
-      ...configFiles.slice(0, 50)
-    ].slice(0, 750);
+      ...sourceFiles.slice(0, this.FILE_LIMITS.graphSourceFiles),
+      ...otherCodeFiles.slice(0, this.FILE_LIMITS.graphOtherCode),
+      ...configFiles.slice(0, this.FILE_LIMITS.graphConfigFiles)
+    ].slice(0, totalGraphLimit);
 
     for (const file of filesToProcess) {
       try {
@@ -863,7 +955,7 @@ export class IndexingService {
    */
   private namespaceMapCache: Map<string, string[]> | null = null;
 
-  private buildNamespaceMap(allFiles: string[], projectId: string): Map<string, string[]> {
+  private buildNamespaceMap(allFiles: string[], _projectId: string): Map<string, string[]> {
     // Return cached map if available (reset between indexing runs)
     if (this.namespaceMapCache) {
       return this.namespaceMapCache;
