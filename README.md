@@ -83,6 +83,20 @@ Indexing takes 30 seconds to several minutes depending on project size. After th
 
 **Note:** The plugin installs hooks that automatically keep the index in sync when Claude edits files or runs git operations.
 
+> **⚠️ NPM Package Not Yet Published:** The plugin currently requires manual MCP server setup. Until the npm package is published, add this to your `~/.claude/settings.json`:
+> ```json
+> {
+>   "mcpServers": {
+>     "codemind": {
+>       "command": "node",
+>       "args": ["/path/to/CodeMind/dist/mcp/mcp-server.js"],
+>       "env": { "CODEMIND_STORAGE_MODE": "embedded" }
+>     }
+>   }
+> }
+> ```
+> Replace `/path/to/CodeMind` with your local clone path. Run `npm install && npm run build` first.
+
 ### For Claude Desktop (MCP Server)
 
 Add to `claude_desktop_config.json`:
@@ -98,6 +112,8 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
+> **Note:** Requires the npm package to be published. For local development, use `node /path/to/CodeMind/dist/mcp/mcp-server.js` instead of npx.
+
 ### CLI Standalone
 
 ```bash
@@ -105,6 +121,8 @@ npm install -g codemind-enhanced-cli
 codemind init
 codemind -c "how does authentication work in this project?"
 ```
+
+> **Note:** Requires the npm package to be published. For local development, clone the repo and run `npm link`.
 
 ## How Indexing Works
 
