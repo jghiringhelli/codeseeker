@@ -707,6 +707,77 @@ git checkout master
 
 See `.github/VERSIONING.md` for full details.
 
+## GitHub Release Process (MANDATORY)
+
+**CRITICAL**: Every version bump MUST have a corresponding GitHub release. The plugin update UI reads release notes from GitHub.
+
+### When to Create Releases
+
+| Release Type | When | Content |
+|--------------|------|---------|
+| **Initial (x.0.0)** | First release of a major version | Full feature documentation, all capabilities |
+| **Minor (x.Y.0)** | New features added | New features with descriptions, any fixes |
+| **Patch (x.y.Z)** | Bug fixes only | Fixed issues, improvements, no new features |
+
+### Release Creation Steps
+
+1. **Ensure version files are updated** (package.json, plugin.json, version.json)
+2. **Ensure CHANGELOG.md is updated** with the new version entry
+3. **Commit and push** the version changes to master
+4. **Create the GitHub release**:
+
+```bash
+# Create release with gh CLI
+gh release create v1.0.X --repo jghiringhelli/codemind --title "v1.0.X - Title" --notes "$(cat <<'EOF'
+# CodeMind v1.0.X - Title
+
+## Fixed
+- Issue 1
+- Issue 2
+
+## Added
+- Feature 1
+
+## Upgrade
+
+\`\`\`bash
+/plugin uninstall codemind
+/plugin install codemind@github:jghiringhelli/codemind#plugin
+\`\`\`
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+5. **Sync to plugin branch** if not already done
+
+### Release Notes Format
+
+- **Major/Initial releases** (v1.0.0): Include full feature documentation with all MCP tools, supported languages, installation instructions
+- **Minor releases** (v1.1.0): Focus on new features, include upgrade instructions
+- **Patch releases** (v1.0.1): Focus on fixes, keep it concise
+
+### Link to Releases
+
+The `plugins/codemind/version.json` file contains:
+```json
+{
+  "changelog": "https://github.com/jghiringhelli/codemind/releases"
+}
+```
+
+This URL is used by the Claude Code plugin update UI to show release notes.
+
+### Verify Release
+
+After creating a release:
+1. Visit https://github.com/jghiringhelli/codemind/releases
+2. Verify the release appears with correct tag and notes
+3. Test plugin update in Claude Code to ensure notes display
+
 ## Important Development Reminders
 
 ### SOLID Principles Enforcement
