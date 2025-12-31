@@ -680,6 +680,8 @@ export class CodeMindMcpServer {
           // Get storage and create project
           const storageManager = await getStorageManager();
           const projectStore = storageManager.getProjectStore();
+          const vectorStore = storageManager.getVectorStore();
+          const graphStore = storageManager.getGraphStore();
 
           // Create or update project
           const project = await projectStore.upsert({
@@ -688,6 +690,16 @@ export class CodeMindMcpServer {
             path: absolutePath,
             metadata: { indexedAt: new Date().toISOString() },
           });
+
+          // Clear existing index data for clean reindex
+          await vectorStore.deleteByProject(project.id);
+          await graphStore.deleteByProject(project.id);
+
+          // Delete coding standards file (will be regenerated)
+          const codingStandardsPath = path.join(absolutePath, '.codemind', 'coding-standards.json');
+          if (fs.existsSync(codingStandardsPath)) {
+            fs.unlinkSync(codingStandardsPath);
+          }
 
           // Use IndexingService for proper indexing with embeddings and graph
           // Track progress for detailed reporting
@@ -802,6 +814,12 @@ export class CodeMindMcpServer {
             // Clear existing index for this project
             await vectorStore.deleteByProject(found.id);
             await graphStore.deleteByProject(found.id);
+
+            // Delete coding standards file (will be regenerated)
+            const codingStandardsPath = path.join(found.path, '.codemind', 'coding-standards.json');
+            if (fs.existsSync(codingStandardsPath)) {
+              fs.unlinkSync(codingStandardsPath);
+            }
 
             // Re-index all files using IndexingService (with proper embeddings and graph)
             let lastProgress: import('./indexing-service').IndexingProgress | undefined;
