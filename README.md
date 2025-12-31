@@ -5,6 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
 
+> **What is CodeMind?** CodeMind is a **Claude Code plugin** that adds MCP tools for semantic code search and knowledge graph traversal. It works anywhere Claude Code runs—terminal, VS Code with Claude Code extension, or any other environment. It is *not* a VS Code extension itself.
+
 ## The Problem
 
 Claude Code is powerful, but it navigates your codebase like a tourist with a phrasebook:
@@ -64,20 +66,24 @@ CodeMind combines all three: **graph traversal** for structure, **vector search*
 
 ## Quick Start
 
-### For Claude Code (VS Code)
+### For Claude Code (Recommended)
+
+Install the plugin in Claude Code (terminal or VS Code):
 
 ```
-/install-plugin codemind@github:jghiringhelli/codemind#plugin
+/plugin install codemind@github:jghiringhelli/codemind#plugin
 ```
 
-Restart VS Code, then in any project:
+Then in any project, initialize the index:
 ```
 /codemind:init
 ```
 
-Indexing takes 30 seconds to several minutes depending on project size. After that, Claude automatically uses the graph when relevant.
+Indexing takes 30 seconds to several minutes depending on project size. After that, Claude automatically uses CodeMind's MCP tools when searching code or analyzing relationships.
 
-### For Claude Desktop
+**Note:** The plugin installs hooks that automatically keep the index in sync when Claude edits files or runs git operations.
+
+### For Claude Desktop (MCP Server)
 
 Add to `claude_desktop_config.json`:
 

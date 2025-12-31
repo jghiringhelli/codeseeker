@@ -690,22 +690,47 @@ export class CodeMindMcpServer {
           });
 
           // Use IndexingService for proper indexing with embeddings and graph
-          const result = await this.indexingService.indexProject(absolutePath, project.id);
+          // Track progress for detailed reporting
+          let lastProgress: import('./indexing-service').IndexingProgress | undefined;
+
+          const result = await this.indexingService.indexProject(absolutePath, project.id, (progress) => {
+            lastProgress = progress;
+          });
+
+          // Build response with progress details
+          const response: Record<string, unknown> = {
+            success: result.success,
+            project_name: projectName,
+            project_path: absolutePath,
+            files_indexed: result.filesIndexed,
+            chunks_created: result.chunksCreated,
+            graph_nodes: result.nodesCreated,
+            graph_edges: result.edgesCreated,
+            duration_ms: result.durationMs,
+          };
+
+          // Add scanning summary if available
+          if (lastProgress?.scanningStatus) {
+            response.scanning_summary = {
+              folders_scanned: lastProgress.scanningStatus.foldersScanned,
+              files_found: lastProgress.scanningStatus.filesFound,
+            };
+          }
+
+          // Add warnings (file limits, recommendations)
+          if (result.warnings && result.warnings.length > 0) {
+            response.warnings = result.warnings;
+          }
+
+          // Add errors if any
+          if (result.errors.length > 0) {
+            response.errors = result.errors.slice(0, 5);
+          }
 
           return {
             content: [{
               type: 'text' as const,
-              text: JSON.stringify({
-                success: result.success,
-                project_name: projectName,
-                project_path: absolutePath,
-                files_indexed: result.filesIndexed,
-                chunks_created: result.chunksCreated,
-                graph_nodes: result.nodesCreated,
-                graph_edges: result.edgesCreated,
-                duration_ms: result.durationMs,
-                errors: result.errors.length > 0 ? result.errors.slice(0, 5) : undefined,
-              }, null, 2),
+              text: JSON.stringify(response, null, 2),
             }],
           };
 
@@ -779,7 +804,10 @@ export class CodeMindMcpServer {
             await graphStore.deleteByProject(found.id);
 
             // Re-index all files using IndexingService (with proper embeddings and graph)
-            const result = await this.indexingService.indexProject(found.path, found.id);
+            let lastProgress: import('./indexing-service').IndexingProgress | undefined;
+            const result = await this.indexingService.indexProject(found.path, found.id, (progress) => {
+              lastProgress = progress;
+            });
 
             // Update project metadata
             await projectStore.upsert({
@@ -792,21 +820,41 @@ export class CodeMindMcpServer {
               },
             });
 
+            // Build response with all details
+            const response: Record<string, unknown> = {
+              success: result.success,
+              mode: 'full_reindex',
+              project: found.name,
+              files_indexed: result.filesIndexed,
+              chunks_created: result.chunksCreated,
+              graph_nodes: result.nodesCreated,
+              graph_edges: result.edgesCreated,
+              duration_ms: result.durationMs,
+              message: `Complete reindex finished. ${result.filesIndexed} files indexed, ${result.chunksCreated} chunks created.`,
+            };
+
+            // Add scanning summary
+            if (lastProgress?.scanningStatus) {
+              response.scanning_summary = {
+                folders_scanned: lastProgress.scanningStatus.foldersScanned,
+                files_found: lastProgress.scanningStatus.filesFound,
+              };
+            }
+
+            // Add warnings
+            if (result.warnings && result.warnings.length > 0) {
+              response.warnings = result.warnings;
+            }
+
+            // Add errors
+            if (result.errors.length > 0) {
+              response.errors = result.errors.slice(0, 5);
+            }
+
             return {
               content: [{
                 type: 'text' as const,
-                text: JSON.stringify({
-                  success: result.success,
-                  mode: 'full_reindex',
-                  project: found.name,
-                  files_indexed: result.filesIndexed,
-                  chunks_created: result.chunksCreated,
-                  graph_nodes: result.nodesCreated,
-                  graph_edges: result.edgesCreated,
-                  duration_ms: result.durationMs,
-                  message: `Complete reindex finished. ${result.filesIndexed} files indexed, ${result.chunksCreated} chunks created.`,
-                  errors: result.errors.length > 0 ? result.errors.slice(0, 5) : undefined,
-                }, null, 2),
+                text: JSON.stringify(response, null, 2),
               }],
             };
           }
