@@ -422,8 +422,82 @@ export class IndexingService {
   };
 
   /**
+   * Load user-defined exclusions from .codemind/exclusions.json
+   */
+  private loadUserExclusions(projectPath: string): string[] {
+    const exclusionsPath = path.join(projectPath, '.codemind', 'exclusions.json');
+
+    if (!fs.existsSync(exclusionsPath)) {
+      return [];
+    }
+
+    try {
+      const content = fs.readFileSync(exclusionsPath, 'utf-8');
+      const exclusions = JSON.parse(content);
+
+      if (exclusions.patterns && Array.isArray(exclusions.patterns)) {
+        return exclusions.patterns.map((p: { pattern: string }) => p.pattern);
+      }
+    } catch (error) {
+      this.logger.debug(`Failed to load user exclusions: ${error}`);
+    }
+
+    return [];
+  }
+
+  /**
+   * Check if a file matches any user exclusion pattern
+   */
+  private matchesUserExclusion(filePath: string, exclusionPatterns: string[]): boolean {
+    if (exclusionPatterns.length === 0) {
+      return false;
+    }
+
+    const normalizedPath = filePath.replace(/\\/g, '/').toLowerCase();
+
+    for (const pattern of exclusionPatterns) {
+      const normalizedPattern = pattern.replace(/\\/g, '/').toLowerCase();
+
+      // Direct match
+      if (normalizedPath === normalizedPattern) {
+        return true;
+      }
+
+      // Convert glob pattern to regex
+      let regexPattern = normalizedPattern
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*\*/g, '<<GLOBSTAR>>')
+        .replace(/\*/g, '[^/]*')
+        .replace(/<<GLOBSTAR>>/g, '.*')
+        .replace(/\?/g, '.');
+
+      // Pattern matching at start or after /
+      if (!regexPattern.startsWith('.*')) {
+        regexPattern = `(^|/)${regexPattern}`;
+      }
+
+      regexPattern = `${regexPattern}(/.*)?$`;
+
+      try {
+        const regex = new RegExp(regexPattern);
+        if (regex.test(normalizedPath)) {
+          return true;
+        }
+      } catch {
+        // Fallback to simple includes check
+        if (normalizedPath.includes(normalizedPattern.replace(/\*/g, ''))) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Scan for indexable files in a directory
    * Reports progress during scanning via callback
+   * Respects user-defined exclusions from .codemind/exclusions.json
    */
   private async scanForFiles(
     projectPath: string,
@@ -439,6 +513,9 @@ export class IndexingService {
       `**/${dir}/**`    // Nested: foo/Library/**, src/Temp/**, etc.
     ]);
 
+    // Load user-defined exclusions
+    const userExclusions = this.loadUserExclusions(projectPath);
+
     // Track unique folders for progress reporting
     const foldersScanned = new Set<string>();
     let filesFound = 0;
@@ -453,10 +530,21 @@ export class IndexingService {
     // Double-check: filter out any files that slipped through
     // (glob patterns can sometimes miss edge cases)
     const excludedDirSet = new Set(this.IGNORE_DIRS.map(d => d.toLowerCase()));
-    const filteredFiles = files.filter(file => {
+    let filteredFiles = files.filter(file => {
       const pathParts = file.replace(/\\/g, '/').toLowerCase().split('/');
       return !pathParts.some(part => excludedDirSet.has(part));
     });
+
+    // Apply user-defined exclusions
+    if (userExclusions.length > 0) {
+      const beforeCount = filteredFiles.length;
+      filteredFiles = filteredFiles.filter(file => !this.matchesUserExclusion(file, userExclusions));
+      const excludedCount = beforeCount - filteredFiles.length;
+
+      if (excludedCount > 0) {
+        this.logger.debug(`User exclusions filtered out ${excludedCount} files`);
+      }
+    }
 
     // Report progress by analyzing discovered files
     if (onProgress) {

@@ -159,8 +159,38 @@ Once indexed, Claude has access to these MCP tools:
 | `get_coding_standards` | Your project's detected patterns (validation, error handling) |
 | `index_project` | Manually trigger indexing (rarely needed) |
 | `notify_file_changes` | Update index for specific files |
+| `manage_index` | Dynamically exclude/include files from the index |
 
 Claude uses these automatically—you don't need to invoke them manually.
+
+## Managing Index Exclusions
+
+If Claude notices files that shouldn't be indexed (like Unity's Library folder, build outputs, or generated files), it can dynamically exclude them:
+
+```typescript
+// Exclude Unity Library folder and generated files
+manage_index({
+  action: "exclude",
+  project: "my-unity-game",
+  paths: ["Library/**", "Temp/**", "*.generated.cs"],
+  reason: "Unity build artifacts"
+})
+
+// List current exclusions
+manage_index({
+  action: "list",
+  project: "my-unity-game"
+})
+
+// Re-include previously excluded files
+manage_index({
+  action: "include",
+  project: "my-unity-game",
+  paths: ["Library/**"]
+})
+```
+
+Exclusions are persisted in `.codemind/exclusions.json` and automatically respected during reindexing.
 
 ## Auto-Detected Coding Standards
 
