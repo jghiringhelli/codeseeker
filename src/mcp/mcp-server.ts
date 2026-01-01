@@ -97,11 +97,11 @@ export class CodeMindMcpServer {
     this.server.registerTool(
       'search_code',
       {
-        description: 'Search codebase using semantic similarity to find relevant code, documentation, and config files. ' +
-          'IMPORTANT: If project is not indexed, use index_project tool FIRST to enable search. ' +
-          'Accepts natural language queries or code snippets. Returns ranked file chunks with similarity scores. ' +
-          'Use this BEFORE reading files to understand what exists in the codebase. ' +
-          'If this tool returns "not indexed" error, IMMEDIATELY call index_project with the project path, then retry the search.',
+        description: 'USE THIS FIRST when you need to find code and don\'t know exact file paths. ' +
+          'Better than grep/glob for: finding implementations ("user authentication"), locating related code across files, ' +
+          'understanding how features work. Finds conceptually related code (e.g., "authentication" finds login, session, auth). ' +
+          'Only use grep when you need exact string/regex patterns. ' +
+          'If not indexed, call index_project first.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
           project: z.string().describe('Project path - typically the current working directory where you are working'),
@@ -275,11 +275,34 @@ export class CodeMindMcpServer {
           // Get related chunks if requested
           let relatedChunks: Array<{ file: string; chunk: string; score: number }> = [];
           if (include_related) {
-            // Extract key terms from file for semantic search
-            const fileName = path.basename(filepath);
-            const searchQuery = fileName.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+            // Build a semantic search query from the file content
+            // Use the first meaningful lines of code (skip comments, imports, empty lines)
+            const lines = content.split('\n');
+            const meaningfulLines: string[] = [];
 
-            const results = await this.searchOrchestrator.performSemanticSearch(searchQuery, projectPath);
+            for (const line of lines) {
+              const trimmed = line.trim();
+              // Skip empty, comments, and import lines
+              if (!trimmed) continue;
+              if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) continue;
+              if (trimmed.startsWith('import ') || trimmed.startsWith('from ') || trimmed.startsWith('require(')) continue;
+              if (trimmed.startsWith('#') && !trimmed.startsWith('##')) continue; // Skip Python comments but not markdown headers
+              if (trimmed.startsWith('using ') || trimmed.startsWith('namespace ')) continue; // C#
+
+              meaningfulLines.push(trimmed);
+              if (meaningfulLines.length >= 5) break; // Use first 5 meaningful lines
+            }
+
+            // Create search query from file name + meaningful content
+            const fileName = path.basename(filepath);
+            const fileNameQuery = fileName.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+            const contentQuery = meaningfulLines.join(' ').substring(0, 200);
+            const searchQuery = `${fileNameQuery} ${contentQuery}`.trim();
+
+            const results = await this.searchOrchestrator.performSemanticSearch(
+              searchQuery || fileNameQuery, // Fallback to filename if no content
+              projectPath
+            );
 
             // Filter out the current file and limit results
             relatedChunks = results
@@ -326,24 +349,26 @@ export class CodeMindMcpServer {
     this.server.registerTool(
       'get_code_relationships',
       {
-        description: 'Explore code dependencies and relationships in the knowledge graph. ' +
-          'Returns import chains, class hierarchies, function calls, and component dependencies. ' +
-          'Accepts filepath(s) or a query to find seed files via semantic search, then expands to show relationships. ' +
-          'Example: get_code_relationships({filepath: "src/auth.ts"}) or get_code_relationships({query: "authentication"}).',
+        description: 'Explore how files connect: imports, class hierarchies, function calls. ' +
+          'RECOMMENDED: Use search_code first to find relevant files, then pass those paths here via filepaths parameter. ' +
+          'This avoids duplicate searches and gives you control over entry points. ' +
+          'Use depth=1 for direct connections, depth=2 for extended graph. ' +
+          'Filter with relationship_types: ["imports"], ["calls"], ["extends"] to focus results.',
         inputSchema: {
-          filepath: z.string().optional().describe('Path to a single file to explore (use this OR filepaths OR query)'),
-          filepaths: z.array(z.string()).optional().describe('Array of file paths to explore relationships between'),
-          query: z.string().optional().describe('Semantic search query to find seed files automatically'),
-          depth: z.number().optional().default(2).describe('How many relationship hops to traverse (1-3, default: 2)'),
+          filepath: z.string().optional().describe('Single file path to explore (prefer filepaths for multiple)'),
+          filepaths: z.array(z.string()).optional().describe('PREFERRED: Array of file paths from search_code results'),
+          query: z.string().optional().describe('Fallback: semantic search to find seed files (prefer using filepaths from search_code)'),
+          depth: z.number().optional().default(1).describe('How many relationship hops to traverse (1-3, default: 1). Use 1 for focused results, 2+ can return many nodes.'),
           relationship_types: z.array(z.enum([
             'imports', 'exports', 'calls', 'extends', 'implements', 'contains', 'uses', 'depends_on'
-          ])).optional().describe('Filter to specific relationship types (default: all)'),
+          ])).optional().describe('Filter to specific relationship types (default: all). Recommended: use ["imports"] or ["imports", "calls"] to reduce output.'),
           direction: z.enum(['in', 'out', 'both']).optional().default('both')
             .describe('Direction of relationships: in (what points to this), out (what this points to), both'),
+          max_nodes: z.number().optional().default(50).describe('Maximum nodes to return (default: 50). Increase for comprehensive analysis.'),
           project: z.string().optional().describe('Project name or path'),
         },
       },
-      async ({ filepath, filepaths, query, depth = 2, relationship_types, direction = 'both', project }) => {
+      async ({ filepath, filepaths, query, depth = 1, relationship_types, direction = 'both', max_nodes = 50, project }) => {
         try {
           const storageManager = await getStorageManager();
           const projectStore = storageManager.getProjectStore();
@@ -410,8 +435,14 @@ export class CodeMindMcpServer {
             };
           }
 
-          // Find all nodes for this project
+          // Find all nodes for this project and get graph stats
           const allNodes = await graphStore.findNodes(projectId);
+          const graphStats = {
+            total_nodes: allNodes.length,
+            file_nodes: allNodes.filter(n => n.type === 'file').length,
+            class_nodes: allNodes.filter(n => n.type === 'class').length,
+            function_nodes: allNodes.filter(n => n.type === 'function' || n.type === 'method').length,
+          };
 
           // Find starting nodes using flexible path matching (like CLI's GraphAnalysisService)
           const startNodes = allNodes.filter(n => {
@@ -462,8 +493,15 @@ export class CodeMindMcpServer {
           // Traverse relationships from all start nodes (Seed + Expand)
           const visitedNodes = new Map<string, any>();
           const collectedEdges: any[] = [];
+          let truncated = false;
 
           const traverse = async (nodeId: string, currentDepth: number) => {
+            // Stop if we've reached max_nodes limit
+            if (visitedNodes.size >= max_nodes) {
+              truncated = true;
+              return;
+            }
+
             if (currentDepth > Math.min(depth, 3) || visitedNodes.has(nodeId)) return;
 
             const node = await graphStore.getNode(nodeId);
@@ -481,6 +519,12 @@ export class CodeMindMcpServer {
             const edges = await graphStore.getEdges(nodeId, direction);
 
             for (const edge of edges) {
+              // Stop if we've reached max_nodes limit
+              if (visitedNodes.size >= max_nodes) {
+                truncated = true;
+                return;
+              }
+
               // Filter by relationship type if specified
               if (relationship_types && relationship_types.length > 0) {
                 if (!relationship_types.includes(edge.type as any)) continue;
@@ -500,6 +544,10 @@ export class CodeMindMcpServer {
 
           // Traverse from ALL start nodes (multiple seeds)
           for (const startNode of startNodes) {
+            if (visitedNodes.size >= max_nodes) {
+              truncated = true;
+              break;
+            }
             await traverse(startNode.id, 1);
           }
 
@@ -510,7 +558,8 @@ export class CodeMindMcpServer {
           );
 
           // Create a summary
-          const summary = {
+          const summary: Record<string, any> = {
+            graph_stats: graphStats,
             seed_files: startNodes.map(n => ({
               name: n.name,
               type: n.type,
@@ -521,11 +570,13 @@ export class CodeMindMcpServer {
               direction,
               relationship_filters: relationship_types || 'all',
               seed_method: query ? 'semantic_search' : (filepaths ? 'multiple_files' : 'single_file'),
+              max_nodes,
             },
             results: {
               seed_nodes: startNodes.length,
               nodes_found: nodes.length,
               relationships_found: uniqueEdges.length,
+              truncated,
             },
             nodes: nodes.map(n => ({
               name: n.name,
@@ -542,6 +593,18 @@ export class CodeMindMcpServer {
               };
             }),
           };
+
+          // Add truncation warning and recommendations if results were limited
+          if (truncated) {
+            summary.truncated_warning = {
+              message: `Results truncated at ${max_nodes} nodes.`,
+              recommendations: [
+                relationship_types ? null : 'Add relationship_types filter (e.g., ["imports"])',
+                depth > 1 ? 'Reduce depth to 1' : null,
+                `Increase max_nodes (current: ${max_nodes})`,
+              ].filter(Boolean),
+            };
+          }
 
           return {
             content: [{
