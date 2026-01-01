@@ -97,11 +97,11 @@ export class CodeMindMcpServer {
     this.server.registerTool(
       'search_code',
       {
-        description: 'Semantic code search - use this when you need to find code by concept/meaning rather than exact text match. ' +
-          'Unlike grep/ripgrep (exact text), this finds conceptually related code (e.g., "authentication" finds login, session, auth). ' +
-          'Returns ranked file chunks with similarity scores. ' +
-          'IMPORTANT: If project is not indexed, use index_project tool FIRST. ' +
-          'If this returns "not indexed" error, call index_project with the project path, then retry.',
+        description: 'USE THIS FIRST when you need to find code and don\'t know exact file paths. ' +
+          'Better than grep/glob for: finding implementations ("user authentication"), locating related code across files, ' +
+          'understanding how features work. Finds conceptually related code (e.g., "authentication" finds login, session, auth). ' +
+          'Only use grep when you need exact string/regex patterns. ' +
+          'If not indexed, call index_project first.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
           project: z.string().describe('Project path - typically the current working directory where you are working'),
@@ -349,12 +349,10 @@ export class CodeMindMcpServer {
     this.server.registerTool(
       'get_code_relationships',
       {
-        description: 'Explore code dependencies and relationships in the knowledge graph. ' +
-          'Returns import chains, class hierarchies, function calls, and component dependencies. ' +
-          'Accepts filepath(s) or a query to find seed files via semantic search, then expands to show relationships. ' +
-          'IMPORTANT: Use depth=1 for focused results, depth=2 can return many results. ' +
-          'Filter with relationship_types (e.g., ["imports"]) to reduce output. ' +
-          'Example: get_code_relationships({filepath: "src/auth.ts", depth: 1}) or get_code_relationships({query: "authentication", relationship_types: ["imports", "calls"]}).',
+        description: 'Use when you need to understand how files connect: what imports what, class hierarchies, function calls. ' +
+          'Helpful for: tracing dependencies before refactoring, understanding module structure, finding all callers of a function. ' +
+          'Start with a file path or search query. Use depth=1 (default) for direct connections, depth=2 for extended graph. ' +
+          'Filter with relationship_types: ["imports"], ["calls"], ["extends"] to focus results.',
         inputSchema: {
           filepath: z.string().optional().describe('Path to a single file to explore (use this OR filepaths OR query)'),
           filepaths: z.array(z.string()).optional().describe('Array of file paths to explore relationships between'),
