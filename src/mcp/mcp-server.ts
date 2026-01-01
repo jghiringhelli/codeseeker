@@ -349,14 +349,15 @@ export class CodeMindMcpServer {
     this.server.registerTool(
       'get_code_relationships',
       {
-        description: 'Use when you need to understand how files connect: what imports what, class hierarchies, function calls. ' +
-          'Helpful for: tracing dependencies before refactoring, understanding module structure, finding all callers of a function. ' +
-          'Start with a file path or search query. Use depth=1 (default) for direct connections, depth=2 for extended graph. ' +
+        description: 'Explore how files connect: imports, class hierarchies, function calls. ' +
+          'RECOMMENDED: Use search_code first to find relevant files, then pass those paths here via filepaths parameter. ' +
+          'This avoids duplicate searches and gives you control over entry points. ' +
+          'Use depth=1 for direct connections, depth=2 for extended graph. ' +
           'Filter with relationship_types: ["imports"], ["calls"], ["extends"] to focus results.',
         inputSchema: {
-          filepath: z.string().optional().describe('Path to a single file to explore (use this OR filepaths OR query)'),
-          filepaths: z.array(z.string()).optional().describe('Array of file paths to explore relationships between'),
-          query: z.string().optional().describe('Semantic search query to find seed files automatically'),
+          filepath: z.string().optional().describe('Single file path to explore (prefer filepaths for multiple)'),
+          filepaths: z.array(z.string()).optional().describe('PREFERRED: Array of file paths from search_code results'),
+          query: z.string().optional().describe('Fallback: semantic search to find seed files (prefer using filepaths from search_code)'),
           depth: z.number().optional().default(1).describe('How many relationship hops to traverse (1-3, default: 1). Use 1 for focused results, 2+ can return many nodes.'),
           relationship_types: z.array(z.enum([
             'imports', 'exports', 'calls', 'extends', 'implements', 'contains', 'uses', 'depends_on'
@@ -434,8 +435,14 @@ export class CodeMindMcpServer {
             };
           }
 
-          // Find all nodes for this project
+          // Find all nodes for this project and get graph stats
           const allNodes = await graphStore.findNodes(projectId);
+          const graphStats = {
+            total_nodes: allNodes.length,
+            file_nodes: allNodes.filter(n => n.type === 'file').length,
+            class_nodes: allNodes.filter(n => n.type === 'class').length,
+            function_nodes: allNodes.filter(n => n.type === 'function' || n.type === 'method').length,
+          };
 
           // Find starting nodes using flexible path matching (like CLI's GraphAnalysisService)
           const startNodes = allNodes.filter(n => {
@@ -552,6 +559,7 @@ export class CodeMindMcpServer {
 
           // Create a summary
           const summary: Record<string, any> = {
+            graph_stats: graphStats,
             seed_files: startNodes.map(n => ({
               name: n.name,
               type: n.type,
@@ -586,9 +594,16 @@ export class CodeMindMcpServer {
             }),
           };
 
-          // Add truncation warning if results were limited
+          // Add truncation warning and recommendations if results were limited
           if (truncated) {
-            summary.warning = `Results truncated at ${max_nodes} nodes. Use a larger max_nodes value, filter with relationship_types, or reduce depth for more complete results.`;
+            summary.truncated_warning = {
+              message: `Results truncated at ${max_nodes} nodes.`,
+              recommendations: [
+                relationship_types ? null : 'Add relationship_types filter (e.g., ["imports"])',
+                depth > 1 ? 'Reduce depth to 1' : null,
+                `Increase max_nodes (current: ${max_nodes})`,
+              ].filter(Boolean),
+            };
           }
 
           return {
