@@ -307,11 +307,11 @@ export class CodeMindMcpServer {
     this.server.registerTool(
       'find_and_read',
       {
-        description: 'Search for code AND read file contents in one call. ' +
-          'Saves a round-trip when you need to find something and immediately read it. ' +
-          'Returns the full content of the top matching file(s) with line numbers. ' +
-          'Use this instead of search_code + Read when you want to immediately view the found code. ' +
-          'Example: find_and_read({query: "authentication middleware"}) finds and returns the auth code.',
+        description: 'USE THIS when you need to find AND read code in one step. ' +
+          'Combines search_code + Read into a single call - saves a round-trip. ' +
+          'Returns full file content with line numbers, ready for analysis or editing. ' +
+          'Best for: "show me the authentication code", "find the validation logic". ' +
+          'Use search_code instead if you only need file paths without content.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
           project: z.string().optional().describe('Project path (optional - auto-detects from indexed projects if omitted)'),
