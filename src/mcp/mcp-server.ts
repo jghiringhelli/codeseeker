@@ -81,6 +81,7 @@ export class CodeMindMcpServer {
    */
   private registerTools(): void {
     this.registerSearchCodeTool();
+    this.registerFindAndReadTool();
     this.registerGetFileContextTool();
     this.registerGetCodeRelationshipsTool();
     this.registerListProjectsTool();
@@ -101,41 +102,78 @@ export class CodeMindMcpServer {
           'Better than grep/glob for: finding implementations ("user authentication"), locating related code across files, ' +
           'understanding how features work. Finds conceptually related code (e.g., "authentication" finds login, session, auth). ' +
           'Only use grep when you need exact string/regex patterns. ' +
+          'Returns absolute file paths ready for the Read tool. ' +
           'If not indexed, call index_project first.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
-          project: z.string().describe('Project path - typically the current working directory where you are working'),
+          project: z.string().optional().describe('Project path (optional - auto-detects from indexed projects if omitted)'),
           limit: z.number().optional().default(10).describe('Maximum results (default: 10)'),
           search_type: z.enum(['hybrid', 'fts', 'vector', 'graph']).optional().default('hybrid')
             .describe('Search method: hybrid (default), fts, vector, or graph'),
+          mode: z.enum(['full', 'exists']).optional().default('full')
+            .describe('Mode: "full" returns detailed results, "exists" returns quick summary (faster)'),
         },
       },
-      async ({ query, project, limit = 10, search_type = 'hybrid' }) => {
+      async ({ query, project, limit = 10, search_type = 'hybrid', mode = 'full' }) => {
         try {
           // Get storage manager
           const storageManager = await getStorageManager();
           const projectStore = storageManager.getProjectStore();
-
-          // Resolve project path - try to find by name/path, or use as direct path
-          let projectPath: string;
           const projects = await projectStore.list();
-          const found = projects.find(p =>
-            p.name === project ||
-            p.path === project ||
-            path.basename(p.path) === project ||
-            path.resolve(project) === p.path
-          );
 
-          if (found) {
-            projectPath = found.path;
+          // Resolve project path - auto-detect if not provided
+          let projectPath: string;
+          let projectRecord: typeof projects[0] | undefined;
+
+          if (project) {
+            // Try to find by name/path
+            projectRecord = projects.find(p =>
+              p.name === project ||
+              p.path === project ||
+              path.basename(p.path) === project ||
+              path.resolve(project) === p.path
+            );
+
+            if (projectRecord) {
+              projectPath = projectRecord.path;
+            } else {
+              // Use provided path directly and try to find CodeMind project
+              projectPath = await this.findProjectPath(path.resolve(project));
+            }
           } else {
-            // Use provided path directly and try to find CodeMind project
-            projectPath = await this.findProjectPath(path.resolve(project));
+            // Auto-detect: try cwd first, then fall back to most recently indexed project
+            const cwd = process.cwd();
+            projectRecord = projects.find(p =>
+              p.path === cwd ||
+              cwd.startsWith(p.path + path.sep) ||
+              cwd.startsWith(p.path + '/')
+            );
+
+            if (projectRecord) {
+              projectPath = projectRecord.path;
+            } else if (projects.length > 0) {
+              // Use most recently updated project
+              const sorted = [...projects].sort((a, b) =>
+                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+              );
+              projectRecord = sorted[0];
+              projectPath = projectRecord.path;
+            } else {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: `No indexed projects found. Use index_project to index a project first.`,
+                }],
+                isError: true,
+              };
+            }
           }
 
           // Check if project is indexed by checking for embeddings
           const vectorStore = storageManager.getVectorStore();
-          const projectRecord = await projectStore.findByPath(projectPath);
+          if (!projectRecord) {
+            projectRecord = await projectStore.findByPath(projectPath);
+          }
 
           if (projectRecord) {
             // Quick check: does this project have any embeddings?
@@ -145,8 +183,8 @@ export class CodeMindMcpServer {
                 return {
                   content: [{
                     type: 'text' as const,
-                    text: `⚠️  Project found but not indexed.\n\n` +
-                      `ACTION REQUIRED: Call index_project tool now with path "${projectPath}", then retry this search.`,
+                    text: `⚠️  Project "${path.basename(projectPath)}" found but not indexed.\n\n` +
+                      `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry this search.`,
                   }],
                   isError: true,
                 };
@@ -156,8 +194,8 @@ export class CodeMindMcpServer {
               return {
                 content: [{
                   type: 'text' as const,
-                  text: `⚠️  Project needs indexing.\n\n` +
-                    `ACTION REQUIRED: Call index_project tool now with path "${projectPath}", then retry this search.`,
+                  text: `⚠️  Project "${path.basename(projectPath)}" needs indexing.\n\n` +
+                    `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry this search.`,
                 }],
                 isError: true,
               };
@@ -166,9 +204,23 @@ export class CodeMindMcpServer {
 
           // Perform search
           const results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
-          const limitedResults = results.slice(0, limit);
+          const limitedResults = results.slice(0, mode === 'exists' ? 5 : limit);
 
           if (limitedResults.length === 0) {
+            // For exists mode, return structured response
+            if (mode === 'exists') {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: JSON.stringify({
+                    exists: false,
+                    query,
+                    project: projectPath,
+                    message: 'No matching code found',
+                  }, null, 2),
+                }],
+              };
+            }
             return {
               content: [{
                 type: 'text' as const,
@@ -181,21 +233,52 @@ export class CodeMindMcpServer {
             };
           }
 
-          // Format results
-          const formattedResults = limitedResults.map((r, i) => ({
-            rank: i + 1,
-            filepath: r.file,
-            score: Math.round(r.similarity * 100) / 100,
-            type: r.type,
-            chunk: r.content.substring(0, 500) + (r.content.length > 500 ? '...' : ''),
-            lines: r.lineStart && r.lineEnd ? `${r.lineStart}-${r.lineEnd}` : undefined,
-          }));
+          // For exists mode, return quick summary
+          if (mode === 'exists') {
+            const topResult = limitedResults[0];
+            const absolutePath = path.isAbsolute(topResult.file)
+              ? topResult.file
+              : path.join(projectPath, topResult.file);
+
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  exists: true,
+                  query,
+                  project: projectPath,
+                  total_matches: results.length,
+                  top_file: absolutePath,
+                  top_score: Math.round(topResult.similarity * 100) / 100,
+                  hint: `Use Read tool with "${absolutePath}" to view the file`,
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Format full results with absolute paths
+          const formattedResults = limitedResults.map((r, i) => {
+            const absolutePath = path.isAbsolute(r.file)
+              ? r.file
+              : path.join(projectPath, r.file);
+
+            return {
+              rank: i + 1,
+              file: absolutePath,
+              relative_path: r.file,
+              score: Math.round(r.similarity * 100) / 100,
+              type: r.type,
+              chunk: r.content.substring(0, 500) + (r.content.length > 500 ? '...' : ''),
+              lines: r.lineStart && r.lineEnd ? `${r.lineStart}-${r.lineEnd}` : undefined,
+            };
+          });
 
           return {
             content: [{
               type: 'text' as const,
               text: JSON.stringify({
                 query,
+                project: projectPath,
                 total_results: limitedResults.length,
                 search_type,
                 results: formattedResults,
@@ -218,7 +301,232 @@ export class CodeMindMcpServer {
   }
 
   /**
-   * Tool 2: Get file with semantic context
+   * Tool 2: Find and read - combined search + read in one call
+   */
+  private registerFindAndReadTool(): void {
+    this.server.registerTool(
+      'find_and_read',
+      {
+        description: 'Search for code AND read file contents in one call. ' +
+          'Saves a round-trip when you need to find something and immediately read it. ' +
+          'Returns the full content of the top matching file(s) with line numbers. ' +
+          'Use this instead of search_code + Read when you want to immediately view the found code. ' +
+          'Example: find_and_read({query: "authentication middleware"}) finds and returns the auth code.',
+        inputSchema: {
+          query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
+          project: z.string().optional().describe('Project path (optional - auto-detects from indexed projects if omitted)'),
+          max_files: z.number().optional().default(1).describe('Maximum files to read (default: 1, max: 3)'),
+          max_lines: z.number().optional().default(500).describe('Maximum lines per file (default: 500, max: 1000)'),
+        },
+      },
+      async ({ query, project, max_files = 1, max_lines = 500 }) => {
+        try {
+          // Cap the limits
+          const fileLimit = Math.min(max_files, 3);
+          const lineLimit = Math.min(max_lines, 1000);
+
+          // Get storage manager
+          const storageManager = await getStorageManager();
+          const projectStore = storageManager.getProjectStore();
+          const projects = await projectStore.list();
+
+          // Resolve project path - auto-detect if not provided
+          let projectPath: string;
+          let projectRecord: typeof projects[0] | undefined;
+
+          if (project) {
+            // Try to find by name/path
+            projectRecord = projects.find(p =>
+              p.name === project ||
+              p.path === project ||
+              path.basename(p.path) === project ||
+              path.resolve(project) === p.path
+            );
+
+            if (projectRecord) {
+              projectPath = projectRecord.path;
+            } else {
+              projectPath = await this.findProjectPath(path.resolve(project));
+            }
+          } else {
+            // Auto-detect: try cwd first, then fall back to most recently indexed project
+            const cwd = process.cwd();
+            projectRecord = projects.find(p =>
+              p.path === cwd ||
+              cwd.startsWith(p.path + path.sep) ||
+              cwd.startsWith(p.path + '/')
+            );
+
+            if (projectRecord) {
+              projectPath = projectRecord.path;
+            } else if (projects.length > 0) {
+              // Use most recently updated project
+              const sorted = [...projects].sort((a, b) =>
+                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+              );
+              projectRecord = sorted[0];
+              projectPath = projectRecord.path;
+            } else {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: `No indexed projects found. Use index_project to index a project first.`,
+                }],
+                isError: true,
+              };
+            }
+          }
+
+          // Check if project is indexed
+          const vectorStore = storageManager.getVectorStore();
+          if (!projectRecord) {
+            projectRecord = await projectStore.findByPath(projectPath);
+          }
+
+          if (projectRecord) {
+            try {
+              const testResults = await vectorStore.searchByText('test', projectRecord.id, 1);
+              if (!testResults || testResults.length === 0) {
+                return {
+                  content: [{
+                    type: 'text' as const,
+                    text: `⚠️  Project "${path.basename(projectPath)}" found but not indexed.\n\n` +
+                      `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry.`,
+                  }],
+                  isError: true,
+                };
+              }
+            } catch {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: `⚠️  Project "${path.basename(projectPath)}" needs indexing.\n\n` +
+                    `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry.`,
+                }],
+                isError: true,
+              };
+            }
+          }
+
+          // Perform search
+          const results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
+
+          if (results.length === 0) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  query,
+                  project: projectPath,
+                  found: false,
+                  message: 'No matching code found. Try different search terms.',
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Get unique files (a search may return multiple chunks from the same file)
+          const seenFiles = new Set<string>();
+          const uniqueResults: typeof results = [];
+          for (const r of results) {
+            const normalizedPath = r.file.replace(/\\/g, '/');
+            if (!seenFiles.has(normalizedPath)) {
+              seenFiles.add(normalizedPath);
+              uniqueResults.push(r);
+              if (uniqueResults.length >= fileLimit) break;
+            }
+          }
+
+          // Read each file
+          const files: Array<{
+            file: string;
+            relative_path: string;
+            score: number;
+            match_type: string;
+            line_count: number;
+            content: string;
+            truncated: boolean;
+          }> = [];
+
+          for (const result of uniqueResults) {
+            const absolutePath = path.isAbsolute(result.file)
+              ? result.file
+              : path.join(projectPath, result.file);
+
+            try {
+              if (!fs.existsSync(absolutePath)) {
+                continue;
+              }
+
+              const content = fs.readFileSync(absolutePath, 'utf-8');
+              const lines = content.split('\n');
+              const truncated = lines.length > lineLimit;
+              const displayLines = truncated ? lines.slice(0, lineLimit) : lines;
+
+              // Add line numbers
+              const numberedContent = displayLines
+                .map((line, i) => `${String(i + 1).padStart(4)}│ ${line}`)
+                .join('\n');
+
+              files.push({
+                file: absolutePath,
+                relative_path: result.file,
+                score: Math.round(result.similarity * 100) / 100,
+                match_type: result.type,
+                line_count: lines.length,
+                content: numberedContent + (truncated ? `\n... (truncated at ${lineLimit} lines)` : ''),
+                truncated,
+              });
+            } catch (err) {
+              // Skip files we can't read
+              continue;
+            }
+          }
+
+          if (files.length === 0) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  query,
+                  project: projectPath,
+                  found: true,
+                  readable: false,
+                  message: 'Found matching files but could not read them.',
+                }, null, 2),
+              }],
+            };
+          }
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({
+                query,
+                project: projectPath,
+                files_found: results.length,
+                files_returned: files.length,
+                results: files,
+              }, null, 2),
+            }],
+          };
+
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Find and read failed: ${message}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+  }
+
+  /**
+   * Tool 3: Get file with semantic context
    */
   private registerGetFileContextTool(): void {
     this.server.registerTool(
