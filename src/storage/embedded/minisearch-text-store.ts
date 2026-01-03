@@ -37,6 +37,8 @@ export class MiniSearchTextStore implements ITextStore {
   private isDirty = false;
   private flushTimer: NodeJS.Timeout | null = null;
   private documentMap: Map<string, TextDocument> = new Map();
+  private isLoaded = false;
+  private loadPromise: Promise<void> | null = null;
 
   constructor(
     private dataDir: string,
@@ -54,8 +56,30 @@ export class MiniSearchTextStore implements ITextStore {
 
     this.initializeSchema();
     this.miniSearch = this.createMiniSearch();
-    this.loadFromDatabase();
+    // LAZY LOADING: Don't load documents on startup - defer until first search
+    // This prevents MCP server timeout during initialization
     this.startFlushTimer();
+  }
+
+  /**
+   * Ensure documents are loaded before search operations
+   * Uses lazy loading to avoid blocking MCP server startup
+   */
+  private async ensureLoaded(): Promise<void> {
+    if (this.isLoaded) return;
+
+    // Prevent concurrent loading
+    if (this.loadPromise) {
+      return this.loadPromise;
+    }
+
+    this.loadPromise = new Promise<void>((resolve) => {
+      this.loadFromDatabase();
+      this.isLoaded = true;
+      resolve();
+    });
+
+    return this.loadPromise;
   }
 
   /**
@@ -292,6 +316,9 @@ export class MiniSearchTextStore implements ITextStore {
   }
 
   async search(query: string, projectId: string, limit = 10): Promise<TextSearchResult[]> {
+    // Ensure documents are loaded (lazy loading for fast MCP startup)
+    await this.ensureLoaded();
+
     // Tokenize query for matched terms tracking
     const queryTokens = this.tokenize(query);
 
@@ -326,6 +353,9 @@ export class MiniSearchTextStore implements ITextStore {
   }
 
   async searchWithSynonyms(query: string, projectId: string, limit = 10): Promise<TextSearchResult[]> {
+    // Ensure documents are loaded (lazy loading for fast MCP startup)
+    await this.ensureLoaded();
+
     // Expand query with synonyms
     const { expandedQuery, synonymsApplied } = this.expandQueryWithSynonyms(query, projectId);
 

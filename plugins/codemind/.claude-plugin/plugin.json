@@ -1,6 +1,6 @@
 {
   "name": "codemind",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "CodeMind - Intelligent code understanding with semantic search, knowledge graphs, and auto-detected coding standards",
   "author": {
     "name": "CodeMind Team",
