@@ -58,8 +58,11 @@ export interface IVectorStore {
   /** Delete a specific document */
   delete(id: string): Promise<boolean>;
 
-  /** Get document count for a project */
+  /** Get document/chunk count for a project */
   count(projectId: string): Promise<number>;
+
+  /** Get unique file count for a project */
+  countFiles(projectId: string): Promise<number>;
 
   /** Persist to disk (for embedded mode) */
   flush(): Promise<void>;

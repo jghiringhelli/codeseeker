@@ -964,14 +964,16 @@ export class CodeMindMcpServer {
             };
           }
 
-          // Get document counts for each project
+          // Get file and chunk counts for each project
           const projectsWithCounts = await Promise.all(
             projects.map(async (p) => {
-              const count = await vectorStore.count(p.id);
+              const fileCount = await vectorStore.countFiles(p.id);
+              const chunkCount = await vectorStore.count(p.id);
               return {
                 name: p.name,
                 path: p.path,
-                file_count: count,
+                files: fileCount,
+                chunks: chunkCount,
                 last_indexed: p.updatedAt.toISOString(),
               };
             })
