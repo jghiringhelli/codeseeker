@@ -295,6 +295,16 @@ export class PostgresVectorStore implements IVectorStore {
     return parseInt(result.rows[0].count, 10);
   }
 
+  async countFiles(projectId: string): Promise<number> {
+    await this.initialize();
+
+    const result = await this.pool.query(
+      'SELECT COUNT(DISTINCT file_path) as count FROM vector_documents WHERE project_id = $1',
+      [projectId]
+    );
+    return parseInt(result.rows[0].count, 10);
+  }
+
   async flush(): Promise<void> {
     // No-op for PostgreSQL (writes are immediate)
   }

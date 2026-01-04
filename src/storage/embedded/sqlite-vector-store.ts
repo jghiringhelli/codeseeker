@@ -457,6 +457,12 @@ export class SQLiteVectorStore implements IVectorStore {
     return result.count;
   }
 
+  async countFiles(projectId: string): Promise<number> {
+    const stmt = this.db.prepare('SELECT COUNT(DISTINCT file_path) as count FROM documents WHERE project_id = ?');
+    const result = stmt.get(projectId) as { count: number };
+    return result.count;
+  }
+
   async flush(): Promise<void> {
     // SQLite with WAL mode auto-persists, but we can checkpoint
     this.db.pragma('wal_checkpoint(PASSIVE)');
