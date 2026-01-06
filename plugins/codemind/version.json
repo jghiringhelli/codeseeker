@@ -1,6 +1,6 @@
 {
-  "version": "1.2.2",
-  "releaseDate": "2026-01-03",
+  "version": "1.2.3",
+  "releaseDate": "2026-01-04",
   "minCliVersion": "1.0.1",
   "changelog": "https://github.com/jghiringhelli/codemind/releases",
   "updateCommand": "/plugin uninstall codemind && /plugin install codemind@github:jghiringhelli/codemind#plugin"
