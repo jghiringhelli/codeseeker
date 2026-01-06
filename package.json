@@ -1,6 +1,6 @@
 {
   "name": "codemind-enhanced-cli",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "description": "Smart Claude Code CLI with intelligent tool selection, token optimization, and real-time quality monitoring",
   "main": "dist/index.js",
   "bin": {

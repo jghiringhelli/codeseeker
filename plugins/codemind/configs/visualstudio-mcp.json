@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "codemind": {
+      "command": "node",
+      "args": ["%USERPROFILE%\\.codemind\\node_modules\\codemind-enhanced-cli\\dist\\cli\\cli.js", "serve", "--mcp"],
+      "env": {}
+    }
+  }
+}
