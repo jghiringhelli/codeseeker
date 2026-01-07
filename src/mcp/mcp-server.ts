@@ -1294,6 +1294,7 @@ export class CodeMindMcpServer {
           let chunksCreated = 0;
           let chunksDeleted = 0;
           let filesProcessed = 0;
+          let filesSkipped = 0;
           const errors: string[] = [];
 
           for (const change of changes) {
@@ -1311,10 +1312,15 @@ export class CodeMindMcpServer {
                 }
               } else {
                 // created or modified: re-index the file using IndexingService
+                // Uses two-stage change detection: mtime (~0.1ms) then hash (~1-5ms)
                 const result = await this.indexingService.indexSingleFile(found.path, relativePath, found.id);
                 if (result.success) {
-                  chunksCreated += result.chunksCreated;
-                  filesProcessed++;
+                  if (result.skipped) {
+                    filesSkipped++;
+                  } else {
+                    chunksCreated += result.chunksCreated;
+                    filesProcessed++;
+                  }
                 }
               }
             } catch (error) {
@@ -1343,10 +1349,12 @@ export class CodeMindMcpServer {
                 mode: 'incremental',
                 project: found.name,
                 changes_processed: changes.length,
-                files_processed: filesProcessed,
+                files_reindexed: filesProcessed,
+                files_skipped: filesSkipped > 0 ? filesSkipped : undefined,
                 chunks_created: chunksCreated,
                 chunks_deleted: chunksDeleted,
                 duration_ms: duration,
+                note: filesSkipped > 0 ? `${filesSkipped} file(s) unchanged (skipped via mtime/hash check)` : undefined,
                 errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
               }, null, 2),
             }],

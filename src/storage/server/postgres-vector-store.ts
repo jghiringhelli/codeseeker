@@ -305,6 +305,32 @@ export class PostgresVectorStore implements IVectorStore {
     return parseInt(result.rows[0].count, 10);
   }
 
+  async getFileMetadata(projectId: string, filePath: string): Promise<{ fileHash: string; indexedAt: string } | null> {
+    await this.initialize();
+
+    // Fast indexed query to get file metadata from first chunk
+    const result = await this.pool.query(
+      `SELECT metadata FROM vector_documents
+       WHERE project_id = $1 AND file_path = $2
+       LIMIT 1`,
+      [projectId, filePath]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].metadata) {
+      return null;
+    }
+
+    try {
+      const metadata = result.rows[0].metadata;
+      if (metadata.fileHash && metadata.indexedAt) {
+        return { fileHash: metadata.fileHash, indexedAt: metadata.indexedAt };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   async flush(): Promise<void> {
     // No-op for PostgreSQL (writes are immediate)
   }

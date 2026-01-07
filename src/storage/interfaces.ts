@@ -64,6 +64,9 @@ export interface IVectorStore {
   /** Get unique file count for a project */
   countFiles(projectId: string): Promise<number>;
 
+  /** Get stored file metadata for change detection (hash + mtime) */
+  getFileMetadata(projectId: string, filePath: string): Promise<{ fileHash: string; indexedAt: string } | null>;
+
   /** Persist to disk (for embedded mode) */
   flush(): Promise<void>;
 
