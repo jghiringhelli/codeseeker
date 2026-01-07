@@ -2,15 +2,26 @@
 
 CodeMind provides semantic code search and understanding via the Model Context Protocol (MCP). This allows AI assistants in various IDEs to use CodeMind's powerful code analysis capabilities.
 
-## Supported IDEs
+## Who Needs This?
 
-| IDE | Config File Location | Status |
-|-----|---------------------|--------|
-| VS Code + GitHub Copilot | `.vscode/mcp.json` | ✅ Supported |
-| Cursor | `.cursor/mcp.json` or `~/.cursor/mcp.json` | ✅ Supported |
-| Visual Studio | `.vs/mcp.json` or `%USERPROFILE%\.mcp.json` | ✅ Supported |
-| Windsurf | Similar to Cursor | ✅ Supported |
-| JetBrains IDEs | MCP plugin required | ⚠️ Varies |
+**Already using Claude Code?** You don't need these configs! Claude Code (CLI or VS Code extension) has built-in MCP support. Install CodeMind as a plugin with `/plugin install codemind@github:jghiringhelli/codemind#plugin` and you're done.
+
+**Using other AI assistants?** These configs let you add CodeMind to GitHub Copilot, Cursor, and other MCP-compatible tools.
+
+## Supported IDEs and AI Assistants
+
+| IDE | AI Assistant | Config Location | Notes |
+|-----|--------------|-----------------|-------|
+| VS Code | Claude Code Extension | Built-in | Use `/plugin install` - no config needed |
+| VS Code | GitHub Copilot | `.vscode/mcp.json` | Requires MCP config below |
+| Cursor | Cursor AI | `.cursor/mcp.json` | Requires MCP config below |
+| Visual Studio | GitHub Copilot | `.vs/mcp.json` | Full IDE (not VS Code) |
+| Windsurf | Windsurf AI | `.windsurf/mcp.json` | Similar to Cursor |
+| JetBrains | Various | Plugin required | ⚠️ Varies by IDE |
+
+**VS Code vs Visual Studio:** These are different products!
+- **VS Code** = Lightweight cross-platform editor (Windows/Mac/Linux)
+- **Visual Studio** = Full Windows IDE for .NET/C++/C# development
 
 ## Prerequisites
 
