@@ -1150,13 +1150,13 @@ export class CodeMindMcpServer {
     this.server.registerTool(
       'notify_file_changes',
       {
-        description: 'Update the search index after modifying files. ' +
-          'Keeps semantic search and knowledge graph current with changes to code, docs, or configs. ' +
-          'Call after creating, editing, or deleting files to ensure search results reflect the latest content. ' +
-          'Example: notify_file_changes({project: "my-app", changes: [{type: "modified", path: "src/auth.ts"}]}). ' +
-          'For large changes (git pull, branch switch), use full_reindex: true.',
+        description: '**KEEP INDEX IN SYNC** - Call this after creating, editing, or deleting files. ' +
+          'IMPORTANT: If search_code returns stale results or grep finds content not in search results, ' +
+          'call this tool immediately to sync. Fast incremental updates (~100-500ms per file). ' +
+          'Use after: Edit/Write tool, file deletions, or when search results seem outdated. ' +
+          'For large changes (git pull, branch switch, many files), use full_reindex: true instead.',
         inputSchema: {
-          project: z.string().describe('Project name or path'),
+          project: z.string().optional().describe('Project name or path (optional - auto-detects from indexed projects)'),
           changes: z.array(z.object({
             type: z.enum(['created', 'modified', 'deleted']),
             path: z.string().describe('Path to the changed file'),
@@ -1165,7 +1165,7 @@ export class CodeMindMcpServer {
             .describe('Trigger a complete re-index of the project. Use after git pull, branch switch, or major changes.'),
         },
       },
-      async ({ project, changes, full_reindex = false }) => {
+      async ({ project, changes, full_reindex = false }: { project?: string; changes?: Array<{type: 'created' | 'modified' | 'deleted'; path: string}>; full_reindex?: boolean }) => {
         try {
           const startTime = Date.now();
 
@@ -1176,17 +1176,37 @@ export class CodeMindMcpServer {
           const graphStore = storageManager.getGraphStore();
 
           const projects = await projectStore.list();
-          const found = projects.find(p =>
-            p.name === project ||
-            p.path === project ||
-            path.basename(p.path) === project
-          );
+
+          // Auto-detect project if not provided
+          let found: typeof projects[0] | undefined;
+          if (project) {
+            found = projects.find(p =>
+              p.name === project ||
+              p.path === project ||
+              path.basename(p.path) === project ||
+              path.resolve(project) === p.path
+            );
+          } else {
+            // Try to find project from file paths in changes
+            if (changes && changes.length > 0) {
+              const firstPath = changes[0].path;
+              if (path.isAbsolute(firstPath)) {
+                found = projects.find(p => firstPath.startsWith(p.path));
+              }
+            }
+            // If still not found, use single project if only one exists
+            if (!found && projects.length === 1) {
+              found = projects[0];
+            }
+          }
 
           if (!found) {
             return {
               content: [{
                 type: 'text' as const,
-                text: `Project not found: ${project}. Use list_projects to see available projects.`,
+                text: project
+                  ? `Project not found: ${project}. Use list_projects to see available projects.`
+                  : `Could not auto-detect project. Specify project name or use absolute paths in changes. Available: ${projects.map(p => p.name).join(', ')}`,
               }],
               isError: true,
             };
