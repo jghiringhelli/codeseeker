@@ -463,6 +463,33 @@ export class SQLiteVectorStore implements IVectorStore {
     return result.count;
   }
 
+  async getFileMetadata(projectId: string, filePath: string): Promise<{ fileHash: string; indexedAt: string } | null> {
+    // Fast indexed query to get file metadata from first chunk
+    // Returns hash + indexedAt for two-stage change detection:
+    // 1. Quick mtime check (~0.1ms) - if file mtime <= indexedAt, skip
+    // 2. Hash check only if mtime changed (~1-5ms)
+    const stmt = this.db.prepare(`
+      SELECT metadata FROM documents
+      WHERE project_id = ? AND file_path = ?
+      LIMIT 1
+    `);
+    const result = stmt.get(projectId, filePath) as { metadata: string | null } | undefined;
+
+    if (!result?.metadata) {
+      return null;
+    }
+
+    try {
+      const metadata = JSON.parse(result.metadata);
+      if (metadata.fileHash && metadata.indexedAt) {
+        return { fileHash: metadata.fileHash, indexedAt: metadata.indexedAt };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   async flush(): Promise<void> {
     // SQLite with WAL mode auto-persists, but we can checkpoint
     this.db.pragma('wal_checkpoint(PASSIVE)');

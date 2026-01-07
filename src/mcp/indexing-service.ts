@@ -259,12 +259,17 @@ export class IndexingService {
 
   /**
    * Index a single file (for incremental updates)
+   * Uses two-stage change detection for maximum speed:
+   * 1. mtime check (~0.1ms) - if file not modified since indexing, skip
+   * 2. hash check (~1-5ms) - if mtime changed but content same, skip
+   * 3. reindex (~100-500ms) - only if content actually changed
    */
   async indexSingleFile(
     projectPath: string,
     relativePath: string,
-    projectId: string
-  ): Promise<{ success: boolean; chunksCreated: number; nodesCreated?: number }> {
+    projectId: string,
+    options?: { forceReindex?: boolean }
+  ): Promise<{ success: boolean; chunksCreated: number; nodesCreated?: number; skipped?: boolean; skipReason?: string }> {
     try {
       const storageManager = await getStorageManager();
       const vectorStore = storageManager.getVectorStore();
@@ -272,7 +277,34 @@ export class IndexingService {
 
       const absolutePath = path.join(projectPath, relativePath);
 
-      // Delete existing embeddings for this file
+      // Two-stage change detection (unless forced)
+      if (!options?.forceReindex) {
+        // Stage 1: Fast mtime check (~0.1ms)
+        const stats = fs.statSync(absolutePath);
+        const fileMtime = stats.mtime;
+
+        const storedMetadata = await vectorStore.getFileMetadata(projectId, relativePath);
+        if (storedMetadata) {
+          const indexedAt = new Date(storedMetadata.indexedAt);
+
+          // If file hasn't been modified since indexing, skip entirely
+          if (fileMtime <= indexedAt) {
+            this.logger.debug(`Skipping ${relativePath} - mtime unchanged`);
+            return { success: true, chunksCreated: 0, skipped: true, skipReason: 'mtime' };
+          }
+
+          // Stage 2: mtime changed, check hash (~1-5ms)
+          const content = fs.readFileSync(absolutePath, 'utf-8');
+          const currentHash = crypto.createHash('md5').update(content).digest('hex');
+
+          if (storedMetadata.fileHash === currentHash) {
+            this.logger.debug(`Skipping ${relativePath} - content unchanged (hash match)`);
+            return { success: true, chunksCreated: 0, skipped: true, skipReason: 'hash' };
+          }
+        }
+      }
+
+      // File changed or new - delete existing embeddings and reindex
       await this.deleteFileEmbeddings(projectId, relativePath, vectorStore);
 
       // Re-index the file for vector search
@@ -294,7 +326,7 @@ export class IndexingService {
       await vectorStore.flush();
       await graphStore.flush();
 
-      return { success: true, chunksCreated, nodesCreated };
+      return { success: true, chunksCreated, nodesCreated, skipped: false };
     } catch (error) {
       this.logger.debug(`Failed to index ${relativePath}: ${error}`);
       return { success: false, chunksCreated: 0 };
