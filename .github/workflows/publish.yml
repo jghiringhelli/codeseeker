@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write  # Required for npm provenance
+      id-token: write  # Required for OIDC trusted publishing
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +26,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish to npm with provenance
+      - name: Publish to npm with OIDC trusted publishing
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Note: No NODE_AUTH_TOKEN needed - uses OIDC trusted publishing
+        # Configure trusted publisher at: https://www.npmjs.com/package/codeseeker/access
