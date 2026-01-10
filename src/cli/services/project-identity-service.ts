@@ -7,13 +7,14 @@
  * - Project move detection and handling
  * - Duplicate cleanup
  * - Registry management
+ * - Storage-mode aware (embedded SQLite or server PostgreSQL)
  */
 
 import * as crypto from 'crypto';
 import * as path from 'path';
-import { Client } from 'pg';
-import { DatabaseConnections } from '../../config/database-config';
 import { Logger } from '../../utils/logger';
+import { getStorageProvider, loadStorageConfig } from '../../storage/storage-provider';
+import { IProjectStore, Project, StorageMode } from '../../storage/interfaces';
 
 // CodeSeeker namespace for UUID v5 generation (deterministic)
 const CODESEEKER_NAMESPACE = 'codeseeker-project-identity';
@@ -49,12 +50,25 @@ export interface DuplicateCleanupResult {
 }
 
 export class ProjectIdentityService {
-  private dbConnections: DatabaseConnections;
   private logger: Logger;
+  private projectStore: IProjectStore | null = null;
+  private storageMode: StorageMode;
 
   constructor() {
-    this.dbConnections = new DatabaseConnections();
     this.logger = Logger.getInstance().child('ProjectIdentity');
+    const config = loadStorageConfig();
+    this.storageMode = config.mode;
+  }
+
+  /**
+   * Get or initialize the project store
+   */
+  private async getProjectStore(): Promise<IProjectStore> {
+    if (!this.projectStore) {
+      const storage = await getStorageProvider();
+      this.projectStore = storage.getProjectStore();
+    }
+    return this.projectStore;
   }
 
   /**
@@ -102,48 +116,57 @@ export class ProjectIdentityService {
     const resolvedName = projectName || baseName;
 
     try {
-      const client = await this.dbConnections.getPostgresConnection();
+      const store = await this.getProjectStore();
 
       // Step 1: Check if project exists by deterministic ID
-      const byId = await this.findProjectById(client, deterministicId);
+      const byId = await store.findById(deterministicId);
       if (byId) {
-        // Update last seen
-        await this.updateLastSeen(client, deterministicId);
+        // Update last seen (touch the project)
+        await store.upsert({
+          id: byId.id,
+          name: byId.name,
+          path: byId.path,
+          metadata: byId.metadata
+        });
 
         // Check if path changed (project was moved)
-        if (this.normalizePath(byId.currentPath) !== normalizedPath) {
+        if (this.normalizePath(byId.path) !== normalizedPath) {
           return {
-            identity: { ...byId, currentPath: projectPath },
+            identity: this.projectToIdentity(byId, projectPath),
             action: 'update_path',
-            message: `Project "${byId.projectName}" appears to have moved from ${byId.currentPath} to ${projectPath}`
+            message: `Project "${byId.name}" appears to have moved from ${byId.path} to ${projectPath}`
           };
         }
 
         return {
-          identity: byId,
+          identity: this.projectToIdentity(byId),
           action: 'use_existing',
-          message: `Using existing project: ${byId.projectName} (${deterministicId})`
+          message: `Using existing project: ${byId.name} (${deterministicId})`
         };
       }
 
-      // Step 2: Check for duplicates by path or similar name
-      const duplicates = await this.findDuplicates(client, normalizedPath, resolvedName);
+      // Step 2: Check for project by path (might have different ID from old indexing)
+      const byPath = await store.findByPath(projectPath);
+      if (byPath) {
+        return {
+          identity: this.projectToIdentity(byPath),
+          action: 'use_existing',
+          message: `Using existing project: ${byPath.name} (found by path)`
+        };
+      }
+
+      // Step 3: Check for projects with similar paths (for duplicate detection)
+      const allProjects = await store.list();
+      const duplicates = allProjects.filter(p =>
+        this.normalizePath(p.path) === normalizedPath && p.id !== deterministicId
+      );
+
       if (duplicates.length > 0) {
         return {
-          identity: duplicates[0],
+          identity: this.projectToIdentity(duplicates[0]),
           action: 'merge_duplicate',
-          message: `Found ${duplicates.length} existing project(s) for this path/name`,
-          duplicates
-        };
-      }
-
-      // Step 3: Check for projects that might have been moved to this location
-      const movedFrom = await this.findByAlias(client, normalizedPath);
-      if (movedFrom) {
-        return {
-          identity: movedFrom,
-          action: 'use_existing',
-          message: `Found project that was previously at this location: ${movedFrom.projectName}`
+          message: `Found ${duplicates.length} existing project(s) for this path`,
+          duplicates: duplicates.map(p => this.projectToIdentity(p))
         };
       }
 
@@ -164,11 +187,11 @@ export class ProjectIdentityService {
         action: 'create_new',
         message: `New project will be created: ${resolvedName} (${deterministicId})`
       };
-      // Note: Don't close the client - it's a shared/cached connection from DatabaseConnections
+
     } catch (error) {
       this.logger.error(`Failed to resolve project: ${error instanceof Error ? error.message : error}`);
 
-      // Fallback: return new identity without DB check
+      // Fallback: return new identity without storage check
       return {
         identity: {
           id: deterministicId,
@@ -181,9 +204,27 @@ export class ProjectIdentityService {
           lastSeen: new Date().toISOString()
         },
         action: 'create_new',
-        message: `Creating new project (database unavailable): ${resolvedName}`
+        message: `Creating new project (storage unavailable): ${resolvedName}`
       };
     }
+  }
+
+  /**
+   * Convert Project interface to ProjectIdentity
+   */
+  private projectToIdentity(project: Project, overridePath?: string): ProjectIdentity {
+    const metadata = (project.metadata || {}) as Record<string, unknown>;
+    return {
+      id: project.id,
+      projectName: project.name,
+      currentPath: overridePath || project.path,
+      originalPath: (metadata.originalPath as string) || project.path,
+      aliases: (metadata.aliases as string[]) || [],
+      status: (metadata.status as ProjectIdentity['status']) || 'active',
+      createdAt: project.createdAt.toISOString(),
+      lastSeen: project.updatedAt.toISOString(),
+      dataStats: metadata.dataStats as { embeddings: number; entities: number } | undefined
+    };
   }
 
   /**
@@ -191,24 +232,28 @@ export class ProjectIdentityService {
    */
   async updateProjectPath(projectId: string, newPath: string, oldPath: string): Promise<boolean> {
     try {
-      const client = await this.dbConnections.getPostgresConnection();
+      const store = await this.getProjectStore();
+      const existing = await store.findById(projectId);
 
-      // Update current path and add old path to aliases
-      await client.query(`
-        UPDATE projects
-        SET project_path = $1,
-            metadata = jsonb_set(
-              COALESCE(metadata, '{}')::jsonb,
-              '{aliases}',
-              COALESCE(metadata->'aliases', '[]')::jsonb || to_jsonb($2::text)
-            ),
-            updated_at = NOW()
-        WHERE id = $3
-      `, [newPath, oldPath, projectId]);
+      if (!existing) {
+        this.logger.warn(`Project not found for path update: ${projectId}`);
+        return false;
+      }
+
+      const metadata = (existing.metadata || {}) as Record<string, unknown>;
+      const aliases = (metadata.aliases as string[]) || [];
+      aliases.push(oldPath);
+
+      await store.upsert({
+        id: projectId,
+        name: existing.name,
+        path: newPath,
+        metadata: { ...metadata, aliases, originalPath: metadata.originalPath || oldPath }
+      });
 
       this.logger.info(`Updated project ${projectId} path: ${oldPath} -> ${newPath}`);
       return true;
-      // Note: Don't close the client - it's a shared/cached connection from DatabaseConnections
+
     } catch (error) {
       this.logger.error(`Failed to update project path: ${error instanceof Error ? error.message : error}`);
       return false;
@@ -230,102 +275,45 @@ export class ProjectIdentityService {
 
     const canonicalId = this.generateDeterministicId(projectPath);
     const normalizedPath = this.normalizePath(projectPath);
-    const baseName = path.basename(projectPath).toLowerCase();
 
     try {
-      const client = await this.dbConnections.getPostgresConnection();
+      const store = await this.getProjectStore();
+      const allProjects = await store.list();
 
-      // Find ALL projects with EXACT same normalized path (true duplicates only)
-      // This should NOT match ContractMaster-Test when cleaning up ContractMaster
-      const allMatchingResult = await client.query(`
-        SELECT id, project_name, project_path
-        FROM projects
-        WHERE LOWER(REPLACE(project_path, '\\', '/')) = $1
-        ORDER BY created_at ASC
-      `, [normalizedPath]);
+      // Find projects with exact same normalized path
+      const matchingProjects = allProjects.filter(p =>
+        this.normalizePath(p.path) === normalizedPath
+      );
 
-      if (allMatchingResult.rows.length <= 1) {
-        // 0 or 1 project - nothing to clean up
+      if (matchingProjects.length <= 1) {
         result.success = true;
-        result.projectsCleaned = 0;
         return result;
       }
 
-      this.logger.info(`Found ${allMatchingResult.rows.length} project(s) matching path`);
+      this.logger.info(`Found ${matchingProjects.length} project(s) matching path`);
 
-      // Check if canonical project already exists
-      const canonicalExists = allMatchingResult.rows.find(r => r.id === canonicalId);
-      const duplicateRows = allMatchingResult.rows.filter(r => r.id !== canonicalId);
-      const duplicateIds = duplicateRows.map(r => r.id);
+      // Keep the canonical one (or first if canonical doesn't exist)
+      const canonical = matchingProjects.find(p => p.id === canonicalId) || matchingProjects[0];
+      const duplicates = matchingProjects.filter(p => p.id !== canonical.id);
 
-      // Step 1: FIRST ensure canonical project exists (FK constraint requires this)
-      if (!canonicalExists) {
-        // Get first duplicate's name for the canonical entry
-        const projectName = duplicateRows[0]?.project_name || path.basename(projectPath);
-
-        // Use a temporary unique path to avoid unique constraint, will update later
-        const tempPath = `${projectPath}_canonical_temp_${Date.now()}`;
-        await client.query(`
-          INSERT INTO projects (id, project_name, project_path, created_at, updated_at)
-          VALUES ($1, $2, $3, NOW(), NOW())
-          ON CONFLICT (id) DO NOTHING
-        `, [canonicalId, projectName, tempPath]);
-
-        this.logger.info(`Created canonical project entry: ${canonicalId}`);
+      // Delete duplicates
+      for (const dup of duplicates) {
+        const deleted = await store.delete(dup.id);
+        if (deleted) {
+          result.projectsCleaned++;
+        }
       }
 
-      // Step 2: Migrate embeddings - handle duplicates by keeping the one with most recent data
-      // First, delete embeddings from duplicates that would conflict with canonical
-      for (const dupId of duplicateIds) {
-        // Delete duplicate embeddings that already exist in canonical
-        await client.query(`
-          DELETE FROM semantic_search_embeddings dup
-          WHERE dup.project_id = $1
-            AND EXISTS (
-              SELECT 1 FROM semantic_search_embeddings canon
-              WHERE canon.project_id = $2
-                AND canon.file_path = dup.file_path
-                AND canon.chunk_index = dup.chunk_index
-            )
-        `, [dupId, canonicalId]);
-
-        // Now safely migrate remaining embeddings
-        const embeddingResult = await client.query(`
-          UPDATE semantic_search_embeddings
-          SET project_id = $1
-          WHERE project_id = $2
-          RETURNING id
-        `, [canonicalId, dupId]);
-
-        result.embeddingsMerged += embeddingResult.rowCount || 0;
-      }
-
-      // Step 3: Delete all duplicate project entries (not the canonical one)
-      if (duplicateIds.length > 0) {
-        const deleteResult = await client.query(`
-          DELETE FROM projects WHERE id = ANY($1)
-          RETURNING id
-        `, [duplicateIds]);
-
-        result.projectsCleaned = deleteResult.rowCount || 0;
-      }
-
-      // Step 4: Update canonical project with correct path (now that duplicates are gone)
-      await client.query(`
-        UPDATE projects SET project_path = $1, updated_at = NOW() WHERE id = $2
-      `, [projectPath, canonicalId]);
+      // Ensure canonical project exists with correct path
+      await store.upsert({
+        id: canonicalId,
+        name: canonical.name,
+        path: projectPath,
+        metadata: canonical.metadata
+      });
 
       result.success = true;
-
-      this.logger.info(`Cleanup complete: ${result.projectsCleaned} projects, ${result.embeddingsMerged} embeddings merged`);
-      // Note: Don't close the client - it's a shared/cached connection from DatabaseConnections
-
-      // Also clean up Neo4j
-      try {
-        await this.cleanupNeo4jDuplicates(canonicalId, projectPath);
-      } catch (error) {
-        result.errors.push(`Neo4j cleanup failed: ${error instanceof Error ? error.message : error}`);
-      }
+      this.logger.info(`Cleanup complete: ${result.projectsCleaned} duplicates removed`);
 
     } catch (error) {
       result.errors.push(`Cleanup failed: ${error instanceof Error ? error.message : error}`);
@@ -339,40 +327,11 @@ export class ProjectIdentityService {
    */
   async listProjects(): Promise<ProjectIdentity[]> {
     try {
-      const client = await this.dbConnections.getPostgresConnection();
+      const store = await this.getProjectStore();
+      const projects = await store.list();
 
-      const result = await client.query(`
-        SELECT
-          p.id,
-          p.project_name,
-          p.project_path as current_path,
-          COALESCE(p.metadata->>'originalPath', p.project_path) as original_path,
-          COALESCE(p.metadata->'aliases', '[]') as aliases,
-          COALESCE(p.metadata->>'status', 'active') as status,
-          p.created_at,
-          p.updated_at as last_seen,
-          COUNT(DISTINCT e.id) as embedding_count
-        FROM projects p
-        LEFT JOIN semantic_search_embeddings e ON p.id = e.project_id
-        GROUP BY p.id, p.project_name, p.project_path, p.metadata, p.created_at, p.updated_at
-        ORDER BY p.updated_at DESC
-      `);
+      return projects.map(p => this.projectToIdentity(p));
 
-      return result.rows.map(row => ({
-        id: row.id,
-        projectName: row.project_name,
-        currentPath: row.current_path,
-        originalPath: row.original_path,
-        aliases: row.aliases || [],
-        status: row.status as ProjectIdentity['status'],
-        createdAt: row.created_at?.toISOString() || new Date().toISOString(),
-        lastSeen: row.last_seen?.toISOString() || new Date().toISOString(),
-        dataStats: {
-          embeddings: parseInt(row.embedding_count) || 0,
-          entities: 0 // Would need Neo4j query
-        }
-      }));
-      // Note: Don't close the client - it's a shared/cached connection from DatabaseConnections
     } catch (error) {
       this.logger.error(`Failed to list projects: ${error instanceof Error ? error.message : error}`);
       return [];
@@ -380,158 +339,35 @@ export class ProjectIdentityService {
   }
 
   /**
-   * Find duplicates - projects with same path or very similar names
+   * Find duplicates - projects with same path
    */
   async findAllDuplicates(): Promise<Map<string, ProjectIdentity[]>> {
     const duplicateGroups = new Map<string, ProjectIdentity[]>();
 
     try {
-      const client = await this.dbConnections.getPostgresConnection();
+      const store = await this.getProjectStore();
+      const allProjects = await store.list();
 
-      // Find projects grouped by normalized path
-      const result = await client.query(`
-        SELECT
-          LOWER(REPLACE(project_path, '\\', '/')) as normalized_path,
-          array_agg(json_build_object(
-            'id', id,
-            'projectName', project_name,
-            'currentPath', project_path,
-            'createdAt', created_at
-          )) as projects,
-          COUNT(*) as count
-        FROM projects
-        GROUP BY LOWER(REPLACE(project_path, '\\', '/'))
-        HAVING COUNT(*) > 1
-      `);
-
-      for (const row of result.rows) {
-        duplicateGroups.set(row.normalized_path, row.projects);
+      // Group by normalized path
+      const pathGroups = new Map<string, Project[]>();
+      for (const project of allProjects) {
+        const normalizedPath = this.normalizePath(project.path);
+        const group = pathGroups.get(normalizedPath) || [];
+        group.push(project);
+        pathGroups.set(normalizedPath, group);
       }
-      // Note: Don't close the client - it's a shared/cached connection from DatabaseConnections
+
+      // Only keep groups with duplicates
+      for (const [normalizedPath, projects] of pathGroups) {
+        if (projects.length > 1) {
+          duplicateGroups.set(normalizedPath, projects.map(p => this.projectToIdentity(p)));
+        }
+      }
+
     } catch (error) {
       this.logger.error(`Failed to find duplicates: ${error instanceof Error ? error.message : error}`);
     }
 
     return duplicateGroups;
-  }
-
-  // Private helper methods
-
-  private async findProjectById(client: Client, projectId: string): Promise<ProjectIdentity | null> {
-    const result = await client.query(`
-      SELECT
-        id, project_name, project_path,
-        COALESCE(metadata->>'originalPath', project_path) as original_path,
-        COALESCE(metadata->'aliases', '[]') as aliases,
-        COALESCE(metadata->>'status', 'active') as status,
-        created_at, updated_at
-      FROM projects
-      WHERE id = $1
-    `, [projectId]);
-
-    if (result.rows.length === 0) return null;
-
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      projectName: row.project_name,
-      currentPath: row.project_path,
-      originalPath: row.original_path,
-      aliases: row.aliases || [],
-      status: row.status,
-      createdAt: row.created_at?.toISOString() || new Date().toISOString(),
-      lastSeen: row.updated_at?.toISOString() || new Date().toISOString()
-    };
-  }
-
-  private async findDuplicates(client: Client, normalizedPath: string, _projectName: string): Promise<ProjectIdentity[]> {
-    // Only find true duplicates: projects with EXACT same normalized path
-    // Do NOT match by name or partial path - different folders are different projects
-    const result = await client.query(`
-      SELECT
-        id, project_name, project_path,
-        COALESCE(metadata->>'originalPath', project_path) as original_path,
-        created_at, updated_at
-      FROM projects
-      WHERE LOWER(REPLACE(project_path, '\\', '/')) = $1
-    `, [normalizedPath]);
-
-    return result.rows.map(row => ({
-      id: row.id,
-      projectName: row.project_name,
-      currentPath: row.project_path,
-      originalPath: row.original_path,
-      aliases: [],
-      status: 'duplicate' as const,
-      createdAt: row.created_at?.toISOString() || new Date().toISOString(),
-      lastSeen: row.updated_at?.toISOString() || new Date().toISOString()
-    }));
-  }
-
-  private async findByAlias(client: Client, normalizedPath: string): Promise<ProjectIdentity | null> {
-    const result = await client.query(`
-      SELECT
-        id, project_name, project_path,
-        COALESCE(metadata->>'originalPath', project_path) as original_path,
-        COALESCE(metadata->'aliases', '[]') as aliases,
-        created_at, updated_at
-      FROM projects
-      WHERE metadata->'aliases' @> to_jsonb($1::text)
-    `, [normalizedPath]);
-
-    if (result.rows.length === 0) return null;
-
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      projectName: row.project_name,
-      currentPath: row.project_path,
-      originalPath: row.original_path,
-      aliases: row.aliases || [],
-      status: 'active',
-      createdAt: row.created_at?.toISOString() || new Date().toISOString(),
-      lastSeen: row.updated_at?.toISOString() || new Date().toISOString()
-    };
-  }
-
-  private async updateLastSeen(client: Client, projectId: string): Promise<void> {
-    await client.query(
-      'UPDATE projects SET updated_at = NOW() WHERE id = $1',
-      [projectId]
-    );
-  }
-
-  private async cleanupNeo4jDuplicates(canonicalId: string, projectPath: string): Promise<void> {
-    const driver = await this.dbConnections.getNeo4jConnection();
-    const session = driver.session();
-
-    try {
-      const baseName = path.basename(projectPath);
-
-      // Find duplicate project nodes
-      const duplicates = await session.run(`
-        MATCH (p:PROJECT)
-        WHERE p.path CONTAINS $baseName AND p.id <> $canonicalId
-        RETURN p.id as id
-      `, { baseName, canonicalId });
-
-      for (const record of duplicates.records) {
-        const dupId = record.get('id');
-
-        // Migrate entities to canonical project
-        await session.run(`
-          MATCH (e:ENTITY {projectId: $dupId})
-          SET e.projectId = $canonicalId
-        `, { dupId, canonicalId });
-
-        // Delete duplicate project node
-        await session.run(`
-          MATCH (p:PROJECT {id: $dupId})
-          DELETE p
-        `, { dupId });
-      }
-    } finally {
-      await session.close();
-    }
   }
 }
