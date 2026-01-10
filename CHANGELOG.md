@@ -5,6 +5,46 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-01-10
+
+### Breaking Changes
+
+- **Project Renamed**: CodeMind → CodeSeeker
+  - CLI command: `codemind` → `codeseeker`
+  - MCP server name: `codemind` → `codeseeker`
+  - Config directory: `.codemind/` → `.codeseeker/`
+  - Instruction file: `CODEMIND.md` → `CODESEEKER.md`
+  - npm package: `codemind-enhanced-cli` → `codeseeker-cli`
+
+### Added
+
+- **Install Command**: New `codeseeker install` for easy MCP configuration
+  - `codeseeker install --copilot` - VS Code + GitHub Copilot
+  - `codeseeker install --cursor` - Cursor IDE
+  - `codeseeker install --visual-studio` - Visual Studio
+  - `codeseeker install --windsurf` - Windsurf IDE
+  - `codeseeker install --global` - Install to user settings
+  - `codeseeker install --list` - List current configurations
+
+- **Unified MCP Guidance**: All AI agent instruction files now receive the same comprehensive MCP tool guidance
+  - CLAUDE.md is now treated as an agent instruction file
+  - Supports: AGENTS.md, .cursorrules, COPILOT.md, GEMINI.md, GROK.md, CODY.md, and more
+  - Single init step configures all detected agent files
+
+- **GitHub Actions**: Automated npm publishing with provenance on release
+
+### Changed
+
+- Streamlined init flow with unified agent file configuration step
+- Updated all documentation and references from CodeMind to CodeSeeker
+
+### Migration
+
+1. Uninstall old package: `npm uninstall -g codemind-enhanced-cli`
+2. Install new package: `npm install -g codeseeker-cli`
+3. Update MCP configs to use `codeseeker` instead of `codemind`
+4. Re-run init in your projects: `codeseeker init`
+
 ## [Unreleased]
 
 ### Added
