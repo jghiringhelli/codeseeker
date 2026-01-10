@@ -119,7 +119,6 @@ describe('SOLID Architecture Integration', () => {
 
     it('should support project initialization workflow', async () => {
       const context = commandServiceFactory.createCommandContext();
-      const errorHandler = context.errorHandler;
 
       // Mock project initialization
       const mockProjectOptions: ProjectInitOptions = {
@@ -129,15 +128,17 @@ describe('SOLID Architecture Integration', () => {
       };
 
       // Test that the initialization workflow can be wrapped with error handling
+      // Note: In embedded mode without PostgreSQL, this will fail gracefully
       const result = await withErrorHandling(async () => {
         // This would normally call the actual initialization
         return await context.projectManager.initializeProject('/test/path', mockProjectOptions);
       });
 
-      // Should handle any errors gracefully
+      // Should handle any errors gracefully (including database connection errors)
       expect(result).toBeDefined();
+      // Result will have success=false if database is unavailable, which is acceptable
       expect(typeof result.success).toBe('boolean');
-    });
+    }, 10000); // 10 second timeout to avoid hanging on database connection
   });
 
   describe('Service Communication Integration', () => {
