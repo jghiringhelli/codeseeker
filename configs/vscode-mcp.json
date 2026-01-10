@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "codeseeker": {
+      "command": "node",
+      "args": ["${userHome}/.codeseeker/node_modules/codeseeker/dist/cli/cli.js", "serve", "--mcp"],
+      "env": {}
+    }
+  }
+}
