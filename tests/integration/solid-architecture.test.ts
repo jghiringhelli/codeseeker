@@ -11,7 +11,7 @@ import {
   ProjectInitOptions,
 } from '../../src/core/interfaces/project-interfaces';
 import {
-  CodeMindError,
+  CodeSeekerError,
   Result,
 } from '../../src/core/interfaces/error-interfaces';
 

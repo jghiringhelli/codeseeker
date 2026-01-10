@@ -422,7 +422,7 @@ export class DatabaseUpdateManager {
           const content = await fs.readFile(absolutePath, 'utf-8');
           const hash = this.computeHash(content);
 
-          await redis.set(`codemind:hash:${this.projectId}:${filePath}`, hash);
+          await redis.set(`codeseeker:hash:${this.projectId}:${filePath}`, hash);
           hashesUpdated++;
 
           const metadata = {
@@ -432,10 +432,10 @@ export class DatabaseUpdateManager {
             type: this.determineFileType(filePath),
             updatedAt: new Date().toISOString()
           };
-          await redis.set(`codemind:meta:${this.projectId}:${filePath}`, JSON.stringify(metadata));
+          await redis.set(`codeseeker:meta:${this.projectId}:${filePath}`, JSON.stringify(metadata));
           filesUpdated++;
 
-          const keys = await redis.keys(`codemind:search:${this.projectId}:*`);
+          const keys = await redis.keys(`codeseeker:search:${this.projectId}:*`);
           if (keys.length > 0) {
             await redis.del(keys);
           }
@@ -483,7 +483,7 @@ export class DatabaseUpdateManager {
 
     try {
       const redis = await this.dbConnections.getRedisConnection();
-      await redis.set(`codemind:meta:${this.projectId}:${filePath}`, JSON.stringify({
+      await redis.set(`codeseeker:meta:${this.projectId}:${filePath}`, JSON.stringify({
         ...metadata,
         updatedAt: new Date().toISOString()
       }));
@@ -503,7 +503,7 @@ export class DatabaseUpdateManager {
 
     try {
       const redis = await this.dbConnections.getRedisConnection();
-      const keys = await redis.keys(`codemind:meta:${this.projectId}:*`);
+      const keys = await redis.keys(`codeseeker:meta:${this.projectId}:*`);
       let keysDeleted = 0;
 
       const cutoffDate = new Date();

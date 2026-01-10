@@ -317,7 +317,7 @@ CURRENT PROJECT STATE:
 - Git Hash: ${afterState.gitHash || 'N/A'}
 
 CONTEXT:
-The user just executed a CodeMind CLI command. Please analyze what changes might have occurred
+The user just executed a CodeSeeker CLI command. Please analyze what changes might have occurred
 and assess the impact on the codebase.
 
 ANALYSIS FOCUS:

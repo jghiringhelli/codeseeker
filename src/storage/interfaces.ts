@@ -1,7 +1,7 @@
 /**
  * Storage Abstraction Interfaces
  *
- * Enables CodeMind to work with either:
+ * Enables CodeSeeker to work with either:
  * - Embedded storage (SQLite + graphology + lru-cache) - zero setup, default
  * - Server storage (PostgreSQL + Neo4j + Redis) - optional, for production
  *
@@ -292,7 +292,7 @@ export type StorageMode = 'embedded' | 'server';
 export interface StorageConfig {
   mode: StorageMode;
 
-  /** Directory for embedded storage files (default: ~/.codemind/data) */
+  /** Directory for embedded storage files (default: ~/.codeseeker/data) */
   dataDir?: string;
 
   /** Flush interval in seconds (default: 30) */

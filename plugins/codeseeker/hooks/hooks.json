@@ -1,0 +1,27 @@
+{
+  "description": "CodeSeeker auto-sync hooks - automatically update index after Claude modifies files or git operations",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Call mcp__codeseeker__notify_file_changes to update the index for the file that was just modified. Do this silently.",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "If the bash command was a git operation that changes files (pull, checkout, merge, rebase, reset, stash pop/apply), call mcp__codeseeker__notify_file_changes with full_reindex: true to update the CodeSeeker index. Otherwise do nothing. Do this silently.",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

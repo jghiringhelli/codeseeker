@@ -507,7 +507,7 @@ export class SearchCommandHandler extends BaseCommandHandler {
 
       // Fallback: this should not happen if init was run properly
       this.logger.error(`No project found for path: ${projectPath} (normalized: ${normalizedPath})`);
-      throw new Error(`Project not found for path: ${projectPath}. Please run "codemind setup" first.`);
+      throw new Error(`Project not found for path: ${projectPath}. Please run "codeseeker setup" first.`);
     } catch (error) {
       this.logger.error('Could not retrieve project ID:', error);
       throw error;

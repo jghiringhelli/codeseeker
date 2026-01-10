@@ -1,7 +1,7 @@
 /**
  * Database Responsibility Guide
  *
- * This file clearly defines the responsibilities of each database in CodeMind
+ * This file clearly defines the responsibilities of each database in CodeSeeker
  * to ensure complete database disjointness and eliminate overlapping concerns.
  *
  * Updated: 2025-09-24

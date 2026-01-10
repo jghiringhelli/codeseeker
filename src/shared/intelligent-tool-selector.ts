@@ -178,7 +178,7 @@ export class IntelligentToolSelector {
     activatedBundle?: ToolBundle | null
   ): string {
     return `
-TASK: Intelligent Tool Selection for CodeMind CLI Request
+TASK: Intelligent Tool Selection for CodeSeeker CLI Request
 
 USER REQUEST: "${request.userQuery}"
 CLI COMMAND: ${request.cliCommand}

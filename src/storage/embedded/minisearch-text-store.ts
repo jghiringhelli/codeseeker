@@ -268,6 +268,9 @@ export class MiniSearchTextStore implements ITextStore {
     this.miniSearch.add(indexDoc);
     this.documentMap.set(doc.id, doc);
     this.isDirty = true;
+    // Mark as loaded since we now have in-memory data
+    // This prevents ensureLoaded from trying to re-add documents
+    this.isLoaded = true;
   }
 
   async indexMany(docs: TextDocument[]): Promise<void> {
@@ -313,6 +316,8 @@ export class MiniSearchTextStore implements ITextStore {
 
     insertMany(docs);
     this.isDirty = true;
+    // Mark as loaded since we now have in-memory data
+    this.isLoaded = true;
   }
 
   async search(query: string, projectId: string, limit = 10): Promise<TextSearchResult[]> {

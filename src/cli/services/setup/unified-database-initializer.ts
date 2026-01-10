@@ -5,8 +5,8 @@
  * Falls back gracefully and allows individual component server overrides.
  *
  * Storage Mode Priority:
- * 1. Environment variable: CODEMIND_STORAGE_MODE
- * 2. Config file: ~/.codemind/storage.json
+ * 1. Environment variable: CODESEEKER_STORAGE_MODE
+ * 2. Config file: ~/.codeseeker/storage.json
  * 3. Default: 'embedded' (SQLite + Graphology + LRU-cache)
  */
 
@@ -50,9 +50,9 @@ export class UnifiedDatabaseInitializer implements IDatabaseInitializer {
       const pool = new Pool({
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'codemind',
-        user: process.env.DB_USER || 'codemind',
-        password: process.env.DB_PASSWORD || 'codemind123',
+        database: process.env.DB_NAME || 'codeseeker',
+        user: process.env.DB_USER || 'codeseeker',
+        password: process.env.DB_PASSWORD || 'codeseeker123',
         connectionTimeoutMillis: 3000
       });
       await pool.query('SELECT 1');
@@ -69,7 +69,7 @@ export class UnifiedDatabaseInitializer implements IDatabaseInitializer {
         process.env.NEO4J_URI || 'bolt://localhost:7687',
         neo4j.default.auth.basic(
           process.env.NEO4J_USER || 'neo4j',
-          process.env.NEO4J_PASSWORD || 'codemind123'
+          process.env.NEO4J_PASSWORD || 'codeseeker123'
         ),
         { connectionTimeout: 3000 }
       );

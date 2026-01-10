@@ -97,7 +97,7 @@ export class SetupOrchestrator implements ISetupOrchestrator {
   }
 
   private displayWelcome(): void {
-    console.log('\n🚀 CodeMind Infrastructure Setup');
+    console.log('\n🚀 CodeSeeker Infrastructure Setup');
     console.log('Setting up Docker containers, databases, and initialization...\n');
   }
 
@@ -112,7 +112,7 @@ export class SetupOrchestrator implements ISetupOrchestrator {
     }
 
     this.status.projectValid = true;
-    this.reporter.displayProgress('Valid CodeMind project detected', 'success');
+    this.reporter.displayProgress('Valid CodeSeeker project detected', 'success');
 
     // Check Node.js version
     const nodeResult = this.prerequisiteChecker.checkNodeVersion();

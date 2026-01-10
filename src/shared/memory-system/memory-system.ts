@@ -249,14 +249,14 @@ class MemorySystem {
     return new MemorySystem();
   }
 
-  // Backward Compatibility Methods (from original CodeMindMemorySystem)
+  // Backward Compatibility Methods (from original CodeSeekerMemorySystem)
   async storeAndRetrieveInteraction(interaction: InteractionMemory): Promise<ContextualContinuation | null> {
     await this.storeInteraction(interaction);
 
     // Generate context based on the stored interaction
     const projectMemory = await this.getProjectMemory(interaction.sessionId); // Using sessionId as projectPath fallback
     return this.getContextForNewRequest(
-      interaction.codemindRequest.instruction,
+      interaction.codeseekerRequest.instruction,
       projectMemory.projectPath,
       interaction.sessionId
     );

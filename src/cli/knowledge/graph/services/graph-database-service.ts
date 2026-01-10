@@ -75,7 +75,7 @@ export class GraphDatabaseService implements IGraphDatabaseService {
       if (!GraphDatabaseService.errorNotified) {
         GraphDatabaseService.errorNotified = true;
         // Show a single user-friendly message
-        console.log('\n⚠️  Database unavailable - CodeMind running in local-only mode.');
+        console.log('\n⚠️  Database unavailable - CodeSeeker running in local-only mode.');
         console.log('   Database features (semantic search, knowledge graph) will be limited.');
         console.log('   To enable full features, ensure PostgreSQL is running.\n');
         this.logger.debug('Graph database unavailable - using fallback mode');

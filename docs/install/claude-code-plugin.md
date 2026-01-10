@@ -1,6 +1,6 @@
-# CodeMind Plugin for Claude Code
+# CodeSeeker Plugin for Claude Code
 
-The CodeMind plugin integrates seamlessly with Claude Code (both CLI and VSCode extension), providing semantic search, coding standards detection, and intelligent context enhancement.
+The CodeSeeker plugin integrates seamlessly with Claude Code (both CLI and VSCode extension), providing semantic search, coding standards detection, and intelligent context enhancement.
 
 ## What You Get
 
@@ -8,14 +8,14 @@ After installation, you can use these slash commands in Claude Code:
 
 | Command | Description |
 |---------|-------------|
-| `/codemind:init` | Initialize CodeMind for your project |
-| `/codemind:search <query>` | Semantic search across codebase |
-| `/codemind:standards [category]` | Get auto-detected coding standards |
-| `/codemind:relationships <file>` | Explore code dependencies |
-| `/codemind:context <file>` | Get file with related context |
-| `/codemind:reindex` | Trigger full project reindex |
+| `/codeseeker:init` | Initialize CodeSeeker for your project |
+| `/codeseeker:search <query>` | Semantic search across codebase |
+| `/codeseeker:standards [category]` | Get auto-detected coding standards |
+| `/codeseeker:relationships <file>` | Explore code dependencies |
+| `/codeseeker:context <file>` | Get file with related context |
+| `/codeseeker:reindex` | Trigger full project reindex |
 
-Plus, Claude automatically uses CodeMind's skills to:
+Plus, Claude automatically uses CodeSeeker's skills to:
 - Check coding standards before writing code
 - Get semantic context when exploring files
 - Keep the index updated as you work
@@ -23,10 +23,10 @@ Plus, Claude automatically uses CodeMind's skills to:
 ## Prerequisites
 
 1. **Claude Code** - Install from [claude.ai](https://claude.ai/download)
-2. **Node.js 18+** - Required for CodeMind
-3. **CodeMind CLI** - Install globally:
+2. **Node.js 18+** - Required for CodeSeeker
+3. **CodeSeeker CLI** - Install globally:
    ```bash
-   npm install -g codemind-enhanced-cli
+   npm install -g codeseeker
    ```
 
 ## Installation
@@ -34,16 +34,16 @@ Plus, Claude automatically uses CodeMind's skills to:
 ### Option 1: Quick Install (Recommended)
 
 ```bash
-# Clone or download CodeMind
-git clone https://github.com/anthropics/codemind.git
-cd codemind
+# Clone or download CodeSeeker
+git clone https://github.com/anthropics/codeseeker.git
+cd codeseeker
 
 # Build the project
 npm install
 npm run build
 
 # Install the plugin to Claude Code
-claude /plugin install ./plugins/codemind
+claude /plugin install ./plugins/codeseeker
 ```
 
 ### Option 2: Manual Installation
@@ -53,13 +53,13 @@ claude /plugin install ./plugins/codemind
    **Linux/macOS:**
    ```bash
    mkdir -p ~/.claude/plugins
-   cp -r plugins/codemind ~/.claude/plugins/
+   cp -r plugins/codeseeker ~/.claude/plugins/
    ```
 
    **Windows (PowerShell):**
    ```powershell
    New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\plugins"
-   Copy-Item -Recurse plugins\codemind "$env:USERPROFILE\.claude\plugins\"
+   Copy-Item -Recurse plugins\codeseeker "$env:USERPROFILE\.claude\plugins\"
    ```
 
 2. **Restart Claude Code** to load the plugin
@@ -70,10 +70,10 @@ For plugin development, symlink instead of copy:
 
 ```bash
 # Linux/macOS
-ln -s $(pwd)/plugins/codemind ~/.claude/plugins/codemind
+ln -s $(pwd)/plugins/codeseeker ~/.claude/plugins/codeseeker
 
 # Windows (Admin PowerShell)
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.claude\plugins\codemind" -Target "$(pwd)\plugins\codemind"
+New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.claude\plugins\codeseeker" -Target "$(pwd)\plugins\codeseeker"
 ```
 
 ## Configuration
@@ -89,11 +89,11 @@ The plugin includes MCP server configuration that enables advanced tools. To act
 ```json
 {
   "mcpServers": {
-    "codemind": {
+    "codeseeker": {
       "command": "node",
-      "args": ["/path/to/codemind/dist/mcp/mcp-server.js"],
+      "args": ["/path/to/codeseeker/dist/mcp/mcp-server.js"],
       "env": {
-        "CODEMIND_STORAGE_MODE": "embedded"
+        "CODESEEKER_STORAGE_MODE": "embedded"
       }
     }
   }
@@ -104,8 +104,8 @@ The plugin includes MCP server configuration that enables advanced tools. To act
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CODEMIND_STORAGE_MODE` | `embedded` | Storage mode: `embedded` or `server` |
-| `CODEMIND_DATA_DIR` | `~/.codemind/data` | Data directory for embedded mode |
+| `CODESEEKER_STORAGE_MODE` | `embedded` | Storage mode: `embedded` or `server` |
+| `CODESEEKER_DATA_DIR` | `~/.codeseeker/data` | Data directory for embedded mode |
 
 ## Usage
 
@@ -114,7 +114,7 @@ The plugin includes MCP server configuration that enables advanced tools. To act
 When you open a project for the first time:
 
 ```
-/codemind:init
+/codeseeker:init
 ```
 
 This indexes your codebase for semantic search (takes 1-5 minutes depending on size).
@@ -124,9 +124,9 @@ This indexes your codebase for semantic search (takes 1-5 minutes depending on s
 Find code by meaning, not just keywords:
 
 ```
-/codemind:search authentication middleware
-/codemind:search how are errors handled
-/codemind:search database connection pooling
+/codeseeker:search authentication middleware
+/codeseeker:search how are errors handled
+/codeseeker:search database connection pooling
 ```
 
 ### Get Coding Standards
@@ -134,11 +134,11 @@ Find code by meaning, not just keywords:
 Before writing new code, check the project's patterns:
 
 ```
-/codemind:standards validation
-/codemind:standards error-handling
-/codemind:standards logging
-/codemind:standards testing
-/codemind:standards all
+/codeseeker:standards validation
+/codeseeker:standards error-handling
+/codeseeker:standards logging
+/codeseeker:standards testing
+/codeseeker:standards all
 ```
 
 ### Explore Code Relationships
@@ -146,8 +146,8 @@ Before writing new code, check the project's patterns:
 Understand how code connects:
 
 ```
-/codemind:relationships src/services/auth.ts
-/codemind:context src/controllers/user.ts
+/codeseeker:relationships src/services/auth.ts
+/codeseeker:context src/controllers/user.ts
 ```
 
 ### Keep Index Updated
@@ -155,7 +155,7 @@ Understand how code connects:
 After major changes (git pull, branch switch):
 
 ```
-/codemind:reindex
+/codeseeker:reindex
 ```
 
 ## Example Workflow
@@ -164,13 +164,13 @@ After major changes (git pull, branch switch):
 You: I need to add email validation to the user registration endpoint
 
 Claude: Let me check the project's coding standards first.
-/codemind:standards validation
+/codeseeker:standards validation
 
 [Shows that project uses validator.isEmail()]
 
 Claude: I see this project uses the `validator` library for validation.
 Let me find the registration code.
-/codemind:search user registration endpoint
+/codeseeker:search user registration endpoint
 
 [Shows relevant files]
 
@@ -180,48 +180,48 @@ Claude: Now I'll add email validation using the project's standard pattern...
 ## Troubleshooting
 
 ### "Plugin not found"
-- Verify files are in `~/.claude/plugins/codemind/`
+- Verify files are in `~/.claude/plugins/codeseeker/`
 - Check `.claude-plugin/plugin.json` exists
 - Restart Claude Code
 
 ### "MCP tools not available"
-- Ensure CodeMind CLI is installed: `codemind --version`
+- Ensure CodeSeeker CLI is installed: `codeseeker --version`
 - Check the MCP server path is correct
 - Verify Node.js 18+ is installed
 
 ### "Search returns no results"
-- Run `/codemind:init` first
-- Check `.codemind/` directory exists in your project
-- Try `/codemind:reindex` for a full refresh
+- Run `/codeseeker:init` first
+- Check `.codeseeker/` directory exists in your project
+- Try `/codeseeker:reindex` for a full refresh
 
 ### "Coding standards empty"
 - Project must be indexed first
 - Standards need 2+ occurrences of a pattern
-- Check `.codemind/coding-standards.json` exists
+- Check `.codeseeker/coding-standards.json` exists
 
 ## Updating the Plugin
 
 To update to a newer version:
 
 ```bash
-cd /path/to/codemind
+cd /path/to/codeseeker
 git pull
 npm install
 npm run build
 
 # Reinstall plugin
-claude /plugin uninstall codemind
-claude /plugin install ./plugins/codemind
+claude /plugin uninstall codeseeker
+claude /plugin install ./plugins/codeseeker
 ```
 
 ## Uninstalling
 
 ```bash
 # Via Claude Code
-claude /plugin uninstall codemind
+claude /plugin uninstall codeseeker
 
 # Or manually
-rm -rf ~/.claude/plugins/codemind
+rm -rf ~/.claude/plugins/codeseeker
 ```
 
 ## Next Steps

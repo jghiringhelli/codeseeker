@@ -1,11 +1,11 @@
--- Internal Tools Schema for CodeMind
+-- Internal Tools Schema for codeseeker
 -- Distinguishes between internal analysis tools and external CLI tools
 
 -- ============================================
 -- INTERNAL TOOL MANAGEMENT SYSTEM
 -- ============================================
 
--- Internal analysis tools - built-in CodeMind analyzers
+-- Internal analysis tools - built-in codeseeker analyzers
 CREATE TABLE IF NOT EXISTS internal_tools (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tool_id VARCHAR(100) UNIQUE NOT NULL, -- use-cases-analyzer, compilation-verifier, etc.
@@ -195,4 +195,4 @@ CREATE INDEX IF NOT EXISTS idx_tool_combinations_secondary ON tool_combinations(
 
 -- Update external_tools table comment to clarify its purpose
 COMMENT ON TABLE external_tools IS 'External CLI tools that can be downloaded and executed (eslint, pytest, etc.)';
-COMMENT ON TABLE internal_tools IS 'Built-in CodeMind analysis tools for code understanding and insights';
+COMMENT ON TABLE internal_tools IS 'Built-in codeseeker analysis tools for code understanding and insights';

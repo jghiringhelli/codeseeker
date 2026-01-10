@@ -1,24 +1,24 @@
-# CodeMind Core Cycle - Technical Implementation Guide
+# CodeSeeker Core Cycle - Technical Implementation Guide
 
 **Version**: 2.0
 **Date**: 2025-12-26
-**Purpose**: Technical reference for debugging and code review of the 11-step CodeMind workflow
+**Purpose**: Technical reference for debugging and code review of the 11-step CodeSeeker workflow
 
 ## Overview
 
-The CodeMind Core Cycle is an 11-step intelligent enhancement workflow that transforms natural language queries into enhanced Claude Code interactions. This document provides detailed technical mapping of each step to the actual implementation.
+The CodeSeeker Core Cycle is an 11-step intelligent enhancement workflow that transforms natural language queries into enhanced Claude Code interactions. This document provides detailed technical mapping of each step to the actual implementation.
 
 > **Note**: The workflow expanded from 8 steps to 11 steps with the addition of Task Decomposition (Step 2), Sub-Task Context Generation (Step 6), and Database Sync (Step 11).
 
 ## Architecture Entry Points
 
 ### CLI Entry Point
-- **File**: `bin/codemind.js` → `src/cli/codemind-cli.ts`
+- **File**: `bin/codeseeker.js` → `src/cli/codeseeker-cli.ts`
 - **Main Function**: `main()` at line 494
 - **Input Processing**: Command line arguments parsed, natural language passed to `processInput()`
 
 ### Command Processing Flow
-1. **CLI** → `CodeMindCLI.processInput()`
+1. **CLI** → `CodeSeekerCLI.processInput()`
 2. **Command Processor** → `CommandProcessor.processInput()`
 3. **Command Router** → `CommandRouter.processInput()`
 4. **Workflow Detection** → `WorkflowOrchestrator.shouldUseWorkflow()`
@@ -97,7 +97,7 @@ async promptForClarifications(queryAnalysis: QueryAnalysis): Promise<string[]> {
     return clarifications;
   }
 
-  console.log('🤔 CodeMind detected some assumptions and ambiguities...');
+  console.log('🤔 CodeSeeker detected some assumptions and ambiguities...');
 
   for (let i = 0; i < questions.length; i++) {
     const question = questions[i];
@@ -340,7 +340,7 @@ async executeClaudeCode(enhancedPrompt: string): Promise<ClaudeResponse> {
     }
 
     // Create temporary file for the prompt
-    const promptFile = path.join(this.tempDir, `codemind-prompt-${Date.now()}.txt`);
+    const promptFile = path.join(this.tempDir, `codeseeker-prompt-${Date.now()}.txt`);
     await fs.writeFile(promptFile, enhancedPrompt, 'utf8');
 
     // Execute Claude Code command
@@ -452,7 +452,7 @@ async confirmFileModifications(filesToModify: string[]): Promise<{approved: bool
 **Key Logic**:
 ```typescript
 displayExecutionSummary(summary: string, stats: any): void {
-  console.log('\n✅ CodeMind Execution Summary');
+  console.log('\n✅ CodeSeeker Execution Summary');
   console.log('━'.repeat(50));
   console.log(summary);
 
@@ -571,16 +571,16 @@ Add console.log statements at key decision points:
 
 ```bash
 # Simple creation task
-codemind -c "add authentication middleware to the API routes"
+codeseeker -c "add authentication middleware to the API routes"
 
 # Analysis task
-codemind -c "analyze the project structure for improvements"
+codeseeker -c "analyze the project structure for improvements"
 
 # Modification task
-codemind -c "improve the performance of the database queries"
+codeseeker -c "improve the performance of the database queries"
 
 # Complex task
-codemind -c "refactor the user service to follow SOLID principles"
+codeseeker -c "refactor the user service to follow SOLID principles"
 ```
 
 ---

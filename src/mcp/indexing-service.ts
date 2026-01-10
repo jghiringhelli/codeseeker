@@ -155,11 +155,11 @@ export class IndexingService {
       if (totalFiles > this.FILE_LIMITS.dbServerThreshold) {
         progress.limitWarning = `⚠️ Large project detected: ${totalFiles.toLocaleString()} files found. ` +
           `For projects with 100K+ files, we recommend using DB server mode (PostgreSQL + Neo4j) for optimal performance. ` +
-          `Run 'codemind config --storage=server' to switch. Currently indexing first ${this.FILE_LIMITS.maxFiles.toLocaleString()} files.`;
+          `Run 'codeseeker config --storage=server' to switch. Currently indexing first ${this.FILE_LIMITS.maxFiles.toLocaleString()} files.`;
       } else if (totalFiles > this.FILE_LIMITS.maxFiles) {
         progress.limitWarning = `ℹ️ Project has ${totalFiles.toLocaleString()} files. ` +
           `Indexing first ${this.FILE_LIMITS.maxFiles.toLocaleString()} files. ` +
-          `To increase limits, edit .codemind/config.json or use DB server mode for very large projects.`;
+          `To increase limits, edit .codeseeker/config.json or use DB server mode for very large projects.`;
       }
 
       onProgress?.(progress);
@@ -454,10 +454,10 @@ export class IndexingService {
   };
 
   /**
-   * Load user-defined exclusions from .codemind/exclusions.json
+   * Load user-defined exclusions from .codeseeker/exclusions.json
    */
   private loadUserExclusions(projectPath: string): string[] {
-    const exclusionsPath = path.join(projectPath, '.codemind', 'exclusions.json');
+    const exclusionsPath = path.join(projectPath, '.codeseeker', 'exclusions.json');
 
     if (!fs.existsSync(exclusionsPath)) {
       return [];
@@ -529,7 +529,7 @@ export class IndexingService {
   /**
    * Scan for indexable files in a directory
    * Reports progress during scanning via callback
-   * Respects user-defined exclusions from .codemind/exclusions.json
+   * Respects user-defined exclusions from .codeseeker/exclusions.json
    */
   private async scanForFiles(
     projectPath: string,

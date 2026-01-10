@@ -1,5 +1,5 @@
 /**
- * CodeMind Validation Cycle
+ * CodeSeeker Validation Cycle
  * SOLID Principles: Single Responsibility - Coordinate validation workflow only
  *
  * Main coordinator that orchestrates the complete validation cycle
@@ -21,7 +21,7 @@ import {
   IValidationReportService
 } from './interfaces/index';
 
-export class CodeMindValidationCycle {
+export class CodeSeekerValidationCycle {
   private logger = Logger.getInstance();
 
   constructor(
@@ -47,7 +47,7 @@ export class CodeMindValidationCycle {
     shouldBlock: boolean;
   }> {
     const startTime = Date.now();
-    this.logger.info('🔄 Starting CodeMind Validation Cycle...');
+    this.logger.info('🔄 Starting CodeSeeker Validation Cycle...');
 
     try {
       // Check if we should skip based on patterns
@@ -254,8 +254,8 @@ export class CodeMindValidationCycle {
 }
 
 // Export factory function for easy instantiation
-export function createValidationCycle(config: CycleConfig): CodeMindValidationCycle {
-  return new CodeMindValidationCycle(config);
+export function createValidationCycle(config: CycleConfig): CodeSeekerValidationCycle {
+  return new CodeSeekerValidationCycle(config);
 }
 
 // Export default configuration

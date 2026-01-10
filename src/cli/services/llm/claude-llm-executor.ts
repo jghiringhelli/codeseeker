@@ -81,7 +81,7 @@ export class ClaudeLLMExecutor implements ILLMExecutor, IStreamingLLMExecutor {
       console.log('🔄 Running inside Claude Code - using transparent passthrough');
       return {
         success: true,
-        data: 'CodeMind is running inside Claude Code. Query passed through directly.',
+        data: 'CodeSeeker is running inside Claude Code. Query passed through directly.',
         executionTimeMs: Date.now() - startTime,
         metadata: { provider: 'claude', mode: 'transparent' }
       };

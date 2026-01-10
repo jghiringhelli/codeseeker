@@ -1,10 +1,10 @@
-﻿# CLAUDE.md - CodeMind
+﻿# CLAUDE.md - CodeSeeker
 
 This file provides comprehensive guidance to Claude Code when working with this project.
 
 ## Project Overview
 
-**Project**: CodeMind
+**Project**: CodeSeeker
 **Type**: api_service
 **Description**: Smart Claude Code CLI with intelligent tool selection, token optimization, and real-time quality monitoring
 **Languages**: JavaScript, TypeScript
@@ -17,7 +17,7 @@ This file provides comprehensive guidance to Claude Code when working with this 
 
 ## Claude Code Integration Architecture
 
-**CRITICAL**: CodeMind uses ONLY direct Claude Code CLI integration - NO APIs.
+**CRITICAL**: CodeSeeker uses ONLY direct Claude Code CLI integration - NO APIs.
 
 ### Main Coordination Class
 All Claude Code interactions are coordinated through:
@@ -33,7 +33,7 @@ This class provides:
 - **NO HTTP requests** to Claude API
 - **Direct CLI execution** only via child_process.exec()
 - **All AI processing** goes through `claude` CLI command
-- **Fallback transparency**: When Claude CLI fails, CodeMind becomes transparent passthrough
+- **Fallback transparency**: When Claude CLI fails, CodeSeeker becomes transparent passthrough
 
 ### Integration Points
 - UserInteractionService → ClaudeCodeIntegration.executeClaudeCode()
@@ -128,7 +128,7 @@ manage_index({
 ### How It Works
 
 1. **Exclusion**: Files matching patterns are immediately deleted from the vector store
-2. **Persistence**: Exclusions saved to `.codemind/exclusions.json`
+2. **Persistence**: Exclusions saved to `.codeseeker/exclusions.json`
 3. **Reindexing**: User exclusions are respected during `index_project` and `notify_file_changes(full_reindex: true)`
 4. **Glob Patterns**: Supports `**` (any path), `*` (any segment), `?` (any char)
 
@@ -143,19 +143,19 @@ manage_index({
 
 **Status**: Fully implemented (2025-12-28)
 
-CodeMind automatically detects and generates coding standards from your indexed codebase, helping Claude write code that follows your project's conventions.
+CodeSeeker automatically detects and generates coding standards from your indexed codebase, helping Claude write code that follows your project's conventions.
 
 ### How It Works
 
-1. **Pattern Detection**: During `codemind init`, CodeMind analyzes indexed code to identify common patterns
-2. **Standards File**: Auto-generates `.codemind/coding-standards.json` with detected patterns
+1. **Pattern Detection**: During `codeseeker init`, CodeSeeker analyzes indexed code to identify common patterns
+2. **Standards File**: Auto-generates `.codeseeker/coding-standards.json` with detected patterns
 3. **Incremental Updates**: Standards update automatically when pattern-related files change
 4. **MCP Integration**: New `get_coding_standards` MCP tool exposes standards to Claude
 5. **CLI Integration**: Standards can be queried via natural language commands
 
 ### Pattern Categories
 
-CodeMind detects patterns in four categories:
+CodeSeeker detects patterns in four categories:
 
 | Category | Examples | Detection Method |
 |----------|----------|------------------|
@@ -214,8 +214,8 @@ get_coding_standards({
 Standards are automatically available when using natural language commands:
 
 ```bash
-# CodeMind will use detected standards when implementing validation
-codemind -c "add email validation to the registerUser function"
+# CodeSeeker will use detected standards when implementing validation
+codeseeker -c "add email validation to the registerUser function"
 ```
 
 ### Benefits
@@ -233,22 +233,22 @@ codemind -c "add email validation to the registerUser function"
 - `src/cli/commands/handlers/setup-command-handler.ts` - CLI integration (init time)
 - `src/mcp/mcp-server.ts` - MCP tool + incremental updates
 
-## CodeMind Core Cycle - WORKING ✅
+## CodeSeeker Core Cycle - WORKING ✅
 
 **Status**: Fully implemented and tested (2025-11-15)
 
-The CodeMind Core Cycle is the heart of the intelligent Claude Code enhancement system. When a user provides natural language input, CodeMind executes an 11-step workflow to enhance Claude Code's capabilities.
+The CodeSeeker Core Cycle is the heart of the intelligent Claude Code enhancement system. When a user provides natural language input, CodeSeeker executes an 11-step workflow to enhance Claude Code's capabilities.
 
 ### How to Trigger the Core Cycle
 
-Use natural language queries with CodeMind CLI:
+Use natural language queries with CodeSeeker CLI:
 
 ```bash
 # Example natural language queries that trigger the core cycle
-codemind -c "add authentication middleware to the API routes"
-codemind -c "create a new API endpoint for user registration"
-codemind -c "can you help me understand what this project does"
-codemind -c "implement error handling for database operations"
+codeseeker -c "add authentication middleware to the API routes"
+codeseeker -c "create a new API endpoint for user registration"
+codeseeker -c "can you help me understand what this project does"
+codeseeker -c "implement error handling for database operations"
 ```
 
 ### The 11-Step Core Cycle (with Task Decomposition)
@@ -327,7 +327,7 @@ The core cycle is implemented using SOLID principles with these services:
 ### Example Core Cycle Output
 
 ```
-🧠 Starting CodeMind workflow...
+🧠 Starting CodeSeeker workflow...
 
 1️⃣ Analyzing query for assumptions and ambiguities...
    Intent: create (confidence: 85.0%)
@@ -384,7 +384,7 @@ The semantic search system uses a **true hybrid approach** that runs multiple se
 
 ### Storage Modes
 
-CodeMind supports two storage modes with different text search implementations:
+CodeSeeker supports two storage modes with different text search implementations:
 
 | Mode | Vector Store | Text Search | When to Use |
 |------|--------------|-------------|-------------|
@@ -465,11 +465,11 @@ metadata JSONB
 
 **Status**: Fully implemented (2025-12-03)
 
-CodeMind now includes intelligent task decomposition where complex queries are automatically split into focused sub-tasks, each receiving tailored context.
+CodeSeeker now includes intelligent task decomposition where complex queries are automatically split into focused sub-tasks, each receiving tailored context.
 
 ### How It Works
 
-When you submit a complex query, CodeMind:
+When you submit a complex query, CodeSeeker:
 
 1. **Analyzes Task Complexity**: Detects patterns indicating multi-part requests
 2. **Decomposes into Sub-tasks**: Splits into focused, atomic operations
@@ -603,15 +603,15 @@ src/cli/commands/services/
 - Delete the less comprehensive duplicate
 - Update all imports to reference the single merged class
 
-### CodeMind CLI Integration
-**IMPORTANT**: After major codebase changes, CodeMind needs relinking:
+### CodeSeeker CLI Integration
+**IMPORTANT**: After major codebase changes, CodeSeeker needs relinking:
 ```bash
-# Relink CodeMind for Claude Code access
+# Relink CodeSeeker for Claude Code access
 npm run build
 npm link
 
 # Verify global access
-codemind --help
+codeseeker --help
 ```
 
 **When to Relink:**
@@ -622,7 +622,7 @@ codemind --help
 
 ### Integration Notes
 
-- All CodeMind API calls are cached for 5 minutes
+- All CodeSeeker API calls are cached for 5 minutes
 - Context responses are optimized for token efficiency
 - Different intents provide focused information for specific tasks
 - The system learns from your project patterns over time
@@ -631,12 +631,12 @@ codemind --help
 **Integration**: Interactive Enhanced Setup v2.0 (PowerShell)
 **Resume Token**: 
 
-## Docker Best Practices for CodeMind
+## Docker Best Practices for CodeSeeker
 
-When working with CodeMind Docker containers, ALWAYS follow these practices:
+When working with CodeSeeker Docker containers, ALWAYS follow these practices:
 
 ### Container Management Rules
-1. **Consistent Naming**: Always use the same container names (e.g., `codemind-dashboard`, `codemind-api`)
+1. **Consistent Naming**: Always use the same container names (e.g., `codeseeker-dashboard`, `codeseeker-api`)
 2. **Clean Before Rebuild**: Stop and remove old containers/images before rebuilding
 3. **Volume Consistency**: Maintain the same volume mappings to preserve data
 4. **Image Refresh**: Always rebuild images when code changes
@@ -644,11 +644,11 @@ When working with CodeMind Docker containers, ALWAYS follow these practices:
 ### Standard Docker Workflow
 ```powershell
 # 1. Stop and remove old containers
-docker stop codemind-dashboard
-docker rm codemind-dashboard
+docker stop codeseeker-dashboard
+docker rm codeseeker-dashboard
 
 # 2. Remove old images (keep volumes)
-docker rmi codemind-dashboard:latest
+docker rmi codeseeker-dashboard:latest
 
 # 3. Rebuild with latest code
 docker-compose build dashboard --no-cache
@@ -669,7 +669,7 @@ docker-compose up dashboard -d
 
 ## File System Accessibility for Dashboards
 
-**CRITICAL**: When running the CodeMind dashboard in Docker or on a remote server, it may not be able to access project files on the local machine.
+**CRITICAL**: When running the CodeSeeker dashboard in Docker or on a remote server, it may not be able to access project files on the local machine.
 
 ### Automatic Detection
 The dashboard automatically checks file system accessibility and shows warnings when:
@@ -690,7 +690,7 @@ The enhanced dashboard shows prominent warnings with:
 #### For Docker Deployments
 ```bash
 # Stop container
-docker stop codemind-dashboard
+docker stop codeseeker-dashboard
 
 # Add volume mapping to docker-compose.yml
 services:
@@ -730,8 +730,8 @@ docker-compose up dashboard -d
 
 When bumping version, update these files:
 1. `package.json` → `"version": "X.Y.Z"`
-2. `plugins/codemind/.claude-plugin/plugin.json` → `"version": "X.Y.Z"`
-3. `plugins/codemind/version.json` → `"version": "X.Y.Z"` and `"releaseDate"`
+2. `plugins/codeseeker/.claude-plugin/plugin.json` → `"version": "X.Y.Z"`
+3. `plugins/codeseeker/version.json` → `"version": "X.Y.Z"` and `"releaseDate"`
 
 ### Commit Message Format
 
@@ -773,8 +773,8 @@ See `.github/VERSIONING.md` for full details.
 
 ```bash
 # Create release with gh CLI
-gh release create v1.0.X --repo jghiringhelli/codemind --title "v1.0.X - Title" --notes "$(cat <<'EOF'
-# CodeMind v1.0.X - Title
+gh release create v1.0.X --repo jghiringhelli/codeseeker --title "v1.0.X - Title" --notes "$(cat <<'EOF'
+# CodeSeeker v1.0.X - Title
 
 ## Fixed
 - Issue 1
@@ -786,8 +786,8 @@ gh release create v1.0.X --repo jghiringhelli/codemind --title "v1.0.X - Title" 
 ## Upgrade
 
 \`\`\`bash
-/plugin uninstall codemind
-/plugin install codemind@github:jghiringhelli/codemind#plugin
+/plugin uninstall codeseeker
+/plugin install codeseeker@github:jghiringhelli/codeseeker#plugin
 \`\`\`
 
 ---
@@ -807,10 +807,10 @@ EOF
 
 ### Link to Releases
 
-The `plugins/codemind/version.json` file contains:
+The `plugins/codeseeker/version.json` file contains:
 ```json
 {
-  "changelog": "https://github.com/jghiringhelli/codemind/releases"
+  "changelog": "https://github.com/jghiringhelli/codeseeker/releases"
 }
 ```
 
@@ -819,7 +819,7 @@ This URL is used by the Claude Code plugin update UI to show release notes.
 ### Verify Release
 
 After creating a release:
-1. Visit https://github.com/jghiringhelli/codemind/releases
+1. Visit https://github.com/jghiringhelli/codeseeker/releases
 2. Verify the release appears with correct tag and notes
 3. Test plugin update in Claude Code to ensure notes display
 
@@ -833,11 +833,11 @@ After creating a release:
 - **Interface Segregation**: Create specific interfaces, not monolithic ones
 - **Dependency Inversion**: Depend on abstractions, not concrete implementations
 
-### CodeMind CLI Relinking Requirements
-After major changes to CodeMind codebase:
+### CodeSeeker CLI Relinking Requirements
+After major changes to CodeSeeker codebase:
 1. **Always run `npm run build`** to ensure TypeScript compilation
 2. **Run `npm link`** to relink the global CLI command
-3. **Test with `codemind --help`** to verify Claude Code can access it
+3. **Test with `codeseeker --help`** to verify Claude Code can access it
 4. **This is CRITICAL** after fixing compilation errors or restructuring imports
 
 ### File Creation Guidelines
@@ -853,7 +853,7 @@ After major changes to CodeMind codebase:
 **Updated**: 2025-10-28 - Implemented recursive folder organization following logical dependencies
 
 ### CLI Services Organization
-CodeMind CLI services are now organized by functionality domain:
+CodeSeeker CLI services are now organized by functionality domain:
 
 ```
 src/cli/services/

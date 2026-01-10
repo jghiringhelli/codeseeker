@@ -1,5 +1,5 @@
 /**
- * Base database adapter interface for CodeMind
+ * Base database adapter interface for CodeSeeker
  * Supports both SQLite and PostgreSQL implementations
  */
 

@@ -173,7 +173,7 @@ export class Phase2Migration {
 if (require?.main === module) {
   const args = process.argv?.slice(2);
   const command = args[0];
-  const dbPath = args[1] || path?.join(process?.cwd(), 'codemind.db');
+  const dbPath = args[1] || path?.join(process?.cwd(), 'codeseeker.db');
   
   const migration = new Phase2Migration(dbPath);
   

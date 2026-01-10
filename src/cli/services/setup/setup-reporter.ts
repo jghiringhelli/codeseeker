@@ -40,7 +40,7 @@ export class SetupReporter implements ISetupReporter {
 
     // Project validation
     if (status.projectValid) {
-      console.log(chalk.green('  ✓ Project: Valid CodeMind project'));
+      console.log(chalk.green('  ✓ Project: Valid CodeSeeker project'));
     } else {
       console.log(chalk.red('  ✗ Project: Validation failed'));
     }
@@ -101,9 +101,9 @@ export class SetupReporter implements ISetupReporter {
       console.log(chalk.cyan('  • For manual setup see: docs/MANUAL_SETUP.md'));
     } else if (error.message.includes('project') || error.message.includes('directory')) {
       console.log(chalk.yellow('\n💡 Project Issues? Try these solutions:'));
-      console.log(chalk.cyan('  1. Navigate to CodeMind directory: cd /path/to/codemind'));
+      console.log(chalk.cyan('  1. Navigate to CodeSeeker directory: cd /path/to/codeseeker'));
       console.log(chalk.cyan('  2. Then run setup again'));
-      console.log(chalk.cyan('  3. Or specify path: npm run setup -- --project-path /path/to/codemind'));
+      console.log(chalk.cyan('  3. Or specify path: npm run setup -- --project-path /path/to/codeseeker'));
     } else if (error.message.includes('database') || error.message.includes('connection')) {
       console.log(chalk.yellow('\n💡 Database Issues? Try these solutions:'));
       console.log(chalk.cyan('  • Wait for containers to fully start (may take 30-60 seconds)'));
@@ -122,7 +122,7 @@ export class SetupReporter implements ISetupReporter {
 
     if (status.initialization) {
       console.log(chalk.cyan('  ✓ Setup completed successfully!'));
-      console.log(chalk.cyan('  1. Run: npm run codemind (or just "codemind" if globally linked)'));
+      console.log(chalk.cyan('  1. Run: npm run codeseeker (or just "codeseeker" if globally linked)'));
       console.log(chalk.cyan('  2. Navigate to your project and run: /init'));
       console.log(chalk.cyan('  3. Start analyzing: "what is this project about?"'));
     } else {

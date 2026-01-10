@@ -44,12 +44,12 @@ export class MultiLevelCache<T> {
       maxMemoryEntries: config.maxMemoryEntries || 1000,
       maxFileSize: config.maxFileSize || 10 * 1024 * 1024, // 10MB
       defaultTTL: config.defaultTTL || 3600000, // 1 hour
-      fileBasePath: config.fileBasePath || '.codemind/cache',
+      fileBasePath: config.fileBasePath || '.codeseeker/cache',
       enableCompression: config.enableCompression || true
     };
 
     this.fileCacheDir = path.join(this.config.fileBasePath, cacheName);
-    this.redisCache = new RedisCacheAdapter<T>(`codemind:cache:${cacheName}`);
+    this.redisCache = new RedisCacheAdapter<T>(`codeseeker:cache:${cacheName}`);
   }
 
   async initialize(): Promise<void> {
@@ -393,7 +393,7 @@ export class SemanticSearchCache {
   private resultCache: MultiLevelCache<any>;
   
   constructor(projectPath: string) {
-    const baseConfig = { fileBasePath: path.join(projectPath, '.codemind', 'cache') };
+    const baseConfig = { fileBasePath: path.join(projectPath, '.codeseeker', 'cache') };
     
     this.embeddingCache = new MultiLevelCache('embeddings', {
       ...baseConfig,

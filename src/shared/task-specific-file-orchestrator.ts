@@ -8,7 +8,7 @@
 import { Logger } from './logger';
 import { ComprehensiveImpactAnalyzer, ImpactAnalysisResult, AffectedFile } from './comprehensive-impact-analyzer';
 import { GitBranchManager, FeatureBranch, BranchSnapshot } from './managers/git-branch-manager';
-import { CodeMindValidationCycle } from './validation-cycle';
+import { CodeSeekerValidationCycle } from './validation-cycle';
 import { PostExecutionIntegration, IntegrationResult } from './post-execution-integration';
 import { ProjectContext } from './types';
 
@@ -42,7 +42,7 @@ export class TaskSpecificFileOrchestrator {
   private logger: Logger;
   private impactAnalyzer: ComprehensiveImpactAnalyzer;
   private branchManager: GitBranchManager;
-  private validationCycle: CodeMindValidationCycle;
+  private validationCycle: CodeSeekerValidationCycle;
   private postExecutionIntegration: PostExecutionIntegration;
 
   constructor(projectPath: string) {
@@ -59,7 +59,7 @@ export class TaskSpecificFileOrchestrator {
         maxComplexityPerFunction: 10
       }
     };
-    this.validationCycle = new CodeMindValidationCycle(config);
+    this.validationCycle = new CodeSeekerValidationCycle(config);
     this.postExecutionIntegration = new PostExecutionIntegration(projectPath);
   }
 

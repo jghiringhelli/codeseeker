@@ -1,9 +1,9 @@
-# CodeMind CLI Commands Manual
+# CodeSeeker CLI Commands Manual
 
 **Version**: 2.0.0
 **Last Updated**: December 2025
 
-CodeMind is an intelligent CLI tool that enhances Claude Code with semantic search, knowledge graphs, and AI-powered code analysis.
+CodeSeeker is an intelligent CLI tool that enhances Claude Code with semantic search, knowledge graphs, and AI-powered code analysis.
 
 ---
 
@@ -26,28 +26,28 @@ CodeMind is an intelligent CLI tool that enhances Claude Code with semantic sear
 
 ```bash
 # Install globally
-npm install -g codemind
+npm install -g codeseeker
 
 # Or link from source
-cd CodeMind
+cd CodeSeeker
 npm run build && npm link
 
 # Verify installation
-codemind --help
+codeseeker --help
 ```
 
 ### Quick Start Workflow
 
 ```bash
 # 1. Setup infrastructure (first time only)
-codemind setup
+codeseeker setup
 
 # 2. Initialize your project
 cd /path/to/your/project
-codemind init
+codeseeker init
 
 # 3. Ask questions about your code
-codemind -c "what is this project about"
+codeseeker -c "what is this project about"
 ```
 
 ---
@@ -57,7 +57,7 @@ codemind -c "what is this project about"
 ### Basic Syntax
 
 ```bash
-codemind [options] [command]
+codeseeker [options] [command]
 ```
 
 ### Options
@@ -75,19 +75,19 @@ codemind [options] [command]
 
 ```bash
 # Start interactive REPL mode
-codemind
+codeseeker
 
 # Start with specific project path
-codemind -p /path/to/project
+codeseeker -p /path/to/project
 
 # Execute single command and exit
-codemind -c "analyze main entry point"
+codeseeker -c "analyze main entry point"
 
 # Execute in transparent mode (no prompts)
-codemind -t -c "what files handle authentication"
+codeseeker -t -c "what files handle authentication"
 
 # Direct command (same as -c)
-codemind "what is this project about"
+codeseeker "what is this project about"
 ```
 
 ---
@@ -99,7 +99,7 @@ One-time infrastructure setup for Docker containers and databases.
 ### Syntax
 
 ```bash
-codemind setup [options]
+codeseeker setup [options]
 ```
 
 ### Options
@@ -122,28 +122,28 @@ codemind setup [options]
 
 ```bash
 # Full infrastructure setup
-codemind setup
+codeseeker setup
 
 # Force re-setup
-codemind setup --force
+codeseeker setup --force
 
 # Setup without Docker (use existing databases)
-codemind setup --skip-docker
+codeseeker setup --skip-docker
 
 # Setup with custom project path
-codemind setup --project-path /path/to/project
+codeseeker setup --project-path /path/to/project
 ```
 
 ---
 
 ## Project Initialization (`init`)
 
-Initialize a project for CodeMind analysis. Creates embeddings, knowledge graph, and configuration.
+Initialize a project for CodeSeeker analysis. Creates embeddings, knowledge graph, and configuration.
 
 ### Syntax
 
 ```bash
-codemind init [options] [path]
+codeseeker init [options] [path]
 ```
 
 ### Options
@@ -157,31 +157,31 @@ codemind init [options] [path]
 ### What It Does
 
 1. Registers project in database
-2. Creates `.codemind/project.json` configuration
+2. Creates `.codeseeker/project.json` configuration
 3. Indexes codebase for semantic search (unless `--quick`)
 4. Builds initial knowledge graph in Neo4j
-5. Creates `CODEMIND.md` template if missing
+5. Creates `CODESEEKER.md` template if missing
 
 ### Examples
 
 ```bash
 # Initialize current directory
-codemind init
+codeseeker init
 
 # Quick initialization (no indexing)
-codemind init --quick
+codeseeker init --quick
 
 # Complete reset (clears all data)
-codemind init --reset
+codeseeker init --reset
 
 # Reset config for copied project folder
-codemind init --new-config
+codeseeker init --new-config
 ```
 
 ### Output
 
 ```
-🚀 Initializing CodeMind project...
+🚀 Initializing CodeSeeker project...
 📁 Project path: /path/to/project
 📊 Setting up database...
 ✅ Database connection established
@@ -192,8 +192,8 @@ codemind init --new-config
 🕸️ Building knowledge graph...
 ✅ Knowledge graph created with triads
 📝 Setting up project instructions...
-✅ CODEMIND.md already exists
-🎉 CodeMind project initialized successfully!
+✅ CODESEEKER.md already exists
+🎉 CodeSeeker project initialized successfully!
 ```
 
 ---
@@ -205,7 +205,7 @@ Index codebase and perform semantic searches using vector embeddings.
 ### Syntax
 
 ```bash
-codemind search [query] [options]
+codeseeker search [query] [options]
 ```
 
 ### Options
@@ -221,7 +221,7 @@ codemind search [query] [options]
 
 ```bash
 # Index codebase for semantic search
-codemind search --index
+codeseeker search --index
 ```
 
 **Indexing features:**
@@ -234,26 +234,26 @@ codemind search --index
 
 ```bash
 # Basic search
-codemind search "authentication middleware"
+codeseeker search "authentication middleware"
 
 # Search with options
-codemind search "database connection" --threshold=0.5 --limit=20 --verbose
+codeseeker search "database connection" --threshold=0.5 --limit=20 --verbose
 ```
 
 ### Examples
 
 ```bash
 # Index the codebase first
-codemind search --index
+codeseeker search --index
 
 # Search for specific functionality
-codemind search "user validation"
+codeseeker search "user validation"
 
 # Search with lower threshold for more results
-codemind search "error handling" --threshold=0.5
+codeseeker search "error handling" --threshold=0.5
 
 # Verbose search with content previews
-codemind search "API endpoints" --verbose --limit=15
+codeseeker search "API endpoints" --verbose --limit=15
 ```
 
 ### Output
@@ -284,7 +284,7 @@ Manage project registration, identity, and duplicates.
 ### Syntax
 
 ```bash
-codemind project <subcommand> [args]
+codeseeker project <subcommand> [args]
 ```
 
 ### Subcommands
@@ -302,27 +302,27 @@ codemind project <subcommand> [args]
 
 ```bash
 # List all projects
-codemind project list
-codemind project ls
+codeseeker project list
+codeseeker project ls
 
 # Show project info
-codemind project info
-codemind project info /path/to/project
+codeseeker project info
+codeseeker project info /path/to/project
 
 # Get deterministic ID
-codemind project id
-codemind project id /path/to/project
+codeseeker project id
+codeseeker project id /path/to/project
 
 # Find duplicates
-codemind project duplicates
-codemind project dups
+codeseeker project duplicates
+codeseeker project dups
 
 # Clean up duplicates for current project
-codemind project cleanup
-codemind project clean /path/to/project
+codeseeker project cleanup
+codeseeker project clean /path/to/project
 
 # Show help
-codemind project help
+codeseeker project help
 ```
 
 ### List Output
@@ -345,7 +345,7 @@ codemind project help
 
 ### Project ID System
 
-CodeMind uses deterministic project IDs based on SHA-256 hash of normalized path:
+CodeSeeker uses deterministic project IDs based on SHA-256 hash of normalized path:
 - Ensures consistent IDs across reinitializations
 - Prevents duplicate entries for the same project
 - Handles path normalization (Windows/Unix differences)
@@ -359,7 +359,7 @@ Perform AI-enhanced code analysis using the 11-step workflow.
 ### Syntax
 
 ```bash
-codemind analyze <query>
+codeseeker analyze <query>
 ```
 
 ### What It Does (11-Step Workflow)
@@ -380,13 +380,13 @@ codemind analyze <query>
 
 ```bash
 # Analyze specific functionality
-codemind analyze "how does user authentication work"
+codeseeker analyze "how does user authentication work"
 
 # Analyze code patterns
-codemind analyze "where is validation logic implemented"
+codeseeker analyze "where is validation logic implemented"
 
 # Analyze architecture
-codemind analyze "what design patterns are used"
+codeseeker analyze "what design patterns are used"
 ```
 
 ### Output
@@ -444,7 +444,7 @@ codemind analyze "what design patterns are used"
 
 ## Natural Language Queries
 
-Ask questions directly without specific commands. CodeMind automatically detects natural language and triggers the enhanced workflow.
+Ask questions directly without specific commands. CodeSeeker automatically detects natural language and triggers the enhanced workflow.
 
 ### Search Toggle Feature
 
@@ -483,7 +483,7 @@ When using the inline prompt interface:
 ### Syntax
 
 ```bash
-codemind -c "<natural language query>"
+codeseeker -c "<natural language query>"
 # or in interactive mode, just type your question
 ```
 
@@ -491,28 +491,28 @@ codemind -c "<natural language query>"
 
 ```bash
 # Understanding the project
-codemind -c "what is this project about"
-codemind -c "explain the main architecture"
+codeseeker -c "what is this project about"
+codeseeker -c "explain the main architecture"
 
 # Finding code
-codemind -c "where are the API endpoints defined"
-codemind -c "show me files related to user authentication"
+codeseeker -c "where are the API endpoints defined"
+codeseeker -c "show me files related to user authentication"
 
 # Code changes (triggers approval workflow)
-codemind -c "add error handling to the database service"
-codemind -c "create a new middleware for request logging"
+codeseeker -c "add error handling to the database service"
+codeseeker -c "create a new middleware for request logging"
 
 # Analysis requests
-codemind -c "check this codebase for SOLID violations"
-codemind -c "find duplicate code patterns"
+codeseeker -c "check this codebase for SOLID violations"
+codeseeker -c "find duplicate code patterns"
 ```
 
 ### Interactive Mode
 
 ```
-codemind> what is this project about
-codemind> show me how authentication works
-codemind> create a new API endpoint for users
+codeseeker> what is this project about
+codeseeker> show me how authentication works
+codeseeker> create a new API endpoint for users
 ```
 
 ---
@@ -552,13 +552,13 @@ Shows:
 
 Features:
 - Per-project command history
-- Stored in `~/.codemind/history/`
+- Stored in `~/.codeseeker/history/`
 - Up to 100 commands preserved
 
 ### Exit
 
 ```bash
-/exit          # Exit CodeMind
+/exit          # Exit CodeSeeker
 /quit          # Same as above
 exit           # Same as above
 quit           # Same as above
@@ -568,7 +568,7 @@ quit           # Same as above
 
 ## Environment Variables
 
-Configure CodeMind behavior via environment variables or `.env` file.
+Configure CodeSeeker behavior via environment variables or `.env` file.
 
 ### Database Configuration
 
@@ -576,9 +576,9 @@ Configure CodeMind behavior via environment variables or `.env` file.
 |----------|---------|-------------|
 | `DB_HOST` | `localhost` | PostgreSQL host |
 | `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_NAME` | `codemind` | Database name |
-| `DB_USER` | `codemind` | Database user |
-| `DB_PASSWORD` | `codemind123` | Database password |
+| `DB_NAME` | `codeseeker` | Database name |
+| `DB_USER` | `codeseeker` | Database user |
+| `DB_PASSWORD` | `codeseeker123` | Database password |
 
 ### Neo4j Configuration
 
@@ -586,7 +586,7 @@ Configure CodeMind behavior via environment variables or `.env` file.
 |----------|---------|-------------|
 | `NEO4J_URI` | `bolt://localhost:7687` | Neo4j connection URI |
 | `NEO4J_USER` | `neo4j` | Neo4j user |
-| `NEO4J_PASSWORD` | `codemind123` | Neo4j password |
+| `NEO4J_PASSWORD` | `codeseeker123` | Neo4j password |
 
 ### Redis Configuration
 
@@ -602,14 +602,14 @@ Configure CodeMind behavior via environment variables or `.env` file.
 # Database
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=codemind
-DB_USER=codemind
-DB_PASSWORD=codemind123
+DB_NAME=codeseeker
+DB_USER=codeseeker
+DB_PASSWORD=codeseeker123
 
 # Neo4j
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=codemind123
+NEO4J_PASSWORD=codeseeker123
 
 # Redis
 REDIS_HOST=localhost
@@ -625,13 +625,13 @@ REDIS_PORT=6379
 **Low semantic similarity scores:**
 ```bash
 # Regenerate embeddings with correct model
-codemind search --index
+codeseeker search --index
 ```
 
 **Project not found:**
 ```bash
 # Initialize the project first
-codemind init
+codeseeker init
 ```
 
 **Database connection failed:**
@@ -640,22 +640,22 @@ codemind init
 docker ps
 
 # Restart infrastructure
-codemind setup --force
+codeseeker setup --force
 ```
 
 **Path mismatch (copied project folder):**
 ```bash
 # Reset configuration for new location
-codemind init --new-config
+codeseeker init --new-config
 ```
 
 **Duplicate projects:**
 ```bash
 # Find duplicates
-codemind project duplicates
+codeseeker project duplicates
 
 # Clean up
-codemind project cleanup
+codeseeker project cleanup
 ```
 
 ### Keyboard Shortcuts (Interactive Mode)
@@ -674,7 +674,7 @@ codemind project cleanup
 
 ### Embedding Model
 
-CodeMind uses **Xenova/all-MiniLM-L6-v2** for all embeddings:
+CodeSeeker uses **Xenova/all-MiniLM-L6-v2** for all embeddings:
 - 384-dimensional vectors
 - Consistent model across indexing and retrieval
 - pgvector extension in PostgreSQL for similarity search
@@ -696,5 +696,5 @@ CodeMind uses **Xenova/all-MiniLM-L6-v2** for all embeddings:
 ## Support
 
 - **Issues**: https://github.com/anthropics/claude-code/issues
-- **Documentation**: `codemind --help`
+- **Documentation**: `codeseeker --help`
 - **Interactive Help**: `/help` in REPL mode

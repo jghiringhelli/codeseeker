@@ -1,7 +1,7 @@
 /**
  * Claude Code Output Forwarder
  * Captures and forwards Claude Code output in real-time with distinctive styling
- * Mirrors Claude Code's prompt-level output within CodeMind CLI
+ * Mirrors Claude Code's prompt-level output within CodeSeeker CLI
  */
 
 import { EventEmitter } from 'events';

@@ -1,7 +1,7 @@
 /**
  * Git Branch Manager
  * 
- * Manages feature branches, snapshots, and rollback capabilities for CodeMind
+ * Manages feature branches, snapshots, and rollback capabilities for CodeSeeker
  * Each request gets its own branch with snapshot points for safe rollbacks
  */
 
@@ -436,7 +436,7 @@ export class GitBranchManager {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 16);
     const id = requestId || Math.random().toString(36).substring(2, 8);
     
-    return `codemind/${sanitized}-${timestamp}-${id}`;
+    return `codeseeker/${sanitized}-${timestamp}-${id}`;
   }
 
   private generateCommitMessage(
@@ -447,7 +447,7 @@ export class GitBranchManager {
     const status = validationPassed ? '✅' : '⚠️';
     const filesList = changedFiles.length > 0 ? `\n\nFiles: ${changedFiles.join(', ')}` : '';
     
-    return `${status} ${description}${filesList}\n\n🤖 Generated with CodeMind CLI`;
+    return `${status} ${description}${filesList}\n\n🤖 Generated with CodeSeeker CLI`;
   }
 
   private async execGit(command: string): Promise<{ stdout: string; stderr: string }> {

@@ -19,7 +19,7 @@ export interface FileHashEntry {
   contentHash: string;      // SHA-256 of file content
   structureHash: string;    // Hash of AST structure (classes, methods, imports)
   lastModified: number;     // File system timestamp
-  lastSynced: number;       // When CodeMind last processed it
+  lastSynced: number;       // When CodeSeeker last processed it
   embeddingVersion: string; // Track embedding algorithm changes
   size: number;            // File size for quick checks
 }
@@ -53,7 +53,7 @@ export class SyncManagerService {
   private embeddingService: any;
   private semanticGraphService: any;
   private currentEmbeddingVersion = 'v1.0';
-  private readonly HASH_PREFIX = 'codemind:file_hash:'; // Keep for backwards compatibility
+  private readonly HASH_PREFIX = 'codeseeker:file_hash:'; // Keep for backwards compatibility
 
   constructor(dbConnections?: DatabaseConnections) {
     this.logger = Logger.getInstance();

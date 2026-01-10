@@ -275,7 +275,7 @@ export class MemoryArchitectureIntegration {
         // Record the orchestration in all relevant memory layers
         await memoryManager.recordInteraction(requestId, {
           type: 'orchestration_complete',
-          codemindAction: { userRequest, options },
+          codeseekerAction: { userRequest, options },
           claudeResponse: { result },
           context: { projectPath },
           outcome: {

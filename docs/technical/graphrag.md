@@ -4,13 +4,13 @@
 
 ## Overview
 
-CodeMind implements GraphRAG to help Claude understand not just **what files are relevant** to a query, but **how they relate to each other**. This dramatically improves Claude's ability to make coherent changes across multiple files.
+CodeSeeker implements GraphRAG to help Claude understand not just **what files are relevant** to a query, but **how they relate to each other**. This dramatically improves Claude's ability to make coherent changes across multiple files.
 
 ```
 Traditional RAG:
   Query → Embedding → Vector Search → Top N Chunks → LLM
 
-GraphRAG (CodeMind):
+GraphRAG (CodeSeeker):
   Query → Embedding → Vector Search → Seed Files
                                          ↓
                               Graph Lookup (find nodes)
@@ -24,7 +24,7 @@ GraphRAG (CodeMind):
 
 ## The "Seed + Expand" Strategy
 
-CodeMind uses a three-step graph traversal strategy:
+CodeSeeker uses a three-step graph traversal strategy:
 
 ### Step 1: Seed Selection (Semantic Search)
 
@@ -208,7 +208,7 @@ A **triad** is a three-node relationship pattern that reveals coupling:
  B───┴───C
 ```
 
-When CodeMind detects triads, it knows:
+When CodeSeeker detects triads, it knows:
 
 1. **Tight Coupling**: Changes to A likely require changes to B and C
 2. **Shared Dependencies**: B and C share a common ancestor (A)
@@ -245,7 +245,7 @@ Graph query results are cached per project session to avoid repeated traversals.
 
 ### Fallback
 
-If the knowledge graph is unavailable or empty, CodeMind falls back to basic analysis using only semantic search results.
+If the knowledge graph is unavailable or empty, CodeSeeker falls back to basic analysis using only semantic search results.
 
 ## Testing
 
@@ -253,10 +253,10 @@ Run the integration tests to verify GraphRAG functionality:
 
 ```bash
 # Test embedded mode (Graphology)
-CODEMIND_STORAGE_MODE=embedded npm test -- storage-init-workflow
+CODESEEKER_STORAGE_MODE=embedded npm test -- storage-init-workflow
 
 # Test server mode (Neo4j)
-CODEMIND_STORAGE_MODE=server npm test -- storage-init-workflow
+CODESEEKER_STORAGE_MODE=server npm test -- storage-init-workflow
 
 # Run all storage configurations
 node scripts/run-storage-integration-tests.js

@@ -7,7 +7,7 @@
 import { ProjectManager } from '../../cli/managers/project-manager';
 import { DatabaseManager } from '../../cli/managers/database-manager';
 import { UserInterface } from '../../cli/managers/user-interface';
-import { CodeMindInstructionService } from '../../cli/services/integration/codemind-instruction-service';
+import { CodeSeekerInstructionService } from '../../cli/services/integration/codeseeker-instruction-service';
 import { InterruptManager } from '../../cli/managers/interrupt-manager';
 import { ClaudeCodeForwarder } from '../../cli/managers/claude-code-forwarder';
 import { WorkflowOrchestrationAdapter } from '../../cli/managers/workflow-orchestration-adapter';
@@ -43,7 +43,7 @@ export class CommandServiceFactory {
     // Create other services
     const databaseManager = new DatabaseManager();
     const userInterface = new UserInterface();
-    const instructionService = new CodeMindInstructionService();
+    const instructionService = new CodeSeekerInstructionService();
     const interruptManager = InterruptManager.getInstance();
     const claudeForwarder = new ClaudeCodeForwarder({
       showTimestamps: false,

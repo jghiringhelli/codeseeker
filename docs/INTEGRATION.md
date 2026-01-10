@@ -1,10 +1,10 @@
-# CodeMind Integration Guide
+# CodeSeeker Integration Guide
 
-This guide explains the different ways to use CodeMind and how they work together.
+This guide explains the different ways to use CodeSeeker and how they work together.
 
 ## Components Overview
 
-CodeMind provides multiple integration points - use what fits your workflow:
+CodeSeeker provides multiple integration points - use what fits your workflow:
 
 | Component | Purpose | Install Once? | Auto-Sync? |
 |-----------|---------|---------------|------------|
@@ -18,45 +18,45 @@ CodeMind provides multiple integration points - use what fits your workflow:
 For the smoothest experience with Claude Code:
 
 ```bash
-# 1. Install CodeMind globally
-npm install -g codemind-enhanced-cli
+# 1. Install CodeSeeker globally
+npm install -g codeseeker
 
 # 2. Copy plugin to Claude Code
-cp -r plugins/codemind ~/.claude/plugins/   # Linux/macOS
-xcopy /E /I plugins\codemind %USERPROFILE%\.claude\plugins\codemind  # Windows
+cp -r plugins/codeseeker ~/.claude/plugins/   # Linux/macOS
+xcopy /E /I plugins\codeseeker %USERPROFILE%\.claude\plugins\codeseeker  # Windows
 
 # 3. Restart Claude Code
 
 # 4. Initialize your project (one time)
-# In Claude Code, run: /codemind:init
+# In Claude Code, run: /codeseeker:init
 ```
 
 That's it! The plugin handles everything else automatically.
 
 ## Component Details
 
-### 1. CLI (`codemind`)
+### 1. CLI (`codeseeker`)
 
 The command-line interface for direct interaction.
 
 **Installation:**
 ```bash
-npm install -g codemind-enhanced-cli
+npm install -g codeseeker
 ```
 
 **Usage:**
 ```bash
 # Interactive REPL mode
-codemind
+codeseeker
 
 # Single command
-codemind -c "search for authentication logic"
+codeseeker -c "search for authentication logic"
 
 # Direct query
-codemind "what does this project do"
+codeseeker "what does this project do"
 
 # Start MCP server
-codemind serve --mcp
+codeseeker serve --mcp
 ```
 
 **When to use:** Local development, scripting, CI/CD pipelines.
@@ -65,7 +65,7 @@ codemind serve --mcp
 
 ### 2. MCP Server
 
-Exposes CodeMind tools to AI assistants via Model Context Protocol.
+Exposes CodeSeeker tools to AI assistants via Model Context Protocol.
 
 **Tools provided:**
 - `search_code` - Semantic search across codebase
@@ -81,8 +81,8 @@ Exposes CodeMind tools to AI assistants via Model Context Protocol.
 ```json
 {
   "mcpServers": {
-    "codemind": {
-      "command": "codemind",
+    "codeseeker": {
+      "command": "codeseeker",
       "args": ["serve", "--mcp"]
     }
   }
@@ -96,7 +96,7 @@ Exposes CodeMind tools to AI assistants via Model Context Protocol.
 The plugin provides the most seamless experience with Claude Code.
 
 **What it includes:**
-- Slash commands (`/codemind:init`, `/codemind:search`, etc.)
+- Slash commands (`/codeseeker:init`, `/codeseeker:search`, etc.)
 - Agent skills (auto-invoked by Claude when relevant)
 - MCP server auto-configuration
 - Auto-sync hooks (keeps index updated automatically)
@@ -104,7 +104,7 @@ The plugin provides the most seamless experience with Claude Code.
 **Installation:**
 ```bash
 # Copy to plugins directory
-cp -r plugins/codemind ~/.claude/plugins/
+cp -r plugins/codeseeker ~/.claude/plugins/
 
 # Restart Claude Code
 ```
@@ -131,7 +131,7 @@ Watches for manual file edits and syncs the index.
 - Batches changes (2-second debounce)
 - Calls MCP `notify_file_changes` automatically
 
-**Installation:** Install from VSCode marketplace or build from `extensions/vscode-codemind/`.
+**Installation:** Install from VSCode marketplace or build from `extensions/vscode-codeseeker/`.
 
 ---
 
@@ -148,7 +148,7 @@ Watches for manual file edits and syncs the index.
 
 **Manual reindex when needed:**
 ```
-/codemind:reindex
+/codeseeker:reindex
 ```
 
 ---
@@ -162,7 +162,7 @@ Watches for manual file edits and syncs the index.
 │                                                                  │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
 │  │  CLI         │    │  VSCode Ext  │    │  Claude Code │       │
-│  │  (codemind)  │    │  (watcher)   │    │  (plugin)    │       │
+│  │  (codeseeker)  │    │  (watcher)   │    │  (plugin)    │       │
 │  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘       │
 │         │                   │                   │                │
 │         └───────────────────┼───────────────────┘                │
@@ -170,14 +170,14 @@ Watches for manual file edits and syncs the index.
 │                             ▼                                    │
 │                    ┌────────────────┐                            │
 │                    │   MCP Server   │                            │
-│                    │  (codemind     │                            │
+│                    │  (codeseeker     │                            │
 │                    │   serve --mcp) │                            │
 │                    └────────┬───────┘                            │
 │                             │                                    │
 │              ┌──────────────┼──────────────┐                     │
 │              ▼              ▼              ▼                     │
 │     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐             │
-│     │   SQLite    │ │  Embedded   │ │  .codemind/ │             │
+│     │   SQLite    │ │  Embedded   │ │  .codeseeker/ │             │
 │     │  (vectors)  │ │  MiniSearch │ │  (config)   │             │
 │     └─────────────┘ └─────────────┘ └─────────────┘             │
 │                                                                  │
@@ -191,17 +191,17 @@ Watches for manual file edits and syncs the index.
 ### Developer using Claude Code daily
 1. Install CLI globally
 2. Install Claude Code Plugin
-3. Run `/codemind:init` once per project
+3. Run `/codeseeker:init` once per project
 4. (Optional) Install VSCode Extension for manual edit sync
 
 ### Team with shared codebase
 1. Each developer installs CLI + Plugin
-2. Add `.codemind/` to `.gitignore` (indexes are local)
-3. Each developer runs `/codemind:init` on clone
+2. Add `.codeseeker/` to `.gitignore` (indexes are local)
+3. Each developer runs `/codeseeker:init` on clone
 
 ### CI/CD integration
 1. Install CLI in pipeline
-2. Use `codemind -c "analyze..."` for automated checks
+2. Use `codeseeker -c "analyze..."` for automated checks
 3. No plugin/extension needed
 
 ---
@@ -211,22 +211,22 @@ Watches for manual file edits and syncs the index.
 ### MCP tools not available
 ```bash
 # Verify CLI is installed
-codemind --version
+codeseeker --version
 
 # Verify MCP server starts
-codemind serve --mcp
-# Should output: "CodeMind MCP server running..."
+codeseeker serve --mcp
+# Should output: "CodeSeeker MCP server running..."
 ```
 
 ### Index out of date
 ```
-/codemind:reindex
+/codeseeker:reindex
 ```
 
 ### Plugin not loading
-- Check `~/.claude/plugins/codemind/.claude-plugin/plugin.json` exists
+- Check `~/.claude/plugins/codeseeker/.claude-plugin/plugin.json` exists
 - Restart Claude Code completely
 
 ### Hooks not triggering
-- Verify plugin is loaded: `/codemind:search test`
-- Check `~/.claude/plugins/codemind/hooks/hooks.json` exists
+- Verify plugin is loaded: `/codeseeker:search test`
+- Check `~/.claude/plugins/codeseeker/hooks/hooks.json` exists

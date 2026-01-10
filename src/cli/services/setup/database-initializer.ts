@@ -16,14 +16,14 @@ export class DatabaseInitializer implements IDatabaseInitializer {
     postgres: {
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'codemind',
-      user: process.env.DB_USER || 'codemind',
-      password: process.env.DB_PASSWORD || 'codemind123'
+      database: process.env.DB_NAME || 'codeseeker',
+      user: process.env.DB_USER || 'codeseeker',
+      password: process.env.DB_PASSWORD || 'codeseeker123'
     },
     neo4j: {
       uri: process.env.NEO4J_URI || 'bolt://localhost:7687',
       user: process.env.NEO4J_USER || 'neo4j',
-      password: process.env.NEO4J_PASSWORD || 'codemind123'
+      password: process.env.NEO4J_PASSWORD || 'codeseeker123'
     },
     redis: {
       host: process.env.REDIS_HOST || 'localhost',
@@ -255,9 +255,9 @@ export class DatabaseInitializer implements IDatabaseInitializer {
       });
 
       // Test basic operations
-      await client.set('codemind:setup:test', 'success');
-      const testResult = await client.get('codemind:setup:test');
-      await client.del('codemind:setup:test');
+      await client.set('codeseeker:setup:test', 'success');
+      const testResult = await client.get('codeseeker:setup:test');
+      await client.del('codeseeker:setup:test');
 
       if (testResult !== 'success') {
         throw new Error('Redis test operation failed');

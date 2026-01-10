@@ -1,0 +1,19 @@
+{
+  "name": "codeseeker",
+  "version": "1.3.0",
+  "description": "CodeSeeker - Intelligent code understanding with semantic search, knowledge graphs, and auto-detected coding standards",
+  "author": {
+    "name": "CodeSeeker Team",
+    "url": "https://github.com/jghiringhelli/codeseeker"
+  },
+  "homepage": "https://github.com/jghiringhelli/codeseeker",
+  "repository": "https://github.com/jghiringhelli/codeseeker",
+  "license": "MIT",
+  "keywords": [
+    "semantic-search",
+    "code-analysis",
+    "knowledge-graph",
+    "coding-standards",
+    "context-enhancement"
+  ]
+}

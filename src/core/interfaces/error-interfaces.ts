@@ -64,7 +64,7 @@ export interface ClaudeCodeError extends BaseError {
 }
 
 // Union type for all error types
-export type CodeMindError =
+export type CodeSeekerError =
   | DatabaseError
   | FileSystemError
   | ValidationError
@@ -81,25 +81,25 @@ export interface SuccessResult<T> {
 
 export interface ErrorResult {
   success: false;
-  error: CodeMindError;
+  error: CodeSeekerError;
 }
 
 export type Result<T> = SuccessResult<T> | ErrorResult;
 
 // Error handler interfaces following Single Responsibility
 export interface IErrorLogger {
-  log(error: CodeMindError): Promise<void>;
-  logWithContext(error: CodeMindError, context: Record<string, any>): Promise<void>;
+  log(error: CodeSeekerError): Promise<void>;
+  logWithContext(error: CodeSeekerError, context: Record<string, any>): Promise<void>;
 }
 
 export interface IErrorReporter {
-  report(error: CodeMindError): Promise<void>;
-  reportCritical(error: CodeMindError): Promise<void>;
+  report(error: CodeSeekerError): Promise<void>;
+  reportCritical(error: CodeSeekerError): Promise<void>;
 }
 
 export interface IErrorRecovery {
-  canRecover(error: CodeMindError): boolean;
-  recover(error: CodeMindError): Promise<Result<any>>;
+  canRecover(error: CodeSeekerError): boolean;
+  recover(error: CodeSeekerError): Promise<Result<any>>;
 }
 
 // Error factory following Factory Pattern and Open/Closed Principle
@@ -115,13 +115,13 @@ export interface IErrorFactory {
 
 // Error handling service interface following Dependency Inversion
 export interface IErrorHandler {
-  handle(error: CodeMindError): Promise<Result<any>>;
-  handleWithRecovery(error: CodeMindError): Promise<Result<any>>;
-  isRecoverable(error: CodeMindError): boolean;
+  handle(error: CodeSeekerError): Promise<Result<any>>;
+  handleWithRecovery(error: CodeSeekerError): Promise<Result<any>>;
+  isRecoverable(error: CodeSeekerError): boolean;
 }
 
 // Error middleware interface for consistent error processing
 export interface IErrorMiddleware {
-  process(error: CodeMindError): Promise<CodeMindError>;
-  enrichWithContext(error: CodeMindError, context: Record<string, any>): CodeMindError;
+  process(error: CodeSeekerError): Promise<CodeSeekerError>;
+  enrichWithContext(error: CodeSeekerError, context: Record<string, any>): CodeSeekerError;
 }

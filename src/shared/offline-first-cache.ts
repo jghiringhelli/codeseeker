@@ -1,6 +1,6 @@
 /**
  * Offline-First Smart Cache
- * Allows CodeMind workflow to proceed even when databases are unavailable
+ * Allows CodeSeeker workflow to proceed even when databases are unavailable
  * Falls back gracefully from Redis → File Cache → Memory Cache → Continue without cache
  */
 
@@ -44,7 +44,7 @@ export class OfflineFirstCache {
   };
 
   constructor(projectPath: string = process.cwd()) {
-    this.cacheDir = path.join(projectPath, '.codemind', 'cache');
+    this.cacheDir = path.join(projectPath, '.codeseeker', 'cache');
   }
 
   /**

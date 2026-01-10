@@ -2,7 +2,7 @@
  * Mock LLM Executor
  *
  * A mock implementation of ILLMExecutor for testing purposes.
- * Allows testing the entire CodeMind workflow without real LLM API calls.
+ * Allows testing the entire CodeSeeker workflow without real LLM API calls.
  *
  * Features:
  * - Pattern-based response matching
@@ -21,7 +21,7 @@ import {
   MockLLMResponse
 } from './interfaces';
 
-// Default responses for common CodeMind operations
+// Default responses for common CodeSeeker operations
 const DEFAULT_MOCK_RESPONSES: MockLLMResponse[] = [
   // Code analysis responses
   {

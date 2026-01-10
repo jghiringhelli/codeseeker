@@ -21,7 +21,7 @@ export class GraphStorageService implements IGraphStorageService {
   constructor(
     uri: string = 'bolt://localhost:7687',
     username: string = 'neo4j',
-    password: string = 'codemind123'
+    password: string = 'codeseeker123'
   ) {
     this.driver = neo4j.driver(uri, neo4j.auth.basic(username, password), {
       disableLosslessIntegers: true

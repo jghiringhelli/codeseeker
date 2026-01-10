@@ -1,6 +1,6 @@
 /**
  * Core Cycle Services Test Suite
- * Tests for the 8-step CodeMind Core Cycle services
+ * Tests for the 8-step codeseeker Core Cycle services
  */
 
 import { NaturalLanguageProcessor, QueryAnalysis } from '../../../src/cli/commands/services/natural-language-processor';

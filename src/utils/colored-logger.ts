@@ -153,7 +153,7 @@ export class ColoredLogger {
     }
 
     sessionStart(sessionId: string, projectPath: string, config: any): void {
-        const message = `Starting CodeMind CLI session`;
+        const message = `Starting CodeSeeker CLI session`;
         this.log('info', 'SESSION', message, {
             sessionId,
             projectPath,
@@ -167,7 +167,7 @@ export class ColoredLogger {
     }
 
     sessionEnd(sessionId: string, metrics: any): void {
-        const message = `CodeMind CLI session completed`;
+        const message = `CodeSeeker CLI session completed`;
         this.log('success', 'SESSION', message, {
             sessionId,
             metrics: {
@@ -183,7 +183,7 @@ export class ColoredLogger {
     private printBanner(): void {
         console.log();
         console.log(chalk.cyan.bold('╔══════════════════════════════════════════════════════════════╗'));
-        console.log(chalk.cyan.bold('║') + chalk.white.bold('                    🚀 CodeMind CLI v2.0                     ') + chalk.cyan.bold('║'));
+        console.log(chalk.cyan.bold('║') + chalk.white.bold('                    🚀 CodeSeeker CLI v2.0                     ') + chalk.cyan.bold('║'));
         console.log(chalk.cyan.bold('║') + chalk.white('          Intelligent Tool Selection & Token Optimization    ') + chalk.cyan.bold('║'));
         console.log(chalk.cyan.bold('╚══════════════════════════════════════════════════════════════╝'));
         console.log();
@@ -214,7 +214,7 @@ export class ColoredLogger {
         const levels = [...new Set(this.logs.map(log => log.level))];
 
         console.log();
-        console.log(chalk.cyan.bold('📊 CodeMind CLI Session Summary'));
+        console.log(chalk.cyan.bold('📊 CodeSeeker CLI Session Summary'));
         console.log(chalk.cyan('═'.repeat(40)));
         
         console.log(chalk.white.bold('\n📈 Log Statistics:'));

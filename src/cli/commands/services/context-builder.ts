@@ -151,9 +151,9 @@ export class ContextBuilder {
     const componentCount = graphContext.classes?.length || 0;
     const relationshipCount = graphContext.relationshipDetails?.length || 0;
 
-    sections.push(`# Enhanced Context from CodeMind Pre-Search
+    sections.push(`# Enhanced Context from CodeSeeker Pre-Search
 
-**IMPORTANT**: This prompt has been enhanced by CodeMind, a codebase analysis tool. The context below was gathered BEFORE this request reached you using:
+**IMPORTANT**: This prompt has been enhanced by CodeSeeker, a codebase analysis tool. The context below was gathered BEFORE this request reached you using:
 
 1. **Semantic Vector Search** (PostgreSQL + pgvector): Found ${fileCount} relevant files by analyzing code embeddings for semantic similarity to the query
 2. **Knowledge Graph Analysis** (Neo4j): Discovered ${componentCount} components and ${relationshipCount} relationships by traversing the project's dependency graph
@@ -278,7 +278,7 @@ Follow CLAUDE.md project guidelines:
     // CONSTRAINTS: What NOT to do
     // ===========================================
     sections.push(`# Constraints
-- Do NOT mention permissions or approval - CodeMind handles this separately
+- Do NOT mention permissions or approval - CodeSeeker handles this separately
 - Do NOT create new files unless explicitly required - prefer editing existing
 - Do NOT add comments to unchanged code
 - Do NOT over-engineer - implement only what's requested`);

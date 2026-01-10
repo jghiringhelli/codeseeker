@@ -1,24 +1,24 @@
-# CodeMind Auto-Detected Coding Standards - Three-Way Comparison
+# CodeSeeker Auto-Detected Coding Standards - Three-Way Comparison
 
 **Date**: 2025-12-28
-**Feature**: Auto-detected coding standards with `.codemind/coding-standards.json` and `get_coding_standards` MCP tool
+**Feature**: Auto-detected coding standards with `.codeseeker/coding-standards.json` and `get_coding_standards` MCP tool
 **Status**: ✅ **FULLY VALIDATED - ALL THREE MODES TESTED**
 
 ---
 
 ## Executive Summary
 
-**CRITICAL FINDING**: Both **CodeMind CLI** and **CodeMind MCP** successfully found and used `validator.isEmail()`, while **Pure Claude** invented a custom regex pattern.
+**CRITICAL FINDING**: Both **CodeSeeker CLI** and **CodeSeeker MCP** successfully found and used `validator.isEmail()`, while **Pure Claude** invented a custom regex pattern.
 
 ### Three-Way Test Results
 
 | Mode | Used `validator.isEmail()`? | Pattern Source | Consistency |
 |------|----------------------------|----------------|-------------|
-| **CodeMind CLI** | ✅ YES | ValidatorService.js (semantic search) | High - project standard |
-| **CodeMind MCP** | ✅ YES | `.codemind/coding-standards.json` (get_coding_standards tool) | High - project standard |
+| **CodeSeeker CLI** | ✅ YES | ValidatorService.js (semantic search) | High - project standard |
+| **CodeSeeker MCP** | ✅ YES | `.codeseeker/coding-standards.json` (get_coding_standards tool) | High - project standard |
 | **Pure Claude** | ❌ NO | Invented custom regex | Low - new pattern |
 
-**Key Achievement**: CodeMind's auto-detected coding standards feature successfully guided Claude to use existing project patterns in both CLI and MCP modes.
+**Key Achievement**: CodeSeeker's auto-detected coding standards feature successfully guided Claude to use existing project patterns in both CLI and MCP modes.
 
 ---
 
@@ -39,24 +39,24 @@
 ### Test Execution Commands
 
 ```bash
-# Test 1: CodeMind CLI
+# Test 1: CodeSeeker CLI
 cd /c/tmp/ContractMaster-Test-CLI
-codemind init --new-config  # Generated coding-standards.json with 8 patterns
-codemind -c "add input validation to the registerUser function in MegaController - validate that email is a valid format and name is not empty"
+codeseeker init --new-config  # Generated coding-standards.json with 8 patterns
+codeseeker -c "add input validation to the registerUser function in MegaController - validate that email is a valid format and name is not empty"
 
 # Test 2: Pure Claude (baseline)
 cd /c/tmp/ContractMaster-Test-Pure
 claude --permission-mode acceptEdits "add input validation to the registerUser function in MegaController - validate that email is a valid format and name is not empty"
 
-# Test 3: CodeMind MCP
+# Test 3: CodeSeeker MCP
 cd /c/tmp/ContractMaster-Test-MCP
-codemind init --new-config  # Generated coding-standards.json with 8 patterns
+codeseeker init --new-config  # Generated coding-standards.json with 8 patterns
 claude --permission-mode bypassPermissions "Use the get_coding_standards MCP tool to learn what validation patterns this project uses, then add input validation to registerUser in MegaController following the project's standards"
 ```
 
 ---
 
-## Test 1: CodeMind CLI ✅
+## Test 1: CodeSeeker CLI ✅
 
 ### Process
 1. **Semantic Search**: Found 12 relevant files including ValidatorService.js (★★★★☆)
@@ -124,7 +124,7 @@ if (!email || typeof email !== 'string' || !emailRegex.test(email)) {
 
 ---
 
-## Test 3: CodeMind MCP ✅
+## Test 3: CodeSeeker MCP ✅
 
 ### Process
 1. **MCP Tool Call**: Claude called `get_coding_standards` tool
@@ -199,7 +199,7 @@ if (!validation.valid) {
 
 ### Pattern Discovery
 
-| Aspect | CodeMind CLI | CodeMind MCP | Pure Claude |
+| Aspect | CodeSeeker CLI | CodeSeeker MCP | Pure Claude |
 |--------|--------------|--------------|-------------|
 | **Found validator library** | ✅ YES (semantic search) | ✅ YES (coding standards tool) | ❌ NO |
 | **Used project pattern** | ✅ YES | ✅ YES | ❌ NO |
@@ -220,7 +220,7 @@ if (!email || typeof email !== 'string' || !emailRegex.test(email)) {
 - ❌ New pattern (inconsistency)
 - ✅ Works correctly
 
-**CodeMind CLI**:
+**CodeSeeker CLI**:
 ```javascript
 const validator = require('validator');
 if (!email || !validator.isEmail(email)) {
@@ -231,7 +231,7 @@ if (!email || !validator.isEmail(email)) {
 - ✅ Follows project standard
 - ✅ More maintainable
 
-**CodeMind MCP**:
+**CodeSeeker MCP**:
 ```javascript
 const validator = require('validator');
 const validation = { valid: true, errors: [] };
@@ -257,7 +257,7 @@ if (!validation.valid) {
 
 ### 1. Auto-Detected Standards Work
 
-**Both CodeMind modes successfully used the auto-detected coding standards** to guide Claude toward existing project patterns.
+**Both CodeSeeker modes successfully used the auto-detected coding standards** to guide Claude toward existing project patterns.
 
 - **CLI Mode**: Semantic search found ValidatorService.js → Claude saw the pattern → Used it
 - **MCP Mode**: `get_coding_standards` tool provided pattern → Claude applied it → Used validation object pattern too
@@ -275,7 +275,7 @@ This structured guidance allowed Claude to make an informed decision and even ad
 
 ### 3. Pure Claude Lacks Pattern Awareness
 
-Without CodeMind's pattern detection:
+Without CodeSeeker's pattern detection:
 - No knowledge of existing validation patterns
 - No guidance on project conventions
 - Falls back to "reasonable defaults" (custom regex)
@@ -339,8 +339,8 @@ Both CLI and MCP projects generated identical high-quality standards files:
 ### ✅ Feature Status: **PRODUCTION READY**
 
 **What Works**:
-- ✅ Auto-detection during `codemind init`
-- ✅ Standards file generation (`.codemind/coding-standards.json`)
+- ✅ Auto-detection during `codeseeker init`
+- ✅ Standards file generation (`.codeseeker/coding-standards.json`)
 - ✅ MCP tool integration (`get_coding_standards`)
 - ✅ CLI integration (via semantic search context)
 - ✅ High-quality pattern detection (8 patterns, 4 categories)
@@ -351,7 +351,7 @@ Both CLI and MCP projects generated identical high-quality standards files:
 - **CLI**: Found `validator.isEmail()` through semantic search
 - **MCP**: Found `validator.isEmail()` through coding standards tool
 - **Pure Claude**: Invented custom regex (no pattern awareness)
-- **Consistency**: Both CodeMind modes produced better, more consistent code
+- **Consistency**: Both CodeSeeker modes produced better, more consistent code
 
 ---
 
@@ -387,7 +387,7 @@ Both CLI and MCP projects generated identical high-quality standards files:
 1. ✅ **Three-way testing passed**: CLI and MCP both used project patterns
 2. ✅ **Automatic pattern detection works**: Generated 8 patterns across 4 categories
 3. ✅ **MCP tool integration successful**: `get_coding_standards` tool worked perfectly
-4. ✅ **Measurable improvement**: CodeMind modes beat Pure Claude on consistency
+4. ✅ **Measurable improvement**: CodeSeeker modes beat Pure Claude on consistency
 
 ### Next Steps
 
@@ -463,8 +463,8 @@ Both CLI and MCP projects generated identical high-quality standards files:
 ### ✅ Feature Delivers Real Value
 
 **Measurable Improvements**:
-- ✅ **CodeMind CLI**: Used `validator.isEmail()` vs custom regex
-- ✅ **CodeMind MCP**: Used `validator.isEmail()` AND validation object pattern
+- ✅ **CodeSeeker CLI**: Used `validator.isEmail()` vs custom regex
+- ✅ **CodeSeeker MCP**: Used `validator.isEmail()` AND validation object pattern
 - ❌ **Pure Claude**: Invented custom regex (pattern inconsistency)
 
 **Key Achievement**: Auto-detected coding standards successfully guide Claude to write code that follows existing project conventions, improving consistency and maintainability.
@@ -474,7 +474,7 @@ Both CLI and MCP projects generated identical high-quality standards files:
 This feature provides:
 1. **Immediate value**: Better code consistency from day one
 2. **Scalable benefit**: More valuable as projects grow
-3. **Zero configuration**: Works automatically on `codemind init`
+3. **Zero configuration**: Works automatically on `codeseeker init`
 4. **Dual-mode support**: CLI and MCP both benefit
 5. **Measurable impact**: Can track pattern usage over time
 
@@ -485,5 +485,5 @@ This feature provides:
 **Assessment Date**: 2025-12-28
 **Tested By**: Claude (Assistant)
 **Validation Method**: Clean three-way comparison (CLI vs MCP vs Pure Claude)
-**Result**: Both CodeMind modes successfully used project patterns; Pure Claude invented new pattern
+**Result**: Both CodeSeeker modes successfully used project patterns; Pure Claude invented new pattern
 **Recommendation**: Ship immediately as a core feature

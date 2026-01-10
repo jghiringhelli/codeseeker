@@ -301,16 +301,16 @@ WHERE updated_at >= NOW() - INTERVAL '7 days'
 ORDER BY updated_at DESC;
 
 -- Grant appropriate permissions
-GRANT SELECT, INSERT, UPDATE, DELETE ON semantic_search_embeddings TO codemind;
-GRANT USAGE, SELECT ON SEQUENCE semantic_search_embeddings_id_seq TO codemind;
-GRANT EXECUTE ON FUNCTION semantic_similarity_search TO codemind;
-GRANT EXECUTE ON FUNCTION find_duplicate_content TO codemind;
-GRANT EXECUTE ON FUNCTION get_project_embedding_stats TO codemind;
-GRANT EXECUTE ON FUNCTION cleanup_old_embeddings TO codemind;
-GRANT SELECT ON high_significance_embeddings TO codemind;
-GRANT SELECT ON full_file_embeddings TO codemind;
-GRANT SELECT ON chunk_embeddings TO codemind;
-GRANT SELECT ON recent_embeddings TO codemind;
+GRANT SELECT, INSERT, UPDATE, DELETE ON semantic_search_embeddings TO codeseeker;
+GRANT USAGE, SELECT ON SEQUENCE semantic_search_embeddings_id_seq TO codeseeker;
+GRANT EXECUTE ON FUNCTION semantic_similarity_search TO codeseeker;
+GRANT EXECUTE ON FUNCTION find_duplicate_content TO codeseeker;
+GRANT EXECUTE ON FUNCTION get_project_embedding_stats TO codeseeker;
+GRANT EXECUTE ON FUNCTION cleanup_old_embeddings TO codeseeker;
+GRANT SELECT ON high_significance_embeddings TO codeseeker;
+GRANT SELECT ON full_file_embeddings TO codeseeker;
+GRANT SELECT ON chunk_embeddings TO codeseeker;
+GRANT SELECT ON recent_embeddings TO codeseeker;
 
 -- Comments for documentation
 COMMENT ON TABLE semantic_search_embeddings IS 'Unified semantic search embeddings supporting both full files and chunks with RAG-style retrieval';

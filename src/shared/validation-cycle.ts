@@ -1,5 +1,5 @@
 /**
- * CodeMind Validation Cycle System - SOLID Architecture
+ * CodeSeeker Validation Cycle System - SOLID Architecture
  *
  * Implements automatic quality and safety validation that runs before every Claude Code response.
  * Refactored using SOLID principles for better maintainability and testability.
@@ -9,7 +9,7 @@
 
 // Re-export the new SOLID-compliant validation cycle
 export {
-  CodeMindValidationCycle,
+  CodeSeekerValidationCycle,
   createValidationCycle,
   DEFAULT_VALIDATION_CONFIG
 } from './validation-cycle/validation-cycle';
@@ -31,4 +31,4 @@ export type {
 } from './validation-cycle/interfaces/index';
 
 // Legacy compatibility - create backward-compatible wrapper
-export { CodeMindValidationCycle as default } from './validation-cycle/validation-cycle';
+export { CodeSeekerValidationCycle as default } from './validation-cycle/validation-cycle';

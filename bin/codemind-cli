@@ -1,5 +1,0 @@
-#!/usr/bin/env node
-
-// CodeMind CLI - Intelligent tool selection and Claude enhancement
-require('tsx/cjs').register();
-require('../src/cli/codemind-cli.ts');

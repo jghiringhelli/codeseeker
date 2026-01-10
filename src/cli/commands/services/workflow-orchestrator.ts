@@ -1,6 +1,6 @@
 /**
  * Workflow Orchestrator Service - TRANSPARENT MODE
- * Single Responsibility: Coordinate CodeMind workflow OR pass through to Claude transparently
+ * Single Responsibility: Coordinate CodeSeeker workflow OR pass through to Claude transparently
  *
  * Workflow when DBs are UP:
  * 1. Semantic Search (find relevant files using embeddings)
@@ -10,7 +10,7 @@
  * 5. Database Sync
  *
  * When DBs are DOWN:
- * - Inform user that CodeMind is running in transparent mode
+ * - Inform user that CodeSeeker is running in transparent mode
  * - Pass query directly to Claude (same as using `claude` directly)
  * - Only difference: quality checks at the end
  */
@@ -234,7 +234,7 @@ export class WorkflowOrchestrator {
   }
 
   /**
-   * Execute the CodeMind workflow
+   * Execute the CodeSeeker workflow
    * - If DBs are available: enhanced workflow with semantic search + context
    * - If DBs are down: transparent mode - pass through to Claude directly
    */
@@ -289,16 +289,16 @@ export class WorkflowOrchestrator {
     projectPath: string,
     options: WorkflowOptions
   ): Promise<WorkflowResult> {
-    console.log(Theme.colors.warning('\n📡 CodeMind Transparent Mode'));
+    console.log(Theme.colors.warning('\n📡 CodeSeeker Transparent Mode'));
     console.log(Theme.colors.muted('   Databases unavailable - passing query directly to Claude.'));
     console.log(Theme.colors.muted('   Tip: Using `claude` directly would give the same result.'));
-    console.log(Theme.colors.muted('   CodeMind adds: quality checks (build/test) after execution.\n'));
+    console.log(Theme.colors.muted('   CodeSeeker adds: quality checks (build/test) after execution.\n'));
 
     // Execute Claude directly without enhanced context
     console.log(Theme.colors.claudeCode('🤖 Claude is working...'));
     const claudeResponse = await this.userInteractionService.executeClaudeCode(query);
 
-    // Quality check (the value-add of CodeMind even in transparent mode)
+    // Quality check (the value-add of CodeSeeker even in transparent mode)
     let buildResult: BuildTestResult | undefined;
     if (!options.skipBuildTest && claudeResponse.filesToModify.length > 0) {
       buildResult = await this.runAutonomousQualityCheck(projectPath);

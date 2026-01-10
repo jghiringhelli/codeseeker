@@ -1,6 +1,6 @@
 /**
  * Database Configuration and Connection Manager
- * Handles connections to 3 CodeMind databases: PostgreSQL, Neo4j, Redis
+ * Handles connections to 3 CodeSeeker databases: PostgreSQL, Neo4j, Redis
  */
 
 import { Client } from 'pg';
@@ -42,9 +42,9 @@ export class DatabaseConnections {
       postgres: {
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'codemind',
-        user: process.env.DB_USER || 'codemind',
-        password: process.env.DB_PASSWORD || 'codemind123'
+        database: process.env.DB_NAME || 'codeseeker',
+        user: process.env.DB_USER || 'codeseeker',
+        password: process.env.DB_PASSWORD || 'codeseeker123'
       },
       redis: {
         host: process.env.REDIS_HOST || 'localhost',
@@ -54,7 +54,7 @@ export class DatabaseConnections {
       neo4j: {
         uri: process.env.NEO4J_URI || 'bolt://localhost:7687',
         user: process.env.NEO4J_USER || 'neo4j',
-        password: process.env.NEO4J_PASSWORD || 'codemind123'
+        password: process.env.NEO4J_PASSWORD || 'codeseeker123'
       }
     };
   }

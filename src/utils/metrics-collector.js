@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const path = require('path');
 
 /**
- * Comprehensive metrics and logging collection system for CodeMind
+ * Comprehensive metrics and logging collection system for CodeSeeker
  * Tracks system performance, process metrics, and accomplishments
  */
 class MetricsCollector {
@@ -13,9 +13,9 @@ class MetricsCollector {
             database: {
                 host: process.env.DB_HOST || 'localhost',
                 port: process.env.DB_PORT || 5432,
-                database: process.env.DB_NAME || 'codemind',
-                user: process.env.DB_USER || 'codemind',
-                password: process.env.DB_PASSWORD || 'codemind123',
+                database: process.env.DB_NAME || 'codeseeker',
+                user: process.env.DB_USER || 'codeseeker',
+                password: process.env.DB_PASSWORD || 'codeseeker123',
                 max: 20,
                 idleTimeoutMillis: 30000,
                 connectionTimeoutMillis: 2000,

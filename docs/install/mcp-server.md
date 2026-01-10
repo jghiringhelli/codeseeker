@@ -1,10 +1,10 @@
-# CodeMind MCP Server
+# CodeSeeker MCP Server
 
-CodeMind can run as an MCP (Model Context Protocol) server, allowing Claude Desktop and Claude Code to directly search your codebases.
+CodeSeeker can run as an MCP (Model Context Protocol) server, allowing Claude Desktop and Claude Code to directly search your codebases.
 
 ## What is MCP?
 
-MCP is Anthropic's protocol for AI assistants to communicate with external tools. When running as an MCP server, CodeMind provides Claude with:
+MCP is Anthropic's protocol for AI assistants to communicate with external tools. When running as an MCP server, CodeSeeker provides Claude with:
 
 - Semantic search across your indexed projects
 - File context with related code chunks
@@ -14,17 +14,17 @@ MCP is Anthropic's protocol for AI assistants to communicate with external tools
 
 ## Quick Start
 
-### 1. Install CodeMind
+### 1. Install CodeSeeker
 
 ```bash
-npm install -g codemind
+npm install -g codeseeker
 ```
 
 ### 2. Index Your Project
 
 ```bash
 cd /path/to/your/project
-codemind init --quick
+codeseeker init --quick
 ```
 
 ### 3. Configure Claude Code or Claude Desktop
@@ -34,8 +34,8 @@ codemind init --quick
 Use the `claude mcp add` command:
 
 ```bash
-# Add CodeMind as an MCP server (user-wide)
-claude mcp add codemind --scope user -- codemind serve --mcp
+# Add CodeSeeker as an MCP server (user-wide)
+claude mcp add codeseeker --scope user -- codeseeker serve --mcp
 
 # Verify it was added
 claude mcp list
@@ -46,8 +46,8 @@ Or edit `~/.claude.json` directly:
 ```json
 {
   "mcpServers": {
-    "codemind": {
-      "command": "codemind",
+    "codeseeker": {
+      "command": "codeseeker",
       "args": ["serve", "--mcp"]
     }
   }
@@ -56,7 +56,7 @@ Or edit `~/.claude.json` directly:
 
 After configuring, restart Claude Code. Test with:
 ```bash
-claude mcp get codemind
+claude mcp get codeseeker
 ```
 
 #### Option B: Claude Desktop (GUI App)
@@ -66,8 +66,8 @@ Add to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "codemind": {
-      "command": "codemind",
+    "codeseeker": {
+      "command": "codeseeker",
       "args": ["serve", "--mcp"]
     }
   }
@@ -85,7 +85,7 @@ After adding the configuration, restart Claude Code or Claude Desktop. In Claude
 
 ```bash
 claude mcp list
-# Should show: codemind (user)
+# Should show: codeseeker (user)
 ```
 
 ## Available Tools
@@ -102,7 +102,7 @@ Search for code across indexed projects using semantic search.
 
 **Example:**
 ```
-Search for "authentication middleware" in CodeMind
+Search for "authentication middleware" in CodeSeeker
 ```
 
 ### `get_file_context`
@@ -147,7 +147,7 @@ List all indexed projects with their status.
 
 **Example:**
 ```
-What projects are indexed in CodeMind?
+What projects are indexed in CodeSeeker?
 ```
 
 ### `index_project`
@@ -238,7 +238,7 @@ Get the coding standards for error handling
 - Discover which libraries are used for common tasks (validation, logging, etc.)
 - Get recommendations on which pattern to use when multiple exist
 
-**Note:** Standards are auto-generated during `codemind init` and updated incrementally when pattern-related files change. If not yet generated, the tool will create them on first call.
+**Note:** Standards are auto-generated during `codeseeker init` and updated incrementally when pattern-related files change. If not yet generated, the tool will create them on first call.
 
 ### `install_language_support`
 
@@ -255,10 +255,10 @@ Analyze project languages and install Tree-sitter parsers for better code unders
 Analyze my project at /path/to/project for language support
 
 # Install specific parsers
-Install Python and Java parsers for CodeMind
+Install Python and Java parsers for CodeSeeker
 
 # List available parsers
-List all available CodeMind language parsers
+List all available CodeSeeker language parsers
 ```
 
 **Supported Languages:**
@@ -291,7 +291,7 @@ List all available CodeMind language parsers
 
 ```
 ┌─────────────────┐     MCP Protocol      ┌──────────────────┐
-│  Claude Desktop │ ◄──────────────────► │  CodeMind Server │
+│  Claude Desktop │ ◄──────────────────► │  CodeSeeker Server │
 │  or Claude Code │    (stdio/JSON-RPC)   │  (MCP mode)      │
 └─────────────────┘                       └──────────────────┘
                                                    │
@@ -305,7 +305,7 @@ List all available CodeMind language parsers
 
 ## Storage Modes
 
-CodeMind supports two storage modes:
+CodeSeeker supports two storage modes:
 
 | Mode | Setup | Best For |
 |------|-------|----------|
@@ -316,9 +316,9 @@ CodeMind supports two storage modes:
 
 Uses SQLite + Graphology + LRU-cache. Data is stored locally:
 
-- **Windows**: `%APPDATA%\codemind\data\`
-- **macOS**: `~/Library/Application Support/codemind/data/`
-- **Linux**: `~/.local/share/codemind/data/`
+- **Windows**: `%APPDATA%\codeseeker\data\`
+- **macOS**: `~/Library/Application Support/codeseeker/data/`
+- **Linux**: `~/.local/share/codeseeker/data/`
 
 ### Server Mode
 
@@ -326,34 +326,34 @@ Uses PostgreSQL + Neo4j + Redis for production deployments. Configure via enviro
 
 ```bash
 # PostgreSQL (vector search + projects)
-export CODEMIND_PG_HOST=localhost
-export CODEMIND_PG_PORT=5432
-export CODEMIND_PG_DATABASE=codemind
-export CODEMIND_PG_USER=codemind
-export CODEMIND_PG_PASSWORD=secret
+export CODESEEKER_PG_HOST=localhost
+export CODESEEKER_PG_PORT=5432
+export CODESEEKER_PG_DATABASE=codeseeker
+export CODESEEKER_PG_USER=codeseeker
+export CODESEEKER_PG_PASSWORD=secret
 
 # Neo4j (code graph)
-export CODEMIND_NEO4J_URI=bolt://localhost:7687
-export CODEMIND_NEO4J_USER=neo4j
-export CODEMIND_NEO4J_PASSWORD=secret
+export CODESEEKER_NEO4J_URI=bolt://localhost:7687
+export CODESEEKER_NEO4J_USER=neo4j
+export CODESEEKER_NEO4J_PASSWORD=secret
 
 # Redis (caching)
-export CODEMIND_REDIS_HOST=localhost
-export CODEMIND_REDIS_PORT=6379
+export CODESEEKER_REDIS_HOST=localhost
+export CODESEEKER_REDIS_PORT=6379
 
 # Enable server mode
-export CODEMIND_STORAGE_MODE=server  # or 'auto' to try server first
+export CODESEEKER_STORAGE_MODE=server  # or 'auto' to try server first
 ```
 
 For Claude Code with server mode, add via CLI:
 
 ```bash
-claude mcp add codemind --scope user \
-  -e CODEMIND_STORAGE_MODE=server \
-  -e CODEMIND_PG_HOST=localhost \
-  -e CODEMIND_NEO4J_URI=bolt://localhost:7687 \
-  -e CODEMIND_REDIS_HOST=localhost \
-  -- codemind serve --mcp
+claude mcp add codeseeker --scope user \
+  -e CODESEEKER_STORAGE_MODE=server \
+  -e CODESEEKER_PG_HOST=localhost \
+  -e CODESEEKER_NEO4J_URI=bolt://localhost:7687 \
+  -e CODESEEKER_REDIS_HOST=localhost \
+  -- codeseeker serve --mcp
 ```
 
 Or configure in `~/.claude.json` (Claude Code) or `claude_desktop_config.json` (Claude Desktop):
@@ -361,14 +361,14 @@ Or configure in `~/.claude.json` (Claude Code) or `claude_desktop_config.json` (
 ```json
 {
   "mcpServers": {
-    "codemind": {
-      "command": "codemind",
+    "codeseeker": {
+      "command": "codeseeker",
       "args": ["serve", "--mcp"],
       "env": {
-        "CODEMIND_STORAGE_MODE": "server",
-        "CODEMIND_PG_HOST": "localhost",
-        "CODEMIND_NEO4J_URI": "bolt://localhost:7687",
-        "CODEMIND_REDIS_HOST": "localhost"
+        "CODESEEKER_STORAGE_MODE": "server",
+        "CODESEEKER_PG_HOST": "localhost",
+        "CODESEEKER_NEO4J_URI": "bolt://localhost:7687",
+        "CODESEEKER_REDIS_HOST": "localhost"
       }
     }
   }
@@ -382,7 +382,7 @@ See [storage.md](./storage.md) for detailed server setup instructions.
 ### Using the MCP Inspector
 
 ```bash
-npx @modelcontextprotocol/inspector codemind serve --mcp
+npx @modelcontextprotocol/inspector codeseeker serve --mcp
 ```
 
 This opens a GUI where you can test tools interactively.
@@ -392,18 +392,18 @@ This opens a GUI where you can test tools interactively.
 MCP server logs go to stderr. To capture them:
 
 ```bash
-codemind serve --mcp 2>codemind-mcp.log
+codeseeker serve --mcp 2>codeseeker-mcp.log
 ```
 
 ## Troubleshooting
 
-### "codemind" not found
+### "codeseeker" not found
 
-Ensure CodeMind is installed globally and in your PATH:
+Ensure CodeSeeker is installed globally and in your PATH:
 
 ```bash
-npm install -g codemind
-which codemind  # or 'where codemind' on Windows
+npm install -g codeseeker
+which codeseeker  # or 'where codeseeker' on Windows
 ```
 
 ### No results from search
@@ -411,7 +411,7 @@ which codemind  # or 'where codemind' on Windows
 Make sure you've indexed your project first:
 
 ```bash
-codemind init  # in your project directory
+codeseeker init  # in your project directory
 ```
 
 ### Connection issues
@@ -419,8 +419,8 @@ codemind init  # in your project directory
 Check that the MCP server starts correctly:
 
 ```bash
-codemind serve --mcp
-# Should output: "CodeMind MCP server running on stdio"
+codeseeker serve --mcp
+# Should output: "CodeSeeker MCP server running on stdio"
 ```
 
 ### Claude Code MCP Issues
@@ -432,11 +432,11 @@ If MCP isn't working in Claude Code:
 claude mcp list
 
 # Get detailed server info
-claude mcp get codemind
+claude mcp get codeseeker
 
 # Remove and re-add if needed
-claude mcp remove codemind
-claude mcp add codemind --scope user -- codemind serve --mcp
+claude mcp remove codeseeker
+claude mcp add codeseeker --scope user -- codeseeker serve --mcp
 ```
 
 ## Example Claude Conversations
@@ -477,7 +477,7 @@ user management APIs, and has comprehensive test coverage.
 
 ### Full Reindex After Major Changes
 ```
-You: I just did a big git pull, can you refresh the entire CodeMind index?
+You: I just did a big git pull, can you refresh the entire CodeSeeker index?
 
 Claude: [Uses notify_file_changes tool with full_reindex: true]
 
@@ -494,13 +494,13 @@ The index is now up to date with all your latest changes.
 
 ## VSCode Extension Integration
 
-For automatic index synchronization, install the CodeMind VSCode extension:
+For automatic index synchronization, install the CodeSeeker VSCode extension:
 
 ```bash
-cd extensions/vscode-codemind
+cd extensions/vscode-codeseeker
 npm install && npm run compile
 npm run package
-code --install-extension vscode-codemind-0.1.0.vsix
+code --install-extension vscode-codeseeker-0.1.0.vsix
 ```
 
 ### How It Works
@@ -509,7 +509,7 @@ The VSCode extension watches for file changes and automatically calls the MCP se
 
 ```
 ┌──────────────────┐     File Events     ┌──────────────────┐
-│  VSCode Editor   │ ─────────────────► │ CodeMind Extension│
+│  VSCode Editor   │ ─────────────────► │ CodeSeeker Extension│
 └──────────────────┘                     └────────┬─────────┘
                                                   │
                                                   │ Debounce (2s)
@@ -523,7 +523,7 @@ The VSCode extension watches for file changes and automatically calls the MCP se
                                                   │ stdio/JSON-RPC
                                                   ▼
                                          ┌──────────────────┐
-                                         │  CodeMind MCP    │
+                                         │  CodeSeeker MCP    │
                                          │     Server       │
                                          └────────┬─────────┘
                                                   │
@@ -541,7 +541,7 @@ The VSCode extension watches for file changes and automatically calls the MCP se
 | **Auto-Sync** | Files automatically synced on save |
 | **Debouncing** | Changes batched (configurable, default 2s) |
 | **Status Bar** | Visual indicator of sync status |
-| **Full Reindex** | Command palette: "CodeMind: Full Reindex" |
+| **Full Reindex** | Command palette: "CodeSeeker: Full Reindex" |
 | **Toggle Sync** | Enable/disable automatic syncing |
 
 ### Extension Settings
@@ -550,9 +550,9 @@ Configure via VSCode Settings:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `codemind.autoSync` | `true` | Auto-sync on file changes |
-| `codemind.syncDebounceMs` | `2000` | Debounce delay (ms) |
-| `codemind.excludePatterns` | `["**/node_modules/**", ...]` | Files to ignore |
-| `codemind.mcpCommand` | `"codemind"` | MCP server command |
+| `codeseeker.autoSync` | `true` | Auto-sync on file changes |
+| `codeseeker.syncDebounceMs` | `2000` | Debounce delay (ms) |
+| `codeseeker.excludePatterns` | `["**/node_modules/**", ...]` | Files to ignore |
+| `codeseeker.mcpCommand` | `"codeseeker"` | MCP server command |
 
-See [VSCode Extension README](../extensions/vscode-codemind/README.md) for full documentation.
+See [VSCode Extension README](../extensions/vscode-codeseeker/README.md) for full documentation.

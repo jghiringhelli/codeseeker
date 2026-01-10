@@ -92,14 +92,14 @@ export class FileHashTracker {
    * Get Redis key for file hash storage
    */
   private getFileHashKey(projectId: string): string {
-    return `codemind:file_hashes:${projectId}`;
+    return `codeseeker:file_hashes:${projectId}`;
   }
 
   /**
    * Get Redis key for sync metadata
    */
   private getSyncMetaKey(projectId: string): string {
-    return `codemind:sync_meta:${projectId}`;
+    return `codeseeker:sync_meta:${projectId}`;
   }
 
   /**

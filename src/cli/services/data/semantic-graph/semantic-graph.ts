@@ -58,7 +58,7 @@ class SemanticGraphService implements IGraphStorage {
   constructor(
     private uri: string = 'bolt://localhost:7687',
     private username: string = 'neo4j',
-    private password: string = 'codemind123',
+    private password: string = 'codeseeker123',
     private fileProcessingService?: IFileProcessingService,
     private storageService?: IGraphStorageService,
     private queryService?: IGraphQueryService,
@@ -212,7 +212,7 @@ class SemanticGraphService implements IGraphStorage {
     return new SemanticGraphService(
       'bolt://localhost:7687',
       'neo4j',
-      'codemind123',
+      'codeseeker123',
       fileProcessingService,
       storageService,
       queryService,

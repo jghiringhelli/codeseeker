@@ -208,11 +208,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Grant permissions
-GRANT SELECT, INSERT, UPDATE, DELETE ON code_embeddings TO codemind;
-GRANT SELECT, INSERT, UPDATE, DELETE ON duplicate_relationships TO codemind;
-GRANT SELECT ON consolidation_opportunities TO codemind;
-GRANT USAGE, SELECT ON SEQUENCE code_embeddings_id_seq TO codemind;
-GRANT USAGE, SELECT ON SEQUENCE duplicate_relationships_id_seq TO codemind;
+GRANT SELECT, INSERT, UPDATE, DELETE ON code_embeddings TO codeseeker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON duplicate_relationships TO codeseeker;
+GRANT SELECT ON consolidation_opportunities TO codeseeker;
+GRANT USAGE, SELECT ON SEQUENCE code_embeddings_id_seq TO codeseeker;
+GRANT USAGE, SELECT ON SEQUENCE duplicate_relationships_id_seq TO codeseeker;
 
 -- Comments for documentation
 COMMENT ON TABLE code_embeddings IS 'Stores semantic embeddings of code elements for duplicate detection';

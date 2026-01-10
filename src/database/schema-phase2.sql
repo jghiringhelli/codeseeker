@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS self_improvement (
   metrics_before TEXT, -- JSON with metrics
   metrics_after TEXT, -- JSON with metrics
   improvement_score REAL, -- Calculated improvement
-  applied_by TEXT DEFAULT 'codemind', -- Tool or user
+  applied_by TEXT DEFAULT 'codeseeker', -- Tool or user
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

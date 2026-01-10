@@ -196,7 +196,7 @@ export class ClaudeConversationManager {
   }
 
   /**
-   * Prompt user for permission through CodeMind interface
+   * Prompt user for permission through CodeSeeker interface
    */
   private async promptUserForPermission(question: string): Promise<string> {
     console.log(`\n🤖 Claude Code is asking for permission:`);

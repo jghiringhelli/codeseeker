@@ -68,10 +68,10 @@ export class RedisFileChangeSyncService {
   private embeddingService: any = null;
 
   // Redis key prefixes
-  private readonly FILE_HASH_PREFIX = 'codemind:filehash:';
-  private readonly QUERY_CACHE_PREFIX = 'codemind:querycache:';
-  private readonly SYNC_META_PREFIX = 'codemind:syncmeta:';
-  private readonly PENDING_CHANGES_PREFIX = 'codemind:pending:';
+  private readonly FILE_HASH_PREFIX = 'codeseeker:filehash:';
+  private readonly QUERY_CACHE_PREFIX = 'codeseeker:querycache:';
+  private readonly SYNC_META_PREFIX = 'codeseeker:syncmeta:';
+  private readonly PENDING_CHANGES_PREFIX = 'codeseeker:pending:';
 
   // Configuration
   private readonly QUERY_CACHE_TTL = 3600; // 1 hour

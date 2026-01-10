@@ -83,7 +83,7 @@ export class ClaudeCodeExecutor {
         for (const command of commands) {
           try {
             // Only show debug info in verbose mode
-            if (process.env.CODEMIND_DEBUG) {
+            if (process.env.CODESEEKER_DEBUG) {
               console.log(`🔧 Trying: ${command.split('|')[0].trim()}...`);
               console.log(`📁 File exists: ${await fs.access(inputFile).then(() => true).catch(() => false)}`);
               console.log(`📄 File size: ${(await fs.stat(inputFile).catch(() => ({ size: 0 }))).size} bytes`);
@@ -129,7 +129,7 @@ export class ClaudeCodeExecutor {
           } catch (error) {
             lastError = error;
             // Only show detailed error info in debug mode
-            if (process.env.CODEMIND_DEBUG) {
+            if (process.env.CODESEEKER_DEBUG) {
               console.log(`⚠️ Command failed: ${error.message || error}`);
               console.log(`   Full command: ${command}`);
             }

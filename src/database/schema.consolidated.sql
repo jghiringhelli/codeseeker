@@ -1,4 +1,4 @@
--- PostgreSQL Consolidated Schema for CodeMind
+-- PostgreSQL Consolidated Schema for codeseeker
 -- Simplified architecture removing tool-based complexity
 -- Date: 2025-11-18
 

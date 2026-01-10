@@ -180,7 +180,7 @@ export class ClaudeCodeInterceptor extends EventEmitter {
     return `
 Project: ${projectPath}
 Query: ${query}
-Enhanced Context: This query has been enhanced with CodeMind's intelligent tool selection.
+Enhanced Context: This query has been enhanced with CodeSeeker's intelligent tool selection.
     `.trim();
   }
 

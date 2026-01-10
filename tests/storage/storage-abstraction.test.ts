@@ -7,8 +7,8 @@
  * 3. Same operations work identically in both modes
  *
  * Run in different modes:
- * - CODEMIND_STORAGE_MODE=embedded npm test -- storage-abstraction
- * - CODEMIND_STORAGE_MODE=server npm test -- storage-abstraction
+ * - CODESEEKER_STORAGE_MODE=embedded npm test -- storage-abstraction
+ * - CODESEEKER_STORAGE_MODE=server npm test -- storage-abstraction
  */
 
 import * as os from 'os';
@@ -32,7 +32,7 @@ import type {
 } from '../../src/storage/interfaces';
 
 // Test data directory - use temp folder for isolation
-const TEST_DATA_DIR = path.join(os.tmpdir(), 'codemind-storage-test-' + Date.now());
+const TEST_DATA_DIR = path.join(os.tmpdir(), 'codeseeker-storage-test-' + Date.now());
 
 // Generate UUID for tests (works with both embedded and server modes)
 function generateUUID(): string {
@@ -62,7 +62,7 @@ describe('Storage Abstraction Layer', () => {
     await resetStorageManager();
 
     // Set environment for embedded mode testing (default)
-    process.env.CODEMIND_DATA_DIR = TEST_DATA_DIR;
+    process.env.CODESEEKER_DATA_DIR = TEST_DATA_DIR;
 
     // Initialize storage manager
     storageManager = await getStorageManager();

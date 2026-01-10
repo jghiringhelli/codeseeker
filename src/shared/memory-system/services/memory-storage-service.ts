@@ -233,14 +233,14 @@ export class MemoryStorageService implements IMemoryStorageService {
   private async storeInteractionPersistent(interaction: InteractionMemory): Promise<void> {
     // Store interaction in PostgreSQL
     await this.postgres.query(`
-      INSERT INTO interactions (id, timestamp, request_id, session_id, codemind_request, claude_response, effectiveness, patterns, improvements)
+      INSERT INTO interactions (id, timestamp, request_id, session_id, codeseeker_request, claude_response, effectiveness, patterns, improvements)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `, [
       interaction.id,
       interaction.timestamp,
       interaction.requestId,
       interaction.sessionId,
-      JSON.stringify(interaction.codemindRequest),
+      JSON.stringify(interaction.codeseekerRequest),
       JSON.stringify(interaction.claudeResponse),
       interaction.effectiveness,
       JSON.stringify(interaction.patterns),
@@ -259,7 +259,7 @@ export class MemoryStorageService implements IMemoryStorageService {
       const nodeId = await this.semanticGraph.addNode('Interaction', {
         id: interaction.id,
         timestamp: interaction.timestamp.toISOString(),
-        type: interaction.codemindRequest.type,
+        type: interaction.codeseekerRequest.type,
         success: interaction.claudeResponse.success,
         effectiveness: interaction.effectiveness,
         duration: interaction.claudeResponse.duration,
@@ -473,7 +473,7 @@ export class MemoryStorageService implements IMemoryStorageService {
     return {
       ...data,
       timestamp: new Date(data.timestamp),
-      codemindRequest: JSON.parse(data.codemind_request),
+      codeseekerRequest: JSON.parse(data.codeseeker_request),
       claudeResponse: JSON.parse(data.claude_response),
       patterns: JSON.parse(data.patterns),
       improvements: JSON.parse(data.improvements)

@@ -198,7 +198,7 @@ Provide only the JSON response, no additional text.`;
         prompt,
         'Task breakdown analysis for complex user request',
         {
-          projectPath: process.env.CODEMIND_USER_CWD || process.cwd(),
+          projectPath: process.env.CODESEEKER_USER_CWD || process.cwd(),
           maxTokens: 4000
         }
       );

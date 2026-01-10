@@ -1,5 +1,5 @@
 /**
- * Cross-platform utilities for CodeMind
+ * Cross-platform utilities for CodeSeeker
  * Handles differences between Windows, macOS, and Linux
  */
 
@@ -71,7 +71,7 @@ export class PlatformUtils {
    * This is used to decide whether to output context for the current Claude instance
    * or try to spawn a new Claude CLI process
    *
-   * IMPORTANT: We only want to detect when CodeMind is being EXECUTED AS A TOOL by Claude Code,
+   * IMPORTANT: We only want to detect when CodeSeeker is being EXECUTED AS A TOOL by Claude Code,
    * NOT just when Claude Code VSCode extension is installed or running in background.
    *
    * - CLAUDECODE and CLAUDE_CODE_ENTRYPOINT are set when VSCode extension is active
@@ -80,8 +80,8 @@ export class PlatformUtils {
    * - CLAUDE_CLI_SESSION / ANTHROPIC_CLI_SESSION indicate actual CLI session context
    */
   static isRunningInClaudeCode(): boolean {
-    // Check for explicit CodeMind transparent mode flag (manual override)
-    if (process.env.CODEMIND_TRANSPARENT_MODE === 'true') {
+    // Check for explicit CodeSeeker transparent mode flag (manual override)
+    if (process.env.CODESEEKER_TRANSPARENT_MODE === 'true') {
       return true;
     }
 
@@ -107,13 +107,13 @@ export class PlatformUtils {
 
   /**
    * Force transparent mode for testing or when running inside Claude Code
-   * Set CODEMIND_TRANSPARENT_MODE=true to force this behavior
+   * Set CODESEEKER_TRANSPARENT_MODE=true to force this behavior
    */
   static setTransparentMode(enabled: boolean): void {
     if (enabled) {
-      process.env.CODEMIND_TRANSPARENT_MODE = 'true';
+      process.env.CODESEEKER_TRANSPARENT_MODE = 'true';
     } else {
-      delete process.env.CODEMIND_TRANSPARENT_MODE;
+      delete process.env.CODESEEKER_TRANSPARENT_MODE;
     }
   }
 
@@ -189,10 +189,10 @@ export class PlatformUtils {
    */
   static getClaudeCodeCommand(inputFile: string): string {
     // Allow override for testing/development
-    if (process.env.CODEMIND_FORCE_CLAUDE_CLI === 'true') {
-      console.log('🔧 Forcing Claude CLI usage (CODEMIND_FORCE_CLAUDE_CLI=true)');
+    if (process.env.CODESEEKER_FORCE_CLAUDE_CLI === 'true') {
+      console.log('🔧 Forcing Claude CLI usage (CODESEEKER_FORCE_CLAUDE_CLI=true)');
     } else if (this.isRunningInClaudeCode()) {
-      console.log('🔄 Detected CodeMind running inside Claude Code - using fallback mode');
+      console.log('🔄 Detected CodeSeeker running inside Claude Code - using fallback mode');
       return this.getClaudeCodeFallbackCommand(inputFile);
     }
 
@@ -225,8 +225,8 @@ export class PlatformUtils {
    */
   private static getClaudeCodeFallbackCommand(_inputFile: string): string {
     // Instead of calling Claude CLI, just echo a fallback message
-    // This prevents the infinite hang while still allowing CodeMind to continue
-    return `echo "CodeMind is running inside Claude Code environment. Fallback mode activated."`;
+    // This prevents the infinite hang while still allowing CodeSeeker to continue
+    return `echo "CodeSeeker is running inside Claude Code environment. Fallback mode activated."`;
   }
 
   /**

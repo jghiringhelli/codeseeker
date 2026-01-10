@@ -1,6 +1,6 @@
-# NPM Publishing Guide for CodeMind
+# NPM Publishing Guide for CodeSeeker
 
-This guide covers how to publish the `codemind-enhanced-cli` package to npm with proper security considerations.
+This guide covers how to publish the `codeseeker` package to npm with proper security considerations.
 
 ## Pre-Publishing Checklist
 
@@ -42,7 +42,7 @@ Ensure these are NOT included in the package:
 - [ ] API keys or secrets
 - [ ] Private configuration files
 - [ ] Test fixtures with real data
-- [ ] Local database files (`.codemind/` directory)
+- [ ] Local database files (`.codeseeker/` directory)
 - [ ] IDE configuration (`.vscode/`, `.idea/`)
 
 Review `.npmignore`:
@@ -61,7 +61,7 @@ npm pack --dry-run
 
 # Create a tarball to inspect
 npm pack
-tar -tzf codemind-enhanced-cli-*.tgz
+tar -tzf codeseeker-*.tgz
 ```
 
 ### 5. Version Check
@@ -73,10 +73,10 @@ Ensure version is correct across all files:
 grep '"version"' package.json
 
 # Check plugin.json
-grep '"version"' plugins/codemind/.claude-plugin/plugin.json
+grep '"version"' plugins/codeseeker/.claude-plugin/plugin.json
 
 # Check version.json
-cat plugins/codemind/version.json
+cat plugins/codeseeker/version.json
 ```
 
 All three should match!
@@ -123,7 +123,7 @@ All three should match!
    ```
 
 5. **Verify on npm**:
-   - Visit https://www.npmjs.com/package/codemind-enhanced-cli
+   - Visit https://www.npmjs.com/package/codeseeker
    - Check the version, files, and readme
 
 ### Version Bumping
@@ -142,8 +142,8 @@ npm version major
 ```
 
 After version bump, remember to:
-1. Update `plugins/codemind/.claude-plugin/plugin.json`
-2. Update `plugins/codemind/version.json`
+1. Update `plugins/codeseeker/.claude-plugin/plugin.json`
+2. Update `plugins/codeseeker/version.json`
 3. Create GitHub release
 4. Sync to plugin branch
 
@@ -165,7 +165,7 @@ For additional namespace protection, consider using a scoped package:
 
 ```json
 {
-  "name": "@your-username/codemind-cli"
+  "name": "@your-username/codeseeker-cli"
 }
 ```
 
@@ -175,10 +175,10 @@ For organization packages:
 
 ```bash
 # Set package to public
-npm access public codemind-enhanced-cli
+npm access public codeseeker
 
 # Add collaborators
-npm owner add <username> codemind-enhanced-cli
+npm owner add <username> codeseeker
 ```
 
 ## Post-Publishing
@@ -187,15 +187,15 @@ npm owner add <username> codemind-enhanced-cli
 
 ```bash
 # Test global install
-npm install -g codemind-enhanced-cli
-codemind --version
-codemind --help
+npm install -g codeseeker
+codeseeker --version
+codeseeker --help
 
 # Test npx
-npx codemind-enhanced-cli --version
+npx codeseeker --version
 
 # Test MCP server
-npx codemind-enhanced-cli serve --mcp
+npx codeseeker serve --mcp
 ```
 
 ### Update Documentation
@@ -212,7 +212,7 @@ After successful publish:
 If you need to deprecate a version:
 
 ```bash
-npm deprecate codemind-enhanced-cli@"< 1.0.0" "Please upgrade to 1.x for security fixes"
+npm deprecate codeseeker@"< 1.0.0" "Please upgrade to 1.x for security fixes"
 ```
 
 ## Troubleshooting
@@ -237,7 +237,7 @@ npm deprecate codemind-enhanced-cli@"< 1.0.0" "Please upgrade to 1.x for securit
 You can unpublish within 72 hours:
 
 ```bash
-npm unpublish codemind-enhanced-cli@1.0.0
+npm unpublish codeseeker@1.0.0
 ```
 
 After 72 hours, contact npm support.
@@ -287,6 +287,6 @@ npm version patch            # Bump version
 npm publish --access public  # Publish
 
 # Verify
-npm info codemind-enhanced-cli  # Check published info
-npx codemind-enhanced-cli --version  # Test installation
+npm info codeseeker  # Check published info
+npx codeseeker --version  # Test installation
 ```

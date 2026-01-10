@@ -17,7 +17,7 @@ export class ValidationReportService implements IValidationReportService {
     const summary = this.generateSummary(result);
 
     const report = [
-      '🔍 CodeMind Validation Report',
+      '🔍 CodeSeeker Validation Report',
       '=' .repeat(40),
       '',
       `📊 Summary: ${summary.status}`,
@@ -191,7 +191,7 @@ export class ValidationReportService implements IValidationReportService {
     const summary = this.generateSummary(result);
 
     const lines = [
-      '# CodeMind Validation Report',
+      '# CodeSeeker Validation Report',
       '',
       `**Status:** ${summary.status}`,
       `**Summary:** ${summary.summary}`,
@@ -256,7 +256,7 @@ export class ValidationReportService implements IValidationReportService {
     const summary = this.generateSummary(result);
 
     const lines = [
-      'CODEMIND VALIDATION REPORT',
+      'CODESEEKER VALIDATION REPORT',
       '='.repeat(40),
       '',
       `Status: ${summary.status}`,

@@ -6,7 +6,7 @@
  * - Graphology for graph database
  * - LRU-cache for caching
  *
- * All data persists to ~/.codemind/data by default.
+ * All data persists to ~/.codeseeker/data by default.
  * No Docker, no external services required.
  */
 
@@ -59,14 +59,14 @@ export class EmbeddedStorageProvider implements IStorageProvider {
     const platform = os.platform();
 
     if (platform === 'win32') {
-      // Windows: %APPDATA%\codemind\data
-      return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'codemind', 'data');
+      // Windows: %APPDATA%\codeseeker\data
+      return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'codeseeker', 'data');
     } else if (platform === 'darwin') {
-      // macOS: ~/Library/Application Support/codemind/data
-      return path.join(os.homedir(), 'Library', 'Application Support', 'codemind', 'data');
+      // macOS: ~/Library/Application Support/codeseeker/data
+      return path.join(os.homedir(), 'Library', 'Application Support', 'codeseeker', 'data');
     } else {
-      // Linux/Unix: ~/.local/share/codemind/data (XDG standard)
-      return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'codemind', 'data');
+      // Linux/Unix: ~/.local/share/codeseeker/data (XDG standard)
+      return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'codeseeker', 'data');
     }
   }
 

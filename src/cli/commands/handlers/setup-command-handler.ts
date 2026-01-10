@@ -40,7 +40,7 @@ export class SetupCommandHandler extends BaseCommandHandler {
       console.log('🗑️ Detected --reset flag - performing complete cleanup...');
       return await this.handleCompleteReset();
     } else {
-      console.log('🚀 Initializing CodeMind project...');
+      console.log('🚀 Initializing CodeSeeker project...');
 
       try {
         // First ensure the consolidated schema is applied
@@ -65,9 +65,9 @@ export class SetupCommandHandler extends BaseCommandHandler {
    * This happens when a project folder is copied from another location
    */
   private async checkProjectPathMismatch(forceReset: boolean): Promise<CommandResult> {
-    // Use CODEMIND_USER_CWD if available (set at CLI startup before any chdir)
-    const currentPath = process.env.CODEMIND_USER_CWD || process.cwd();
-    const configPath = path.join(currentPath, '.codemind', 'project.json');
+    // Use CODESEEKER_USER_CWD if available (set at CLI startup before any chdir)
+    const currentPath = process.env.CODESEEKER_USER_CWD || process.env.CODESEEKER_USER_CWD || process.cwd();
+    const configPath = path.join(currentPath, '.codeseeker', 'project.json');
 
     // Debug: show what paths we're comparing
     this.logger.debug(`Checking path mismatch - userCwd: ${currentPath}, configPath: ${configPath}`);
@@ -100,8 +100,8 @@ export class SetupCommandHandler extends BaseCommandHandler {
           console.log(Theme.colors.warning('\n💡 This project folder appears to be copied from another location.'));
           console.log(Theme.colors.info('   The existing configuration points to a different path.'));
           console.log(Theme.colors.info('\n   Options:'));
-          console.log(Theme.colors.primary('   • Run "codemind init --new-config" to create fresh config for this location'));
-          console.log(Theme.colors.primary('   • Run "codemind init --reset" for complete database cleanup'));
+          console.log(Theme.colors.primary('   • Run "codeseeker init --new-config" to create fresh config for this location'));
+          console.log(Theme.colors.primary('   • Run "codeseeker init --reset" for complete database cleanup'));
 
           return {
             success: false,
@@ -125,7 +125,7 @@ export class SetupCommandHandler extends BaseCommandHandler {
    */
   private async handleCompleteReset(): Promise<CommandResult> {
     const projectPath = this.context.currentProject?.projectPath || process.cwd();
-    console.log(Theme.colors.warning(`🗑️ Resetting CodeMind project: ${path.basename(projectPath)}`));
+    console.log(Theme.colors.warning(`🗑️ Resetting CodeSeeker project: ${path.basename(projectPath)}`));
     console.log(Theme.colors.warning('⚠️ This will delete ALL project data'));
 
     try {
@@ -155,9 +155,9 @@ export class SetupCommandHandler extends BaseCommandHandler {
         const pool = new Pool({
           host: process.env.DB_HOST || 'localhost',
           port: parseInt(process.env.DB_PORT || '5432'),
-          database: process.env.DB_NAME || 'codemind',
-          user: process.env.DB_USER || 'codemind',
-          password: process.env.DB_PASSWORD || 'codemind123'
+          database: process.env.DB_NAME || 'codeseeker',
+          user: process.env.DB_USER || 'codeseeker',
+          password: process.env.DB_PASSWORD || 'codeseeker123'
         });
 
         const client = await pool.connect();
@@ -216,7 +216,7 @@ export class SetupCommandHandler extends BaseCommandHandler {
         process.env.NEO4J_URI || 'bolt://localhost:7687',
         neo4j.auth.basic(
           process.env.NEO4J_USER || 'neo4j',
-          process.env.NEO4J_PASSWORD || 'codemind123'
+          process.env.NEO4J_PASSWORD || 'codeseeker123'
         )
       );
 
@@ -252,13 +252,13 @@ export class SetupCommandHandler extends BaseCommandHandler {
   }
 
   /**
-   * Initialize a CodeMind project
+   * Initialize a CodeSeeker project
    */
   private async handleInit(skipIndexing: boolean = false): Promise<CommandResult> {
 
     try {
-      // Use CODEMIND_USER_CWD (set at CLI startup before chdir) to get the actual user's directory
-      const projectPath = process.env.CODEMIND_USER_CWD || process.cwd();
+      // Use CODESEEKER_USER_CWD (set at CLI startup before chdir) to get the actual user's directory
+      const projectPath = process.env.CODESEEKER_USER_CWD || process.env.CODESEEKER_USER_CWD || process.cwd();
       console.log(`📁 Project path: ${projectPath}`);
 
       // Step 1: Initialize database schema
@@ -312,11 +312,16 @@ export class SetupCommandHandler extends BaseCommandHandler {
         }
       }
 
-      // Step 4: Create CODEMIND.md if it doesn't exist
+      // Step 4: Create CODESEEKER.md if it doesn't exist
       console.log(Theme.colors.info('\n📝 Setting up project instructions...'));
       await this.createInstructionsFile(projectPath);
 
-      console.log(Theme.colors.success('\n🎉 CodeMind project initialized successfully!'));
+      // Step 5: Add CodeSeeker MCP guidance to all agent instruction files
+      // (CLAUDE.md, AGENTS.md, .cursorrules, COPILOT.md, GEMINI.md, GROK.md, etc.)
+      console.log(Theme.colors.info('\n🤖 Configuring AI agent instruction files...'));
+      await this.updateAgentInstructionFiles(projectPath);
+
+      console.log(Theme.colors.success('\n🎉 CodeSeeker project initialized successfully!'));
 
       if (!skipIndexing) {
         console.log(Theme.colors.muted('\n💡 Ready to use:'));
@@ -349,7 +354,7 @@ export class SetupCommandHandler extends BaseCommandHandler {
    * Setup system-wide configuration
    */
   private async handleSetup(): Promise<CommandResult> {
-    console.log(Theme.colors.primary('⚙️ Setting up CodeMind system configuration...'));
+    console.log(Theme.colors.primary('⚙️ Setting up CodeSeeker system configuration...'));
 
     try {
       // Initialize database schema
@@ -368,8 +373,8 @@ export class SetupCommandHandler extends BaseCommandHandler {
 
       console.log(Theme.colors.success('\n✅ System setup completed successfully!'));
       console.log(Theme.colors.muted('\n💡 Next steps:'));
-      console.log(Theme.colors.muted('   • Run "codemind init" in your project directory'));
-      console.log(Theme.colors.muted('   • Check database connections with "codemind status"'));
+      console.log(Theme.colors.muted('   • Run "codeseeker init" in your project directory'));
+      console.log(Theme.colors.muted('   • Check database connections with "codeseeker status"'));
 
       return {
         success: true,
@@ -390,22 +395,25 @@ export class SetupCommandHandler extends BaseCommandHandler {
    */
   private async initializeDatabase(): Promise<CommandResult> {
     try {
-      // Initialize the consolidated analysis repository
-      await analysisRepository.initialize();
-      console.log(Theme.colors.success('✅ Database connection established'));
-
-      // In embedded mode, skip PostgreSQL connection test
+      // In embedded mode, skip PostgreSQL entirely
       if (isUsingEmbeddedStorage()) {
+        // Just initialize the embedded storage manager
+        await getStorageManager();
+        console.log(Theme.colors.success('✅ Embedded storage initialized'));
         return { success: true, message: 'Embedded storage initialized' };
       }
+
+      // Server mode: Initialize the consolidated analysis repository (PostgreSQL)
+      await analysisRepository.initialize();
+      console.log(Theme.colors.success('✅ Database connection established'));
 
       // Test database connectivity (server mode only)
       const pool = new Pool({
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'codemind',
-        user: process.env.DB_USER || 'codemind',
-        password: process.env.DB_PASSWORD || 'codemind123'
+        database: process.env.DB_NAME || 'codeseeker',
+        user: process.env.DB_USER || 'codeseeker',
+        password: process.env.DB_PASSWORD || 'codeseeker123'
       });
 
       // Test connection
@@ -615,9 +623,9 @@ export class SetupCommandHandler extends BaseCommandHandler {
       const pool = new Pool({
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'codemind',
-        user: process.env.DB_USER || 'codemind',
-        password: process.env.DB_PASSWORD || 'codemind123'
+        database: process.env.DB_NAME || 'codeseeker',
+        user: process.env.DB_USER || 'codeseeker',
+        password: process.env.DB_PASSWORD || 'codeseeker123'
       });
 
       // Check if consolidated schema is properly applied
@@ -641,7 +649,7 @@ export class SetupCommandHandler extends BaseCommandHandler {
         await client.query('DROP TABLE IF EXISTS semantic_search_embeddings CASCADE');
 
         // Read and apply the consolidated schema
-        const schemaPath = path.join(process.env.CODEMIND_PROJECT_ROOT || __dirname, '..', '..', '..', 'database', 'schema.consolidated.sql');
+        const schemaPath = path.join(process.env.CODESEEKER_PROJECT_ROOT || process.env.CODESEEKER_PROJECT_ROOT || __dirname, '..', '..', '..', 'database', 'schema.consolidated.sql');
 
         try {
           const schemaSQL = await fs.readFile(schemaPath, 'utf8');
@@ -665,7 +673,7 @@ export class SetupCommandHandler extends BaseCommandHandler {
         console.log(Theme.colors.warning('⚠️ Server databases not available, using embedded storage'));
         try {
           // Force embedded mode
-          process.env.CODEMIND_STORAGE_MODE = 'embedded';
+          process.env.CODESEEKER_STORAGE_MODE = 'embedded';
           const storageManager = await getStorageManager({ mode: 'embedded' });
           const status = storageManager.getStatus();
           console.log(Theme.colors.success('📦 Embedded storage initialized'));
@@ -805,9 +813,9 @@ export class SetupCommandHandler extends BaseCommandHandler {
       const pool = new Pool({
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'codemind',
-        user: process.env.DB_USER || 'codemind',
-        password: process.env.DB_PASSWORD || 'codemind123'
+        database: process.env.DB_NAME || 'codeseeker',
+        user: process.env.DB_USER || 'codeseeker',
+        password: process.env.DB_PASSWORD || 'codeseeker123'
       });
 
       const client = await pool.connect();
@@ -888,15 +896,15 @@ export class SetupCommandHandler extends BaseCommandHandler {
   }
 
   /**
-   * Create CODEMIND.md instructions file with detected platforms
+   * Create CODESEEKER.md instructions file with detected platforms
    */
   private async createInstructionsFile(projectPath: string): Promise<void> {
-    const instructionsPath = path.join(projectPath, 'CODEMIND.md');
+    const instructionsPath = path.join(projectPath, 'CODESEEKER.md');
 
     try {
       // Check if file already exists
       await fs.access(instructionsPath);
-      console.log(Theme.colors.success('✅ CODEMIND.md already exists'));
+      console.log(Theme.colors.success('✅ CODESEEKER.md already exists'));
 
       // Even if file exists, try to append platform detection if not already present
       const existingContent = await fs.readFile(instructionsPath, 'utf-8');
@@ -913,9 +921,9 @@ export class SetupCommandHandler extends BaseCommandHandler {
         console.log(Theme.colors.success(`   Found ${platforms.length} platforms: ${platforms.map(p => p.name).join(', ')}`));
       }
 
-      const defaultInstructions = `# CODEMIND.md - ${path.basename(projectPath)}
+      const defaultInstructions = `# CODESEEKER.md - ${path.basename(projectPath)}
 
-This file provides instructions to CodeMind for analyzing and working with this project.
+This file provides instructions to CodeSeeker for analyzing and working with this project.
 
 ## Project Overview
 
@@ -945,23 +953,23 @@ ${platformsSection}
 - Document coding conventions
 - List key dependencies and their purposes
 
-## CodeMind Instructions
+## CodeSeeker Instructions
 
 - Analyze code for SOLID principles violations
 - Focus on maintainability and scalability
 - Suggest improvements for performance and security
 - Help with refactoring and code organization
 
-Generated by CodeMind CLI v2.0.0
+Generated by CodeSeeker CLI v2.0.0
 `;
 
       await fs.writeFile(instructionsPath, defaultInstructions);
-      console.log(Theme.colors.success('✅ Created CODEMIND.md with platform detection'));
+      console.log(Theme.colors.success('✅ Created CODESEEKER.md with platform detection'));
     }
   }
 
   /**
-   * Append platform detection to existing CODEMIND.md
+   * Append platform detection to existing CODESEEKER.md
    */
   private async appendPlatformDetection(
     projectPath: string,
@@ -969,7 +977,7 @@ Generated by CodeMind CLI v2.0.0
     existingContent: string
   ): Promise<void> {
     try {
-      console.log(Theme.colors.info('🔍 Detecting platforms for existing CODEMIND.md...'));
+      console.log(Theme.colors.info('🔍 Detecting platforms for existing CODESEEKER.md...'));
       const platforms = await platformDetector.detectPlatforms(projectPath);
 
       if (platforms.length === 0) {
@@ -991,10 +999,153 @@ Generated by CodeMind CLI v2.0.0
       }
 
       await fs.writeFile(instructionsPath, newContent);
-      console.log(Theme.colors.success('✅ Added platform detection to CODEMIND.md'));
+      console.log(Theme.colors.success('✅ Added platform detection to CODESEEKER.md'));
     } catch (error) {
       // Don't fail the entire init for this
       console.log(Theme.colors.warning(`⚠️ Could not append platforms: ${error instanceof Error ? error.message : 'Unknown error'}`));
+    }
+  }
+
+  /**
+   * Unified CodeSeeker MCP guidance section for ALL agent instruction files
+   * Used for CLAUDE.md, AGENTS.md, .cursorrules, COPILOT.md, GEMINI.md, GROK.md, etc.
+   * This tells AI assistants to prefer CodeSeeker MCP tools over grep/glob
+   */
+  private readonly CODESEEKER_MCP_GUIDANCE = `
+## CodeSeeker MCP Tools (Preferred over grep/glob)
+
+This project is indexed with CodeSeeker for semantic code search.
+
+**IMPORTANT: Use CodeSeeker MCP tools instead of grep/glob for code discovery:**
+
+| Task | Use This | Not This |
+|------|----------|----------|
+| Find code by meaning | \`search_code("authentication logic")\` | \`grep -r "auth"\` |
+| Search + read files | \`find_and_read("error handling")\` | \`grep\` then \`cat\` |
+| Show dependencies | \`get_code_relationships({filepath})\` | Manual file reading |
+| Find patterns | \`get_coding_standards({project})\` | Searching manually |
+
+**When to use grep/glob instead:**
+- Exact literal string matches (e.g., specific error codes, UUIDs)
+- Regex pattern matching (e.g., \`grep -E "v[0-9]+\\.[0-9]+"\`)
+- You already know the exact file path
+
+**Examples:**
+- ❌ \`grep -r "error handling" src/\` → finds literal text only
+- ✅ \`search_code("how errors are handled")\` → finds try-catch, error responses, validation
+- ❌ \`grep -r "auth" && cat file.ts\` → two steps, text-only matching
+- ✅ \`find_and_read("authentication flow")\` → one step, semantic search + file content
+
+**Available CodeSeeker MCP tools:**
+- \`search_code(query)\` - Semantic search across all indexed files
+- \`find_and_read(query)\` - Search and read matching files in one call
+- \`get_code_relationships({filepath})\` - Show imports, exports, calls, dependencies
+- \`get_file_context({filepath})\` - Read file with related code context
+- \`get_coding_standards({project})\` - Show detected coding patterns
+- \`index_project({path})\` - Index/reindex a project
+- \`notify_file_changes({changes})\` - Update index after file changes
+
+`;
+
+  /**
+   * Common agent instruction files to check and update with CodeSeeker MCP guidance
+   * These are files that AI tools (Claude, Cursor, Copilot, Gemini, Grok, etc.) use for instructions
+   * All agents get the same unified CODESEEKER_MCP_GUIDANCE template
+   */
+  private readonly AGENT_INSTRUCTION_FILES = [
+    // Claude Code
+    'CLAUDE.md',
+    // Generic AI agent instructions
+    'AGENTS.md',
+    '.agents/AGENTS.md',
+    'AI_INSTRUCTIONS.md',
+    '.ai/instructions.md',
+    // Cursor
+    '.cursor/rules',
+    '.cursorrules',
+    // GitHub Copilot
+    'COPILOT.md',
+    '.github/copilot-instructions.md',
+    // Windsurf
+    'WINDSURF.md',
+    '.windsurf/rules.md',
+    // Gemini / Google AI Studio
+    'GEMINI.md',
+    '.gemini/instructions.md',
+    // Grok / xAI
+    'GROK.md',
+    '.grok/instructions.md',
+    // Amazon Q / CodeWhisperer
+    'CODEWHISPERER.md',
+    '.aws/q-instructions.md',
+    // Codeium
+    'CODEIUM.md',
+    '.codeium/instructions.md',
+    // Tabnine
+    'TABNINE.md',
+    '.tabnine/instructions.md',
+    // Continue.dev
+    '.continue/config.json', // Note: JSON format, may need different handling
+    // Sourcegraph Cody
+    'CODY.md',
+    '.sourcegraph/cody-instructions.md',
+  ];
+
+  /**
+   * Update agent instruction files (AGENTS.md, .cursorrules, etc.) with CodeSeeker guidance
+   * Only updates files that already exist - doesn't create new ones
+   * Uses the same unified CODESEEKER_MCP_GUIDANCE as CLAUDE.md
+   * If no files found, prompts user to create or specify one
+   */
+  private async updateAgentInstructionFiles(projectPath: string): Promise<void> {
+    const marker = '## CodeSeeker MCP Tools';
+    let updatedCount = 0;
+    let alreadyHasGuidance = 0;
+
+    for (const relativeFilePath of this.AGENT_INSTRUCTION_FILES) {
+      // Skip JSON files - they require different handling
+      if (relativeFilePath.endsWith('.json')) {
+        continue;
+      }
+
+      const filePath = path.join(projectPath, relativeFilePath);
+
+      try {
+        // Check if file exists
+        const existingContent = await fs.readFile(filePath, 'utf-8');
+
+        // Skip if already has CodeSeeker guidance
+        if (existingContent.includes(marker)) {
+          console.log(Theme.colors.muted(`   ✓ ${relativeFilePath} already has CodeSeeker guidance`));
+          alreadyHasGuidance++;
+          continue;
+        }
+
+        // Append CodeSeeker guidance to the file (same guidance as CLAUDE.md)
+        const newContent = existingContent.trimEnd() + '\n' + this.CODESEEKER_MCP_GUIDANCE;
+        await fs.writeFile(filePath, newContent);
+        console.log(Theme.colors.success(`   ✅ Added CodeSeeker guidance to ${relativeFilePath}`));
+        updatedCount++;
+
+      } catch {
+        // File doesn't exist - that's fine, we only update existing files
+        // Don't log anything to avoid noise
+      }
+    }
+
+    if (updatedCount === 0 && alreadyHasGuidance === 0) {
+      // No agent instruction files found - provide guidance to user
+      console.log(Theme.colors.warning('   ⚠️ No AI agent instruction files found'));
+      console.log(Theme.colors.info('\n   To enable CodeSeeker MCP tools in your AI assistant, create one of these files:'));
+      console.log(Theme.colors.muted('   • AGENTS.md          - Generic AI agent instructions'));
+      console.log(Theme.colors.muted('   • .cursorrules       - Cursor IDE rules'));
+      console.log(Theme.colors.muted('   • .github/copilot-instructions.md - GitHub Copilot'));
+      console.log(Theme.colors.muted('   • GEMINI.md          - Google Gemini'));
+      console.log(Theme.colors.muted('   • GROK.md            - xAI Grok'));
+      console.log(Theme.colors.muted('   • CODY.md            - Sourcegraph Cody'));
+      console.log(Theme.colors.info('\n   Then run "codeseeker init" again to add MCP tool guidance.'));
+      console.log(Theme.colors.info('   Or manually add the following to your AI instructions file:\n'));
+      console.log(Theme.colors.muted(this.CODESEEKER_MCP_GUIDANCE.trim()));
     }
   }
 
@@ -1006,12 +1157,12 @@ Generated by CodeMind CLI v2.0.0
       const fs = await import('fs/promises');
       const path = await import('path');
 
-      const codemindDir = path.join(projectPath, '.codemind');
-      const configPath = path.join(codemindDir, 'project.json');
+      const codeseekerDir = path.join(projectPath, '.codeseeker');
+      const configPath = path.join(codeseekerDir, 'project.json');
 
-      // Ensure .codemind directory exists
+      // Ensure .codeseeker directory exists
       try {
-        await fs.mkdir(codemindDir, { recursive: true });
+        await fs.mkdir(codeseekerDir, { recursive: true });
       } catch (error) {
         // Directory might already exist, ignore
       }

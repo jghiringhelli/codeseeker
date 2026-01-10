@@ -19,11 +19,11 @@ export class PrerequisiteChecker implements IPrerequisiteChecker {
         const packageContent = await fs.readFile(packageJsonPath, 'utf-8');
         const pkg = JSON.parse(packageContent);
 
-        if (pkg.name !== 'codemind-enhanced-cli') {
+        if (pkg.name !== 'codeseeker-enhanced-cli') {
           return {
             success: false,
-            message: 'Not a CodeMind project directory',
-            errors: [`Expected package name 'codemind-enhanced-cli', found '${pkg.name}'`]
+            message: 'Not a CodeSeeker project directory',
+            errors: [`Expected package name 'codeseeker-enhanced-cli', found '${pkg.name}'`]
           };
         }
 
@@ -34,7 +34,7 @@ export class PrerequisiteChecker implements IPrerequisiteChecker {
 
         return {
           success: true,
-          message: 'Valid CodeMind project detected',
+          message: 'Valid CodeSeeker project detected',
           data: { projectPath: targetPath, packageInfo: pkg }
         };
 
@@ -44,7 +44,7 @@ export class PrerequisiteChecker implements IPrerequisiteChecker {
           message: 'package.json not found or invalid',
           errors: [
             `Could not read package.json at ${packageJsonPath}`,
-            'Make sure you are in the CodeMind project directory'
+            'Make sure you are in the CodeSeeker project directory'
           ]
         };
       }

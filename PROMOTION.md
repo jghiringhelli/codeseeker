@@ -1,4 +1,4 @@
-# CodeMind Promotion Strategy
+# CodeSeeker Promotion Strategy
 
 A comprehensive guide to promoting CodeMind as an open source MCP plugin.
 

@@ -1,5 +1,5 @@
 /**
- * CodeMind Workflow Orchestrator - SOLID Architecture
+ * CodeSeeker Workflow Orchestrator - SOLID Architecture
  * SOLID Principles: Single Responsibility - Coordinate workflow execution only
  *
  * This is the main orchestrator that coordinates all workflow services
@@ -25,7 +25,7 @@ import {
   WorkflowResult
 } from './interfaces/index';
 
-export class CodeMindWorkflowOrchestrator implements IWorkflowOrchestrator {
+export class CodeSeekerWorkflowOrchestrator implements IWorkflowOrchestrator {
   private logger = Logger.getInstance();
   private projectId: string;
 
@@ -55,7 +55,7 @@ export class CodeMindWorkflowOrchestrator implements IWorkflowOrchestrator {
    */
   async executeFeatureRequest(request: UserFeatureRequest): Promise<WorkflowResult> {
     const workflowId = `workflow_${Date.now()}`;
-    this.logger.info(`🎯 Starting CodeMind workflow: ${workflowId}`);
+    this.logger.info(`🎯 Starting CodeSeeker workflow: ${workflowId}`);
     this.logger.info(`Request: "${request.query}"`);
 
     try {
@@ -233,7 +233,7 @@ export class CodeMindWorkflowOrchestrator implements IWorkflowOrchestrator {
     const contextSummary = this.contextGatheringService!.formatContextForClaude(context);
 
     return [
-      '# CodeMind Analysis Report',
+      '# CodeSeeker Analysis Report',
       '',
       `## Request Analysis`,
       `- **Intent**: ${intent.intention}`,
@@ -295,9 +295,9 @@ export class CodeMindWorkflowOrchestrator implements IWorkflowOrchestrator {
 }
 
 // Export factory function for easy instantiation
-export function createWorkflowOrchestrator(projectId: string): CodeMindWorkflowOrchestrator {
-  return new CodeMindWorkflowOrchestrator(projectId);
+export function createWorkflowOrchestrator(projectId: string): CodeSeekerWorkflowOrchestrator {
+  return new CodeSeekerWorkflowOrchestrator(projectId);
 }
 
 // Export for backward compatibility
-export { CodeMindWorkflowOrchestrator as default };
+export { CodeSeekerWorkflowOrchestrator as default };

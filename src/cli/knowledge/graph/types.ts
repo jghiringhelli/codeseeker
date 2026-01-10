@@ -1,5 +1,5 @@
 /**
- * Semantic Knowledge Graph Types for CodeMind
+ * Semantic Knowledge Graph Types for CodeSeeker
  * 
  * A knowledge graph representing code semantics using triads (subject-predicate-object)
  * to capture relationships between code entities, concepts, and patterns.

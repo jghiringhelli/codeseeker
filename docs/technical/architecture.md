@@ -1,10 +1,10 @@
-# CodeMind Architecture Summary
+# CodeSeeker Architecture Summary
 
 **Updated**: 2025-10-31 - Post-SOLID Consolidation Architecture
 
 ## 🏗️ **Three-Layer Architecture with SOLID Consolidation**
 
-CodeMind implements a clean **three-layer architecture** with SOLID principles applied throughout. Recent consolidation achieved **4,717+ lines of code elimination** while enhancing functionality through strategic service merging:
+CodeSeeker implements a clean **three-layer architecture** with SOLID principles applied throughout. Recent consolidation achieved **4,717+ lines of code elimination** while enhancing functionality through strategic service merging:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -28,7 +28,7 @@ CodeMind implements a clean **three-layer architecture** with SOLID principles a
 ## 🎯 **Core Components (Post-Consolidation)**
 
 ### **Layer 1: CLI - Core Intelligence Engine**
-- **Main File**: `src/cli/codemind-unified-cli.ts`
+- **Main File**: `src/cli/codeseeker-unified-cli.ts`
 - **Features**: Unified semantic search, consolidated graph services, streamlined Claude integration
 - **Consolidations**: 3 database managers → 1 unified manager (83.4% reduction)
 - **Usage**: Direct user interaction or called by higher layers
@@ -116,13 +116,13 @@ CodeMind implements a clean **three-layer architecture** with SOLID principles a
 ```bash
 npm run build         # Compile TypeScript
 npm run start         # Launch CLI
-npm run codemind      # Build + start combined
+npm run codeseeker      # Build + start combined
 npm run docker:up     # Start all infrastructure
 ```
 
 ### **Project Initialization**
 ```bash
-node dist/cli/codemind-unified-cli.js
+node dist/cli/codeseeker-unified-cli.js
 > /setup  # One-time infrastructure setup
 > /init   # Initialize your project with semantic features
 ```
@@ -146,7 +146,7 @@ npm test -- tests/consolidated-services/
 npm run build
 
 # Start with unified services
-npm run codemind
+npm run codeseeker
 ```
 
 ## 📚 **Documentation**
@@ -167,4 +167,4 @@ npm run codemind
 
 ---
 
-**CodeMind now features enterprise-grade SOLID architecture with 4,717+ lines eliminated while enhancing functionality through strategic consolidation.**
+**CodeSeeker now features enterprise-grade SOLID architecture with 4,717+ lines eliminated while enhancing functionality through strategic consolidation.**

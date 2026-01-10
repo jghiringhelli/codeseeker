@@ -47,7 +47,7 @@ export interface ElasticsearchConfig {
     username: string;
     password: string;
   };
-  indexPrefix?: string; // e.g., 'codemind' -> 'codemind_documents'
+  indexPrefix?: string; // e.g., 'codeseeker' -> 'codeseeker_documents'
 }
 
 export class ElasticsearchTextStore implements ITextStore {

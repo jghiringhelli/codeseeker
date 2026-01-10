@@ -1,4 +1,4 @@
--- PostgreSQL Schema for CodeMind Intelligent Code Auxiliary System
+-- PostgreSQL Schema for codeseeker Intelligent Code Auxiliary System
 -- Multi-project support with comprehensive indexing and constraints
 
 -- Enable UUID extension for generating unique IDs
@@ -900,7 +900,7 @@ CREATE TABLE IF NOT EXISTS redis_queue_status (
 );
 
 -- CLI usage tracking for both single and sequential modes
-CREATE TABLE IF NOT EXISTS codemind_cli_usage (
+CREATE TABLE IF NOT EXISTS codeseeker_cli_usage (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   usage_type TEXT NOT NULL CHECK (
@@ -959,10 +959,10 @@ CREATE INDEX IF NOT EXISTS idx_redis_queue_status_recorded_at ON redis_queue_sta
 CREATE INDEX IF NOT EXISTS idx_redis_queue_status_health ON redis_queue_status(queue_health);
 
 -- CLI usage indexes
-CREATE INDEX IF NOT EXISTS idx_codemind_cli_usage_project_id ON codemind_cli_usage(project_id);
-CREATE INDEX IF NOT EXISTS idx_codemind_cli_usage_type ON codemind_cli_usage(usage_type);
-CREATE INDEX IF NOT EXISTS idx_codemind_cli_usage_workflow_id ON codemind_cli_usage(workflow_id);
-CREATE INDEX IF NOT EXISTS idx_codemind_cli_usage_created_at ON codemind_cli_usage(created_at);
+CREATE INDEX IF NOT EXISTS idx_codeseeker_cli_usage_project_id ON codeseeker_cli_usage(project_id);
+CREATE INDEX IF NOT EXISTS idx_codeseeker_cli_usage_type ON codeseeker_cli_usage(usage_type);
+CREATE INDEX IF NOT EXISTS idx_codeseeker_cli_usage_workflow_id ON codeseeker_cli_usage(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_codeseeker_cli_usage_created_at ON codeseeker_cli_usage(created_at);
 
 -- JSONB indexes for complex queries
 CREATE INDEX IF NOT EXISTS idx_sequential_workflows_workflow_graph ON sequential_workflows USING GIN (workflow_graph);
@@ -1485,7 +1485,7 @@ ORDER BY tr.urgency DESC, tr.confidence_score DESC, tr.created_at DESC;
 
 INSERT INTO system_config (config_key, config_value, config_type, description, is_global) VALUES
     ('sequential_workflows_enabled', 'true', 'boolean', 'Enable sequential workflow orchestration', true),
-    ('redis_host', '"codemind-redis"', 'string', 'Redis server host for message queuing', true),
+    ('redis_host', '"codeseeker-redis"', 'string', 'Redis server host for message queuing', true),
     ('redis_port', '6379', 'number', 'Redis server port', true),
     ('default_workflow_timeout_minutes', '30', 'number', 'Default workflow timeout in minutes', true),
     ('max_workflow_retries', '3', 'number', 'Maximum retries per workflow role', true),

@@ -15,8 +15,8 @@ import { Client } from 'pg';
 import { DatabaseConnections } from '../../config/database-config';
 import { Logger } from '../../utils/logger';
 
-// CodeMind namespace for UUID v5 generation (deterministic)
-const CODEMIND_NAMESPACE = 'codemind-project-identity';
+// CodeSeeker namespace for UUID v5 generation (deterministic)
+const CODESEEKER_NAMESPACE = 'codeseeker-project-identity';
 
 export interface ProjectIdentity {
   id: string;
@@ -66,7 +66,7 @@ export class ProjectIdentityService {
 
     // Create deterministic hash using SHA-256
     const hash = crypto.createHash('sha256')
-      .update(CODEMIND_NAMESPACE + ':' + normalizedPath)
+      .update(CODESEEKER_NAMESPACE + ':' + normalizedPath)
       .digest('hex');
 
     // Format as UUID-like string (8-4-4-4-12)

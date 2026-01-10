@@ -289,7 +289,7 @@ export class LanguageSupportService {
           console.log(`📦 Installing ${pkg}...`);
           execSync(`npm install ${pkg}`, {
             stdio: 'pipe',
-            cwd: this.getCodeMindRoot()
+            cwd: this.getCodeSeekerRoot()
           });
 
           const langName = this.parserRegistry.find(p => p.npmPackage === pkg)?.language || pkg;
@@ -341,7 +341,7 @@ export class LanguageSupportService {
   private async isPackageInstalled(packageName: string): Promise<boolean> {
     try {
       // Try to require the package
-      require.resolve(packageName, { paths: [this.getCodeMindRoot()] });
+      require.resolve(packageName, { paths: [this.getCodeSeekerRoot()] });
       return true;
     } catch {
       return false;
@@ -357,14 +357,14 @@ export class LanguageSupportService {
     return undefined;
   }
 
-  private getCodeMindRoot(): string {
-    // Find the CodeMind installation directory
+  private getCodeSeekerRoot(): string {
+    // Find the CodeSeeker installation directory
     // This handles both development and installed scenarios
     let dir = __dirname;
     while (dir !== path.dirname(dir)) {
       if (fs.existsSync(path.join(dir, 'package.json'))) {
         const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
-        if (pkg.name === 'codemind-enhanced-cli') {
+        if (pkg.name === 'codeseeker-enhanced-cli') {
           return dir;
         }
       }

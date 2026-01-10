@@ -1,10 +1,10 @@
 /**
  * Workflow Orchestration Adapter - SOLID Principles Compliant
- * Bridges the CLI CommandProcessor to the sophisticated CodeMindWorkflowOrchestrator
+ * Bridges the CLI CommandProcessor to the sophisticated CodeSeekerWorkflowOrchestrator
  * Implements the IRequestProcessor interface following Dependency Inversion Principle
  */
 
-import { CodeMindWorkflowOrchestrator } from '../codemind-workflow-orchestrator';
+import { CodeSeekerWorkflowOrchestrator } from '../codeseeker-workflow-orchestrator';
 import { Theme } from '../ui/theme';
 import { Logger } from '../../utils/logger';
 import {
@@ -15,17 +15,17 @@ import {
 } from '../../core/interfaces/orchestrator-interfaces';
 
 export class WorkflowOrchestrationAdapter implements IRequestProcessor {
-  private workflowOrchestrator: CodeMindWorkflowOrchestrator;
+  private workflowOrchestrator: CodeSeekerWorkflowOrchestrator;
   private logger = Logger.getInstance();
 
   constructor(projectId?: string, projectPath?: string) {
-    this.workflowOrchestrator = new CodeMindWorkflowOrchestrator(
+    this.workflowOrchestrator = new CodeSeekerWorkflowOrchestrator(
       projectId || 'current-project'
     );
   }
 
   /**
-   * Process user request through full CodeMind workflow
+   * Process user request through full CodeSeeker workflow
    * This is the main method called by CommandProcessor
    */
   async processRequest(query: string, projectPath: string): Promise<ProcessRequestResult> {
@@ -41,7 +41,7 @@ export class WorkflowOrchestrationAdapter implements IRequestProcessor {
       };
 
       // Execute the complete workflow
-      console.log(Theme.colors.info('🔄 Executing complete CodeMind workflow...'));
+      console.log(Theme.colors.info('🔄 Executing complete CodeSeeker workflow...'));
       console.log(Theme.colors.muted('  • Analyzing intent and selecting tools'));
       console.log(Theme.colors.muted('  • Gathering semantic context from databases'));
       console.log(Theme.colors.muted('  • Splitting into manageable sub-tasks'));

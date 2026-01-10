@@ -29,7 +29,7 @@ export class RedisCacheStore implements ICacheStore {
   private misses = 0;
 
   constructor(private config: RedisCacheStoreConfig) {
-    this.keyPrefix = config.keyPrefix || 'codemind:';
+    this.keyPrefix = config.keyPrefix || 'codeseeker:';
     this.client = createClient({
       socket: {
         host: config.host,

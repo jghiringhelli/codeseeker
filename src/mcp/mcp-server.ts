@@ -1,18 +1,18 @@
 /**
- * CodeMind MCP Server
+ * CodeSeeker MCP Server
  *
- * Exposes CodeMind's semantic search and code analysis capabilities
+ * Exposes CodeSeeker's semantic search and code analysis capabilities
  * as an MCP (Model Context Protocol) server for use with Claude Desktop
  * and Claude Code.
  *
  * Usage:
- *   codemind serve --mcp
+ *   codeseeker serve --mcp
  *
  * Then add to claude_desktop_config.json:
  *   {
  *     "mcpServers": {
- *       "codemind": {
- *         "command": "codemind",
+ *       "codeseeker": {
+ *         "command": "codeseeker",
  *         "args": ["serve", "--mcp"]
  *       }
  *     }
@@ -36,9 +36,9 @@ import { LanguageSupportService } from '../cli/services/project/language-support
 const VERSION = '2.0.0';
 
 /**
- * MCP Server for CodeMind
+ * MCP Server for CodeSeeker
  */
-export class CodeMindMcpServer {
+export class CodeSeekerMcpServer {
   private server: McpServer;
   private searchOrchestrator: SemanticSearchOrchestrator;
   private indexingService: IndexingService;
@@ -46,7 +46,7 @@ export class CodeMindMcpServer {
 
   constructor() {
     this.server = new McpServer({
-      name: 'codemind',
+      name: 'codeseeker',
       version: VERSION,
     });
 
@@ -57,15 +57,15 @@ export class CodeMindMcpServer {
   }
 
   /**
-   * Find CodeMind project by walking up directory tree from startPath
-   * looking for .codemind/project.json
+   * Find CodeSeeker project by walking up directory tree from startPath
+   * looking for .codeseeker/project.json
    */
   private async findProjectPath(startPath: string): Promise<string> {
     let currentPath = path.resolve(startPath);
     const root = path.parse(currentPath).root;
 
     while (currentPath !== root) {
-      const configPath = path.join(currentPath, '.codemind', 'project.json');
+      const configPath = path.join(currentPath, '.codeseeker', 'project.json');
       if (fs.existsSync(configPath)) {
         return currentPath;
       }
@@ -138,7 +138,7 @@ export class CodeMindMcpServer {
             if (projectRecord) {
               projectPath = projectRecord.path;
             } else {
-              // Use provided path directly and try to find CodeMind project
+              // Use provided path directly and try to find CodeSeeker project
               projectPath = await this.findProjectPath(path.resolve(project));
             }
           } else {
@@ -1079,7 +1079,7 @@ export class CodeMindMcpServer {
           await graphStore.deleteByProject(project.id);
 
           // Delete coding standards file (will be regenerated)
-          const codingStandardsPath = path.join(absolutePath, '.codemind', 'coding-standards.json');
+          const codingStandardsPath = path.join(absolutePath, '.codeseeker', 'coding-standards.json');
           if (fs.existsSync(codingStandardsPath)) {
             fs.unlinkSync(codingStandardsPath);
           }
@@ -1219,7 +1219,7 @@ export class CodeMindMcpServer {
             await graphStore.deleteByProject(found.id);
 
             // Delete coding standards file (will be regenerated)
-            const codingStandardsPath = path.join(found.path, '.codemind', 'coding-standards.json');
+            const codingStandardsPath = path.join(found.path, '.codeseeker', 'coding-standards.json');
             if (fs.existsSync(codingStandardsPath)) {
               fs.unlinkSync(codingStandardsPath);
             }
@@ -1412,7 +1412,7 @@ export class CodeMindMcpServer {
           }
 
           // Try to load standards file
-          const standardsPath = path.join(found.path, '.codemind', 'coding-standards.json');
+          const standardsPath = path.join(found.path, '.codeseeker', 'coding-standards.json');
           let standardsContent: string;
 
           try {
@@ -1628,7 +1628,7 @@ export class CodeMindMcpServer {
       {
         description: 'Dynamically manage which files are included or excluded from the index. ' +
           'Use this to exclude files that shouldn\'t be searched (e.g., Library/, build outputs, generated files) ' +
-          'or include files that were incorrectly excluded. Exclusions persist in .codemind/exclusions.json. ' +
+          'or include files that were incorrectly excluded. Exclusions persist in .codeseeker/exclusions.json. ' +
           'Example: manage_index({action: "exclude", project: "my-app", paths: ["Library/**", "Temp/**"]}) ' +
           'to exclude Unity folders. Changes take effect immediately - excluded files are removed from the index.',
         inputSchema: {
@@ -1671,7 +1671,7 @@ export class CodeMindMcpServer {
           }
 
           // Load or create exclusions file
-          const exclusionsPath = path.join(found.path, '.codemind', 'exclusions.json');
+          const exclusionsPath = path.join(found.path, '.codeseeker', 'exclusions.json');
           let exclusions: {
             patterns: Array<{ pattern: string; reason?: string; addedAt: string }>;
             lastModified: string;
@@ -1680,10 +1680,10 @@ export class CodeMindMcpServer {
             lastModified: new Date().toISOString()
           };
 
-          // Ensure .codemind directory exists
-          const codemindDir = path.join(found.path, '.codemind');
-          if (!fs.existsSync(codemindDir)) {
-            fs.mkdirSync(codemindDir, { recursive: true });
+          // Ensure .codeseeker directory exists
+          const codeseekerDir = path.join(found.path, '.codeseeker');
+          if (!fs.existsSync(codeseekerDir)) {
+            fs.mkdirSync(codeseekerDir, { recursive: true });
           }
 
           // Load existing exclusions
@@ -1919,7 +1919,7 @@ export class CodeMindMcpServer {
    */
   async start(): Promise<void> {
     // Use stderr for logging since stdout is for JSON-RPC
-    console.error('Starting CodeMind MCP server...');
+    console.error('Starting CodeSeeker MCP server...');
 
     // Initialize storage manager first to ensure singleton is ready
     const storageManager = await getStorageManager();
@@ -1928,14 +1928,14 @@ export class CodeMindMcpServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
 
-    console.error('CodeMind MCP server running on stdio');
+    console.error('CodeSeeker MCP server running on stdio');
   }
 
   /**
    * Graceful shutdown - flush and close all storage before exit
    */
   async shutdown(): Promise<void> {
-    console.error('Shutting down CodeMind MCP server...');
+    console.error('Shutting down CodeSeeker MCP server...');
     try {
       const storageManager = await getStorageManager();
       // Flush first to ensure data is saved
@@ -1954,7 +1954,7 @@ export class CodeMindMcpServer {
  * Main entry point for MCP server
  */
 export async function startMcpServer(): Promise<void> {
-  const server = new CodeMindMcpServer();
+  const server = new CodeSeekerMcpServer();
   let isShuttingDown = false;
 
   // Register signal handlers for graceful shutdown

@@ -28,7 +28,7 @@ export class ProjectManager {
     private languageManager: ILanguageDetector,
     private projectRegistry: IProjectRegistry
   ) {
-    this.currentProjectPath = process.env.CODEMIND_USER_CWD || process.cwd();
+    this.currentProjectPath = process.env.CODESEEKER_USER_CWD || process.cwd();
     this.identityService = new ProjectIdentityService();
   }
 
@@ -79,7 +79,7 @@ export class ProjectManager {
 
       if (resolution.action === 'merge_duplicate' && resolution.duplicates && resolution.duplicates.length > 0) {
         console.log(Theme.colors.warning(`⚠️ ${resolution.message}`));
-        console.log(Theme.colors.info(`   Run 'codemind project cleanup' to merge duplicates`));
+        console.log(Theme.colors.info(`   Run 'codeseeker project cleanup' to merge duplicates`));
 
         // Use the first duplicate's ID for now
         const primaryDuplicate = resolution.duplicates[0];
@@ -236,7 +236,7 @@ export class ProjectManager {
   // Private helper methods (single responsibility)
 
   private createLocalConfig(config: ProjectConfig): void {
-    const configDir = path.join(config.projectPath, '.codemind');
+    const configDir = path.join(config.projectPath, '.codeseeker');
     const configPath = path.join(configDir, 'project.json');
 
     if (!fs.existsSync(configDir)) {

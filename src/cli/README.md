@@ -15,7 +15,7 @@ Layer 1 (CLI) - Core Intelligence Engine
 
 ## Key Components
 
-- **`codemind-unified-cli.ts`**: Main interactive CLI with full workflow
+- **`codeseeker-unified-cli.ts`**: Main interactive CLI with full workflow
 - **`claude-integration.ts`**: Claude Code integration and context optimization
 - **`enhanced-tool-selector.ts`**: AI-powered tool selection system
 - **`context-optimizer.ts`**: Token-efficient context management

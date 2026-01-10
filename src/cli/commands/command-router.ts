@@ -24,6 +24,7 @@ import { DocsCommandHandler } from './handlers/docs-command-handler';
 import { InstructionsCommandHandler } from './handlers/instructions-command-handler';
 import { WatcherCommandHandler } from './handlers/watcher-command-handler';
 import { SynonymsCommandHandler } from './handlers/synonyms-command-handler';
+import { InstallCommandHandler } from './handlers/install-command-handler';
 
 export interface HistoryCallbacks {
   getHistory: () => string[];
@@ -145,6 +146,7 @@ export class CommandRouter {
     this.handlers.set('watch', new WatcherCommandHandler(this.context));
     this.handlers.set('watcher', new WatcherCommandHandler(this.context)); // Alias
     this.handlers.set('synonyms', new SynonymsCommandHandler(this.context));
+    this.handlers.set('install', new InstallCommandHandler(this.context)); // MCP IDE configuration
   }
 
   /**
@@ -243,7 +245,7 @@ export class CommandRouter {
    */
   private handleHelp(args: string): CommandResult {
     const helpText = `
-${Theme.colors.primary('CodeMind Commands:')}
+${Theme.colors.primary('CodeSeeker Commands:')}
 
 ${Theme.colors.success('Project Management:')}
   setup [--force] [--skip-docker] [--skip-db]  Setup infrastructure (Docker, databases)
@@ -261,7 +263,7 @@ ${Theme.colors.success('Code Analysis:')}
 
 ${Theme.colors.success('Documentation:')}
   docs [subcommand]      Manage documentation and RAG system
-  instructions [cmd]     Manage CODEMIND.md instructions
+  instructions [cmd]     Manage CODESEEKER.md instructions
 
 ${Theme.colors.success('Synchronization:')}
   sync [subcommand]      Sync project with databases
@@ -271,7 +273,7 @@ ${Theme.colors.success('General:')}
   s, /s                  Toggle semantic search on/off
   help                   Show this help message
   history                View/clear command history
-  exit, quit             Exit CodeMind
+  exit, quit             Exit CodeSeeker
 
 ${Theme.colors.success('Claude CLI Passthrough:')}
   claude login           Pass through to Claude CLI (login, logout, version, etc.)
@@ -292,7 +294,7 @@ ${Theme.colors.info('Natural Language:')}
    * Handle exit command
    */
   private handleExit(): CommandResult {
-    console.log(Theme.colors.success('👋 Goodbye! CodeMind session ended.'));
+    console.log(Theme.colors.success('👋 Goodbye! CodeSeeker session ended.'));
     return { success: true, message: 'exit', data: { shouldExit: true } };
   }
 
@@ -330,7 +332,7 @@ ${Theme.colors.info('Natural Language:')}
    * Handle status command
    */
   private async handleStatus(): Promise<CommandResult> {
-    console.log(Theme.colors.primary('\n📊 CodeMind Status:'));
+    console.log(Theme.colors.primary('\n📊 CodeSeeker Status:'));
 
     // Project status
     if (this.context.currentProject) {
@@ -507,7 +509,7 @@ ${Theme.colors.primary('History Command:')}
 
       child.on('close', (code: number | null) => {
         if (code === 0) {
-          console.log(Theme.colors.muted(`\n  Returned to CodeMind.\n`));
+          console.log(Theme.colors.muted(`\n  Returned to CodeSeeker.\n`));
           resolve({
             success: true,
             message: 'Claude CLI command completed'

@@ -56,7 +56,7 @@ export class FileSynchronizationSystem {
       chunkSize: 8000,
       maxTokens: 8191
     });
-    this.localHashCacheFile = path.join(projectPath, '.codemind', 'file-hashes.json');
+    this.localHashCacheFile = path.join(projectPath, '.codeseeker', 'file-hashes.json');
   }
 
   async initialize(): Promise<void> {
@@ -282,7 +282,7 @@ export class FileSynchronizationSystem {
       '**/dist/**',
       '**/build/**',
       '**/.git/**',
-      '**/.codemind/**',
+      '**/.codeseeker/**',
       '**/coverage/**',
       '**/tmp/**',
       '**/temp/**'

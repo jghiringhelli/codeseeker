@@ -1,5 +1,5 @@
 /**
- * Shared types for CodeMind orchestration system
+ * Shared types for CodeSeeker orchestration system
  */
 
 export interface ProjectContext {

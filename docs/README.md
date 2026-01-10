@@ -1,12 +1,12 @@
-# CodeMind Documentation Index
+# CodeSeeker Documentation Index
 
-This directory contains detailed documentation for CodeMind. For a quick overview, see the [main README](../README.md).
+This directory contains detailed documentation for CodeSeeker. For a quick overview, see the [main README](../README.md).
 
 ## Getting Started
 
 | Document | Description |
 |----------|-------------|
-| [Claude Code Plugin](install/claude-code-plugin.md) | **Recommended** - Install CodeMind as a Claude Code plugin |
+| [Claude Code Plugin](install/claude-code-plugin.md) | **Recommended** - Install CodeSeeker as a Claude Code plugin |
 | [CLI Commands Manual](install/cli_commands_manual.md) | Full reference for all CLI commands |
 | [MCP Server Guide](install/mcp-server.md) | Setup MCP server for Claude Code/Desktop integration |
 | [Storage Guide](technical/storage.md) | Embedded vs Server mode configuration |
@@ -24,8 +24,8 @@ This directory contains detailed documentation for CodeMind. For a quick overvie
 
 | Document | Description |
 |----------|-------------|
-| [Claude Code Plugin](../plugins/codemind/README.md) | Claude Code plugin with slash commands and skills |
-| [VSCode Extension](../extensions/vscode-codemind/README.md) | Real-time file sync extension (legacy) |
+| [Claude Code Plugin](../plugins/codeseeker/README.md) | Claude Code plugin with slash commands and skills |
+| [VSCode Extension](../extensions/vscode-codeseeker/README.md) | Real-time file sync extension (legacy) |
 | [Database Scripts](../deploy/scripts/README.md) | Manual PostgreSQL, Neo4j, Redis installation |
 | [Kubernetes Deployment](../deploy/kubernetes/README.md) | Production Kubernetes manifests |
 
@@ -58,7 +58,7 @@ docs/
 └── db/                       # Database documentation
     └── schema.md             # Database schema reference
 
-extensions/vscode-codemind/   # VSCode extension
+extensions/vscode-codeseeker/   # VSCode extension
 deploy/scripts/               # Database setup scripts
 deploy/kubernetes/            # Kubernetes manifests
 ```
