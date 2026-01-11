@@ -482,32 +482,61 @@ export class SearchCommandHandler extends BaseCommandHandler {
       const normalizedPath = path.resolve(projectPath);
       this.logger.info(`Looking up project with path: ${normalizedPath}`);
 
-      // Try to find existing project by path
-      const projects = await analysisRepository.getProjects({ projectPath: normalizedPath });
-      this.logger.info(`Found ${projects.length} projects matching path`);
+      // Get storage manager to check mode
+      const storageManager = await getStorageManager();
 
-      if (projects.length > 0) {
-        this.logger.info(`Using project ID: ${projects[0].id}`);
-        return projects[0].id;
+      if (storageManager.getMode() === 'embedded') {
+        // Use embedded project store
+        const projectStore = storageManager.getProjectStore();
+
+        // Try to find existing project by path
+        const project = await projectStore.findByPath(normalizedPath);
+        if (project) {
+          this.logger.info(`Using project ID: ${project.id}`);
+          return project.id;
+        }
+
+        // Also try without normalization
+        const projectOrig = await projectStore.findByPath(projectPath);
+        if (projectOrig) {
+          this.logger.info(`Found project with original path, using ID: ${projectOrig.id}`);
+          return projectOrig.id;
+        }
+
+        // For embedded mode, generate a deterministic project ID from the path
+        // This allows searching without explicit initialization
+        const crypto = require('crypto');
+        const generatedId = crypto.createHash('md5').update(normalizedPath).digest('hex').substring(0, 16);
+        this.logger.info(`Generated project ID from path: ${generatedId}`);
+        return generatedId;
+      } else {
+        // Use server mode (PostgreSQL)
+        const projects = await analysisRepository.getProjects({ projectPath: normalizedPath });
+        this.logger.info(`Found ${projects.length} projects matching path`);
+
+        if (projects.length > 0) {
+          this.logger.info(`Using project ID: ${projects[0].id}`);
+          return projects[0].id;
+        }
+
+        // Also try without normalization in case paths were stored differently
+        const projectsOrig = await analysisRepository.getProjects({ projectPath });
+        if (projectsOrig.length > 0) {
+          this.logger.info(`Found project with original path, using ID: ${projectsOrig[0].id}`);
+          return projectsOrig[0].id;
+        }
+
+        // Get all projects to debug
+        const allProjects = await analysisRepository.getProjects({});
+        this.logger.info(`Total projects in database: ${allProjects.length}`);
+        allProjects.forEach(p => {
+          this.logger.info(`Project: ${p.project_name}, Path: ${p.project_path}, ID: ${p.id}`);
+        });
+
+        // Fallback: this should not happen if init was run properly
+        this.logger.error(`No project found for path: ${projectPath} (normalized: ${normalizedPath})`);
+        throw new Error(`Project not found for path: ${projectPath}. Please run "codeseeker setup" first.`);
       }
-
-      // Also try without normalization in case paths were stored differently
-      const projectsOrig = await analysisRepository.getProjects({ projectPath });
-      if (projectsOrig.length > 0) {
-        this.logger.info(`Found project with original path, using ID: ${projectsOrig[0].id}`);
-        return projectsOrig[0].id;
-      }
-
-      // Get all projects to debug
-      const allProjects = await analysisRepository.getProjects({});
-      this.logger.info(`Total projects in database: ${allProjects.length}`);
-      allProjects.forEach(p => {
-        this.logger.info(`Project: ${p.project_name}, Path: ${p.project_path}, ID: ${p.id}`);
-      });
-
-      // Fallback: this should not happen if init was run properly
-      this.logger.error(`No project found for path: ${projectPath} (normalized: ${normalizedPath})`);
-      throw new Error(`Project not found for path: ${projectPath}. Please run "codeseeker setup" first.`);
     } catch (error) {
       this.logger.error('Could not retrieve project ID:', error);
       throw error;
