@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
 
-> **What is CodeSeeker?** An MCP server that gives Claude semantic code search and knowledge graph traversal. Works with Claude Code, Claude Desktop, and Cursor.
+> **What is CodeSeeker?** An MCP server that gives AI assistants semantic code search and knowledge graph traversal. Works with **Claude Code**, **GitHub Copilot**, **Cursor**, and **Claude Desktop**.
 
 ## The Problem
 
@@ -373,11 +373,16 @@ MCP tools appear automatically once the server connects. Ask Claude "what CodeSe
 - [Architecture](docs/technical/architecture.md) - Technical deep dive
 - [CLI Commands](docs/install/cli_commands_manual.md) - Full command reference
 
-## Compatibility Note
+## Supported Platforms
 
-**GitHub Copilot**: Not compatible. Copilot uses a different architecture (not MCP).
-
-**Supported platforms**: Claude Code, Claude Desktop, Cursor, and any MCP-compatible client.
+| Platform | MCP Support | Install Command |
+|----------|-------------|-----------------|
+| **Claude Code** | Yes | `codeseeker install --copilot` or plugin |
+| **GitHub Copilot** | Yes (VS Code 1.99+) | `codeseeker install --copilot` |
+| **Cursor** | Yes | `codeseeker install --cursor` |
+| **Claude Desktop** | Yes | Manual config |
+| **Windsurf** | Yes | `codeseeker install --windsurf` |
+| **Visual Studio** | Yes | `codeseeker install --vs` |
 
 ## License
 

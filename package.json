@@ -145,7 +145,6 @@
   },
   "homepage": "https://github.com/jghiringhelli/codeseeker#readme",
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   }
 }
