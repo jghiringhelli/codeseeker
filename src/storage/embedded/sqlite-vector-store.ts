@@ -376,9 +376,12 @@ export class SQLiteVectorStore implements IVectorStore {
       .sort((a, b) => b.rrfScore - a.rrfScore)
       .slice(0, limit);
 
+    // Find max FTS score for dynamic normalization (BM25 scores vary widely)
+    const maxFtsScore = Math.max(1, ...sortedEntries.map(e => e.ftsScore));
+
     // Calculate intuitive display scores based on match types and original scores
     // - Vector match: Use cosine similarity (0-1) directly
-    // - FTS match: Normalize BM25 to 0-1 range
+    // - FTS match: Normalize BM25 dynamically based on max score in result set
     // - Both: Boost score for cross-method validation
     // - Final score is ALWAYS capped at 1.0 (100%)
     const results: VectorSearchResult[] = sortedEntries.map(entry => {
@@ -394,8 +397,9 @@ export class SQLiteVectorStore implements IVectorStore {
         displayScore = entry.vectorScore;
         matchSource = 'semantic';
       } else if (entry.matchTypes.has('fts')) {
-        // Text (inverted index) only - normalize BM25 (typically 0-20+) to 0-0.8 range
-        displayScore = entry.ftsScore / 10;
+        // Text (inverted index) only - normalize BM25 dynamically to 0-0.85 range
+        // Using dynamic max ensures consistent scoring regardless of query complexity
+        displayScore = (entry.ftsScore / maxFtsScore) * 0.85;
         matchSource = 'text';
       }
 
@@ -435,6 +439,33 @@ export class SQLiteVectorStore implements IVectorStore {
 
     // Also remove from MiniSearch
     await this.textStore.removeByProject(projectId);
+
+    this.isDirty = true;
+    return result.changes;
+  }
+
+  async deleteByFiles(projectId: string, filePaths: string[]): Promise<number> {
+    if (filePaths.length === 0) return 0;
+
+    // Get IDs of documents to delete for MiniSearch removal
+    const placeholders = filePaths.map(() => '?').join(',');
+    const selectStmt = this.db.prepare(`
+      SELECT id FROM documents
+      WHERE project_id = ? AND file_path IN (${placeholders})
+    `);
+    const docsToDelete = selectStmt.all(projectId, ...filePaths) as Array<{ id: string }>;
+
+    // Delete from SQLite
+    const deleteStmt = this.db.prepare(`
+      DELETE FROM documents
+      WHERE project_id = ? AND file_path IN (${placeholders})
+    `);
+    const result = deleteStmt.run(projectId, ...filePaths);
+
+    // Also remove from MiniSearch
+    for (const doc of docsToDelete) {
+      await this.textStore.remove(doc.id);
+    }
 
     this.isDirty = true;
     return result.changes;
@@ -488,6 +519,37 @@ export class SQLiteVectorStore implements IVectorStore {
     } catch {
       return null;
     }
+  }
+
+  async getFileHashes(projectId: string): Promise<Map<string, string>> {
+    // Get all unique file paths and their hashes for incremental indexing
+    // Uses DISTINCT ON equivalent via GROUP BY to get one row per file
+    const stmt = this.db.prepare(`
+      SELECT file_path, metadata
+      FROM documents
+      WHERE project_id = ?
+      GROUP BY file_path
+    `);
+    const results = stmt.all(projectId) as Array<{ file_path: string; metadata: string | null }>;
+
+    const hashes = new Map<string, string>();
+    for (const row of results) {
+      if (row.metadata) {
+        try {
+          const metadata = JSON.parse(row.metadata);
+          // Use full_file_hash from metadata (matches server mode behavior)
+          // Fall back to fileHash for backwards compatibility
+          const hash = metadata.full_file_hash || metadata.fileHash;
+          if (hash) {
+            hashes.set(row.file_path, hash);
+          }
+        } catch {
+          // Skip invalid metadata
+        }
+      }
+    }
+
+    return hashes;
   }
 
   async flush(): Promise<void> {

@@ -257,7 +257,7 @@ export class CodeSeekerMcpServer {
             };
           }
 
-          // Format full results with absolute paths
+          // Format full results with absolute paths and match type info
           const formattedResults = limitedResults.map((r, i) => {
             const absolutePath = path.isAbsolute(r.file)
               ? r.file
@@ -269,21 +269,34 @@ export class CodeSeekerMcpServer {
               relative_path: r.file,
               score: Math.round(r.similarity * 100) / 100,
               type: r.type,
+              // Include match source for better understanding of why file matched
+              match_source: r.debug?.matchSource || 'hybrid',
               chunk: r.content.substring(0, 500) + (r.content.length > 500 ? '...' : ''),
               lines: r.lineStart && r.lineEnd ? `${r.lineStart}-${r.lineEnd}` : undefined,
             };
           });
 
+          // Build response with truncation warning if applicable
+          const wasLimited = results.length > limit;
+          const response: Record<string, unknown> = {
+            query,
+            project: projectPath,
+            total_results: limitedResults.length,
+            search_type,
+            results: formattedResults,
+          };
+
+          // Add truncation warning when results were limited
+          if (wasLimited) {
+            response.truncated = true;
+            response.total_available = results.length;
+            response.hint = `Showing ${limit} of ${results.length} results. Use limit parameter to see more.`;
+          }
+
           return {
             content: [{
               type: 'text' as const,
-              text: JSON.stringify({
-                query,
-                project: projectPath,
-                total_results: limitedResults.length,
-                search_type,
-                results: formattedResults,
-              }, null, 2),
+              text: JSON.stringify(response, null, 2),
             }],
           };
 
@@ -446,7 +459,8 @@ export class CodeSeekerMcpServer {
             file: string;
             relative_path: string;
             score: number;
-            match_type: string;
+            file_type: string;
+            match_source: string;
             line_count: number;
             content: string;
             truncated: boolean;
@@ -476,7 +490,8 @@ export class CodeSeekerMcpServer {
                 file: absolutePath,
                 relative_path: result.file,
                 score: Math.round(result.similarity * 100) / 100,
-                match_type: result.type,
+                file_type: result.type,
+                match_source: result.debug?.matchSource || 'hybrid',
                 line_count: lines.length,
                 content: numberedContent + (truncated ? `\n... (truncated at ${lineLimit} lines)` : ''),
                 truncated,

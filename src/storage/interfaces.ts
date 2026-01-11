@@ -55,6 +55,9 @@ export interface IVectorStore {
   /** Delete documents for a project */
   deleteByProject(projectId: string): Promise<number>;
 
+  /** Delete documents for specific files in a project (for incremental reindexing) */
+  deleteByFiles(projectId: string, filePaths: string[]): Promise<number>;
+
   /** Delete a specific document */
   delete(id: string): Promise<boolean>;
 
@@ -66,6 +69,9 @@ export interface IVectorStore {
 
   /** Get stored file metadata for change detection (hash + mtime) */
   getFileMetadata(projectId: string, filePath: string): Promise<{ fileHash: string; indexedAt: string } | null>;
+
+  /** Get all file hashes for a project (for incremental indexing) */
+  getFileHashes(projectId: string): Promise<Map<string, string>>;
 
   /** Persist to disk (for embedded mode) */
   flush(): Promise<void>;

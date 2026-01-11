@@ -285,6 +285,42 @@ export class PostgresVectorStore implements IVectorStore {
     return (result.rowCount || 0) > 0;
   }
 
+  async deleteByFiles(projectId: string, filePaths: string[]): Promise<number> {
+    await this.initialize();
+
+    if (filePaths.length === 0) return 0;
+
+    // Use ANY for efficient array matching
+    const result = await this.pool.query(
+      'DELETE FROM vector_documents WHERE project_id = $1 AND file_path = ANY($2)',
+      [projectId, filePaths]
+    );
+    return result.rowCount || 0;
+  }
+
+  async getFileHashes(projectId: string): Promise<Map<string, string>> {
+    await this.initialize();
+
+    const result = await this.pool.query(
+      `SELECT DISTINCT ON (file_path) file_path, metadata
+       FROM vector_documents
+       WHERE project_id = $1 AND metadata IS NOT NULL
+       ORDER BY file_path`,
+      [projectId]
+    );
+
+    const hashes = new Map<string, string>();
+    for (const row of result.rows) {
+      if (row.metadata) {
+        const hash = row.metadata.full_file_hash || row.metadata.fileHash;
+        if (hash) {
+          hashes.set(row.file_path, hash);
+        }
+      }
+    }
+    return hashes;
+  }
+
   async count(projectId: string): Promise<number> {
     await this.initialize();
 

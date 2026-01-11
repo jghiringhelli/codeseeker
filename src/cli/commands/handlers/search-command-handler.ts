@@ -304,9 +304,9 @@ export class SearchCommandHandler extends BaseCommandHandler {
     try {
       const storageManager = await getStorageManager();
       if (storageManager.getMode() === 'embedded') {
-        // For embedded mode, return empty map (always reindex for now)
-        // TODO: Add incremental indexing support for embedded storage
-        return new Map<string, string>();
+        // Use the vector store's getFileHashes method for embedded mode
+        const vectorStore = storageManager.getVectorStore();
+        return await vectorStore.getFileHashes(projectId);
       }
       return await analysisRepository.getFileHashes(projectId);
     } catch (error) {
@@ -316,7 +316,7 @@ export class SearchCommandHandler extends BaseCommandHandler {
   }
 
   /**
-   * Delete embeddings for specified files
+   * Delete embeddings for specified files (incremental)
    */
   private async deleteFileEmbeddings(projectId: string, files: string[]): Promise<void> {
     if (files.length === 0) return;
@@ -324,9 +324,9 @@ export class SearchCommandHandler extends BaseCommandHandler {
     try {
       const storageManager = await getStorageManager();
       if (storageManager.getMode() === 'embedded') {
-        // For embedded mode, we'll delete all and re-add during upsert
+        // Use deleteByFiles for targeted removal (true incremental indexing)
         const vectorStore = storageManager.getVectorStore();
-        await vectorStore.deleteByProject(projectId);
+        await vectorStore.deleteByFiles(projectId, files);
       } else {
         await analysisRepository.deleteEmbeddingsForFiles(projectId, files);
       }
