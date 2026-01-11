@@ -4,7 +4,7 @@
   "description": "Graph-powered code intelligence for Claude Code. Semantic search + knowledge graph for better AI code understanding.",
   "main": "dist/index.js",
   "bin": {
-    "codeseeker": "./bin/codeseeker.js"
+    "codeseeker": "bin/codeseeker.js"
   },
   "scripts": {
     "build": "tsc",
@@ -138,7 +138,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/jghiringhelli/codeseeker.git"
+    "url": "git+https://github.com/jghiringhelli/codeseeker.git"
   },
   "bugs": {
     "url": "https://github.com/jghiringhelli/codeseeker/issues"

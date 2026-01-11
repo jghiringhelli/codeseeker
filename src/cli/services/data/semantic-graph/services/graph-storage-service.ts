@@ -344,4 +344,23 @@ export class GraphStorageService implements IGraphStorageService {
       name: record.get('properties').name || 'Unknown'
     }));
   }
+
+  /**
+   * Update a property on an existing node
+   * Used for adding external import information after node creation
+   */
+  async updateNodeProperty(nodeId: string, propertyName: string, propertyValue: string): Promise<void> {
+    const session = this.driver.session();
+    try {
+      await session.run(
+        `MATCH (n) WHERE id(n) = $nodeId SET n.${propertyName} = $propertyValue`,
+        { nodeId: parseInt(nodeId), propertyValue }
+      );
+    } catch (error) {
+      this.logger.debug(`Failed to update property ${propertyName} on node ${nodeId}:`, error);
+      // Don't throw - this is a non-critical operation
+    } finally {
+      await session.close();
+    }
+  }
 }

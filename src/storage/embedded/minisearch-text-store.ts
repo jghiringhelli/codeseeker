@@ -561,7 +561,27 @@ export class MiniSearchTextStore implements ITextStore {
       { term: 'api', synonyms: ['endpoint', 'route', 'service'] },
       { term: 'config', synonyms: ['configuration', 'settings', 'options'] },
       { term: 'test', synonyms: ['spec', 'unit', 'assertion'] },
-      { term: 'mock', synonyms: ['stub', 'fake', 'spy'] }
+      { term: 'mock', synonyms: ['stub', 'fake', 'spy'] },
+
+      // Validation and form synonyms (Zod, Yup, react-hook-form, etc.)
+      { term: 'validation', synonyms: ['validate', 'validator', 'schema', 'zod', 'yup', 'joi'] },
+      { term: 'schema', synonyms: ['validation', 'validator', 'zod', 'yup', 'joi'] },
+      { term: 'zod', synonyms: ['validation', 'schema', 'zodResolver', 'zodSchema'] },
+      { term: 'form', synonyms: ['useForm', 'formState', 'register', 'handleSubmit'] },
+      { term: 'resolver', synonyms: ['zodResolver', 'yupResolver', 'hookform'] },
+
+      // Authentication and authorization
+      { term: 'auth', synonyms: ['authentication', 'authorization', 'login', 'session', 'token'] },
+      { term: 'login', synonyms: ['signin', 'authenticate', 'auth'] },
+      { term: 'logout', synonyms: ['signout', 'disconnect', 'unauthenticate'] },
+      { term: 'password', synonyms: ['pwd', 'credential', 'secret'] },
+      { term: 'token', synonyms: ['jwt', 'bearer', 'session', 'accessToken'] },
+
+      // Common UI/React patterns
+      { term: 'component', synonyms: ['widget', 'element', 'view'] },
+      { term: 'hook', synonyms: ['useEffect', 'useState', 'useCallback', 'useMemo'] },
+      { term: 'state', synonyms: ['store', 'context', 'redux', 'zustand'] },
+      { term: 'props', synonyms: ['properties', 'attributes', 'params'] }
     ];
   }
 }

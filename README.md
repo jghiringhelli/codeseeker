@@ -2,10 +2,11 @@
 
 **Graph-powered code intelligence for Claude Code.** CodeSeeker builds a knowledge graph of your codebase—not just embeddings—so Claude understands how your code actually connects.
 
+[![npm version](https://img.shields.io/npm/v/codeseeker.svg)](https://www.npmjs.com/package/codeseeker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
 
-> **What is CodeSeeker?** CodeSeeker is a **Claude Code plugin** that adds MCP tools for semantic code search and knowledge graph traversal. It works anywhere Claude Code runs—terminal, VS Code with Claude Code extension, or any other environment. It is *not* a VS Code extension itself.
+> **What is CodeSeeker?** An MCP server that gives Claude semantic code search and knowledge graph traversal. Works with Claude Code, Claude Desktop, and Cursor.
 
 ## The Problem
 
@@ -40,93 +41,114 @@ When you ask "add password reset to authentication", Claude doesn't just find fi
 
 This is **Graph RAG** (Retrieval-Augmented Generation), not just vector search.
 
-## What Makes It Different
+## Installation
 
-| Approach | How It Works | Strengths | Limitations |
-|----------|--------------|-----------|-------------|
-| **Grep/ripgrep** | Text pattern matching | Fast, universal | No semantic understanding |
-| **Vector search only** | Embedding similarity | Finds similar code | Misses structural relationships |
-| **LSP-based tools** | Language server protocol | Precise symbol definitions, instant setup | No semantic search, no cross-file reasoning, requires LSP server |
-| **CodeSeeker** | Knowledge graph + hybrid search | Semantic search, relationship traversal, pattern detection | Requires initial indexing (30s-5min) |
+### Claude Code (Terminal or VS Code)
 
-### CodeSeeker's Unique Capabilities
-
-**What LSP tools can't do:**
-- *"Find code that handles errors like this"* → Semantic search finds similar patterns
-- *"What validation approach does this project use?"* → Auto-detected coding standards
-- *"Show me everything related to authentication"* → Graph traversal across indirect dependencies
-
-**What vector-only search misses:**
-- Direct import/export relationships
-- Class inheritance chains
-- Function call graphs
-- Which files actually depend on which
-
-CodeSeeker combines all three: **graph traversal** for structure, **vector search** for meaning, **text search** for precision—fused with Reciprocal Rank Fusion (RRF) for optimal results.
-
-## Quick Start
-
-### For Claude Code (Recommended)
-
-Install the plugin in Claude Code (terminal or VS Code):
+**Option A: Plugin (Recommended)**
 
 ```
 /plugin install codeseeker@github:jghiringhelli/codeseeker#plugin
 ```
 
-Then in any project, initialize the index:
+This installs the plugin with:
+- MCP server auto-configured
+- Hooks that keep the index in sync when Claude edits files
+- Slash commands (`/codeseeker:init`, `/codeseeker:reindex`)
+
+Then initialize in any project:
 ```
 /codeseeker:init
 ```
 
-Indexing takes 30 seconds to several minutes depending on project size. After that, Claude automatically uses CodeSeeker's MCP tools when searching code or analyzing relationships.
+**Option B: Manual MCP Configuration**
 
-**Note:** The plugin installs hooks that automatically keep the index in sync when Claude edits files or runs git operations.
-
-> **⚠️ NPM Package Not Yet Published:** The plugin currently requires manual MCP server setup. Until the npm package is published, add this to your `~/.claude/settings.json`:
-> ```json
-> {
->   "mcpServers": {
->     "codeseeker": {
->       "command": "node",
->       "args": ["/path/to/CodeSeeker/dist/mcp/mcp-server.js"],
->       "env": { "CODESEEKER_STORAGE_MODE": "embedded" }
->     }
->   }
-> }
-> ```
-> Replace `/path/to/CodeSeeker` with your local clone path. Run `npm install && npm run build` first.
-
-### For Claude Desktop (MCP Server)
-
-Add to `claude_desktop_config.json`:
+Add to `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "codeseeker": {
       "command": "npx",
-      "args": ["-y", "codeseeker", "serve", "--mcp"]
+      "args": ["-y", "codeseeker", "serve", "--mcp"],
+      "env": {
+        "CODESEEKER_STORAGE_MODE": "embedded"
+      }
     }
   }
 }
 ```
 
-> **Note:** Requires the npm package to be published. For local development, use `node /path/to/CodeSeeker/dist/mcp/mcp-server.js` instead of npx.
+Restart Claude Code. CodeSeeker tools are now available.
+
+### Cursor
+
+Add to `.cursor/mcp.json` in your project (or global settings):
+
+```json
+{
+  "mcpServers": {
+    "codeseeker": {
+      "command": "npx",
+      "args": ["-y", "codeseeker", "serve", "--mcp"],
+      "env": {
+        "CODESEEKER_STORAGE_MODE": "embedded"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "codeseeker": {
+      "command": "npx",
+      "args": ["-y", "codeseeker", "serve", "--mcp"],
+      "env": {
+        "CODESEEKER_STORAGE_MODE": "embedded"
+      }
+    }
+  }
+}
+```
 
 ### CLI Standalone
 
 ```bash
 npm install -g codeseeker
+cd your-project
 codeseeker init
 codeseeker -c "how does authentication work in this project?"
 ```
 
-> **Note:** Requires the npm package to be published. For local development, clone the repo and run `npm link`.
+## What You Get
+
+Once configured, Claude has access to these MCP tools (used automatically):
+
+| Tool | What It Does |
+|------|--------------|
+| `search_code` | Hybrid search: vector + text + path with RRF fusion |
+| `find_and_read` | Search + Read in one step - returns file content directly |
+| `get_code_relationships` | Traverse the knowledge graph (imports, calls, extends) |
+| `get_file_context` | Read a file with its related code automatically included |
+| `get_coding_standards` | Your project's detected patterns (validation, error handling) |
+| `index_project` | Manually trigger indexing (rarely needed) |
+| `notify_file_changes` | Update index for specific files |
+| `manage_index` | Dynamically exclude/include files from the index |
+
+**You don't invoke these manually**—Claude uses them automatically when searching code or analyzing relationships.
 
 ## How Indexing Works
 
-**You don't need to manually index.** When Claude uses any CodeSeeker MCP tool (`search_code`, `get_code_relationships`, etc.), the tool automatically checks if the project is indexed. If not, it indexes on first use.
+**You don't need to manually index.** When Claude uses any CodeSeeker tool, the tool automatically checks if the project is indexed. If not, it indexes on first use.
 
 ```
 User: "Find the authentication logic"
@@ -147,22 +169,62 @@ User: "Find the authentication logic"
 
 First search on a new project takes 30 seconds to several minutes (depending on size). Subsequent searches are instant.
 
-## What Claude Gets
+## What Makes It Different
 
-Once indexed, Claude has access to these MCP tools:
+| Approach | How It Works | Strengths | Limitations |
+|----------|--------------|-----------|-------------|
+| **Grep/ripgrep** | Text pattern matching | Fast, universal | No semantic understanding |
+| **Vector search only** | Embedding similarity | Finds similar code | Misses structural relationships |
+| **LSP-based tools** | Language server protocol | Precise symbol definitions | No semantic search, no cross-file reasoning |
+| **CodeSeeker** | Knowledge graph + hybrid search | Semantic + structure + patterns | Requires initial indexing (30s-5min) |
 
-| Tool | What It Does |
-|------|--------------|
-| `search_code` | Hybrid search: vector + text + path with RRF fusion |
-| `find_and_read` | Search + Read in one step - returns file content directly |
-| `get_code_relationships` | Traverse the knowledge graph (imports, calls, extends) |
-| `get_file_context` | Read a file with its related code automatically included |
-| `get_coding_standards` | Your project's detected patterns (validation, error handling) |
-| `index_project` | Manually trigger indexing (rarely needed) |
-| `notify_file_changes` | Update index for specific files |
-| `manage_index` | Dynamically exclude/include files from the index |
+### CodeSeeker's Unique Capabilities
 
-Claude uses these automatically—you don't need to invoke them manually.
+**What LSP tools can't do:**
+- *"Find code that handles errors like this"* → Semantic search finds similar patterns
+- *"What validation approach does this project use?"* → Auto-detected coding standards
+- *"Show me everything related to authentication"* → Graph traversal across indirect dependencies
+
+**What vector-only search misses:**
+- Direct import/export relationships
+- Class inheritance chains
+- Function call graphs
+- Which files actually depend on which
+
+CodeSeeker combines all three: **graph traversal** for structure, **vector search** for meaning, **text search** for precision—fused with Reciprocal Rank Fusion (RRF) for optimal results.
+
+## Auto-Detected Coding Standards
+
+CodeSeeker analyzes your codebase and extracts patterns:
+
+```json
+{
+  "validation": {
+    "email": {
+      "preferred": "z.string().email()",
+      "usage_count": 12,
+      "files": ["src/auth.ts", "src/user.ts"]
+    }
+  },
+  "react-patterns": {
+    "state": {
+      "preferred": "useState<T>()",
+      "usage_count": 45
+    }
+  }
+}
+```
+
+Detected pattern categories:
+- **validation**: Zod, Yup, Joi, validator.js, custom regex
+- **error-handling**: API error responses, try-catch patterns, custom Error classes
+- **logging**: Console, Winston, Bunyan, structured logging
+- **testing**: Jest/Vitest setup, assertion patterns
+- **react-patterns**: Hooks (useState, useEffect, useMemo, useCallback, useRef)
+- **state-management**: Redux Toolkit, Zustand, React Context, TanStack Query
+- **api-patterns**: Fetch, Axios, Express routes, Next.js API routes
+
+When Claude writes new code, it follows your existing conventions instead of inventing new ones.
 
 ## Managing Index Exclusions
 
@@ -176,46 +238,9 @@ manage_index({
   paths: ["Library/**", "Temp/**", "*.generated.cs"],
   reason: "Unity build artifacts"
 })
-
-// List current exclusions
-manage_index({
-  action: "list",
-  project: "my-unity-game"
-})
-
-// Re-include previously excluded files
-manage_index({
-  action: "include",
-  project: "my-unity-game",
-  paths: ["Library/**"]
-})
 ```
 
 Exclusions are persisted in `.codeseeker/exclusions.json` and automatically respected during reindexing.
-
-## Auto-Detected Coding Standards
-
-CodeSeeker analyzes your codebase and extracts patterns:
-
-```json
-{
-  "validation": {
-    "email": {
-      "preferred": "validator.isEmail()",
-      "usage_count": 12,
-      "files": ["src/auth.ts", "src/user.ts", "src/api/register.ts"]
-    }
-  },
-  "error-handling": {
-    "api_errors": {
-      "preferred": "res.status(code).json({ error: message })",
-      "usage_count": 34
-    }
-  }
-}
-```
-
-When Claude writes new code, it follows your existing conventions instead of inventing new ones.
 
 ## Language Support
 
@@ -230,6 +255,33 @@ When Claude writes new code, it follows your existing conventions instead of inv
 
 Tree-sitter parsers install automatically when needed.
 
+## Keeping the Index in Sync
+
+### With Claude Code Plugin
+
+The plugin installs **hooks** that automatically update the index:
+
+| Event | What Happens |
+|-------|--------------|
+| Claude edits a file | Index updated automatically |
+| Claude runs `git pull/checkout/merge` | Full reindex triggered |
+| You run `/codeseeker:reindex` | Manual full reindex |
+
+**You don't need to do anything**—the plugin handles sync automatically.
+
+### With MCP Server Only (Cursor, Claude Desktop)
+
+- **Claude-initiated changes**: Claude can call `notify_file_changes` tool
+- **Manual changes**: Not automatically detected—ask Claude to reindex periodically
+
+### Sync Summary
+
+| Setup | Claude Edits | Git Operations | Manual Edits |
+|-------|--------------|----------------|--------------|
+| **Plugin** (Claude Code) | Auto | Auto | Manual |
+| **MCP** (Cursor, Desktop) | Ask Claude | Ask Claude | Ask Claude |
+| **CLI** | Auto | Auto | Manual |
+
 ## When CodeSeeker Helps Most
 
 **Good fit:**
@@ -242,56 +294,6 @@ Tree-sitter parsers install automatically when needed.
 - Greenfield projects with little existing code
 - Single-file scripts
 - Projects where you're actively changing architecture
-
-## Keeping the Index in Sync
-
-CodeSeeker uses different sync mechanisms depending on how you use it:
-
-### Claude Code Plugin (Recommended)
-
-The plugin installs **hooks** that automatically update the index:
-
-| Event | Hook | What Happens |
-|-------|------|--------------|
-| Claude edits a file | `PostToolUse(Edit,Write)` | Calls `notify_file_changes` MCP tool |
-| Claude runs git commands | `PostToolUse(Bash)` | Detects `git pull/checkout/merge`, triggers reindex |
-| You run `/codeseeker:reindex` | Slash command | Full reindex via `index_project` MCP tool |
-
-**You don't need to do anything**—the plugin handles sync automatically when Claude makes changes.
-
-### MCP Server (Claude Desktop)
-
-The MCP server exposes `notify_file_changes` tool. When Claude edits files, it can call this tool to update the index. However, Claude Desktop doesn't have hooks, so:
-- Claude-initiated changes: Claude can call `notify_file_changes` (if instructed)
-- Manual changes: Not automatically detected—run `index_project` tool periodically
-
-### CLI Mode
-
-The CLI has a built-in workflow that syncs after operations:
-```bash
-codeseeker -c "refactor the auth module"  # Syncs automatically after changes
-codeseeker reindex                         # Manual full reindex
-```
-
-### VS Code Extension (Optional)
-
-For manual edits made outside Claude (directly in VS Code), install the extension:
-```bash
-cd extensions/vscode-codeseeker
-npm install && npm run package
-code --install-extension vscode-codeseeker-*.vsix
-```
-
-The extension watches for file saves and calls `notify_file_changes` automatically.
-
-### Sync Summary
-
-| How You Use CodeSeeker | Claude Edits | Git Operations | Manual Edits |
-|------------------------|--------------|----------------|--------------|
-| **Plugin** (Claude Code) | ✅ Auto | ✅ Auto | ❌ Manual or Extension |
-| **MCP** (Claude Desktop) | ⚠️ Manual | ❌ Manual | ❌ Manual |
-| **CLI** | ✅ Auto | ✅ Auto | ❌ Manual |
-| **+ VS Code Extension** | — | — | ✅ Auto |
 
 ## Architecture
 
@@ -316,11 +318,33 @@ All data stored locally in `.codeseeker/`. No external services required.
 
 For large teams (100K+ files, shared indexes), server mode supports PostgreSQL + Neo4j. See [Storage Documentation](docs/technical/storage.md).
 
+## Troubleshooting
+
+### MCP server not connecting
+
+1. Verify npx works: `npx -y codeseeker --version`
+2. Check MCP config file syntax (valid JSON)
+3. Restart your editor/Claude application
+
+### Indexing seems slow
+
+First-time indexing of large projects (50K+ files) can take 5+ minutes. Subsequent uses are instant.
+
+### Tools not appearing in Claude
+
+MCP tools appear automatically once the server connects. Ask Claude "what CodeSeeker tools do you have?" to verify.
+
 ## Documentation
 
 - [Integration Guide](docs/INTEGRATION.md) - How all components connect
-- [MCP Server Reference](docs/technical/mcp-server.md) - Available tools and parameters
+- [Architecture](docs/technical/architecture.md) - Technical deep dive
 - [CLI Commands](docs/install/cli_commands_manual.md) - Full command reference
+
+## Compatibility Note
+
+**GitHub Copilot**: Not compatible. Copilot uses a different architecture (not MCP).
+
+**Supported platforms**: Claude Code, Claude Desktop, Cursor, and any MCP-compatible client.
 
 ## License
 

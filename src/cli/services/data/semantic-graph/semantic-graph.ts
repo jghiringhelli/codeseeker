@@ -137,6 +137,11 @@ class SemanticGraphService implements IGraphStorage {
     return this.storageService!.batchCreateNodes(nodes);
   }
 
+  async updateNodeProperty(nodeId: string, propertyName: string, propertyValue: string): Promise<void> {
+    await this.ensureInitialized();
+    return this.storageService!.updateNodeProperty(nodeId, propertyName, propertyValue);
+  }
+
   // Query Operations (delegated to GraphQueryService)
   async searchNodes(query: string, context?: SearchContext): Promise<SearchResult> {
     await this.ensureInitialized();
