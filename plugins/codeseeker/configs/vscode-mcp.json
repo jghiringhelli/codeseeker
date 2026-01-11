@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "codeseeker": {
+      "command": "npx",
+      "args": ["-y", "codeseeker", "serve", "--mcp"],
+      "env": {
+        "CODESEEKER_STORAGE_MODE": "embedded"
+      }
+    }
+  }
+}

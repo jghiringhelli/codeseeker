@@ -1,10 +1,10 @@
-# CodeMind Storage Configuration
+# CodeSeeker Storage Configuration
 
-**NEW: CodeMind now works out-of-the-box with zero setup!**
+**NEW: CodeSeeker now works out-of-the-box with zero setup!**
 
-By default, CodeMind uses embedded storage (SQLite + Graphology + LRU-cache) that requires no Docker or external databases. Just `npm install` and go.
+By default, CodeSeeker uses embedded storage (SQLite + Graphology + LRU-cache) that requires no Docker or external databases. Just `npm install` and go.
 
-CodeMind supports two storage modes to fit different use cases:
+CodeSeeker supports two storage modes to fit different use cases:
 
 ## Storage Modes
 
@@ -23,10 +23,10 @@ CodeMind supports two storage modes to fit different use cases:
 
 | Component | Technology | Persistence |
 |-----------|------------|-------------|
-| Vector Search | SQLite + better-sqlite3 | `~/.codemind/data/vectors.db` |
-| Graph Database | Graphology (in-memory) | `~/.codemind/data/graph.json` |
-| Cache | LRU-cache (in-memory) | `~/.codemind/data/cache.json` |
-| Projects | SQLite | `~/.codemind/data/projects.db` |
+| Vector Search | SQLite + better-sqlite3 | `~/.codeseeker/data/vectors.db` |
+| Graph Database | Graphology (in-memory) | `~/.codeseeker/data/graph.json` |
+| Cache | LRU-cache (in-memory) | `~/.codeseeker/data/cache.json` |
+| Projects | SQLite | `~/.codeseeker/data/projects.db` |
 
 ### Data Location
 
@@ -34,9 +34,9 @@ Data is stored in platform-specific locations:
 
 | Platform | Location |
 |----------|----------|
-| **Windows** | `%APPDATA%\codemind\data\` |
-| **macOS** | `~/Library/Application Support/codemind/data/` |
-| **Linux** | `~/.local/share/codemind/data/` |
+| **Windows** | `%APPDATA%\codeseeker\data\` |
+| **macOS** | `~/Library/Application Support/codeseeker/data/` |
+| **Linux** | `~/.local/share/codeseeker/data/` |
 
 ### Features
 
@@ -48,20 +48,20 @@ Data is stored in platform-specific locations:
 
 ### Customizing Data Location
 
-Set the `CODEMIND_DATA_DIR` environment variable:
+Set the `CODESEEKER_DATA_DIR` environment variable:
 
 ```bash
 # Windows (PowerShell)
-$env:CODEMIND_DATA_DIR = "D:\codemind-data"
+$env:CODESEEKER_DATA_DIR = "D:\codeseeker-data"
 
 # macOS/Linux
-export CODEMIND_DATA_DIR="/custom/path/to/data"
+export CODESEEKER_DATA_DIR="/custom/path/to/data"
 ```
 
 Or create a config file:
 
 ```json
-// ~/.codemind/storage.json (Windows: %APPDATA%\codemind\storage.json)
+// ~/.codeseeker/storage.json (Windows: %APPDATA%\codeseeker\storage.json)
 {
   "mode": "embedded",
   "dataDir": "/custom/path/to/data",
@@ -112,7 +112,7 @@ docker-compose ps
 
 ### Configuration
 
-Create `~/.codemind/storage.json`:
+Create `~/.codeseeker/storage.json`:
 
 ```json
 {
@@ -121,8 +121,8 @@ Create `~/.codemind/storage.json`:
     "postgres": {
       "host": "localhost",
       "port": 5432,
-      "database": "codemind",
-      "user": "codemind",
+      "database": "codeseeker",
+      "user": "codeseeker",
       "password": "your-password"
     },
     "neo4j": {
@@ -145,24 +145,24 @@ You can also configure via environment variables:
 
 ```bash
 # Storage mode
-export CODEMIND_STORAGE_MODE=server
+export CODESEEKER_STORAGE_MODE=server
 
 # PostgreSQL
-export CODEMIND_PG_HOST=localhost
-export CODEMIND_PG_PORT=5432
-export CODEMIND_PG_DATABASE=codemind
-export CODEMIND_PG_USER=codemind
-export CODEMIND_PG_PASSWORD=secret
+export CODESEEKER_PG_HOST=localhost
+export CODESEEKER_PG_PORT=5432
+export CODESEEKER_PG_DATABASE=codeseeker
+export CODESEEKER_PG_USER=codeseeker
+export CODESEEKER_PG_PASSWORD=secret
 
 # Neo4j
-export CODEMIND_NEO4J_URI=bolt://localhost:7687
-export CODEMIND_NEO4J_USER=neo4j
-export CODEMIND_NEO4J_PASSWORD=secret
+export CODESEEKER_NEO4J_URI=bolt://localhost:7687
+export CODESEEKER_NEO4J_USER=neo4j
+export CODESEEKER_NEO4J_PASSWORD=secret
 
 # Redis
-export CODEMIND_REDIS_HOST=localhost
-export CODEMIND_REDIS_PORT=6379
-export CODEMIND_REDIS_PASSWORD=optional
+export CODESEEKER_REDIS_HOST=localhost
+export CODESEEKER_REDIS_PORT=6379
+export CODESEEKER_REDIS_PASSWORD=optional
 ```
 
 ### PostgreSQL Setup
@@ -171,14 +171,14 @@ If not using Docker, install PostgreSQL with pgvector:
 
 ```sql
 -- Create database
-CREATE DATABASE codemind;
+CREATE DATABASE codeseeker;
 
 -- Enable pgvector extension
 CREATE EXTENSION vector;
 
 -- Create user
-CREATE USER codemind WITH PASSWORD 'your-password';
-GRANT ALL PRIVILEGES ON DATABASE codemind TO codemind;
+CREATE USER codeseeker WITH PASSWORD 'your-password';
+GRANT ALL PRIVILEGES ON DATABASE codeseeker TO codeseeker;
 ```
 
 ### Neo4j Setup
@@ -209,10 +209,10 @@ sudo systemctl start redis
 
 ```bash
 # Check current storage mode and health
-codemind storage status
+codeseeker storage status
 
 # Test server connectivity (server mode)
-codemind storage test
+codeseeker storage test
 ```
 
 ---
@@ -222,13 +222,13 @@ codemind storage test
 ### Embedded to Server
 
 1. Configure server mode in `storage.json`
-2. Run `codemind init` to re-index your project
+2. Run `codeseeker init` to re-index your project
 3. Existing embedded data remains in place as backup
 
 ### Server to Embedded
 
 1. Change mode to `embedded` in `storage.json`
-2. Run `codemind init` to re-index your project
+2. Run `codeseeker init` to re-index your project
 3. Server data remains intact for future use
 
 ---
@@ -274,15 +274,15 @@ npm rebuild better-sqlite3
 
 ### "Database is locked"
 
-Only one CodeMind process can access embedded storage at a time.
+Only one CodeSeeker process can access embedded storage at a time.
 Kill any background processes:
 
 ```bash
-# Find CodeMind processes
-ps aux | grep codemind
+# Find CodeSeeker processes
+ps aux | grep codeseeker
 
 # Or on Windows
-tasklist | findstr codemind
+tasklist | findstr codeseeker
 ```
 
 ### Server mode connection errors
@@ -293,7 +293,7 @@ tasklist | findstr codemind
 4. Test connectivity:
    ```bash
    # PostgreSQL
-   psql -h localhost -U codemind -d codemind
+   psql -h localhost -U codeseeker -d codeseeker
 
    # Redis
    redis-cli ping
@@ -325,7 +325,7 @@ tasklist | findstr codemind
 ## API Usage
 
 ```typescript
-import { getStorageProvider } from '@codemind/storage';
+import { getStorageProvider } from '@codeseeker/storage';
 
 // Get the storage provider (auto-configured)
 const storage = await getStorageProvider();

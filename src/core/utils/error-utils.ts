@@ -4,7 +4,7 @@
  */
 
 import {
-  CodeMindError,
+  CodeSeekerError,
   Result,
   SuccessResult,
   ErrorResult
@@ -19,7 +19,7 @@ export function createSuccessResult<T>(data: T): SuccessResult<T> {
   };
 }
 
-export function createErrorResult(error: CodeMindError): ErrorResult {
+export function createErrorResult(error: CodeSeekerError): ErrorResult {
   return {
     success: false,
     error
@@ -27,36 +27,36 @@ export function createErrorResult(error: CodeMindError): ErrorResult {
 }
 
 // Type guards for error types
-export function isDatabaseError(error: CodeMindError): error is CodeMindError & { type: 'database' } {
+export function isDatabaseError(error: CodeSeekerError): error is CodeSeekerError & { type: 'database' } {
   return error.type === 'database';
 }
 
-export function isFileSystemError(error: CodeMindError): error is CodeMindError & { type: 'filesystem' } {
+export function isFileSystemError(error: CodeSeekerError): error is CodeSeekerError & { type: 'filesystem' } {
   return error.type === 'filesystem';
 }
 
-export function isValidationError(error: CodeMindError): error is CodeMindError & { type: 'validation' } {
+export function isValidationError(error: CodeSeekerError): error is CodeSeekerError & { type: 'validation' } {
   return error.type === 'validation';
 }
 
-export function isNetworkError(error: CodeMindError): error is CodeMindError & { type: 'network' } {
+export function isNetworkError(error: CodeSeekerError): error is CodeSeekerError & { type: 'network' } {
   return error.type === 'network';
 }
 
-export function isProjectError(error: CodeMindError): error is CodeMindError & { type: 'project' } {
+export function isProjectError(error: CodeSeekerError): error is CodeSeekerError & { type: 'project' } {
   return error.type === 'project';
 }
 
-export function isSemanticAnalysisError(error: CodeMindError): error is CodeMindError & { type: 'semantic' } {
+export function isSemanticAnalysisError(error: CodeSeekerError): error is CodeSeekerError & { type: 'semantic' } {
   return error.type === 'semantic';
 }
 
-export function isClaudeCodeError(error: CodeMindError): error is CodeMindError & { type: 'claude' } {
+export function isClaudeCodeError(error: CodeSeekerError): error is CodeSeekerError & { type: 'claude' } {
   return error.type === 'claude';
 }
 
 // Error conversion utilities
-export function convertToCodeMindError(error: unknown, context?: Record<string, any>): CodeMindError {
+export function convertToCodeSeekerError(error: unknown, context?: Record<string, any>): CodeSeekerError {
   if (error instanceof Error) {
     // Try to detect error type from message patterns
     const message = error.message.toLowerCase();
@@ -99,8 +99,8 @@ export async function withErrorHandling<T>(
     const result = await operation();
     return createSuccessResult(result);
   } catch (error) {
-    const codeMindError = convertToCodeMindError(error, context);
-    return createErrorResult(codeMindError);
+    const codeseekerError = convertToCodeSeekerError(error, context);
+    return createErrorResult(codeseekerError);
   }
 }
 
@@ -113,8 +113,8 @@ export function withSyncErrorHandling<T>(
     const result = operation();
     return createSuccessResult(result);
   } catch (error) {
-    const codeMindError = convertToCodeMindError(error, context);
-    return createErrorResult(codeMindError);
+    const codeseekerError = convertToCodeSeekerError(error, context);
+    return createErrorResult(codeseekerError);
   }
 }
 
@@ -127,8 +127,8 @@ export function mapResult<T, U>(
     try {
       return createSuccessResult(mapper(result.data));
     } catch (error) {
-      const codeMindError = convertToCodeMindError(error);
-      return createErrorResult(codeMindError);
+      const codeseekerError = convertToCodeSeekerError(error);
+      return createErrorResult(codeseekerError);
     }
   }
   return result as ErrorResult;
@@ -142,20 +142,20 @@ export async function flatMapResult<T, U>(
     try {
       return await mapper(result.data);
     } catch (error) {
-      const codeMindError = convertToCodeMindError(error);
-      return createErrorResult(codeMindError);
+      const codeseekerError = convertToCodeSeekerError(error);
+      return createErrorResult(codeseekerError);
     }
   }
   return result as ErrorResult;
 }
 
 // Error message formatting
-export function formatErrorMessage(error: CodeMindError): string {
+export function formatErrorMessage(error: CodeSeekerError): string {
   const timestamp = new Date(error.timestamp).toLocaleTimeString();
   return `[${timestamp}] ${error.type.toUpperCase()}: ${error.message} (${error.code})`;
 }
 
-export function formatDetailedErrorMessage(error: CodeMindError): string {
+export function formatDetailedErrorMessage(error: CodeSeekerError): string {
   let message = formatErrorMessage(error);
 
   // Add type-specific details

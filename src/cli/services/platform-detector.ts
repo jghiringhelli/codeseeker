@@ -263,7 +263,7 @@ export class PlatformDetector {
   }
 
   /**
-   * Format detected platforms as markdown for CODEMIND.md
+   * Format detected platforms as markdown for CODESEEKER.md
    */
   formatPlatformsMarkdown(platforms: Platform[]): string {
     if (platforms.length === 0) {

@@ -24,7 +24,7 @@ export class RedisCacheAdapter<T> {
   private keyPrefix: string;
   private isConnected: boolean = false;
 
-  constructor(keyPrefix: string = 'codemind:cache') {
+  constructor(keyPrefix: string = 'codeseeker:cache') {
     this.keyPrefix = keyPrefix;
     this.dbConnections = new DatabaseConnections();
   }
@@ -327,14 +327,14 @@ export class RedisCacheFactory {
   }
 
   static createSemanticCache<T>(): RedisCacheAdapter<T> {
-    return new RedisCacheAdapter<T>('codemind:semantic');
+    return new RedisCacheAdapter<T>('codeseeker:semantic');
   }
 
   static createEmbeddingCache<T>(): RedisCacheAdapter<T> {
-    return new RedisCacheAdapter<T>('codemind:embeddings');
+    return new RedisCacheAdapter<T>('codeseeker:embeddings');
   }
 
   static createResultCache<T>(): RedisCacheAdapter<T> {
-    return new RedisCacheAdapter<T>('codemind:results');
+    return new RedisCacheAdapter<T>('codeseeker:results');
   }
 }

@@ -36,11 +36,11 @@ import { EmbeddedStorageProvider } from './embedded';
 let storageProviderInstance: IStorageProvider | null = null;
 
 /**
- * Load configuration from ~/.codemind/storage.json or environment
+ * Load configuration from ~/.codeseeker/storage.json or environment
  */
 export function loadStorageConfig(): StorageConfig {
   // Check environment variable first
-  const envMode = process.env.CODEMIND_STORAGE_MODE as StorageMode | undefined;
+  const envMode = process.env.CODESEEKER_STORAGE_MODE as StorageMode | undefined;
 
   // Default config
   let config: StorageConfig = {
@@ -60,33 +60,33 @@ export function loadStorageConfig(): StorageConfig {
   }
 
   // Override from environment variables
-  if (process.env.CODEMIND_DATA_DIR) {
-    config.dataDir = process.env.CODEMIND_DATA_DIR;
+  if (process.env.CODESEEKER_DATA_DIR) {
+    config.dataDir = process.env.CODESEEKER_DATA_DIR;
   }
 
-  if (process.env.CODEMIND_STORAGE_MODE) {
-    config.mode = process.env.CODEMIND_STORAGE_MODE as StorageMode;
+  if (process.env.CODESEEKER_STORAGE_MODE) {
+    config.mode = process.env.CODESEEKER_STORAGE_MODE as StorageMode;
   }
 
   // Server configuration from environment
   if (config.mode === 'server') {
     config.server = {
       postgres: {
-        host: process.env.CODEMIND_PG_HOST || process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.CODEMIND_PG_PORT || process.env.DB_PORT || '5432'),
-        database: process.env.CODEMIND_PG_DATABASE || process.env.DB_NAME || 'codemind',
-        user: process.env.CODEMIND_PG_USER || process.env.DB_USER || 'codemind',
-        password: process.env.CODEMIND_PG_PASSWORD || process.env.DB_PASSWORD || 'codemind123'
+        host: process.env.CODESEEKER_PG_HOST || process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.CODESEEKER_PG_PORT || process.env.DB_PORT || '5432'),
+        database: process.env.CODESEEKER_PG_DATABASE || process.env.DB_NAME || 'codeseeker',
+        user: process.env.CODESEEKER_PG_USER || process.env.DB_USER || 'codeseeker',
+        password: process.env.CODESEEKER_PG_PASSWORD || process.env.DB_PASSWORD || 'codeseeker123'
       },
       neo4j: {
-        uri: process.env.CODEMIND_NEO4J_URI || 'bolt://localhost:7687',
-        user: process.env.CODEMIND_NEO4J_USER || 'neo4j',
-        password: process.env.CODEMIND_NEO4J_PASSWORD || 'codemind123'
+        uri: process.env.CODESEEKER_NEO4J_URI || 'bolt://localhost:7687',
+        user: process.env.CODESEEKER_NEO4J_USER || 'neo4j',
+        password: process.env.CODESEEKER_NEO4J_PASSWORD || 'codeseeker123'
       },
       redis: {
-        host: process.env.CODEMIND_REDIS_HOST || process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.CODEMIND_REDIS_PORT || process.env.REDIS_PORT || '6379'),
-        password: process.env.CODEMIND_REDIS_PASSWORD || process.env.REDIS_PASSWORD
+        host: process.env.CODESEEKER_REDIS_HOST || process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.CODESEEKER_REDIS_PORT || process.env.REDIS_PORT || '6379'),
+        password: process.env.CODESEEKER_REDIS_PASSWORD || process.env.REDIS_PASSWORD
       }
     };
   }
@@ -101,11 +101,11 @@ export function getConfigPath(): string {
   const platform = os.platform();
 
   if (platform === 'win32') {
-    return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'codemind', 'storage.json');
+    return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'codeseeker', 'storage.json');
   } else if (platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Application Support', 'codemind', 'storage.json');
+    return path.join(os.homedir(), 'Library', 'Application Support', 'codeseeker', 'storage.json');
   } else {
-    return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'codemind', 'storage.json');
+    return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'codeseeker', 'storage.json');
   }
 }
 

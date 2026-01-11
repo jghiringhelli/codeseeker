@@ -49,7 +49,7 @@ export class ProjectDetector implements IProjectDetector {
   }
 
   async getProjectConfig(projectPath: string): Promise<ProjectConfig | null> {
-    const configPath = path.join(projectPath, '.codemind', 'project.json');
+    const configPath = path.join(projectPath, '.codeseeker', 'project.json');
 
     if (!fs.existsSync(configPath)) {
       return null;

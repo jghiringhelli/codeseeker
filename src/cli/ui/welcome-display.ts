@@ -23,7 +23,7 @@ export class WelcomeDisplay {
     console.clear();
     console.log(this.LOGO);
     console.log(chalk.gray('━'.repeat(70)));
-    console.log(chalk.cyan('  Welcome to CodeMind - Your Intelligent Code Assistant'));
+    console.log(chalk.cyan('  Welcome to CodeSeeker - Your Intelligent Code Assistant'));
     console.log(chalk.gray('  Type /help for commands or start typing your request'));
     console.log(chalk.gray('━'.repeat(70)));
   }
@@ -32,7 +32,7 @@ export class WelcomeDisplay {
    * Display startup information
    */
   static displayStartup(projectPath: string, projectName: string): void {
-    console.log(chalk.blue('\n🚀 Starting CodeMind CLI...'));
+    console.log(chalk.blue('\n🚀 Starting CodeSeeker CLI...'));
     console.log(chalk.gray(`   Project: ${projectName}`));
     console.log(chalk.gray(`   Path: ${projectPath}`));
   }
@@ -41,7 +41,7 @@ export class WelcomeDisplay {
    * Display shutdown message
    */
   static displayShutdown(): void {
-    console.log(chalk.yellow('\n👋 Thank you for using CodeMind!'));
+    console.log(chalk.yellow('\n👋 Thank you for using CodeSeeker!'));
     console.log(chalk.gray('   Session ended.'));
   }
 }

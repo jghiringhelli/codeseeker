@@ -47,6 +47,7 @@ export class RelationshipBuilder {
 
   /**
    * Create import/dependency relationships between files
+   * Also stores external package imports as file properties for search
    */
   private async createImportRelationships(
     structure: ParsedCodeStructure,
@@ -54,14 +55,17 @@ export class RelationshipBuilder {
     allFileNodes: Map<string, string>,
     projectPath: string
   ): Promise<void> {
-    
+
+    const externalImports: string[] = [];
+
     for (const importInfo of structure.imports) {
       // Resolve import path to actual file
       const resolvedPath = this.resolveImportPath(structure.filePath, importInfo.from, projectPath);
-      
+
       if (resolvedPath && allFileNodes.has(resolvedPath)) {
+        // Internal file import - create relationship
         const targetNodeId = allFileNodes.get(resolvedPath)!;
-        
+
         await this.semanticGraph.addRelationship(
           fileNodeId,
           targetNodeId,
@@ -86,8 +90,63 @@ export class RelationshipBuilder {
             }
           );
         }
+      } else if (!importInfo.from.startsWith('./') && !importInfo.from.startsWith('../')) {
+        // External package import - track for search indexing
+        // E.g., "@hookform/resolvers/zod" -> "hookform-resolvers-zod", "zodResolver"
+        externalImports.push(importInfo.from);
+        if (importInfo.name && importInfo.name !== '*') {
+          externalImports.push(importInfo.name);
+        }
       }
     }
+
+    // Store external imports as a property on the file node for search/query
+    // This enables finding files that use specific packages like "zod", "react-hook-form", etc.
+    if (externalImports.length > 0) {
+      try {
+        await this.semanticGraph.updateNodeProperty(
+          fileNodeId,
+          'external_imports',
+          externalImports.join(',')
+        );
+
+        // Also add common package names for better search
+        const packageNames = this.extractPackageNames(externalImports);
+        if (packageNames.length > 0) {
+          await this.semanticGraph.updateNodeProperty(
+            fileNodeId,
+            'packages_used',
+            packageNames.join(',')
+          );
+        }
+      } catch (error) {
+        this.logger.debug(`Could not update external imports for ${fileNodeId}: ${error}`);
+      }
+    }
+  }
+
+  /**
+   * Extract main package names from import paths
+   * "@hookform/resolvers/zod" -> ["hookform", "zod"]
+   * "react-hook-form" -> ["react-hook-form"]
+   */
+  private extractPackageNames(imports: string[]): string[] {
+    const packages = new Set<string>();
+
+    for (const imp of imports) {
+      // Handle scoped packages: @scope/package/path -> scope, package
+      if (imp.startsWith('@')) {
+        const parts = imp.slice(1).split('/');
+        if (parts[0]) packages.add(parts[0]);
+        if (parts[1]) packages.add(parts[1]);
+      } else {
+        // Handle regular packages: package/path -> package
+        const parts = imp.split('/');
+        if (parts[0]) packages.add(parts[0]);
+      }
+    }
+
+    return Array.from(packages);
   }
 
   /**

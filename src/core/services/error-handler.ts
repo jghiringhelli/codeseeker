@@ -9,7 +9,7 @@ import {
   IErrorLogger,
   IErrorReporter,
   IErrorRecovery,
-  CodeMindError,
+  CodeSeekerError,
   Result,
   SuccessResult,
   ErrorResult
@@ -22,7 +22,7 @@ export class ErrorHandler implements IErrorHandler {
     private recovery: IErrorRecovery
   ) {}
 
-  async handle(error: CodeMindError): Promise<Result<any>> {
+  async handle(error: CodeSeekerError): Promise<Result<any>> {
     try {
       // Log the error
       await this.logger.log(error);
@@ -36,7 +36,7 @@ export class ErrorHandler implements IErrorHandler {
       return this.createErrorResult(error);
     } catch (handlingError) {
       // If error handling itself fails, create a simple error result
-      const fallbackError: CodeMindError = {
+      const fallbackError: CodeSeekerError = {
         type: 'project',
         code: 'ERROR_HANDLER_FAILURE',
         message: 'Error handler failed to process error',
@@ -49,7 +49,7 @@ export class ErrorHandler implements IErrorHandler {
     }
   }
 
-  async handleWithRecovery(error: CodeMindError): Promise<Result<any>> {
+  async handleWithRecovery(error: CodeSeekerError): Promise<Result<any>> {
     try {
       // First attempt standard handling
       await this.logger.log(error);
@@ -82,11 +82,11 @@ export class ErrorHandler implements IErrorHandler {
     }
   }
 
-  isRecoverable(error: CodeMindError): boolean {
+  isRecoverable(error: CodeSeekerError): boolean {
     return this.recovery.canRecover(error);
   }
 
-  private isCritical(error: CodeMindError): boolean {
+  private isCritical(error: CodeSeekerError): boolean {
     // Define critical error conditions
     switch (error.type) {
       case 'database':
@@ -102,7 +102,7 @@ export class ErrorHandler implements IErrorHandler {
     }
   }
 
-  private createErrorResult(error: CodeMindError): ErrorResult {
+  private createErrorResult(error: CodeSeekerError): ErrorResult {
     return {
       success: false,
       error
@@ -112,7 +112,7 @@ export class ErrorHandler implements IErrorHandler {
 
 // Error Logger Implementation
 export class ConsoleErrorLogger implements IErrorLogger {
-  async log(error: CodeMindError): Promise<void> {
+  async log(error: CodeSeekerError): Promise<void> {
     const timestamp = new Date(error.timestamp).toLocaleString();
     console.error(`[${timestamp}] ${error.type.toUpperCase()}: ${error.code}`);
     console.error(`Message: ${error.message}`);
@@ -122,7 +122,7 @@ export class ConsoleErrorLogger implements IErrorLogger {
     }
   }
 
-  async logWithContext(error: CodeMindError, context: Record<string, any>): Promise<void> {
+  async logWithContext(error: CodeSeekerError, context: Record<string, any>): Promise<void> {
     const enhancedError = {
       ...error,
       context: { ...error.context, ...context }
@@ -133,11 +133,11 @@ export class ConsoleErrorLogger implements IErrorLogger {
 
 // Error Reporter Implementation
 export class ConsoleErrorReporter implements IErrorReporter {
-  async report(error: CodeMindError): Promise<void> {
+  async report(error: CodeSeekerError): Promise<void> {
     console.warn(`⚠️  Error reported: ${error.code} - ${error.message}`);
   }
 
-  async reportCritical(error: CodeMindError): Promise<void> {
+  async reportCritical(error: CodeSeekerError): Promise<void> {
     console.error(`🚨 CRITICAL ERROR: ${error.code}`);
     console.error(`Type: ${error.type}`);
     console.error(`Message: ${error.message}`);
@@ -150,7 +150,7 @@ export class ConsoleErrorReporter implements IErrorReporter {
 
 // Basic Error Recovery Implementation
 export class BasicErrorRecovery implements IErrorRecovery {
-  canRecover(error: CodeMindError): boolean {
+  canRecover(error: CodeSeekerError): boolean {
     switch (error.type) {
       case 'network':
         return error.statusCode !== 404 && !error.timeout;
@@ -165,7 +165,7 @@ export class BasicErrorRecovery implements IErrorRecovery {
     }
   }
 
-  async recover(error: CodeMindError): Promise<Result<any>> {
+  async recover(error: CodeSeekerError): Promise<Result<any>> {
     switch (error.type) {
       case 'network':
         return this.retryNetworkOperation(error as any);

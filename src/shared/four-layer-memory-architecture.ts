@@ -1,5 +1,5 @@
 /**
- * Three-Database Memory Architecture for CodeMind
+ * Three-Database Memory Architecture for CodeSeeker
  *
  * Complete memory system mapping to three disjoint storage types:
  * 1. SHORT TERM: Live task execution (Redis) - Active working memory
@@ -210,7 +210,7 @@ export interface EpisodicMemory {
 export interface EpisodeEvent {
   timestamp: Date;
   type: 'action' | 'observation' | 'decision' | 'outcome';
-  actor: 'codemind' | 'claude' | 'system' | 'user';
+  actor: 'codeseeker' | 'claude' | 'system' | 'user';
   description: string;
   data: any;
   effectiveness?: number;
@@ -380,7 +380,7 @@ export class FourLayerMemoryManager {
     requestId: string,
     interaction: {
       type: string;
-      codemindAction: any;
+      codeseekerAction: any;
       claudeResponse: any;
       context: any;
       outcome: any;
@@ -398,7 +398,7 @@ export class FourLayerMemoryManager {
     await this.episodicManager.addEventToEpisode(requestId, {
       timestamp: new Date(),
       type: 'action',
-      actor: 'codemind',
+      actor: 'codeseeker',
       description: interaction.type,
       data: interaction,
       effectiveness: interaction.outcome.effectiveness
@@ -493,12 +493,12 @@ export class FourLayerMemoryManager {
   private isSignificantInteraction(interaction: any): boolean {
     return interaction.outcome.effectiveness < 0.7 || // Failed or low effectiveness
            interaction.type === 'critical' ||           // Critical interactions
-           interaction.codemindAction.novel;            // Novel approaches
+           interaction.codeseekerAction.novel;            // Novel approaches
   }
 
   private hasNewConcepts(interaction: any): boolean {
     return interaction.outcome.conceptsLearned?.length > 0 ||
-           interaction.codemindAction.newPatterns?.length > 0;
+           interaction.codeseekerAction.newPatterns?.length > 0;
   }
 }
 

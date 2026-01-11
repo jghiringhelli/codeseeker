@@ -1,9 +1,9 @@
 -- ============================================================================
--- CodeMind Master Database Schema
+-- codeseeker Master Database Schema
 -- Version: 3.0.0
 -- Date: 2025-12-04
 --
--- SINGLE SOURCE OF TRUTH for all CodeMind database tables.
+-- SINGLE SOURCE OF TRUTH for all codeseeker database tables.
 -- This schema consolidates:
 --   - schema.postgres.sql (original)
 --   - schema.consolidated.sql (simplified)

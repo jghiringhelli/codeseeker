@@ -469,7 +469,7 @@ Provide detailed implementation following SOLID principles and best practices.`;
   
   private async getStoredResumeToken(projectPath: string): Promise<string | null> {
     try {
-      const tokenFile = path.join(projectPath, '.codemind', 'resume-token.json');
+      const tokenFile = path.join(projectPath, '.codeseeker', 'resume-token.json');
       if (fs.existsSync(tokenFile)) {
         const data = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
         return data.resumeToken;
@@ -482,12 +482,12 @@ Provide detailed implementation following SOLID principles and best practices.`;
 
   private async storeResumeToken(projectPath: string, resumeToken: string): Promise<void> {
     try {
-      const codemindDir = path.join(projectPath, '.codemind');
-      if (!fs.existsSync(codemindDir)) {
-        fs.mkdirSync(codemindDir, { recursive: true });
+      const codeseekerDir = path.join(projectPath, '.codeseeker');
+      if (!fs.existsSync(codeseekerDir)) {
+        fs.mkdirSync(codeseekerDir, { recursive: true });
       }
       
-      const tokenFile = path.join(codemindDir, 'resume-token.json');
+      const tokenFile = path.join(codeseekerDir, 'resume-token.json');
       fs.writeFileSync(tokenFile, JSON.stringify({ resumeToken, timestamp: new Date().toISOString() }, null, 2));
     } catch (error) {
       console.warn(`Warning: Could not store resume token: ${error.message}`);
@@ -542,7 +542,7 @@ Provide detailed implementation following SOLID principles and best practices.`;
           const fullPath = path.join(dir, item.name);
           
           if (item.isDirectory()) {
-            if (!['node_modules', '.git', 'dist', 'build', '.codemind'].includes(item.name)) {
+            if (!['node_modules', '.git', 'dist', 'build', '.codeseeker'].includes(item.name)) {
               walk(fullPath);
             }
           } else if (extensions.some(ext => item.name.endsWith(ext))) {

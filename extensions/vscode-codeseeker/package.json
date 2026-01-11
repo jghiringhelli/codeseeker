@@ -1,0 +1,116 @@
+{
+  "name": "vscode-codeseeker",
+  "displayName": "CodeSeeker",
+  "description": "Keep your CodeSeeker semantic index in sync with file changes. Automatically notifies CodeSeeker MCP server when files are created, modified, or deleted.",
+  "version": "0.1.0",
+  "publisher": "codeseeker",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "codeseeker",
+    "semantic search",
+    "code index",
+    "mcp",
+    "claude"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeseeker.syncNow",
+        "title": "CodeSeeker: Sync Changes Now"
+      },
+      {
+        "command": "codeseeker.fullReindex",
+        "title": "CodeSeeker: Full Reindex"
+      },
+      {
+        "command": "codeseeker.showStatus",
+        "title": "CodeSeeker: Show Sync Status"
+      },
+      {
+        "command": "codeseeker.toggleAutoSync",
+        "title": "CodeSeeker: Toggle Auto-Sync"
+      }
+    ],
+    "configuration": {
+      "title": "CodeSeeker",
+      "properties": {
+        "codeseeker.autoSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically sync file changes to CodeSeeker index"
+        },
+        "codeseeker.syncDebounceMs": {
+          "type": "number",
+          "default": 2000,
+          "description": "Debounce delay in milliseconds before syncing changes"
+        },
+        "codeseeker.projectPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the CodeSeeker-indexed project. Leave empty to use workspace root."
+        },
+        "codeseeker.excludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/node_modules/**",
+            "**/.git/**",
+            "**/dist/**",
+            "**/out/**",
+            "**/*.log"
+          ],
+          "description": "Glob patterns for files to exclude from sync"
+        },
+        "codeseeker.mcpCommand": {
+          "type": "string",
+          "default": "codeseeker",
+          "description": "Command to invoke CodeSeeker MCP server"
+        },
+        "codeseeker.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show CodeSeeker sync status in status bar"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "minimatch": "^9.0.3"
+  },
+  "devDependencies": {
+    "@types/minimatch": "^5.1.2",
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jghiringhelli/codeseeker"
+  },
+  "license": "MIT"
+}

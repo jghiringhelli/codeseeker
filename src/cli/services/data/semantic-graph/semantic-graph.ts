@@ -58,7 +58,7 @@ class SemanticGraphService implements IGraphStorage {
   constructor(
     private uri: string = 'bolt://localhost:7687',
     private username: string = 'neo4j',
-    private password: string = 'codemind123',
+    private password: string = 'codeseeker123',
     private fileProcessingService?: IFileProcessingService,
     private storageService?: IGraphStorageService,
     private queryService?: IGraphQueryService,
@@ -137,6 +137,11 @@ class SemanticGraphService implements IGraphStorage {
     return this.storageService!.batchCreateNodes(nodes);
   }
 
+  async updateNodeProperty(nodeId: string, propertyName: string, propertyValue: string): Promise<void> {
+    await this.ensureInitialized();
+    return this.storageService!.updateNodeProperty(nodeId, propertyName, propertyValue);
+  }
+
   // Query Operations (delegated to GraphQueryService)
   async searchNodes(query: string, context?: SearchContext): Promise<SearchResult> {
     await this.ensureInitialized();
@@ -212,7 +217,7 @@ class SemanticGraphService implements IGraphStorage {
     return new SemanticGraphService(
       'bolt://localhost:7687',
       'neo4j',
-      'codemind123',
+      'codeseeker123',
       fileProcessingService,
       storageService,
       queryService,

@@ -1,7 +1,7 @@
 /**
  * LLM Services Module
  *
- * Provides LLM-agnostic interfaces and implementations for CodeMind.
+ * Provides LLM-agnostic interfaces and implementations for CodeSeeker.
  * Enables easy testing with mock LLMs and future provider switching.
  *
  * Usage:

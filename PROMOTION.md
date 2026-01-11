@@ -1,19 +1,21 @@
-# CodeMind Promotion Strategy
+# CodeSeeker Promotion Strategy
 
-A comprehensive guide to promoting CodeMind as an open source tool.
+A comprehensive guide to promoting CodeMind as an open source MCP plugin.
 
 ## Target Audience
 
-- **Primary**: Developers already using Claude Code CLI who want enhanced context
-- **Secondary**: Developers interested in AI-assisted coding tools
-- **Tertiary**: Teams looking for semantic code search solutions
+- **Primary**: Developers using Claude Code (CLI or VS Code extension) who want semantic code search
+- **Secondary**: Developers using other AI assistants (GitHub Copilot, Cursor) via MCP
+- **Tertiary**: Teams looking for intelligent codebase understanding tools
 
 ## Key Value Propositions
 
-1. **Enhanced Claude Code** - Automatically provides relevant codebase context
-2. **Hybrid Search** - Vector similarity + Full-text search + Path matching with RRF fusion
-3. **Task Decomposition** - Breaks complex queries into focused sub-tasks
-4. **Transparent Mode** - Works seamlessly inside Claude Code sessions
+1. **MCP Plugin for Claude Code** - One command install: `/plugin install codemind@github:jghiringhelli/codemind#plugin`
+2. **Semantic Code Search** - Find code by meaning, not just text patterns
+3. **Hybrid Search** - Vector similarity + Full-text (BM25) + Path matching with RRF fusion
+4. **Multi-IDE Support** - Works with Claude Code, GitHub Copilot, Cursor, Visual Studio
+5. **Auto-Detected Coding Standards** - Learns and applies your project's patterns
+6. **Fast Incremental Sync** - Two-stage change detection (mtime + hash) for near-instant updates
 
 ---
 
@@ -96,16 +98,17 @@ A comprehensive guide to promoting CodeMind as an open source tool.
 ### 5. Content Creation
 
 **YouTube Video Ideas**
-1. "5-Minute Demo: CodeMind Enhanced Claude Code" (intro)
+1. "5-Minute Demo: CodeMind MCP Plugin for Claude Code" (intro)
 2. "Deep Dive: Hybrid Search Architecture" (technical)
-3. "Setting Up CodeMind with PostgreSQL & Neo4j" (tutorial)
+3. "Setting Up CodeMind with Multiple IDEs" (tutorial)
+4. "CodeMind vs grep: Finding Code by Meaning" (comparison)
 
 **Blog Post Series**
-1. Introduction and Quick Start
-2. The 11-Step Core Cycle Explained
-3. Hybrid Search: Why Vector + FTS + Path Works
-4. Task Decomposition for Complex Queries
-5. Transparent Mode: Running Inside Claude Code
+1. Introduction and Quick Start (plugin install)
+2. Semantic Search: Why "Find auth logic" beats grep
+3. Hybrid Search: Vector + FTS + Path with RRF Fusion
+4. Auto-Detected Coding Standards: How CodeMind Learns Your Patterns
+5. Multi-IDE Setup: Claude Code, Copilot, Cursor
 
 ### 6. Documentation Site
 
@@ -146,20 +149,119 @@ Consider GitHub Pages or similar:
 
 ---
 
+## Conference Presentation Guide
+
+### Slide Outline (20-30 minutes)
+
+**1. Opening (2 min)**
+- The problem: AI assistants don't understand your codebase
+- grep/glob find text, not meaning
+
+**2. The Solution: CodeMind (3 min)**
+- MCP plugin for semantic code search
+- One-command install: `/plugin install codemind@github:jghiringhelli/codemind#plugin`
+- Works with Claude Code, Copilot, Cursor
+
+**3. Live Demo: Search Comparison (5 min)**
+- Show grep: `grep -r "authentication"` - finds literal text
+- Show CodeMind: `search_code("user login flow")` - finds auth, session, credentials
+- Key message: "Find code by WHAT it does, not just WHAT it says"
+
+**4. How It Works: Hybrid Search (5 min)**
+- Vector embeddings (semantic similarity)
+- Full-text search (BM25 with synonyms)
+- Path matching (file/folder names)
+- RRF fusion for optimal ranking
+- Diagram: Show the three parallel searches merging
+
+**5. Live Demo: Real-World Usage (5 min)**
+- `find_and_read("validation logic")` - search + read in one call
+- `get_code_relationships` - show imports/dependencies
+- `get_coding_standards` - show auto-detected patterns
+
+**6. Performance Optimizations (3 min)**
+- Lazy loading: MCP server starts in ~50ms
+- Two-stage change detection: mtime (~0.1ms) then hash (~1-5ms)
+- SQLite embedded mode: Zero setup, instant start
+
+**7. Multi-IDE Support (2 min)**
+- Claude Code: Built-in plugin
+- GitHub Copilot: `.vscode/mcp.json`
+- Cursor: `.cursor/mcp.json`
+- Same MCP server, different configs
+
+**8. Q&A / Call to Action (5 min)**
+- GitHub: github.com/jghiringhelli/codemind
+- Try it: `/plugin install codemind@github:jghiringhelli/codemind#plugin`
+
+### Demo Script
+
+**Setup (before presentation)**
+1. Have a real project indexed (not toy example)
+2. Prepare 3-4 search queries that show semantic understanding
+3. Test all demos work offline if venue has unreliable WiFi
+
+**Demo 1: grep vs semantic search**
+```bash
+# Traditional: grep finds "auth" literally
+grep -r "auth" src/
+
+# CodeMind: finds authentication even if code says "login", "session", "credentials"
+search_code("user authentication flow")
+```
+
+**Demo 2: find_and_read**
+```
+# One call: search + read file with line numbers
+find_and_read("error handling for API calls")
+```
+
+**Demo 3: Code relationships**
+```
+# Show what imports/calls a file
+get_code_relationships({filepath: "src/auth/login.ts"})
+```
+
+**Demo 4: Coding standards**
+```
+# Show auto-detected patterns
+get_coding_standards({project: "my-app", category: "validation"})
+```
+
+### Conference Targets
+
+| Conference | Audience | Focus |
+|------------|----------|-------|
+| Local meetups | General devs | Quick intro + demo |
+| AI/ML conferences | Technical | Hybrid search architecture |
+| DevTools conferences | Tool builders | MCP integration, plugin system |
+| Language-specific (JS/TS, Python) | Language users | Practical usage |
+
+### Materials to Prepare
+
+- [ ] Slides (Google Slides or reveal.js for code formatting)
+- [ ] Demo project with interesting codebase
+- [ ] Backup video recording of demos (in case of issues)
+- [ ] QR code linking to GitHub repo
+- [ ] Business cards or handout with install command
+
+---
+
 ## Messaging Templates
 
 ### One-Liner
-> CodeMind: Semantic context enhancement for Claude Code CLI
+> CodeMind: Semantic code search plugin for Claude Code and other AI assistants
 
 ### Elevator Pitch
-> CodeMind wraps Claude Code CLI with intelligent semantic search. When you ask a question, it automatically finds relevant files using hybrid search (vector similarity + full-text + path matching), analyzes code relationships, and provides enhanced context to Claude. Complex queries are decomposed into focused sub-tasks for better results.
+> CodeMind is an MCP plugin that gives AI assistants semantic understanding of your codebase. Instead of grep-style text matching, CodeMind finds code by meaning - ask for "authentication logic" and it finds files about login, sessions, and credentials. Install in one command, works with Claude Code, GitHub Copilot, and Cursor.
 
 ### Technical Description
-> CodeMind implements an 11-step workflow that enhances Claude Code with:
-> - Hybrid search using pgvector + PostgreSQL FTS with RRF fusion
-> - Neo4j-based code relationship analysis
-> - Intelligent task decomposition for complex queries
-> - Transparent passthrough when running inside Claude Code sessions
+> CodeMind provides semantic code search via MCP (Model Context Protocol):
+> - Hybrid search: Vector embeddings + BM25 full-text + path matching with RRF fusion
+> - Embedded mode: SQLite + MiniSearch - zero setup, instant start
+> - Two-stage change detection: mtime (~0.1ms) then hash (~1-5ms) for fast sync
+> - Auto-detected coding standards from your codebase
+> - Multi-IDE: Same MCP server works with any MCP-compatible AI assistant
 
 ---
 

@@ -1,4 +1,0 @@
-#!/usr/bin/env node
-
-// Load the compiled TypeScript
-require('../dist/cli/codemind-enhanced-v2.js');

@@ -59,12 +59,12 @@ export class RedisMessagingService extends EventEmitter {
 
     // Channel names
     private readonly CHANNELS = {
-        ORCHESTRATOR_COMMANDS: 'codemind:orchestrator:commands',
-        TERMINAL_REQUESTS: 'codemind:terminal:requests',
-        TERMINAL_RESPONSES: 'codemind:terminal:responses',
-        WORKFLOW_UPDATES: 'codemind:workflows:updates',
-        SYSTEM_STATUS: 'codemind:system:status',
-        HEARTBEAT: 'codemind:heartbeat'
+        ORCHESTRATOR_COMMANDS: 'codeseeker:orchestrator:commands',
+        TERMINAL_REQUESTS: 'codeseeker:terminal:requests',
+        TERMINAL_RESPONSES: 'codeseeker:terminal:responses',
+        WORKFLOW_UPDATES: 'codeseeker:workflows:updates',
+        SYSTEM_STATUS: 'codeseeker:system:status',
+        HEARTBEAT: 'codeseeker:heartbeat'
     };
 
     private static buildRedisUrl(): string {
@@ -75,7 +75,7 @@ export class RedisMessagingService extends EventEmitter {
 
     constructor(
         private redisUrl: string = process.env.REDIS_URL || RedisMessagingService.buildRedisUrl(),
-        private instanceId: string = `codemind-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        private instanceId: string = `codeseeker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     ) {
         super();
         // Build Redis URL with password if provided

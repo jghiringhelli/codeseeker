@@ -1,15 +1,15 @@
 {
-  "name": "codemind-enhanced-cli",
-  "version": "1.3.0",
-  "description": "Smart Claude Code CLI with intelligent tool selection, token optimization, and real-time quality monitoring",
+  "name": "codeseeker",
+  "version": "1.4.0",
+  "description": "Graph-powered code intelligence for Claude Code. Semantic search + knowledge graph for better AI code understanding.",
   "main": "dist/index.js",
   "bin": {
-    "codemind": "./bin/codemind.js"
+    "codeseeker": "bin/codeseeker.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
-    "start": "node dist/cli/codemind-cli.js",
+    "start": "node dist/cli/codeseeker-cli.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -40,32 +40,27 @@
     "docs:search": "node scripts/docs.js search",
     "docker:detect": "node scripts/helpers/docker-detector.js",
     "init:db": "node scripts/helpers/database-init.js",
-    "codemind": "npm run build && npm run start"
+    "codeseeker": "npm run build && npm run start"
   },
   "keywords": [
     "claude-code",
-    "cli",
-    "intelligent-tool-selection",
-    "token-optimization",
-    "code-quality",
-    "real-time-monitoring",
-    "context-optimization",
-    "duplication-detection",
+    "mcp",
+    "semantic-search",
+    "knowledge-graph",
+    "code-intelligence",
+    "graph-rag",
+    "vector-search",
+    "code-analysis",
     "ai-enhancement",
-    "machine-learning",
     "typescript"
   ],
-  "author": "CodeMind Team",
+  "author": "CodeSeeker Team",
   "license": "MIT",
   "dependencies": {
     "@babel/parser": "^7.28.5",
     "@babel/traverse": "^7.28.5",
     "@babel/types": "^7.28.5",
     "@modelcontextprotocol/sdk": "^1.25.1",
-    "@types/inquirer": "^9.0.9",
-    "@types/lz-string": "^1.5.0",
-    "@types/node-cron": "^3.0.11",
-    "@types/redis": "^4.0.11",
     "@xenova/transformers": "^2.17.2",
     "better-sqlite3": "^12.4.1",
     "chalk": "^4.1.2",
@@ -107,10 +102,14 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/inquirer": "^9.0.9",
     "@types/ioredis": "^5.0.0",
     "@types/jest": "^29.5.8",
+    "@types/lz-string": "^1.5.0",
     "@types/node": "^24.9.2",
+    "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.15.6",
+    "@types/redis": "^4.0.11",
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
@@ -132,16 +131,21 @@
     "node": ">=18.0.0"
   },
   "files": [
+    "bin/",
     "dist/",
     "README.md",
     "LICENSE"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/jghiringhelli/codemind.git"
+    "url": "git+https://github.com/jghiringhelli/codeseeker.git"
   },
   "bugs": {
-    "url": "https://github.com/jghiringhelli/codemind/issues"
+    "url": "https://github.com/jghiringhelli/codeseeker/issues"
   },
-  "homepage": "https://github.com/jghiringhelli/codemind#readme"
+  "homepage": "https://github.com/jghiringhelli/codeseeker#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

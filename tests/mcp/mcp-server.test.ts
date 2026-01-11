@@ -1,7 +1,7 @@
 /**
  * MCP Server Integration Tests
  *
- * Tests the CodeMind MCP server functionality by:
+ * Tests the codeseeker MCP server functionality by:
  * 1. Testing tool registration and schema validation
  * 2. Testing each tool's functionality independently
  * 3. Verifying error handling and edge cases
@@ -14,10 +14,10 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as crypto from 'crypto';
 import { getStorageManager, resetStorageManager } from '../../src/storage';
-import { CodeMindMcpServer } from '../../src/mcp/mcp-server';
+import { CodeSeekerMcpServer } from '../../src/mcp/mcp-server';
 
 // Test fixtures
-const TEST_DIR = path.join(os.tmpdir(), `codemind-mcp-test-${Date.now()}`);
+const TEST_DIR = path.join(os.tmpdir(), `codeseeker-mcp-test-${Date.now()}`);
 const TEST_PROJECT_PATH = path.join(TEST_DIR, 'test-project');
 const TEST_PROJECT_NAME = 'mcp-test-project';
 
@@ -123,7 +123,7 @@ function generateTestEmbedding(): number[] {
   return Array.from({ length: 1536 }, () => Math.random() * 2 - 1);
 }
 
-describe('CodeMind MCP Server', () => {
+describe('codeseeker MCP Server', () => {
   let testProjectId: string;
 
   beforeAll(async () => {
@@ -131,8 +131,8 @@ describe('CodeMind MCP Server', () => {
     await fs.mkdir(TEST_DIR, { recursive: true });
     await createTestProject();
 
-    // Set up storage
-    process.env.CODEMIND_DATA_DIR = path.join(TEST_DIR, '.codemind-data');
+    // Set up storage - use uppercase env var name
+    process.env.CODESEEKER_DATA_DIR = path.join(TEST_DIR, '.codeseeker-data');
     await resetStorageManager();
 
     // Generate consistent project ID
@@ -156,7 +156,7 @@ describe('CodeMind MCP Server', () => {
 
   describe('MCP Server Initialization', () => {
     it('should create MCP server instance', () => {
-      const server = new CodeMindMcpServer();
+      const server = new CodeSeekerMcpServer();
       expect(server).toBeDefined();
     });
   });

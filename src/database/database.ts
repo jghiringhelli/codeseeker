@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 
 /**
- * Database interface for CodeMind
+ * Database interface for CodeSeeker
  */
 export interface DatabaseConfig {
     type: 'sqlite' | 'postgresql' | 'memory';
@@ -43,7 +43,7 @@ export interface PerformanceMetric {
 }
 
 /**
- * Mock Database implementation for CodeMind
+ * Mock Database implementation for CodeSeeker
  * This is a simplified version that stores data in memory or files
  */
 export class Database extends EventEmitter {
@@ -266,7 +266,7 @@ export class Database extends EventEmitter {
         }
     }
 
-    // Specific methods for CodeMind
+    // Specific methods for CodeSeeker
 
     async recordDecision(decision: ClaudeDecision): Promise<void> {
         await this.query(
@@ -358,7 +358,7 @@ export class Database extends EventEmitter {
 // Export singleton instance
 export const database = new Database({
     type: 'sqlite',
-    filePath: path.join(process.cwd(), '.codemind', 'database.json')
+    filePath: path.join(process.cwd(), '.codeseeker', 'database.json')
 });
 
 export default Database;

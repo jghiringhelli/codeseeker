@@ -1,6 +1,6 @@
 /**
  * Jest Test Setup
- * Global test configuration and setup for CodeMind test suite
+ * Global test configuration and setup for codeseeker test suite
  */
 
 // Set NODE_ENV to test to prevent resource leaks

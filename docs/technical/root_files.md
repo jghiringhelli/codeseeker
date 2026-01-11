@@ -1,6 +1,6 @@
 # Root-Level Files Reference
 
-This document explains every file at the root level of the CodeMind project.
+This document explains every file at the root level of the CodeSeeker project.
 
 ## Documentation Files
 
@@ -16,14 +16,14 @@ This document explains every file at the root level of the CodeMind project.
 **Content**: Project architecture, SOLID principles, coding standards, workflow patterns
 **Keep**: ✅ Essential - Guides AI assistants working on this codebase
 
-### CODEMIND.md
-**Purpose**: CodeMind product overview and marketing
+### CODESEEKER.md
+**Purpose**: CodeSeeker product overview and marketing
 **Audience**: Potential users, stakeholders
 **Content**: Product description, key features, use cases
 **Keep**: ✅ Good to have - Marketing/overview document
 
 ### PROMOTION.md
-**Purpose**: Promotional content for CodeMind
+**Purpose**: Promotional content for CodeSeeker
 **Audience**: Marketing, social media
 **Content**: Taglines, feature highlights, promotional copy
 **Keep**: ✅ Good to have - Marketing material
@@ -99,12 +99,12 @@ This document explains every file at the root level of the CodeMind project.
 
 ### Dockerfile
 **Purpose**: Docker image build instructions
-**Content**: Multi-stage build for CodeMind services
+**Content**: Multi-stage build for CodeSeeker services
 **Keep**: ✅ Essential - Container deployment
 
 ### docker-compose.yml
 **Purpose**: Docker Compose orchestration
-**Content**: PostgreSQL, Neo4j, Redis, CodeMind services
+**Content**: PostgreSQL, Neo4j, Redis, CodeSeeker services
 **Keep**: ✅ Essential - Local development and deployment
 
 ### .dockerignore
@@ -137,7 +137,7 @@ This document explains every file at the root level of the CodeMind project.
 |------|--------|----------------|
 | README.md | ✅ Keep | Essential documentation |
 | CLAUDE.md | ✅ Keep | Essential for AI assistants |
-| CODEMIND.md | ✅ Keep | Product overview |
+| CODESEEKER.md | ✅ Keep | Product overview |
 | PROMOTION.md | ✅ Keep | Marketing content |
 | CHANGELOG.md | ✅ Keep | Version history (required for npm) |
 | CONTRIBUTING.md | ✅ Keep | Contributor guidelines |

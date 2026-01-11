@@ -224,9 +224,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Grant permissions
-GRANT EXECUTE ON FUNCTION hybrid_search TO codemind;
-GRANT EXECUTE ON FUNCTION fulltext_search TO codemind;
-GRANT EXECUTE ON FUNCTION phrase_search TO codemind;
+GRANT EXECUTE ON FUNCTION hybrid_search TO codeseeker;
+GRANT EXECUTE ON FUNCTION fulltext_search TO codeseeker;
+GRANT EXECUTE ON FUNCTION phrase_search TO codeseeker;
 
 -- Comments
 COMMENT ON FUNCTION hybrid_search IS 'Combines vector similarity and full-text search for optimal retrieval. Use this as the primary search method.';

@@ -79,14 +79,38 @@ export async function setupTestProject(config: TestConfig = DEFAULT_CONFIG): Pro
     await fsPromises.mkdir(config.storage.embedded.dataDir, { recursive: true });
   }
 
+  // Check if original project exists, if not try to extract from zip
+  if (!fs.existsSync(config.originalProjectPath)) {
+    const zipPath = config.originalProjectPath + '.zip';
+    if (fs.existsSync(zipPath)) {
+      console.log(`  Extracting fixture from ${zipPath}`);
+      const { execSync } = await import('child_process');
+      // Create the target directory since the zip doesn't have a root folder
+      await fsPromises.mkdir(config.originalProjectPath, { recursive: true });
+      try {
+        // Try using unzip (Unix) or PowerShell Expand-Archive (Windows)
+        // Extract directly into the target directory
+        if (process.platform === 'win32') {
+          execSync(`powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${config.originalProjectPath}' -Force"`, { stdio: 'inherit' });
+        } else {
+          execSync(`unzip -o "${zipPath}" -d "${config.originalProjectPath}"`, { stdio: 'inherit' });
+        }
+      } catch (extractError) {
+        throw new Error(`Failed to extract test fixture from ${zipPath}: ${extractError}`);
+      }
+    } else {
+      throw new Error(`Test fixture not found: ${config.originalProjectPath} (and no .zip file available)`);
+    }
+  }
+
   // Copy test project
   console.log(`  Copying from ${config.originalProjectPath}`);
   await copyDirectory(config.originalProjectPath, config.testProjectPath);
 
-  // Remove any existing .codemind folder
-  const codemindDir = path.join(config.testProjectPath, '.codemind');
-  if (fs.existsSync(codemindDir)) {
-    await rmWithRetry(codemindDir);
+  // Remove any existing .codeseeker folder
+  const codeseekerDir = path.join(config.testProjectPath, '.codeseeker');
+  if (fs.existsSync(codeseekerDir)) {
+    await rmWithRetry(codeseekerDir);
   }
 
   console.log(`Test project ready at ${config.testProjectPath}`);
@@ -288,7 +312,7 @@ export class MockClaudeExecutor {
 }
 
 // ============================================================================
-// CodeMind CLI Executor
+// codeseeker CLI Executor
 // ============================================================================
 
 export interface CLIExecutionResult {
@@ -307,7 +331,7 @@ export interface CLIExecutionOptions {
   config?: TestConfig;
 }
 
-export async function executeCodemind(args: string, options: CLIExecutionOptions = {}): Promise<CLIExecutionResult> {
+export async function executecodeseeker(args: string, options: CLIExecutionOptions = {}): Promise<CLIExecutionResult> {
   const startTime = Date.now();
   const timeout = options.timeout || 120000;
   const config = options.config || DEFAULT_CONFIG;
@@ -319,11 +343,11 @@ export async function executeCodemind(args: string, options: CLIExecutionOptions
     ...process.env,
     ...storageEnv,
     ...options.env,
-    ...(options.mockClaude ? { CODEMIND_MOCK_CLAUDE: 'true' } : {})
+    ...(options.mockClaude ? { CODESEEKER_MOCK_CLAUDE: 'true' } : {})
   };
 
   return new Promise((resolve) => {
-    const binPath = path.join(__dirname, '../../..', 'bin/codemind.js');
+    const binPath = path.join(__dirname, '../../..', 'bin/codeseeker.js');
     const child = spawn('node', [binPath, ...args.split(' ').filter(a => a)], {
       cwd,
       env,
@@ -372,7 +396,7 @@ export async function executeCodemind(args: string, options: CLIExecutionOptions
 }
 
 export async function executeQuery(query: string, options: CLIExecutionOptions = {}): Promise<CLIExecutionResult> {
-  return executeCodemind(`-c "${query.replace(/"/g, '\\"')}"`, options);
+  return executecodeseeker(`-c "${query.replace(/"/g, '\\"')}"`, options);
 }
 
 // ============================================================================

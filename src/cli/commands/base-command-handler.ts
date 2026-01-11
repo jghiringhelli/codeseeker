@@ -28,7 +28,7 @@ export abstract class BaseCommandHandler {
     }
 
     // Resolve path relative to project or current directory
-    const projectPath = this.context.currentProject?.projectPath || process.env.CODEMIND_USER_CWD || process.cwd();
+    const projectPath = this.context.currentProject?.projectPath || process.env.CODESEEKER_USER_CWD || process.cwd();
 
     let resolvedPath: string;
     if (targetPath === '/' || targetPath === '.') {

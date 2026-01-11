@@ -1,5 +1,5 @@
 /**
- * PostgreSQL database adapter for CodeMind
+ * PostgreSQL database adapter for CodeSeeker
  * Production-ready adapter with connection pooling and transactions
  */
 

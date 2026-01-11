@@ -28,8 +28,8 @@ export interface InteractionMemory {
   requestId: string;
   sessionId: string;
 
-  // CodeMind → Claude Code interaction
-  codemindRequest: {
+  // CodeSeeker → Claude Code interaction
+  codeseekerRequest: {
     type: 'task' | 'validation' | 'fix' | 'analysis';
     instruction: string;
     context: any;
@@ -181,7 +181,7 @@ export interface ContextualContinuation {
   relevantPatterns: string[];
   continuityInstructions?: {
     forClaude: string[];
-    forCodeMind: string[];
+    forCodeSeeker: string[];
   };
   projectContext: {
     recentChanges: string[];

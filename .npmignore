@@ -13,6 +13,7 @@ jest.config.js
 .github/
 .vscode/
 .idea/
+.codeseeker/
 .codemind/
 *.log
 *.tgz

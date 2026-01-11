@@ -12,7 +12,7 @@ import {
   ProjectError,
   SemanticAnalysisError,
   ClaudeCodeError,
-  CodeMindError,
+  CodeSeekerError,
   SuccessResult,
   ErrorResult,
   Result,
@@ -254,9 +254,9 @@ describe('Error Interfaces', () => {
     });
   });
 
-  describe('CodeMindError Union Type', () => {
+  describe('CodeSeekerError Union Type', () => {
     it('should accept all error types', () => {
-      const errors: CodeMindError[] = [
+      const errors: CodeSeekerError[] = [
         {
           type: 'database',
           code: 'DB_001',

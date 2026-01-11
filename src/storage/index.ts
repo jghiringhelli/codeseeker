@@ -1,11 +1,11 @@
 /**
  * Storage Module
  *
- * Provides unified storage abstraction for CodeMind with two modes:
+ * Provides unified storage abstraction for CodeSeeker with two modes:
  *
  * ## Embedded Mode (Default - Zero Setup)
  * Uses SQLite + Graphology + LRU-cache. No Docker or external services needed.
- * Data persists to ~/.codemind/data (or platform-specific equivalent).
+ * Data persists to ~/.codeseeker/data (or platform-specific equivalent).
  *
  * ## Server Mode (Production)
  * Uses PostgreSQL + Neo4j + Redis. Requires Docker or manual server setup.
@@ -14,7 +14,7 @@
  * ## Usage
  *
  * ```typescript
- * import { getStorageProvider } from '@codemind/storage';
+ * import { getStorageProvider } from '@codeseeker/storage';
  *
  * // Get storage (uses embedded by default)
  * const storage = await getStorageProvider();
@@ -42,10 +42,10 @@
  * ## Configuration
  *
  * Set via environment variables:
- * - CODEMIND_STORAGE_MODE: 'embedded' | 'server' (default: 'embedded')
- * - CODEMIND_DATA_DIR: Custom data directory for embedded mode
+ * - CODESEEKER_STORAGE_MODE: 'embedded' | 'server' (default: 'embedded')
+ * - CODESEEKER_DATA_DIR: Custom data directory for embedded mode
  *
- * Or create ~/.codemind/storage.json:
+ * Or create ~/.codeseeker/storage.json:
  * ```json
  * {
  *   "mode": "server",

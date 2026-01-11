@@ -7,8 +7,8 @@
  * 3. Both embedded and server modes work identically
  *
  * Run in different modes:
- * - CODEMIND_STORAGE_MODE=embedded npm test -- storage-init-workflow
- * - CODEMIND_STORAGE_MODE=server npm test -- storage-init-workflow
+ * - CODESEEKER_STORAGE_MODE=embedded npm test -- storage-init-workflow
+ * - CODESEEKER_STORAGE_MODE=server npm test -- storage-init-workflow
  */
 
 import * as os from 'os';
@@ -24,7 +24,7 @@ import {
 import type { IVectorStore, IGraphStore, IProjectStore } from '../../src/storage/interfaces';
 
 // Test fixture directory - isolated per test run
-const TEST_DIR = path.join(os.tmpdir(), `codemind-init-workflow-${Date.now()}`);
+const TEST_DIR = path.join(os.tmpdir(), `codeseeker-init-workflow-${Date.now()}`);
 const TEST_PROJECT_PATH = path.join(TEST_DIR, 'test-project');
 
 // Test file contents for verification
@@ -126,7 +126,7 @@ describe('Storage Init Workflow Integration', () => {
     await createTestProject();
 
     // Set up storage
-    process.env.CODEMIND_DATA_DIR = path.join(TEST_DIR, '.codemind-data');
+    process.env.CODESEEKER_DATA_DIR = path.join(TEST_DIR, '.codeseeker-data');
     await resetStorageManager();
     storageManager = await getStorageManager();
 
@@ -153,7 +153,7 @@ describe('Storage Init Workflow Integration', () => {
 
   describe('Step 1: Project Registration (simulates init)', () => {
     it('should create project entry in storage', async () => {
-      // This simulates what "codemind init" does
+      // This simulates what "codeseeker init" does
       const project = await projectStore.upsert({
         id: testProjectId,
         name: 'test-project',
@@ -184,7 +184,7 @@ describe('Storage Init Workflow Integration', () => {
 
   describe('Step 2: File Indexing (simulates init indexing)', () => {
     it('should create vector documents for each file', async () => {
-      // This simulates the indexing phase of "codemind init"
+      // This simulates the indexing phase of "codeseeker init"
       for (const [filePath, content] of Object.entries(TEST_FILES)) {
         await vectorStore.upsert({
           id: `${testProjectId}:${filePath}:0`,

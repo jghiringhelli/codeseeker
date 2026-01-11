@@ -254,7 +254,7 @@ export class UserInteractionService {
     }
 
     console.log(Theme.sectionTitle('Clarification Needed', '❓'));
-    console.log(Theme.colors.warning('  CodeMind detected some assumptions and ambiguities in your request.'));
+    console.log(Theme.colors.warning('  CodeSeeker detected some assumptions and ambiguities in your request.'));
     console.log(Theme.colors.highlight('  Please help clarify the following questions:\n'));
 
     this.pauseReadline();
@@ -314,17 +314,17 @@ export class UserInteractionService {
         let promptToSend = enhancedPrompt;
         if (options?.autoApprove) {
           // Add directive to execute immediately without showing a plan
-          promptToSend = `<codemind-directive>
+          promptToSend = `<codeseeker-directive>
 EXECUTE IMMEDIATELY - DO NOT SHOW A PLAN
 This is an automated fix task. Execute the fix directly without asking for approval or showing a plan.
 Just make the necessary changes to fix the issue.
-</codemind-directive>
+</codeseeker-directive>
 
 ${enhancedPrompt}`;
         }
 
         // Output the context in a clear, visible format that Claude will process
-        console.log(Theme.sectionTitle('CodeMind Enhanced Context', '📤'));
+        console.log(Theme.sectionTitle('CodeSeeker Enhanced Context', '📤'));
         console.log(Theme.colors.muted('  The following context is being provided to Claude Code:\n'));
 
         // Show a summary of what's being provided
@@ -336,9 +336,9 @@ ${enhancedPrompt}`;
         }
 
         // Output the full context in the special tags for Claude to process
-        console.log('\n<codemind-context>');
+        console.log('\n<codeseeker-context>');
         console.log(promptToSend);
-        console.log('</codemind-context>\n');
+        console.log('</codeseeker-context>\n');
 
         if (options?.autoApprove) {
           console.log(Theme.colors.warning('\n  ⚡ Auto-Execute Mode'));
@@ -346,7 +346,7 @@ ${enhancedPrompt}`;
         } else {
           console.log(Theme.colors.info('\n  ℹ️  Transparent Mode Active'));
           console.log(Theme.divider('─', 55));
-          console.log(Theme.colors.muted('  CodeMind detected it\'s running inside Claude Code.'));
+          console.log(Theme.colors.muted('  CodeSeeker detected it\'s running inside Claude Code.'));
           console.log(Theme.colors.muted('  The enhanced context above will inform Claude\'s response.'));
           console.log(Theme.colors.muted('  Claude Code will now continue with this additional context.\n'));
         }
@@ -377,7 +377,7 @@ ${enhancedPrompt}`;
    * This method bypasses the full workflow orchestrator and executes immediately.
    *
    * In transparent mode: Outputs a plain instruction for Claude to process without
-   * triggering the CodeMind workflow (no <codemind-context> tags).
+   * triggering the CodeSeeker workflow (no <codeseeker-context> tags).
    *
    * In external mode: Runs Claude CLI with auto-approval for immediate execution.
    */
@@ -392,7 +392,7 @@ ${enhancedPrompt}`;
 
     if (PlatformUtils.isRunningInClaudeCode()) {
       // TRANSPARENT MODE: Output as a simple instruction for the running Claude instance
-      // Use a special format that doesn't trigger CodeMind workflow
+      // Use a special format that doesn't trigger CodeSeeker workflow
       console.log(Theme.colors.info(`\n  ${label} - Direct Execution`));
       console.log(Theme.colors.muted('  ─────────────────────────────────────────────'));
 
@@ -411,7 +411,7 @@ ${enhancedPrompt}`;
 
     // EXTERNAL MODE: Run Claude CLI with streaming and auto-approval
     return new Promise((resolve) => {
-      const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
+      const userCwd = process.env.CODESEEKER_USER_CWD || process.cwd();
 
       // Use --dangerously-skip-permissions for auto-approved fix execution
       // Note: --verbose is required when using --output-format stream-json with -p (--print)
@@ -786,7 +786,7 @@ Please revise your approach based on this feedback and propose new changes.`;
    */
   private async executeClaudeFirstPhase(prompt: string): Promise<ClaudeFirstPhaseResult> {
     return new Promise((resolve) => {
-      const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
+      const userCwd = process.env.CODESEEKER_USER_CWD || process.cwd();
 
       // Use stream-json for real-time output with partial messages
       // Note: --verbose is required when using --output-format stream-json with -p (--print)
@@ -1125,7 +1125,7 @@ Please revise your approach based on this feedback and propose new changes.`;
    */
   private async executeClaudeSecondPhase(sessionId: string): Promise<string> {
     return new Promise((resolve) => {
-      const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
+      const userCwd = process.env.CODESEEKER_USER_CWD || process.cwd();
 
       // Resume the session with permission mode to apply changes
       // Use stream-json for real-time output
@@ -1541,7 +1541,7 @@ Please revise your approach based on this feedback and propose new changes.`;
    * Ask user how to continue after an interruption
    * Used when user provides new input while a Claude session is active
    * @param hasActiveSession Whether there's an active Claude session that can be resumed
-   * @returns The user's choice: continue (forward to Claude), new_search (fresh CodeMind search), or cancel
+   * @returns The user's choice: continue (forward to Claude), new_search (fresh CodeSeeker search), or cancel
    */
   async promptContinuationChoice(hasActiveSession: boolean): Promise<ContinuationChoice> {
     this.pauseReadline();
@@ -1829,7 +1829,7 @@ Please revise your approach based on this feedback and propose new changes.`;
    * Display execution summary
    */
   displayExecutionSummary(summary: string, stats: any): void {
-    console.log('\n✅ CodeMind Execution Summary');
+    console.log('\n✅ CodeSeeker Execution Summary');
     console.log('━'.repeat(50));
     console.log(summary);
 

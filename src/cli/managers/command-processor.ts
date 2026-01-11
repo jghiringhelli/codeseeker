@@ -11,7 +11,7 @@ import { ClaudeCodeExecutor, ClaudeCodeExecutionOptions, ClaudeCodeExecutionResu
 import { ProjectManager } from './project-manager';
 import { DatabaseManager } from './database-manager';
 import { UserInterface } from './user-interface';
-import { CodeMindInstructionService } from '../services/integration/codemind-instruction-service';
+import { CodeSeekerInstructionService } from '../services/integration/codeseeker-instruction-service';
 import { InterruptManager } from './interrupt-manager';
 import { ClaudeCodeForwarder } from './claude-code-forwarder';
 import { Theme } from '../ui/theme';

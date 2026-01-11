@@ -1,4 +1,4 @@
-# CodeMind Consolidated Database Schema
+# CodeSeeker Consolidated Database Schema
 
 **Date**: 2025-11-18
 **Purpose**: Simplified database schema removing tool-based architecture

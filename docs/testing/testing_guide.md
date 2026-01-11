@@ -1,16 +1,16 @@
-# CodeMind Testing Guide
+# CodeSeeker Testing Guide
 
-Complete guide to testing CodeMind's three operating modes: CLI, MCP Server, and VSCode Extension.
+Complete guide to testing CodeSeeker's three operating modes: CLI, MCP Server, and VSCode Extension.
 
 ## Prerequisites
 
 ```bash
-# 1. Install CodeMind globally
-npm install -g codemind
+# 1. Install CodeSeeker globally
+npm install -g codeseeker
 
 # 2. Verify installation
-codemind --version
-codemind --help
+codeseeker --version
+codeseeker --help
 ```
 
 ---
@@ -19,15 +19,15 @@ codemind --help
 
 ### Quick Start with ContractMaster-Test
 
-The `ContractMaster-Test` fixture is a sample codebase with intentional SOLID violations, perfect for testing CodeMind's analysis capabilities.
+The `ContractMaster-Test` fixture is a sample codebase with intentional SOLID violations, perfect for testing CodeSeeker's analysis capabilities.
 
 ```bash
 # Copy the test fixture to a temporary location
 cp -r tests/fixtures/ContractMaster-Test-Original /tmp/ContractMaster-Test
 cd /tmp/ContractMaster-Test
 
-# Initialize CodeMind (uses embedded mode by default)
-codemind init --quick
+# Initialize CodeSeeker (uses embedded mode by default)
+codeseeker init --quick
 ```
 
 ### Sample CLI Queries
@@ -36,95 +36,95 @@ codemind init --quick
 
 ```bash
 # What is this project about?
-codemind -c "what is this project about?"
+codeseeker -c "what is this project about?"
 
 # List all classes
-codemind -c "show me all the classes in this project"
+codeseeker -c "show me all the classes in this project"
 
 # Find specific functionality
-codemind -c "where is user registration handled?"
+codeseeker -c "where is user registration handled?"
 
 # Find contracts functionality
-codemind -c "how does contract processing work?"
+codeseeker -c "how does contract processing work?"
 ```
 
 #### SOLID Analysis Queries
 
 ```bash
 # Find SOLID violations
-codemind -c "what SOLID principle violations are in MegaController?"
+codeseeker -c "what SOLID principle violations are in MegaController?"
 
 # Single Responsibility violations
-codemind -c "show me classes that handle too many responsibilities"
+codeseeker -c "show me classes that handle too many responsibilities"
 
 # Suggest refactoring
-codemind -c "how can I refactor MegaController to follow single responsibility principle?"
+codeseeker -c "how can I refactor MegaController to follow single responsibility principle?"
 ```
 
 #### Code Modification Queries
 
 ```bash
 # Add validation
-codemind -c "add input validation to the registerUser function in MegaController - validate that email is a valid format and name is not empty"
+codeseeker -c "add input validation to the registerUser function in MegaController - validate that email is a valid format and name is not empty"
 
 # Add error handling
-codemind -c "add try-catch error handling to processContract in BusinessLogic.js"
+codeseeker -c "add try-catch error handling to processContract in BusinessLogic.js"
 
 # Extract service
-codemind -c "extract the email sending logic from MegaController into a separate EmailService"
+codeseeker -c "extract the email sending logic from MegaController into a separate EmailService"
 
 # Add new method
-codemind -c "add a deleteContract method to MegaController that validates the contract exists before deleting"
+codeseeker -c "add a deleteContract method to MegaController that validates the contract exists before deleting"
 
 # Use constants
-codemind -c "the ProcessorFactory is using string comparisons for type - convert it to use constants"
+codeseeker -c "the ProcessorFactory is using string comparisons for type - convert it to use constants"
 ```
 
 #### Code Search Queries
 
 ```bash
 # Semantic search
-codemind -c "find all files related to user authentication"
+codeseeker -c "find all files related to user authentication"
 
 # Find patterns
-codemind -c "find all places where we validate user input"
+codeseeker -c "find all places where we validate user input"
 
 # Find relationships
-codemind -c "what files depend on UserService?"
+codeseeker -c "what files depend on UserService?"
 
 # Find duplications
-codemind -c "are there any duplicate implementations in this codebase?"
+codeseeker -c "are there any duplicate implementations in this codebase?"
 ```
 
 ### CLI Commands Reference
 
 ```bash
 # Initialize project
-codemind init                    # Full initialization
-codemind init --quick            # Quick init (skip docs)
-codemind init --no-docs          # Skip documentation generation
+codeseeker init                    # Full initialization
+codeseeker init --quick            # Quick init (skip docs)
+codeseeker init --no-docs          # Skip documentation generation
 
 # Query with search
-codemind -c "your question"      # Natural language query
+codeseeker -c "your question"      # Natural language query
 
 # Sync after changes
-codemind sync                    # Incremental sync
-codemind sync --full             # Full reindex
+codeseeker sync                    # Incremental sync
+codeseeker sync --full             # Full reindex
 
 # Project management
-codemind list                    # List indexed projects
-codemind status                  # Show project status
+codeseeker list                    # List indexed projects
+codeseeker status                  # Show project status
 
 # Storage commands
-codemind storage status          # Check storage mode
-codemind storage test            # Test database connections
+codeseeker storage status          # Check storage mode
+codeseeker storage test            # Test database connections
 ```
 
 ### Expected Output Examples
 
 #### Successful Query Response
 ```
-🧠 Starting CodeMind workflow...
+🧠 Starting CodeSeeker workflow...
 
 1️⃣ Analyzing query for assumptions and ambiguities...
    Intent: analyze (confidence: 92.0%)
@@ -157,14 +157,14 @@ codemind storage test            # Test database connections
 ### Option A: Configure Claude Code (CLI) - Recommended
 
 ```bash
-# Add CodeMind as an MCP server
-claude mcp add codemind --scope user -- codemind serve --mcp
+# Add CodeSeeker as an MCP server
+claude mcp add codeseeker --scope user -- codeseeker serve --mcp
 
 # Verify it was added
 claude mcp list
 
 # Test the configuration
-claude mcp get codemind
+claude mcp get codeseeker
 ```
 
 ### Option B: Configure Claude Desktop (GUI App)
@@ -178,8 +178,8 @@ Create or edit the Claude Desktop configuration file:
 ```json
 {
   "mcpServers": {
-    "codemind": {
-      "command": "codemind",
+    "codeseeker": {
+      "command": "codeseeker",
       "args": ["serve", "--mcp"]
     }
   }
@@ -192,7 +192,7 @@ After configuring, restart Claude Code or Claude Desktop. In Claude Code, verify
 
 ```bash
 claude mcp list
-# Should show: codemind (user)
+# Should show: codeseeker (user)
 ```
 
 ### Sample MCP Conversations
@@ -305,7 +305,7 @@ Test MCP tools interactively using the MCP Inspector:
 
 ```bash
 # Install and run MCP Inspector
-npx @modelcontextprotocol/inspector codemind serve --mcp
+npx @modelcontextprotocol/inspector codeseeker serve --mcp
 ```
 
 This opens a web interface where you can:
@@ -321,7 +321,7 @@ This opens a web interface where you can:
 
 ```bash
 # Navigate to extension directory
-cd extensions/vscode-codemind
+cd extensions/vscode-codeseeker
 
 # Install dependencies
 npm install
@@ -333,22 +333,22 @@ npm run compile
 npm run package
 
 # Install in VSCode
-code --install-extension vscode-codemind-0.1.0.vsix
+code --install-extension vscode-codeseeker-0.1.0.vsix
 ```
 
 ### Verify Installation
 
 1. Open VSCode
-2. Look for "CodeMind" in the status bar (bottom)
+2. Look for "CodeSeeker" in the status bar (bottom)
 3. Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
-4. Type "CodeMind" to see available commands:
-   - CodeMind: Sync Now
-   - CodeMind: Full Reindex
-   - CodeMind: Toggle Auto-Sync
+4. Type "CodeSeeker" to see available commands:
+   - CodeSeeker: Sync Now
+   - CodeSeeker: Full Reindex
+   - CodeSeeker: Toggle Auto-Sync
 
 ### Test Auto-Sync
 
-1. Open a project folder that's been indexed with `codemind init`
+1. Open a project folder that's been indexed with `codeseeker init`
 2. Edit a file and save
 3. Watch the status bar - should show sync activity
 4. After 2 seconds (debounce), files are synced
@@ -357,17 +357,17 @@ code --install-extension vscode-codemind-0.1.0.vsix
 
 | Icon | Status |
 |------|--------|
-| ✓ CodeMind | Synced and ready |
-| ↻ CodeMind | Syncing in progress |
-| ⚠ CodeMind | Sync error (check output) |
+| ✓ CodeSeeker | Synced and ready |
+| ↻ CodeSeeker | Syncing in progress |
+| ⚠ CodeSeeker | Sync error (check output) |
 
 ### Extension Commands
 
 | Command | Description |
 |---------|-------------|
-| `CodeMind: Sync Now` | Manually trigger sync |
-| `CodeMind: Full Reindex` | Complete project reindex |
-| `CodeMind: Toggle Auto-Sync` | Enable/disable auto-sync |
+| `CodeSeeker: Sync Now` | Manually trigger sync |
+| `CodeSeeker: Full Reindex` | Complete project reindex |
+| `CodeSeeker: Toggle Auto-Sync` | Enable/disable auto-sync |
 
 ### Extension Settings
 
@@ -375,15 +375,15 @@ Configure via VSCode Settings (Ctrl+,):
 
 ```json
 {
-  "codemind.autoSync": true,
-  "codemind.syncDebounceMs": 2000,
-  "codemind.excludePatterns": [
+  "codeseeker.autoSync": true,
+  "codeseeker.syncDebounceMs": 2000,
+  "codeseeker.excludePatterns": [
     "**/node_modules/**",
     "**/.git/**",
     "**/dist/**",
     "**/*.min.js"
   ],
-  "codemind.mcpCommand": "codemind"
+  "codeseeker.mcpCommand": "codeseeker"
 }
 ```
 
@@ -391,13 +391,13 @@ Configure via VSCode Settings (Ctrl+,):
 
 ```bash
 # Check extension output in VSCode
-View → Output → Select "CodeMind" from dropdown
+View → Output → Select "CodeSeeker" from dropdown
 
 # Verify MCP server is accessible
-codemind serve --mcp  # Should output "CodeMind MCP server running"
+codeseeker serve --mcp  # Should output "CodeSeeker MCP server running"
 
 # Check extension logs
-# Look in: ~/.vscode/extensions/vscode-codemind-*/logs/
+# Look in: ~/.vscode/extensions/vscode-codeseeker-*/logs/
 ```
 
 ---
@@ -407,7 +407,7 @@ codemind serve --mcp  # Should output "CodeMind MCP server running"
 ### Unit Tests
 
 ```bash
-cd /path/to/CodeMind
+cd /path/to/CodeSeeker
 
 # Run all unit tests
 npm test
@@ -429,7 +429,7 @@ node scripts/run-e2e-tests.js
 node scripts/run-e2e-tests.js --live
 
 # Run with server storage mode (requires Docker)
-CODEMIND_TEST_STORAGE_MODE=server node scripts/run-e2e-tests.js
+CODESEEKER_TEST_STORAGE_MODE=server node scripts/run-e2e-tests.js
 ```
 
 ### Test Results Expected
@@ -439,8 +439,8 @@ CODEMIND_TEST_STORAGE_MODE=server node scripts/run-e2e-tests.js
 Running E2E Tests in MOCK mode
 ============================================================
 
-PASS tests/integration/e2e/codemind-e2e.test.ts
-  CodeMind E2E Integration Tests
+PASS tests/integration/e2e/codeseeker-e2e.test.ts
+  CodeSeeker E2E Integration Tests
     Init Command
       ✓ should initialize project successfully
       ✓ should create project entry in PostgreSQL
@@ -462,10 +462,10 @@ Tests:       18 passed, 18 total
 
 ### CLI Commands
 ```bash
-codemind init --quick           # Initialize project
-codemind -c "query"             # Natural language query
-codemind sync                   # Sync changes
-codemind list                   # List projects
+codeseeker init --quick           # Initialize project
+codeseeker -c "query"             # Natural language query
+codeseeker sync                   # Sync changes
+codeseeker list                   # List projects
 ```
 
 ### MCP Setup
@@ -473,8 +473,8 @@ codemind list                   # List projects
 // claude_desktop_config.json
 {
   "mcpServers": {
-    "codemind": {
-      "command": "codemind",
+    "codeseeker": {
+      "command": "codeseeker",
       "args": ["serve", "--mcp"]
     }
   }
@@ -483,51 +483,51 @@ codemind list                   # List projects
 
 ### VSCode Extension
 ```bash
-cd extensions/vscode-codemind
+cd extensions/vscode-codeseeker
 npm install && npm run compile
 npm run package
-code --install-extension vscode-codemind-0.1.0.vsix
+code --install-extension vscode-codeseeker-0.1.0.vsix
 ```
 
 ---
 
 ## Troubleshooting
 
-### "codemind: command not found"
+### "codeseeker: command not found"
 ```bash
-npm install -g codemind
-# Verify: which codemind (or where codemind on Windows)
+npm install -g codeseeker
+# Verify: which codeseeker (or where codeseeker on Windows)
 ```
 
 ### "No project found"
 ```bash
 cd /your/project
-codemind init
+codeseeker init
 ```
 
 ### "MCP server not responding"
 ```bash
 # Test MCP server directly
-codemind serve --mcp
-# Should output: "CodeMind MCP server running on stdio"
+codeseeker serve --mcp
+# Should output: "CodeSeeker MCP server running on stdio"
 ```
 
 ### "Extension not syncing"
-1. Check VSCode Output → CodeMind
-2. Verify `codemind serve --mcp` works
+1. Check VSCode Output → CodeSeeker
+2. Verify `codeseeker serve --mcp` works
 3. Check file is not in excludePatterns
 
 ### "No specific file matches" / Search returns empty
 If semantic search returns no results after initialization:
 ```bash
 # Re-initialize the project (required when switching storage modes)
-codemind init
+codeseeker init
 
 # Or for quick re-index without doc generation
-codemind init --quick
+codeseeker init --quick
 ```
 
-**Important**: If you switch between embedded and server storage modes (via `CODEMIND_STORAGE_MODE`), you must re-run `codemind init` because:
+**Important**: If you switch between embedded and server storage modes (via `CODESEEKER_STORAGE_MODE`), you must re-run `codeseeker init` because:
 - Embedded mode uses SQLite (local files)
 - Server mode uses PostgreSQL (external database)
 - Data does NOT transfer between storage modes
@@ -535,10 +535,10 @@ codemind init --quick
 ### Storage Modes
 ```bash
 # Embedded mode (default) - no Docker required
-codemind init
+codeseeker init
 
 # Server mode - requires PostgreSQL, Neo4j, Redis
-CODEMIND_STORAGE_MODE=server codemind init
+CODESEEKER_STORAGE_MODE=server codeseeker init
 ```
 
 ---

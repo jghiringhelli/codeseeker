@@ -12,7 +12,7 @@ import * as os from 'os';
 import { LanguageSupportService } from '../../../src/cli/services/project/language-support-service';
 
 // Test fixtures
-const TEST_DIR = path.join(os.tmpdir(), `codemind-lang-test-${Date.now()}`);
+const TEST_DIR = path.join(os.tmpdir(), `codeseeker-lang-test-${Date.now()}`);
 
 describe('LanguageSupportService', () => {
   let service: LanguageSupportService;

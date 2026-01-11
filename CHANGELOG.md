@@ -1,17 +1,57 @@
 # Changelog
 
-All notable changes to CodeMind will be documented in this file.
+All notable changes to CodeSeeker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.4.0] - 2026-01-10
+
+### Breaking Changes
+
+- **Project Renamed**: CodeMind → CodeSeeker
+  - CLI command: `codemind` → `codeseeker`
+  - MCP server name: `codemind` → `codeseeker`
+  - Config directory: `.codemind/` → `.codeseeker/`
+  - Instruction file: `CODEMIND.md` → `CODESEEKER.md`
+  - npm package: `codemind-enhanced-cli` → `codeseeker-cli`
+
+### Added
+
+- **Install Command**: New `codeseeker install` for easy MCP configuration
+  - `codeseeker install --copilot` - VS Code + GitHub Copilot
+  - `codeseeker install --cursor` - Cursor IDE
+  - `codeseeker install --visual-studio` - Visual Studio
+  - `codeseeker install --windsurf` - Windsurf IDE
+  - `codeseeker install --global` - Install to user settings
+  - `codeseeker install --list` - List current configurations
+
+- **Unified MCP Guidance**: All AI agent instruction files now receive the same comprehensive MCP tool guidance
+  - CLAUDE.md is now treated as an agent instruction file
+  - Supports: AGENTS.md, .cursorrules, COPILOT.md, GEMINI.md, GROK.md, CODY.md, and more
+  - Single init step configures all detected agent files
+
+- **GitHub Actions**: Automated npm publishing with provenance on release
+
+### Changed
+
+- Streamlined init flow with unified agent file configuration step
+- Updated all documentation and references from CodeMind to CodeSeeker
+
+### Migration
+
+1. Uninstall old package: `npm uninstall -g codemind-enhanced-cli`
+2. Install new package: `npm install -g codeseeker-cli`
+3. Update MCP configs to use `codeseeker` instead of `codemind`
+4. Re-run init in your projects: `codeseeker init`
 
 ## [Unreleased]
 
 ### Added
 
-- **Auto-Detected Coding Standards**: CodeMind now automatically detects and generates coding standards from your codebase
+- **Auto-Detected Coding Standards**: CodeSeeker now automatically detects and generates coding standards from your codebase
   - **Pattern Detection**: Analyzes indexed code to identify common patterns (validation, error handling, logging, testing)
-  - **Standards File**: Auto-generates `.codemind/coding-standards.json` during `codemind init`
+  - **Standards File**: Auto-generates `.codeseeker/coding-standards.json` during `codeseeker init`
   - **Incremental Updates**: Standards update automatically when pattern-related files change
   - **MCP Tool**: New `get_coding_standards` tool exposes standards to Claude via MCP
   - **CLI Access**: Standards used in natural language queries (via `-c` command)
@@ -26,14 +66,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Claude CLI Passthrough**: Seamless integration with Claude CLI commands
   - Detect and forward Claude CLI commands (login, logout, version, etc.)
   - Automatic passthrough with `stdio: 'inherit'` for interactive commands
-  - Returns user to CodeMind REPL after command completion
-  - Usage: Simply type `claude login` or any Claude CLI command in CodeMind
+  - Returns user to CodeSeeker REPL after command completion
+  - Usage: Simply type `claude login` or any Claude CLI command in CodeSeeker
 
 ### Fixed
 
 - **MCP Server Project Detection & Indexing Guidance**: Fixed MCP server to properly detect projects and guide users through indexing
   - **Project Detection**: Made `project` parameter required with clear guidance to pass current working directory
-  - **Auto-detection**: Added `findProjectPath()` helper that walks up directory tree looking for `.codemind/project.json`
+  - **Auto-detection**: Added `findProjectPath()` helper that walks up directory tree looking for `.codeseeker/project.json`
   - **Index Status Check**: MCP now detects if project is not indexed and provides helpful error with exact `index_project` command to run
   - **Improved Descriptions**: Updated tool descriptions to guide Claude to use `index_project` before `search_code` when needed
   - **Better Error Messages**: Empty search results now explain possible causes (no matches, try different terms, may need reindexing)
@@ -80,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Three Operating Modes**: Complete CodeMind ecosystem
+- **Three Operating Modes**: Complete CodeSeeker ecosystem
   - **CLI**: Direct command-line interface with natural language queries
   - **MCP Server**: Model Context Protocol for Claude Desktop/Code integration
   - **VSCode Extension**: Real-time file sync with status bar UI
@@ -140,7 +180,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Storage Mode Detection**: Auto-selects embedded or server
   - Environment variables: `CODEMIND_STORAGE_MODE`, `CODEMIND_DATA_DIR`
-  - Config file support: `~/.codemind/storage.json`
+  - Config file support: `~/.codeseeker/storage.json`
 
 ### Fixed
 
@@ -202,7 +242,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of CodeMind CLI
+- Initial release of CodeSeeker CLI
 - Claude Code CLI integration
 - Semantic search with PostgreSQL pgvector
 - Knowledge graph with Neo4j
@@ -212,6 +252,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[2.1.0]: https://github.com/jghiringhelli/codemind/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/jghiringhelli/codemind/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/jghiringhelli/codemind/releases/tag/v1.0.0
+[2.1.0]: https://github.com/jghiringhelli/codeseeker/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/jghiringhelli/codeseeker/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/jghiringhelli/codeseeker/releases/tag/v1.0.0

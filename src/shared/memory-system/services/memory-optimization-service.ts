@@ -200,10 +200,10 @@ export class MemoryOptimizationService implements IMemoryOptimizationService {
       const patterns: string[] = [];
 
       // Pattern from request type
-      patterns.push(`request_type_${interaction.codemindRequest.type}`);
+      patterns.push(`request_type_${interaction.codeseekerRequest.type}`);
 
       // Pattern from priority
-      patterns.push(`priority_${interaction.codemindRequest.priority}`);
+      patterns.push(`priority_${interaction.codeseekerRequest.priority}`);
 
       // Pattern from success/failure
       patterns.push(interaction.claudeResponse.success ? 'success_pattern' : 'failure_pattern');

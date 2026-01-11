@@ -6,7 +6,7 @@
  * - Falls back to embedded if server connections fail
  * - Allows individual component override via config/environment
  *
- * This is the main entry point for all storage operations in CodeMind.
+ * This is the main entry point for all storage operations in CodeSeeker.
  */
 
 import * as os from 'os';
@@ -312,38 +312,38 @@ export class StorageManager implements IStorageProvider {
    */
   private loadConfig(): StorageManagerConfig {
     const config: StorageManagerConfig = {
-      mode: (process.env.CODEMIND_STORAGE_MODE as any) || 'embedded',
-      dataDir: process.env.CODEMIND_DATA_DIR,
+      mode: (process.env.CODESEEKER_STORAGE_MODE || process.env.CODESEEKER_STORAGE_MODE as any) || 'embedded',
+      dataDir: process.env.CODESEEKER_DATA_DIR || process.env.CODESEEKER_DATA_DIR,
       flushIntervalSeconds: 30
     };
 
     // Load server config from environment
-    if (process.env.DB_HOST || process.env.CODEMIND_PG_HOST) {
+    if (process.env.DB_HOST || process.env.CODESEEKER_PG_HOST || process.env.CODESEEKER_PG_HOST) {
       config.server = config.server || {};
       config.server.postgres = {
-        host: process.env.CODEMIND_PG_HOST || process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.CODEMIND_PG_PORT || process.env.DB_PORT || '5432'),
-        database: process.env.CODEMIND_PG_DATABASE || process.env.DB_NAME || 'codemind',
-        user: process.env.CODEMIND_PG_USER || process.env.DB_USER || 'codemind',
-        password: process.env.CODEMIND_PG_PASSWORD || process.env.DB_PASSWORD || 'codemind123'
+        host: process.env.CODESEEKER_PG_HOST || process.env.CODESEEKER_PG_HOST || process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.CODESEEKER_PG_PORT || process.env.CODESEEKER_PG_PORT || process.env.DB_PORT || '5432'),
+        database: process.env.CODESEEKER_PG_DATABASE || process.env.CODESEEKER_PG_DATABASE || process.env.DB_NAME || 'codeseeker',
+        user: process.env.CODESEEKER_PG_USER || process.env.CODESEEKER_PG_USER || process.env.DB_USER || 'codeseeker',
+        password: process.env.CODESEEKER_PG_PASSWORD || process.env.CODESEEKER_PG_PASSWORD || process.env.DB_PASSWORD || 'codeseeker123'
       };
     }
 
-    if (process.env.NEO4J_URI || process.env.CODEMIND_NEO4J_URI) {
+    if (process.env.NEO4J_URI || process.env.CODESEEKER_NEO4J_URI || process.env.CODESEEKER_NEO4J_URI) {
       config.server = config.server || {};
       config.server.neo4j = {
-        uri: process.env.CODEMIND_NEO4J_URI || process.env.NEO4J_URI || 'bolt://localhost:7687',
-        user: process.env.CODEMIND_NEO4J_USER || process.env.NEO4J_USER || 'neo4j',
-        password: process.env.CODEMIND_NEO4J_PASSWORD || process.env.NEO4J_PASSWORD || 'codemind123'
+        uri: process.env.CODESEEKER_NEO4J_URI || process.env.CODESEEKER_NEO4J_URI || process.env.NEO4J_URI || 'bolt://localhost:7687',
+        user: process.env.CODESEEKER_NEO4J_USER || process.env.CODESEEKER_NEO4J_USER || process.env.NEO4J_USER || 'neo4j',
+        password: process.env.CODESEEKER_NEO4J_PASSWORD || process.env.CODESEEKER_NEO4J_PASSWORD || process.env.NEO4J_PASSWORD || 'codeseeker123'
       };
     }
 
-    if (process.env.REDIS_HOST || process.env.CODEMIND_REDIS_HOST) {
+    if (process.env.REDIS_HOST || process.env.CODESEEKER_REDIS_HOST || process.env.CODESEEKER_REDIS_HOST) {
       config.server = config.server || {};
       config.server.redis = {
-        host: process.env.CODEMIND_REDIS_HOST || process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.CODEMIND_REDIS_PORT || process.env.REDIS_PORT || '6379'),
-        password: process.env.CODEMIND_REDIS_PASSWORD || process.env.REDIS_PASSWORD
+        host: process.env.CODESEEKER_REDIS_HOST || process.env.CODESEEKER_REDIS_HOST || process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.CODESEEKER_REDIS_PORT || process.env.CODESEEKER_REDIS_PORT || process.env.REDIS_PORT || '6379'),
+        password: process.env.CODESEEKER_REDIS_PASSWORD || process.env.CODESEEKER_REDIS_PASSWORD || process.env.REDIS_PASSWORD
       };
     }
 
@@ -364,22 +364,22 @@ export class StorageManager implements IStorageProvider {
   private getConfigPath(): string {
     const platform = os.platform();
     if (platform === 'win32') {
-      return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'codemind', 'storage.json');
+      return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'codeseeker', 'storage.json');
     } else if (platform === 'darwin') {
-      return path.join(os.homedir(), 'Library', 'Application Support', 'codemind', 'storage.json');
+      return path.join(os.homedir(), 'Library', 'Application Support', 'codeseeker', 'storage.json');
     } else {
-      return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'codemind', 'storage.json');
+      return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'codeseeker', 'storage.json');
     }
   }
 
   private getDefaultDataDir(): string {
     const platform = os.platform();
     if (platform === 'win32') {
-      return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'codemind', 'data');
+      return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'codeseeker', 'data');
     } else if (platform === 'darwin') {
-      return path.join(os.homedir(), 'Library', 'Application Support', 'codemind', 'data');
+      return path.join(os.homedir(), 'Library', 'Application Support', 'codeseeker', 'data');
     } else {
-      return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'codemind', 'data');
+      return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'codeseeker', 'data');
     }
   }
 

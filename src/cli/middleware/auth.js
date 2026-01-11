@@ -1,4 +1,4 @@
-// Authentication and Authorization Middleware for CodeMind Dashboard
+// Authentication and Authorization Middleware for CodeSeeker Dashboard
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
@@ -7,15 +7,15 @@ class AuthService {
         this.db = new Pool({
             host: process.env.DB_HOST || 'localhost',
             port: process.env.DB_PORT || 5432,
-            database: process.env.DB_NAME || 'codemind',
-            user: process.env.DB_USER || 'codemind',
-            password: process.env.DB_PASSWORD || 'codemind123'
+            database: process.env.DB_NAME || 'codeseeker',
+            user: process.env.DB_USER || 'codeseeker',
+            password: process.env.DB_PASSWORD || 'codeseeker123'
         });
 
         // Default credentials (in production, use environment variables)
         this.defaultCredentials = {
             username: process.env.DASHBOARD_USERNAME || 'admin',
-            password: process.env.DASHBOARD_PASSWORD || 'codemind123'
+            password: process.env.DASHBOARD_PASSWORD || 'codeseeker123'
         };
 
         console.log('🔐 AuthService initialized');

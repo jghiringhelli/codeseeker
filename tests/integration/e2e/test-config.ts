@@ -3,7 +3,7 @@
  *
  * Supports both embedded and server storage modes.
  * Storage mode is determined by:
- * 1. CODEMIND_TEST_STORAGE_MODE environment variable
+ * 1. CODESEEKER_TEST_STORAGE_MODE environment variable
  * 2. Defaults to 'embedded' for fast CI testing
  */
 
@@ -55,7 +55,7 @@ const TEMP_DIR = path.join(PROJECT_ROOT, 'tests', 'fixtures', '.temp');
  * Get storage mode from environment or default to embedded
  */
 export function getStorageMode(): StorageMode {
-  const envMode = process.env.CODEMIND_TEST_STORAGE_MODE?.toLowerCase();
+  const envMode = process.env.CODESEEKER_TEST_STORAGE_MODE?.toLowerCase();
   if (envMode === 'server' || envMode === 'docker') {
     return 'server';
   }
@@ -71,21 +71,21 @@ export function createStorageConfig(mode: StorageMode): TestStorageConfig {
       mode: 'server',
       server: {
         postgres: {
-          host: process.env.CODEMIND_PG_HOST || process.env.DB_HOST || 'localhost',
-          port: parseInt(process.env.CODEMIND_PG_PORT || process.env.DB_PORT || '5432'),
-          database: process.env.CODEMIND_PG_DATABASE || process.env.DB_NAME || 'codemind',
-          user: process.env.CODEMIND_PG_USER || process.env.DB_USER || 'codemind',
-          password: process.env.CODEMIND_PG_PASSWORD || process.env.DB_PASSWORD || 'codemind123'
+          host: process.env.CODESEEKER_PG_HOST || process.env.DB_HOST || 'localhost',
+          port: parseInt(process.env.CODESEEKER_PG_PORT || process.env.DB_PORT || '5432'),
+          database: process.env.CODESEEKER_PG_DATABASE || process.env.DB_NAME || 'codeseeker',
+          user: process.env.CODESEEKER_PG_USER || process.env.DB_USER || 'codeseeker',
+          password: process.env.CODESEEKER_PG_PASSWORD || process.env.DB_PASSWORD || 'codeseeker123'
         },
         neo4j: {
-          uri: process.env.CODEMIND_NEO4J_URI || process.env.NEO4J_URI || 'bolt://localhost:7687',
-          user: process.env.CODEMIND_NEO4J_USER || process.env.NEO4J_USER || 'neo4j',
-          password: process.env.CODEMIND_NEO4J_PASSWORD || process.env.NEO4J_PASSWORD || 'codemind123'
+          uri: process.env.CODESEEKER_NEO4J_URI || process.env.NEO4J_URI || 'bolt://localhost:7687',
+          user: process.env.CODESEEKER_NEO4J_USER || process.env.NEO4J_USER || 'neo4j',
+          password: process.env.CODESEEKER_NEO4J_PASSWORD || process.env.NEO4J_PASSWORD || 'codeseeker123'
         },
         redis: {
-          host: process.env.CODEMIND_REDIS_HOST || process.env.REDIS_HOST || 'localhost',
-          port: parseInt(process.env.CODEMIND_REDIS_PORT || process.env.REDIS_PORT || '6379'),
-          password: process.env.CODEMIND_REDIS_PASSWORD || process.env.REDIS_PASSWORD || undefined
+          host: process.env.CODESEEKER_REDIS_HOST || process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.CODESEEKER_REDIS_PORT || process.env.REDIS_PORT || '6379'),
+          password: process.env.CODESEEKER_REDIS_PASSWORD || process.env.REDIS_PASSWORD || undefined
         }
       }
     };
@@ -95,7 +95,7 @@ export function createStorageConfig(mode: StorageMode): TestStorageConfig {
   return {
     mode: 'embedded',
     embedded: {
-      dataDir: path.join(TEMP_DIR, '.codemind-test-data')
+      dataDir: path.join(TEMP_DIR, '.codeseeker-test-data')
     }
   };
 }
@@ -123,26 +123,26 @@ export function createTestConfig(overrides?: Partial<TestConfig>): TestConfig {
  */
 export function getTestEnvVars(config: TestConfig): Record<string, string> {
   const env: Record<string, string> = {
-    CODEMIND_STORAGE_MODE: config.storage.mode
+    CODESEEKER_STORAGE_MODE: config.storage.mode
   };
 
   if (config.storage.mode === 'embedded' && config.storage.embedded) {
-    env.CODEMIND_DATA_DIR = config.storage.embedded.dataDir;
+    env.CODESEEKER_DATA_DIR = config.storage.embedded.dataDir;
   }
 
   if (config.storage.mode === 'server' && config.storage.server) {
-    env.CODEMIND_PG_HOST = config.storage.server.postgres.host;
-    env.CODEMIND_PG_PORT = String(config.storage.server.postgres.port);
-    env.CODEMIND_PG_DATABASE = config.storage.server.postgres.database;
-    env.CODEMIND_PG_USER = config.storage.server.postgres.user;
-    env.CODEMIND_PG_PASSWORD = config.storage.server.postgres.password;
-    env.CODEMIND_NEO4J_URI = config.storage.server.neo4j.uri;
-    env.CODEMIND_NEO4J_USER = config.storage.server.neo4j.user;
-    env.CODEMIND_NEO4J_PASSWORD = config.storage.server.neo4j.password;
-    env.CODEMIND_REDIS_HOST = config.storage.server.redis.host;
-    env.CODEMIND_REDIS_PORT = String(config.storage.server.redis.port);
+    env.CODESEEKER_PG_HOST = config.storage.server.postgres.host;
+    env.CODESEEKER_PG_PORT = String(config.storage.server.postgres.port);
+    env.CODESEEKER_PG_DATABASE = config.storage.server.postgres.database;
+    env.CODESEEKER_PG_USER = config.storage.server.postgres.user;
+    env.CODESEEKER_PG_PASSWORD = config.storage.server.postgres.password;
+    env.CODESEEKER_NEO4J_URI = config.storage.server.neo4j.uri;
+    env.CODESEEKER_NEO4J_USER = config.storage.server.neo4j.user;
+    env.CODESEEKER_NEO4J_PASSWORD = config.storage.server.neo4j.password;
+    env.CODESEEKER_REDIS_HOST = config.storage.server.redis.host;
+    env.CODESEEKER_REDIS_PORT = String(config.storage.server.redis.port);
     if (config.storage.server.redis.password) {
-      env.CODEMIND_REDIS_PASSWORD = config.storage.server.redis.password;
+      env.CODESEEKER_REDIS_PASSWORD = config.storage.server.redis.password;
     }
   }
 

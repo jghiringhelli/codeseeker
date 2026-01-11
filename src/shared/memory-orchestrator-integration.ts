@@ -1,13 +1,13 @@
 /**
  * Memory-Orchestrator Integration Layer
  * 
- * Integrates the CodeMind Memory System with the Task-Specific File Orchestrator
+ * Integrates the CodeSeeker Memory System with the Task-Specific File Orchestrator
  * to provide intelligent context continuity and learning across requests.
  */
 
 import { Logger } from './logger';
 import { TaskSpecificFileOrchestrator, OrchestrationResult, FileTask } from './task-specific-file-orchestrator';
-import { CodeMindMemorySystem, InteractionMemory, RequestMemory, ContextualContinuation } from './codemind-memory-system';
+import { CodeSeekerMemorySystem, InteractionMemory, RequestMemory, ContextualContinuation } from './codeseeker-memory-system';
 
 export interface MemoryOrchestrationOptions {
   useMemoryContext: boolean;
@@ -35,13 +35,13 @@ export interface MemoryOrchestrationResult extends OrchestrationResult {
 export class MemoryOrchestrator {
   private logger: Logger;
   private orchestrator: TaskSpecificFileOrchestrator;
-  private memorySystem: CodeMindMemorySystem;
+  private memorySystem: CodeSeekerMemorySystem;
   private sessionId: string;
 
   constructor(projectPath: string, sessionId?: string) {
     this.logger = Logger.getInstance();
     this.orchestrator = new TaskSpecificFileOrchestrator(projectPath);
-    this.memorySystem = new CodeMindMemorySystem();
+    this.memorySystem = new CodeSeekerMemorySystem();
     this.sessionId = sessionId || this.generateSessionId();
   }
 
@@ -427,7 +427,7 @@ export class MemoryOrchestrator {
         suggestedApproach: ''
       },
       continuityInstructions: {
-        forCodeMind: [],
+        forCodeSeeker: [],
         forClaude: []
       }
     };

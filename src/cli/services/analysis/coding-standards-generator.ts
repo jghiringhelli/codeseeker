@@ -1,6 +1,6 @@
 /**
  * Coding Standards Generator - SOLID Principles Implementation
- * Single Responsibility: Generate and update .codemind/coding-standards.json
+ * Single Responsibility: Generate and update .codeseeker/coding-standards.json
  * Open/Closed: Extensible for new pattern categories
  * Dependency Inversion: Depends on storage abstractions
  */
@@ -68,12 +68,12 @@ export class CodingStandardsGenerator {
       }
     }
 
-    // Ensure .codemind directory exists
-    const codemindDir = path.join(projectPath, '.codemind');
-    await fs.mkdir(codemindDir, { recursive: true });
+    // Ensure .codeseeker directory exists
+    const codeseekerDir = path.join(projectPath, '.codeseeker');
+    await fs.mkdir(codeseekerDir, { recursive: true });
 
-    // Write to .codemind/coding-standards.json
-    const standardsPath = path.join(codemindDir, 'coding-standards.json');
+    // Write to .codeseeker/coding-standards.json
+    const standardsPath = path.join(codeseekerDir, 'coding-standards.json');
     await fs.writeFile(standardsPath, JSON.stringify(standards, null, 2), 'utf-8');
 
     console.log(`✓ Detected ${totalPatterns} coding patterns across ${patterns.size} categories`);
@@ -96,7 +96,7 @@ export class CodingStandardsGenerator {
     console.log(`⏳ Updating coding standards (${affectedCategories.join(', ')})...`);
 
     // Load existing standards
-    const standardsPath = path.join(projectPath, '.codemind', 'coding-standards.json');
+    const standardsPath = path.join(projectPath, '.codeseeker', 'coding-standards.json');
     let existing: CodingStandards;
 
     try {
@@ -137,7 +137,7 @@ export class CodingStandardsGenerator {
     }
 
     // Load from file
-    const standardsPath = path.join(projectPath, '.codemind', 'coding-standards.json');
+    const standardsPath = path.join(projectPath, '.codeseeker', 'coding-standards.json');
     try {
       const content = await fs.readFile(standardsPath, 'utf-8');
       const standards = JSON.parse(content) as CodingStandards;

@@ -24,8 +24,8 @@ export class UserInterface {
    */
   async getProjectInitOptions(): Promise<ProjectInitOptions> {
     const path = require('path');
-    // Use user's original working directory (set by bin/codemind.js)
-    const userCwd = process.env.CODEMIND_USER_CWD || process.cwd();
+    // Use user's original working directory (set by bin/codeseeker.js)
+    const userCwd = process.env.CODESEEKER_USER_CWD || process.cwd();
     const defaultProjectName = path.basename(userCwd);
 
     // Pause readline if available to prevent conflicts with inquirer
@@ -102,12 +102,12 @@ export class UserInterface {
    * Display comprehensive help information
    */
   displayHelp(): void {
-    console.log(Theme.colors.primary('\n🤖 CodeMind CLI - Intelligent Code Assistant'));
+    console.log(Theme.colors.primary('\n🤖 CodeSeeker CLI - Intelligent Code Assistant'));
     console.log(Theme.colors.border('═'.repeat(60)));
     
     console.log(Theme.colors.secondary('\n📋 COMMANDS'));
     console.log(Theme.colors.info('  /setup          Initialize infrastructure (Docker, databases)'));
-    console.log(Theme.colors.info('  /init [--reset] Initialize current directory as CodeMind project'));
+    console.log(Theme.colors.info('  /init [--reset] Initialize current directory as CodeSeeker project'));
     console.log(Theme.colors.info('  /status         Show system and project status'));
     console.log(Theme.colors.info('  /project        Project management (switch, info)'));
     console.log(Theme.colors.info('  /search <query> Semantic search across project'));
@@ -116,9 +116,9 @@ export class UserInterface {
     console.log(Theme.colors.info('  /solid <path>   SOLID principles analysis and refactoring'));
     console.log(Theme.colors.info('  /docs <path>    Package documentation and ADR generation'));
     console.log(Theme.colors.info('  /sync [cmd]     Sync semantic search and graph with code changes'));
-    console.log(Theme.colors.info('  /instructions   Manage CODEMIND.md project instructions'));
+    console.log(Theme.colors.info('  /instructions   Manage CODESEEKER.md project instructions'));
     console.log(Theme.colors.info('  /help           Show this help message'));
-    console.log(Theme.colors.info('  /exit           Exit CodeMind CLI'));
+    console.log(Theme.colors.info('  /exit           Exit CodeSeeker CLI'));
 
     console.log(Theme.colors.secondary('\n🔍 PATH-BASED ANALYSIS COMMANDS'));
     console.log(Theme.colors.muted('  /dedup /src              Analyze duplicates in /src directory (recursive)'));
@@ -142,12 +142,12 @@ export class UserInterface {
     console.log(Theme.colors.muted('  🔄 Flags: --no-recursive (--nr) to disable recursive scanning'));
 
     console.log(Theme.colors.secondary('\n📋 INSTRUCTION COMMANDS'));
-    console.log(Theme.colors.muted('  /instructions show     Display current CODEMIND.md instructions'));
-    console.log(Theme.colors.muted('  /instructions create   Generate sample CODEMIND.md file'));
-    console.log(Theme.colors.muted('  /instructions edit     Open CODEMIND.md in default editor'));
+    console.log(Theme.colors.muted('  /instructions show     Display current CODESEEKER.md instructions'));
+    console.log(Theme.colors.muted('  /instructions create   Generate sample CODESEEKER.md file'));
+    console.log(Theme.colors.muted('  /instructions edit     Open CODESEEKER.md in default editor'));
     console.log(Theme.colors.muted('  /instructions reload   Refresh instruction cache'));
     console.log(Theme.colors.muted(''));
-    console.log(Theme.colors.muted('  CODEMIND.md provides project-specific guidance (like Claude Code\'s CLAUDE.md)'));
+    console.log(Theme.colors.muted('  CODESEEKER.md provides project-specific guidance (like Claude Code\'s CLAUDE.md)'));
     console.log(Theme.colors.muted('  and supports cascading from global, project, directory, and local sources.'));
 
     console.log(Theme.colors.secondary('\n🤖 NATURAL LANGUAGE'));
@@ -412,7 +412,7 @@ export class UserInterface {
    * Ask user to choose from multiple options when project is already initialized
    */
   async getInitializationAction(projectName: string): Promise<'reinitialize' | 'skip' | 'sync' | 'prompt_user'> {
-    console.log(Theme.colors.warning(`\n⚠️  Project "${projectName}" is already initialized in CodeMind.`));
+    console.log(Theme.colors.warning(`\n⚠️  Project "${projectName}" is already initialized in CodeSeeker.`));
     console.log(Theme.colors.info('\nWhat would you like to do?'));
 
     const choices = [

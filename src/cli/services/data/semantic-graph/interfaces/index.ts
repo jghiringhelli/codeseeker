@@ -122,6 +122,7 @@ export interface IGraphStorageService {
   batchCreateNodes(nodes: Array<{ type: NodeType; properties: Record<string, any> }>): Promise<string[]>;
   searchNodes(query: string, context?: SearchContext): Promise<SearchResult>;
   findRelatedNodes(nodeId: string, maxDepth?: number): Promise<GraphNode[]>;
+  updateNodeProperty(nodeId: string, propertyName: string, propertyValue: string): Promise<void>;
   close(): Promise<void>;
 }
 

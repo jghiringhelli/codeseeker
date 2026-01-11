@@ -1,5 +1,5 @@
 /**
- * Workflow Definitions for CodeMind Orchestrator
+ * Workflow Definitions for CodeSeeker Orchestrator
  */
 
 import { WorkflowDefinition } from './types';
@@ -100,7 +100,7 @@ export const WORKFLOW_DEFINITIONS: Record<string, WorkflowDefinition> = {
   initialization: {
     id: 'project-init',
     name: 'Project Initialization',
-    description: 'Initialize CodeMind for a new project',
+    description: 'Initialize CodeSeeker for a new project',
     steps: [
       {
         id: 'validate-project',

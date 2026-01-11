@@ -7,7 +7,7 @@
 
 import { Logger } from './logger';
 import { GitBranchManager, FeatureBranch } from './managers/git-branch-manager';
-import { CodeMindValidationCycle, ProjectContext } from './validation-cycle';
+import { CodeSeekerValidationCycle, ProjectContext } from './validation-cycle';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
@@ -46,7 +46,7 @@ export interface IntegrationOptions {
 export class PostExecutionIntegration {
   private logger: Logger;
   private branchManager: GitBranchManager;
-  private validationCycle: CodeMindValidationCycle;
+  private validationCycle: CodeSeekerValidationCycle;
   private projectPath: string;
 
   constructor(projectPath: string) {
@@ -63,7 +63,7 @@ export class PostExecutionIntegration {
         maxComplexityPerFunction: 10
       }
     };
-    this.validationCycle = new CodeMindValidationCycle(config);
+    this.validationCycle = new CodeSeekerValidationCycle(config);
   }
 
   /**
@@ -521,9 +521,9 @@ export class PostExecutionIntegration {
       '⚙️ Configuration synchronized',
       '🚀 Deployment files updated',
       '',
-      '🤖 Generated with CodeMind Orchestrated CLI',
+      '🤖 Generated with CodeSeeker Orchestrated CLI',
       '',
-      'Co-authored-by: CodeMind <noreply@codemind.dev>'
+      'Co-authored-by: CodeSeeker <noreply@codeseeker.dev>'
     );
 
     return lines.join('\n');

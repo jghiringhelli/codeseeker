@@ -1,6 +1,6 @@
-# Manual Setup Guide for CodeMind
+# Manual Setup Guide for CodeSeeker
 
-This guide provides instructions for manually setting up CodeMind.
+This guide provides instructions for manually setting up CodeSeeker.
 
 ## Quick Start (Embedded Mode - Recommended)
 
@@ -8,21 +8,21 @@ Most users should use embedded mode which requires **no setup at all**:
 
 ```bash
 # Install globally
-npm install -g codemind
+npm install -g codeseeker
 
 # Or link from source
-cd CodeMind
+cd CodeSeeker
 npm run build && npm link
 
 # Verify installation
-codemind --help
+codeseeker --help
 
 # Initialize your project
 cd /path/to/your/project
-codemind init --quick
+codeseeker init --quick
 
-# Start using CodeMind
-codemind -c "what is this project about"
+# Start using CodeSeeker
+codeseeker -c "what is this project about"
 ```
 
 **That's it!** Embedded mode uses SQLite + Graphology + LRU-cache with zero configuration.
@@ -48,10 +48,10 @@ docker-compose up -d database redis neo4j
 
 # Verify containers are running
 docker ps
-# Should show: codemind-database, codemind-neo4j, codemind-redis
+# Should show: codeseeker-database, codeseeker-neo4j, codeseeker-redis
 
-# Configure CodeMind for server mode
-export CODEMIND_STORAGE_MODE=server
+# Configure CodeSeeker for server mode
+export CODESEEKER_STORAGE_MODE=server
 ```
 
 ### Option B: Manual Database Installation (Production)
@@ -66,11 +66,11 @@ sudo apt install postgresql-15-pgvector
 
 # Create database and user
 sudo -u postgres psql
-CREATE USER codemind WITH PASSWORD 'your-password';
-CREATE DATABASE codemind OWNER codemind;
-\c codemind
+CREATE USER codeseeker WITH PASSWORD 'your-password';
+CREATE DATABASE codeseeker OWNER codeseeker;
+\c codeseeker
 CREATE EXTENSION vector;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO codemind;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO codeseeker;
 ```
 
 #### Neo4j
@@ -100,7 +100,7 @@ sudo systemctl start redis
 
 ### Configuration
 
-Create `~/.codemind/storage.json`:
+Create `~/.codeseeker/storage.json`:
 
 ```json
 {
@@ -109,8 +109,8 @@ Create `~/.codemind/storage.json`:
     "postgres": {
       "host": "localhost",
       "port": 5432,
-      "database": "codemind",
-      "user": "codemind",
+      "database": "codeseeker",
+      "user": "codeseeker",
       "password": "your-password"
     },
     "neo4j": {
@@ -129,22 +129,22 @@ Create `~/.codemind/storage.json`:
 Or use environment variables:
 
 ```bash
-export CODEMIND_STORAGE_MODE=server
-export CODEMIND_PG_HOST=localhost
-export CODEMIND_PG_PORT=5432
-export CODEMIND_PG_DATABASE=codemind
-export CODEMIND_PG_USER=codemind
-export CODEMIND_PG_PASSWORD=your-password
-export CODEMIND_NEO4J_URI=bolt://localhost:7687
-export CODEMIND_NEO4J_USER=neo4j
-export CODEMIND_NEO4J_PASSWORD=your-password
-export CODEMIND_REDIS_HOST=localhost
-export CODEMIND_REDIS_PORT=6379
+export CODESEEKER_STORAGE_MODE=server
+export CODESEEKER_PG_HOST=localhost
+export CODESEEKER_PG_PORT=5432
+export CODESEEKER_PG_DATABASE=codeseeker
+export CODESEEKER_PG_USER=codeseeker
+export CODESEEKER_PG_PASSWORD=your-password
+export CODESEEKER_NEO4J_URI=bolt://localhost:7687
+export CODESEEKER_NEO4J_USER=neo4j
+export CODESEEKER_NEO4J_PASSWORD=your-password
+export CODESEEKER_REDIS_HOST=localhost
+export CODESEEKER_REDIS_PORT=6379
 ```
 
 ---
 
-## Building and Running CodeMind
+## Building and Running CodeSeeker
 
 ### Install Dependencies
 
@@ -164,14 +164,14 @@ npm run build
 npm link
 ```
 
-### Run CodeMind
+### Run CodeSeeker
 
 ```bash
 # If linked globally
-codemind
+codeseeker
 
 # Or directly
-npm run codemind
+npm run codeseeker
 ```
 
 ---
@@ -180,7 +180,7 @@ npm run codemind
 
 ```bash
 # Start the CLI
-codemind
+codeseeker
 
 # Initialize project data
 /init
@@ -219,13 +219,13 @@ docker-compose logs redis
 
 # Test connections directly
 # PostgreSQL
-docker exec -it codemind-database psql -U codemind -d codemind -c "SELECT 1;"
+docker exec -it codeseeker-database psql -U codeseeker -d codeseeker -c "SELECT 1;"
 
 # Neo4j
 curl http://localhost:7474
 
 # Redis
-docker exec -it codemind-redis redis-cli ping
+docker exec -it codeseeker-redis redis-cli ping
 ```
 
 ### Permission Issues (Linux/macOS)

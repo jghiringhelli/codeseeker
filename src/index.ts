@@ -1,8 +1,24 @@
 /**
- * Intelligent Code Auxiliary System
- * Main entry point for the system
+ * CodeSeeker - Graph-powered code intelligence
+ * Main entry point for the package
  */
 
+// MCP Server (primary export for integrations)
+export { CodeSeekerMcpServer, startMcpServer } from './mcp';
+
+// Storage abstraction
+export {
+  getStorageManager,
+  getStorageProvider,
+  isUsingEmbeddedStorage,
+  type IVectorStore,
+  type IGraphStore,
+  type ICacheStore,
+  type IProjectStore,
+  type StorageMode
+} from './storage';
+
+// Database utilities
 export { DatabaseFactory } from './database/factory';
 export { PostgreSQLAdapter } from './database/adapters/postgresql';
 

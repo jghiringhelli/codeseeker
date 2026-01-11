@@ -1,7 +1,7 @@
 /**
  * Workflow Integration Tests with Mock LLM
  *
- * Tests the complete CodeMind workflow logic with LLM calls abstracted away.
+ * Tests the complete codeseeker workflow logic with LLM calls abstracted away.
  * This validates:
  * - Query analysis and intent detection
  * - Semantic search execution

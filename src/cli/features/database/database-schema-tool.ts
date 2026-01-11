@@ -389,21 +389,21 @@ export class DatabaseSchemaTool {
   }
 
   /**
-   * Store analysis results in CodeMind database
+   * Store analysis results in CodeSeeker database
    */
   private async storeAnalysis(projectId: string, analysis: DatabaseAnalysis): Promise<void> {
     try {
-      // Store in our main CodeMind database
-      const codeMindPool = new Pool({
+      // Store in our main CodeSeeker database
+      const codeseekerPool = new Pool({
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'codemind',
-        user: process.env.DB_USER || 'codemind',
-        password: process.env.DB_PASSWORD || 'codemind123'
+        database: process.env.DB_NAME || 'codeseeker',
+        user: process.env.DB_USER || 'codeseeker',
+        password: process.env.DB_PASSWORD || 'codeseeker123'
       });
 
       // Create database_analysis table if not exists
-      await codeMindPool.query(`
+      await codeseekerPool.query(`
         CREATE TABLE IF NOT EXISTS database_analysis (
           id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
           project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
@@ -416,7 +416,7 @@ export class DatabaseSchemaTool {
       `);
 
       // Store the analysis
-      await codeMindPool.query(`
+      await codeseekerPool.query(`
         INSERT INTO database_analysis 
         (project_id, analysis_data, schema_summary, performance_metrics)
         VALUES ($1, $2, $3, $4)
@@ -437,7 +437,7 @@ export class DatabaseSchemaTool {
         JSON.stringify(analysis.performance)
       ]);
 
-      await codeMindPool.end();
+      await codeseekerPool.end();
 
     } catch (error) {
       this.logger.error('DATABASE_TOOL', `Failed to store analysis: ${error}`);

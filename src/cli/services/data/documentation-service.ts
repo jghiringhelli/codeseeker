@@ -488,7 +488,7 @@ ${pkg.usage.examples.join('\n\n')}
 \`\`\`
 
 ---
-*Generated automatically by CodeMind Documentation Service*
+*Generated automatically by CodeSeeker Documentation Service*
 `;
   }
 
@@ -572,7 +572,7 @@ ${packages.map(pkg => `- [${pkg.packageName}](./packages/${pkg.packageName.repla
 See [ADR directory](./adr/) for technical decisions.
 
 ---
-*Generated automatically by CodeMind Documentation Service*
+*Generated automatically by CodeSeeker Documentation Service*
 `;
 
     await fs.writeFile(path.join(docsDir, 'README.md'), content, 'utf-8');
