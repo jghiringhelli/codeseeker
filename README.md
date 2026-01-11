@@ -43,9 +43,28 @@ This is **Graph RAG** (Retrieval-Augmented Generation), not just vector search.
 
 ## Installation
 
+### Quick Install (Recommended)
+
+Use the `install` command to automatically configure MCP for your IDE:
+
+```bash
+# Install globally
+npm install -g codeseeker
+
+# Configure for your IDE (run from your project directory)
+codeseeker install --copilot     # VS Code + GitHub Copilot
+codeseeker install --cursor      # Cursor IDE
+codeseeker install --windsurf    # Windsurf IDE
+
+# Or install globally (applies to all projects)
+codeseeker install --copilot --global
+```
+
+Then restart your IDE. CodeSeeker tools are now available!
+
 ### Claude Code (Terminal or VS Code)
 
-**Option A: Plugin (Recommended)**
+**Option A: Plugin**
 
 ```
 /plugin install codeseeker@github:jghiringhelli/codeseeker#plugin
@@ -56,12 +75,14 @@ This installs the plugin with:
 - Hooks that keep the index in sync when Claude edits files
 - Slash commands (`/codeseeker:init`, `/codeseeker:reindex`)
 
-Then initialize in any project:
-```
-/codeseeker:init
+**Option B: Automatic Install**
+
+```bash
+npm install -g codeseeker
+codeseeker install --copilot
 ```
 
-**Option B: Manual MCP Configuration**
+**Option C: Manual MCP Configuration**
 
 Add to `~/.claude/settings.json`:
 
@@ -79,11 +100,23 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-Restart Claude Code. CodeSeeker tools are now available.
+### VS Code + GitHub Copilot
+
+```bash
+npm install -g codeseeker
+codeseeker install --copilot
+```
+
+This creates `.vscode/mcp.json` with the correct configuration for GitHub Copilot's MCP support (VS Code 1.99+).
 
 ### Cursor
 
-Add to `.cursor/mcp.json` in your project (or global settings):
+```bash
+npm install -g codeseeker
+codeseeker install --cursor
+```
+
+Or manually add to `.cursor/mcp.json`:
 
 ```json
 {

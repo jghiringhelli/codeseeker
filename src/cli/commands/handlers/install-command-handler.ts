@@ -19,7 +19,20 @@ import { CommandResult } from '../command-context';
 import { Theme } from '../../ui/theme';
 import { Logger } from '../../../utils/logger';
 
-interface McpConfig {
+// VS Code/Copilot format uses "servers" with "type": "stdio"
+interface VSCodeMcpConfig {
+  servers: {
+    codeseeker: {
+      type: string;
+      command: string;
+      args: string[];
+      env?: Record<string, string>;
+    };
+  };
+}
+
+// Cursor/Claude Desktop format uses "mcpServers"
+interface CursorMcpConfig {
   mcpServers: {
     codeseeker: {
       command: string;
@@ -29,12 +42,16 @@ interface McpConfig {
   };
 }
 
+// Union type for both formats
+type McpConfig = VSCodeMcpConfig | CursorMcpConfig;
+
 interface IdeConfig {
   name: string;
   configDir: string;
   configFile: string;
   globalConfigPath?: string;
   description: string;
+  configFormat: 'vscode' | 'cursor';  // Which format to use
 }
 
 export class InstallCommandHandler extends BaseCommandHandler {
@@ -47,35 +64,40 @@ export class InstallCommandHandler extends BaseCommandHandler {
       configDir: '.vscode',
       configFile: 'mcp.json',
       globalConfigPath: this.getVSCodeGlobalConfigPath(),
-      description: 'MCP configuration for GitHub Copilot in VS Code'
+      description: 'MCP configuration for GitHub Copilot in VS Code',
+      configFormat: 'vscode'
     },
     vscode: {
       name: 'VS Code + GitHub Copilot',
       configDir: '.vscode',
       configFile: 'mcp.json',
       globalConfigPath: this.getVSCodeGlobalConfigPath(),
-      description: 'MCP configuration for GitHub Copilot in VS Code'
+      description: 'MCP configuration for GitHub Copilot in VS Code',
+      configFormat: 'vscode'
     },
     cursor: {
       name: 'Cursor',
       configDir: '.cursor',
       configFile: 'mcp.json',
       globalConfigPath: this.getCursorGlobalConfigPath(),
-      description: 'MCP configuration for Cursor IDE'
+      description: 'MCP configuration for Cursor IDE',
+      configFormat: 'cursor'
     },
     'visual-studio': {
       name: 'Visual Studio',
       configDir: '.vs',
       configFile: 'mcp.json',
       globalConfigPath: this.getVisualStudioGlobalConfigPath(),
-      description: 'MCP configuration for Visual Studio (full IDE)'
+      description: 'MCP configuration for Visual Studio (full IDE)',
+      configFormat: 'vscode'
     },
     windsurf: {
       name: 'Windsurf',
       configDir: '.windsurf',
       configFile: 'mcp.json',
       globalConfigPath: this.getWindsurfGlobalConfigPath(),
-      description: 'MCP configuration for Windsurf IDE'
+      description: 'MCP configuration for Windsurf IDE',
+      configFormat: 'cursor'
     }
   };
 
@@ -217,14 +239,35 @@ export class InstallCommandHandler extends BaseCommandHandler {
   }
 
   /**
-   * Generate the MCP configuration for CodeSeeker
+   * Generate the MCP configuration for CodeSeeker in VS Code format
    */
-  private generateMcpConfig(): McpConfig {
+  private generateVSCodeMcpConfig(): VSCodeMcpConfig {
+    return {
+      servers: {
+        codeseeker: {
+          type: 'stdio',
+          command: 'npx',
+          args: ['-y', 'codeseeker', 'serve', '--mcp'],
+          env: {
+            CODESEEKER_STORAGE_MODE: 'embedded'
+          }
+        }
+      }
+    };
+  }
+
+  /**
+   * Generate the MCP configuration for CodeSeeker in Cursor format
+   */
+  private generateCursorMcpConfig(): CursorMcpConfig {
     return {
       mcpServers: {
         codeseeker: {
-          command: 'codeseeker',
-          args: ['serve', '--mcp']
+          command: 'npx',
+          args: ['-y', 'codeseeker', 'serve', '--mcp'],
+          env: {
+            CODESEEKER_STORAGE_MODE: 'embedded'
+          }
         }
       }
     };
@@ -249,9 +292,6 @@ export class InstallCommandHandler extends BaseCommandHandler {
         console.log(Theme.colors.muted(`   Created directory: ${configDir}`));
       }
 
-      // Generate new config
-      const newConfig = this.generateMcpConfig();
-
       // Check if file already exists
       let existingConfig: Record<string, unknown> = {};
       if (fs.existsSync(targetPath)) {
@@ -264,8 +304,8 @@ export class InstallCommandHandler extends BaseCommandHandler {
         }
       }
 
-      // Merge configurations (preserve existing mcpServers, add/update codeseeker)
-      const mergedConfig = this.mergeConfigs(existingConfig, newConfig);
+      // Merge configurations based on IDE format
+      const mergedConfig = this.mergeConfigs(existingConfig, ideConfig.configFormat);
 
       // Write the merged configuration
       fs.writeFileSync(targetPath, JSON.stringify(mergedConfig, null, 2) + '\n');
@@ -298,18 +338,31 @@ export class InstallCommandHandler extends BaseCommandHandler {
    */
   private mergeConfigs(
     existing: Record<string, unknown>,
-    newConfig: McpConfig
+    format: 'vscode' | 'cursor'
   ): Record<string, unknown> {
-    // Deep merge mcpServers
-    const existingServers = (existing.mcpServers as Record<string, unknown>) || {};
-
-    return {
-      ...existing,
-      mcpServers: {
-        ...existingServers,
-        ...newConfig.mcpServers
-      }
-    };
+    if (format === 'vscode') {
+      // VS Code uses "servers" key
+      const newConfig = this.generateVSCodeMcpConfig();
+      const existingServers = (existing.servers as Record<string, unknown>) || {};
+      return {
+        ...existing,
+        servers: {
+          ...existingServers,
+          ...newConfig.servers
+        }
+      };
+    } else {
+      // Cursor uses "mcpServers" key
+      const newConfig = this.generateCursorMcpConfig();
+      const existingServers = (existing.mcpServers as Record<string, unknown>) || {};
+      return {
+        ...existing,
+        mcpServers: {
+          ...existingServers,
+          ...newConfig.mcpServers
+        }
+      };
+    }
   }
 
   /**
@@ -401,7 +454,8 @@ export class InstallCommandHandler extends BaseCommandHandler {
     try {
       const content = fs.readFileSync(configPath, 'utf-8');
       const config = JSON.parse(content);
-      return !!(config.mcpServers?.codeseeker);
+      // Check both formats: VS Code uses "servers", Cursor uses "mcpServers"
+      return !!(config.servers?.codeseeker || config.mcpServers?.codeseeker);
     } catch {
       return false;
     }
