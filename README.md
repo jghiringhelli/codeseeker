@@ -52,12 +52,12 @@ Use the `install` command to automatically configure MCP for your IDE:
 npm install -g codeseeker
 
 # Configure for your IDE (run from your project directory)
-codeseeker install --copilot     # VS Code + GitHub Copilot
+codeseeker install --vscode      # VS Code (Claude Code & GitHub Copilot)
 codeseeker install --cursor      # Cursor IDE
 codeseeker install --windsurf    # Windsurf IDE
 
 # Or install globally (applies to all projects)
-codeseeker install --copilot --global
+codeseeker install --vscode --global
 ```
 
 Then restart your IDE. CodeSeeker tools are now available!
@@ -79,7 +79,7 @@ This installs the plugin with:
 
 ```bash
 npm install -g codeseeker
-codeseeker install --copilot
+codeseeker install --vscode
 ```
 
 **Option C: Manual MCP Configuration**
@@ -100,14 +100,16 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-### VS Code + GitHub Copilot
+### VS Code (Claude Code & GitHub Copilot)
 
 ```bash
 npm install -g codeseeker
-codeseeker install --copilot
+codeseeker install --vscode
 ```
 
-This creates `.vscode/mcp.json` with the correct configuration for GitHub Copilot's MCP support (VS Code 1.99+).
+This creates `.vscode/mcp.json` which works with both Claude Code and GitHub Copilot (VS Code 1.99+).
+
+> **Note:** `--vscode`, `--claude-code`, and `--copilot` all do the same thing - they configure VS Code's MCP. Use whichever is clearest for your use case.
 
 ### Cursor
 
@@ -377,12 +379,14 @@ MCP tools appear automatically once the server connects. Ask Claude "what CodeSe
 
 | Platform | MCP Support | Install Command |
 |----------|-------------|-----------------|
-| **Claude Code** | Yes | `codeseeker install --copilot` or plugin |
-| **GitHub Copilot** | Yes (VS Code 1.99+) | `codeseeker install --copilot` |
+| **Claude Code** (VS Code) | Yes | `codeseeker install --vscode` or plugin |
+| **GitHub Copilot** (VS Code) | Yes (VS Code 1.99+) | `codeseeker install --vscode` |
 | **Cursor** | Yes | `codeseeker install --cursor` |
 | **Claude Desktop** | Yes | Manual config |
 | **Windsurf** | Yes | `codeseeker install --windsurf` |
 | **Visual Studio** | Yes | `codeseeker install --vs` |
+
+> **Note:** Claude Code and GitHub Copilot both run in VS Code and share the same MCP configuration (`.vscode/mcp.json`). The flags `--vscode`, `--claude-code`, and `--copilot` are interchangeable.
 
 ## License
 
