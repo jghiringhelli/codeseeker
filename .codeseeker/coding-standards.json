@@ -1,0 +1,303 @@
+{
+  "generated_at": "2026-01-12T15:47:01.981Z",
+  "project_id": "4b4d5b48-7d6f-490b-b2a0-1a7062d7ba3c",
+  "project_path": "C:\\workspace\\claude\\CodeSeeker",
+  "standards": {
+    "validation": {
+      "validator-isemail": {
+        "preferred": "validator.isEmail()",
+        "import": "const validator = require('validator');",
+        "usage_count": 24,
+        "files": [
+          "src/cli/services/analysis/coding-patterns-analyzer.ts",
+          "tests/fixtures/ContractMaster-Test-Original/lib/helpers/ValidatorService.js",
+          "docs/technical/coding-standards-validation.md",
+          "docs/install/mcp-server.md",
+          "plugins/codeseeker/skills/code-standards.md"
+        ],
+        "confidence": "high",
+        "rationale": "Project standard - uses validator library in 24 files. Battle-tested validation with comprehensive edge case handling.",
+        "example": "// === Yup Patterns (alternative to Zod) ===\r\n\r\n      // Pattern: yup.object() schema",
+        "alternatives": [
+          {
+            "pattern": "validator.isMobilePhone()",
+            "usage_count": 5,
+            "recommendation": "Consider using \"validator.isEmail()\" instead (24 vs 5 occurrences)"
+          },
+          {
+            "pattern": "validator.isURL()",
+            "usage_count": 2,
+            "recommendation": "Consider using \"validator.isEmail()\" instead (24 vs 2 occurrences)"
+          },
+          {
+            "pattern": "email.includes('@')",
+            "usage_count": 2,
+            "recommendation": "Consider using \"validator.isEmail()\" instead (24 vs 2 occurrences)"
+          }
+        ]
+      },
+      "phone": {
+        "preferred": "validator.isMobilePhone()",
+        "import": "const validator = require('validator');",
+        "usage_count": 5,
+        "files": [
+          "src/cli/services/analysis/coding-patterns-analyzer.ts",
+          "tests/fixtures/ContractMaster-Test-Original/lib/helpers/ValidatorService.js",
+          "docs/technical/coding-standards-validation.md"
+        ],
+        "confidence": "high",
+        "rationale": "Project standard - uses validator library in 5 files. Battle-tested validation with comprehensive edge case handling.",
+        "example": "// === Yup Patterns (alternative to Zod) ===\r\n\r\n      // Pattern: yup.object() schema",
+        "alternatives": []
+      },
+      "url": {
+        "preferred": "validator.isURL()",
+        "import": "const validator = require('validator');",
+        "usage_count": 2,
+        "files": [
+          "src/cli/services/analysis/coding-patterns-analyzer.ts"
+        ],
+        "confidence": "medium",
+        "rationale": "Project standard - uses validator library in 2 files. Battle-tested validation with comprehensive edge case handling.",
+        "example": "// === Yup Patterns (alternative to Zod) ===\r\n\r\n      // Pattern: yup.object() schema",
+        "alternatives": []
+      },
+      "email": {
+        "preferred": "email-regex: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/",
+        "usage_count": 1,
+        "files": [
+          "tests/fixtures/ContractMaster-Test-Original/server/services/contract-validator.js"
+        ],
+        "confidence": "low",
+        "rationale": "Custom regex validation found in 1 files. Consider using a validation library for better maintainability.",
+        "example": "switch (type) {\r\n            case 'employment':",
+        "alternatives": []
+      },
+      "yupresolver-react-hook-form": {
+        "preferred": "yupResolver (react-hook-form)",
+        "import": "import { yupResolver } from '@hookform/resolvers/yup';",
+        "usage_count": 1,
+        "files": [
+          "src/cli/services/analysis/coding-patterns-analyzer.ts"
+        ],
+        "confidence": "low",
+        "rationale": "Project uses Yup schema validation in 1 files. Declarative validation similar to Zod.",
+        "example": "// === Yup Patterns (alternative to Zod) ===\r\n\r\n      // Pattern: yup.object() schema",
+        "alternatives": []
+      },
+      "zodresolver-react-hook-form": {
+        "preferred": "zodResolver (react-hook-form)",
+        "import": "import { zodResolver } from '@hookform/resolvers/zod';",
+        "usage_count": 1,
+        "files": [
+          "src/cli/services/analysis/coding-patterns-analyzer.ts"
+        ],
+        "confidence": "low",
+        "rationale": "Project uses zodResolver for react-hook-form in 1 files. Integrates Zod validation with form state management.",
+        "example": "// Pattern: z.string() with validation\r\n      if (content.match(/z\\.string\\(\\)\\.(min|max|email|url|regex|nonempty)/)) {\r\n        this.trackPattern(patternCounts, 'Zod z.string() validators', filePath, content, \"import { z } from 'zod';\");",
+        "alternatives": []
+      },
+      "zod-z-infer-typeof-schema": {
+        "preferred": "Zod z.infer<typeof schema>",
+        "import": "import { z } from 'zod';",
+        "usage_count": 1,
+        "files": [
+          "src/cli/services/analysis/coding-patterns-analyzer.ts"
+        ],
+        "confidence": "low",
+        "rationale": "Project derives TypeScript types from Zod schemas in 1 files. Single source of truth for types and validation.",
+        "example": "// Pattern: z.string() with validation\r\n      if (content.match(/z\\.string\\(\\)\\.(min|max|email|url|regex|nonempty)/)) {\r\n        this.trackPattern(patternCounts, 'Zod z.string() validators', filePath, content, \"import { z } from 'zod';\");",
+        "alternatives": []
+      }
+    },
+    "error-handling": {
+      "console-logging": {
+        "preferred": "try-catch with console logging",
+        "usage_count": 8,
+        "files": [
+          "src/cli/services/claude/claude-code-executor.ts",
+          "src/orchestrator/services/tool-data-service.ts",
+          "scripts/docs.js",
+          "src/cli/codeseeker-cli.ts",
+          "scripts/analyze.js"
+        ],
+        "confidence": "high",
+        "rationale": "Pattern found in 8 files across the project.",
+        "example": "throw lastError || new Error('All Claude Code command formats failed');\r\n\r\n      } finally {",
+        "alternatives": [
+          {
+            "pattern": "res.status(code).json({ error })",
+            "usage_count": 1,
+            "recommendation": "Consider using \"try-catch with console logging\" instead (8 vs 1 occurrences)"
+          }
+        ]
+      },
+      "res-status-code-json-error": {
+        "preferred": "res.status(code).json({ error })",
+        "usage_count": 1,
+        "files": [
+          "CLAUDE.md"
+        ],
+        "confidence": "low",
+        "rationale": "Standard Express.js error response pattern used in 1 files.",
+        "example": "|----------|----------|------------------|\r\n| **Validation** | `validator.isEmail()`, email regex, `Joi.string().email()` | Searches for validation keywords, analyzes usage frequency |\r\n| **Error Handling** | `res.status().json({error})`, custom Error classes, try-catch patterns | Detects error handling patterns and response structures |",
+        "alternatives": []
+      }
+    },
+    "logging": {
+      "console-logging": {
+        "preferred": "console.log/error/warn",
+        "usage_count": 49,
+        "files": [
+          "src/utils/cli-logger.ts",
+          "src/utils/logger.ts",
+          "src/cli/services/analysis/coding-patterns-analyzer.ts",
+          "src/utils/colored-logger.ts",
+          "CLAUDE.md"
+        ],
+        "confidence": "high",
+        "rationale": "Pattern found in 49 files across the project.",
+        "example": "if (!CLILogger.instance) {\n      CLILogger.instance = new CLILogger();\n    }",
+        "alternatives": [
+          {
+            "pattern": "logger.info/error/warn (Winston/Bunyan)",
+            "usage_count": 42,
+            "recommendation": "Consider using \"console.log/error/warn\" instead (49 vs 42 occurrences)"
+          }
+        ]
+      },
+      "structured-logging": {
+        "preferred": "logger.info/error/warn (Winston/Bunyan)",
+        "usage_count": 42,
+        "files": [
+          "src/cli/services/analysis/coding-patterns-analyzer.ts",
+          "CLAUDE.md",
+          "src/cli/services/monitoring/file-watcher-service.ts",
+          "archive/database-management/database-schema-manager.ts",
+          "src/cli/knowledge/graph/services/graph-database-service.ts"
+        ],
+        "confidence": "high",
+        "rationale": "Structured logging with dedicated logger found in 42 files. Preferred over console.log.",
+        "example": ");\r\n\r\n    const patternCounts = new Map<string, PatternInfo>();",
+        "alternatives": []
+      }
+    },
+    "testing": {
+      "assertions": {
+        "preferred": "expect().toBe/toEqual assertions",
+        "usage_count": 80,
+        "files": [
+          "tests/cli/services/user-interaction-service.test.ts",
+          "tests/cli/context-optimizer.test.ts",
+          "tests/cli/services/core-cycle-services.test.ts",
+          "tests/integration/workflow/workflow-with-mock-llm.test.ts",
+          "tests/core/factories/command-service-factory.test.ts"
+        ],
+        "confidence": "high",
+        "rationale": "Pattern found in 80 files across the project.",
+        "example": "const disabledMode: SearchMode = 'disabled';\r\n\r\n      expect(enabledMode).toBe('enabled');",
+        "alternatives": [
+          {
+            "pattern": "Jest/Mocha with beforeEach setup",
+            "usage_count": 21,
+            "recommendation": "Consider using \"expect().toBe/toEqual assertions\" instead (80 vs 21 occurrences)"
+          }
+        ]
+      },
+      "test-setup": {
+        "preferred": "Jest/Mocha with beforeEach setup",
+        "usage_count": 21,
+        "files": [
+          "tests/cli/services/user-interaction-service.test.ts",
+          "tests/cli/context-optimizer.test.ts",
+          "tests/cli/services/core-cycle-services.test.ts",
+          "tests/integration/workflow/workflow-with-mock-llm.test.ts",
+          "tests/core/factories/command-service-factory.test.ts"
+        ],
+        "confidence": "high",
+        "rationale": "Test setup pattern found in 21 files. Ensures clean state for each test.",
+        "example": "const disabledMode: SearchMode = 'disabled';\r\n\r\n      expect(enabledMode).toBe('enabled');",
+        "alternatives": []
+      }
+    },
+    "state-management": {
+      "useselector-redux": {
+        "preferred": "useSelector (Redux)",
+        "import": "import { useSelector } from 'react-redux';",
+        "usage_count": 1,
+        "files": [
+          "src/cli/services/analysis/coding-patterns-analyzer.ts"
+        ],
+        "confidence": "low",
+        "rationale": "useSelector used in 1 files to access Redux store state.",
+        "example": "this.trackPattern(patternCounts, 'Redux Toolkit createSlice', filePath, content, \"import { createSlice } from '@reduxjs/toolkit';\");\r\n      }",
+        "alternatives": []
+      }
+    },
+    "api-patterns": {
+      "express-middleware-pattern": {
+        "preferred": "Express middleware pattern",
+        "usage_count": 5,
+        "files": [
+          "src/cli/middleware/auth.js"
+        ],
+        "confidence": "high",
+        "rationale": "Express middleware pattern used in 5 files for request/response processing.",
+        "example": "function createAuthMiddleware(authService) {\r\n    return {\r\n        // Authentication middleware",
+        "alternatives": [
+          {
+            "pattern": "Express app routes",
+            "usage_count": 3,
+            "recommendation": "Consider using \"Express middleware pattern\" instead (5 vs 3 occurrences)"
+          },
+          {
+            "pattern": "Fetch API",
+            "usage_count": 3,
+            "recommendation": "Consider using \"Express middleware pattern\" instead (5 vs 3 occurrences)"
+          },
+          {
+            "pattern": "Express Router",
+            "usage_count": 2,
+            "recommendation": "Consider using \"Express middleware pattern\" instead (5 vs 2 occurrences)"
+          }
+        ]
+      },
+      "express-app-routes": {
+        "preferred": "Express app routes",
+        "usage_count": 3,
+        "files": [
+          "src/cli/scripts/start-tool-api.ts",
+          "tests/fixtures/ContractMaster-Test-Original/server/index.js"
+        ],
+        "confidence": "high",
+        "rationale": "Express.js routing used in 3 files for handling HTTP endpoints.",
+        "example": "#!/usr/bin/env node\n/**\n * Simple server to start the Tool Database API for testing",
+        "alternatives": []
+      },
+      "fetch-api": {
+        "preferred": "Fetch API",
+        "usage_count": 3,
+        "files": [
+          "src/cli/services/data/content-processing/content-processor.ts",
+          "src/cli/commands/semantic-search.ts"
+        ],
+        "confidence": "high",
+        "rationale": "Native Fetch API used in 3 files for HTTP requests.",
+        "example": "}\n\n  async generateEmbedding(text: string, context?: string): Promise<number[]> {",
+        "alternatives": []
+      },
+      "express-router": {
+        "preferred": "Express Router",
+        "import": "import { Router } from 'express';",
+        "usage_count": 2,
+        "files": [
+          "src/orchestrator/tool-database-api.ts"
+        ],
+        "confidence": "medium",
+        "rationale": "Express.js routing used in 2 files for handling HTTP endpoints.",
+        "example": "// ============================================\n// REST API ENDPOINTS (Express Router)\n// ============================================",
+        "alternatives": []
+      }
+    }
+  }
+}

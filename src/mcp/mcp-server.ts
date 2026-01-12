@@ -204,31 +204,31 @@ export class CodeSeekerMcpServer {
    * Register all MCP tools
    */
   private registerTools(): void {
-    this.registerSearchCodeTool();
-    this.registerFindAndReadTool();
-    this.registerGetFileContextTool();
-    this.registerGetCodeRelationshipsTool();
-    this.registerListProjectsTool();
-    this.registerIndexProjectTool();
-    this.registerNotifyFileChangesTool();
-    this.registerInstallLanguageSupportTool();
-    this.registerManageIndexTool();
+    this.registerSearchTool();
+    this.registerSearchAndReadTool();
+    this.registerReadWithContextTool();
+    this.registerShowDependenciesTool();
+    this.registerProjectsTool();
+    this.registerIndexTool();
+    this.registerSyncTool();
+    this.registerInstallParsersTool();
+    this.registerExcludeTool();
   }
 
   /**
    * Tool 1: Semantic search across indexed projects
    */
-  private registerSearchCodeTool(): void {
+  private registerSearchTool(): void {
     this.server.registerTool(
-      'search_code',
+      'search',
       {
         description: '**DEFAULT TOOL FOR CODE DISCOVERY** - Use this BEFORE grep/glob for any code search. ' +
           'This semantic search finds code by meaning, not just text patterns. ' +
           'ALWAYS use for: "Where is X handled?", "Find the auth logic", "How does Y work?", "What calls Z?" ' +
           'Only fall back to grep when: you need exact literal strings, regex patterns, or already know the exact file. ' +
           'Why better than grep: finds "user authentication" even if code says "login", "session", "credentials". ' +
-          'Examples: ❌ grep -r "damage.*ship" → ✅ search_code("how ships take damage"). ' +
-          'Returns absolute file paths ready for the Read tool. If not indexed, call index_project first.',
+          'Examples: ❌ grep -r "damage.*ship" → ✅ search("how ships take damage"). ' +
+          'Returns absolute file paths ready for the Read tool. If not indexed, call index first.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
           project: z.string().optional().describe('Project path (optional - auto-detects from indexed projects if omitted)'),
@@ -287,7 +287,7 @@ export class CodeSeekerMcpServer {
               return {
                 content: [{
                   type: 'text' as const,
-                  text: `No indexed projects found. Use index_project to index a project first.`,
+                  text: `No indexed projects found. Use index to index a project first.`,
                 }],
                 isError: true,
               };
@@ -309,7 +309,7 @@ export class CodeSeekerMcpServer {
                   content: [{
                     type: 'text' as const,
                     text: `⚠️  Project "${path.basename(projectPath)}" found but not indexed.\n\n` +
-                      `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry this search.`,
+                      `ACTION REQUIRED: Call index({path: "${projectPath}"}) then retry this search.`,
                   }],
                   isError: true,
                 };
@@ -320,7 +320,7 @@ export class CodeSeekerMcpServer {
                 content: [{
                   type: 'text' as const,
                   text: `⚠️  Project "${path.basename(projectPath)}" needs indexing.\n\n` +
-                    `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry this search.`,
+                    `ACTION REQUIRED: Call index({path: "${projectPath}"}) then retry this search.`,
                 }],
                 isError: true,
               };
@@ -441,17 +441,17 @@ export class CodeSeekerMcpServer {
   /**
    * Tool 2: Find and read - combined search + read in one call
    */
-  private registerFindAndReadTool(): void {
+  private registerSearchAndReadTool(): void {
     this.server.registerTool(
-      'find_and_read',
+      'search_and_read',
       {
         description: '**SEARCH + READ IN ONE STEP** - Use when you need to see actual code, not just file paths. ' +
-          'Combines search_code + Read into a single call. Saves a round-trip when you know you\'ll need to read results. ' +
-          'Use this instead of search_code when: implementing something similar, understanding HOW code works, ' +
+          'Combines search + Read into a single call. Saves a round-trip when you know you\'ll need to read results. ' +
+          'Use this instead of search when: implementing something similar, understanding HOW code works, ' +
           'user asks "show me the X code", or you need full context to make changes. ' +
-          'Examples: "Show me how damage is calculated" → find_and_read("damage calculation"). ' +
-          '"I need to add validation like login" → find_and_read("login form validation"). ' +
-          'Use search_code instead when: you only need file paths, checking if something exists (mode="exists"), ' +
+          'Examples: "Show me how damage is calculated" → search_and_read("damage calculation"). ' +
+          '"I need to add validation like login" → search_and_read("login form validation"). ' +
+          'Use search instead when: you only need file paths, checking if something exists (mode="exists"), ' +
           'or want to see many results before picking one. Returns full file content with line numbers.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
@@ -511,7 +511,7 @@ export class CodeSeekerMcpServer {
               return {
                 content: [{
                   type: 'text' as const,
-                  text: `No indexed projects found. Use index_project to index a project first.`,
+                  text: `No indexed projects found. Use index to index a project first.`,
                 }],
                 isError: true,
               };
@@ -532,7 +532,7 @@ export class CodeSeekerMcpServer {
                   content: [{
                     type: 'text' as const,
                     text: `⚠️  Project "${path.basename(projectPath)}" found but not indexed.\n\n` +
-                      `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry.`,
+                      `ACTION REQUIRED: Call index({path: "${projectPath}"}) then retry.`,
                   }],
                   isError: true,
                 };
@@ -542,7 +542,7 @@ export class CodeSeekerMcpServer {
                 content: [{
                   type: 'text' as const,
                   text: `⚠️  Project "${path.basename(projectPath)}" needs indexing.\n\n` +
-                    `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry.`,
+                    `ACTION REQUIRED: Call index({path: "${projectPath}"}) then retry.`,
                 }],
                 isError: true,
               };
@@ -671,15 +671,15 @@ export class CodeSeekerMcpServer {
   /**
    * Tool 3: Get file with semantic context
    */
-  private registerGetFileContextTool(): void {
+  private registerReadWithContextTool(): void {
     this.server.registerTool(
-      'get_file_context',
+      'read_with_context',
       {
         description: '**READ FILE WITH RELATED CODE** - Enhanced Read that includes semantically similar code. ' +
           'Use instead of basic Read when: reading a file for the first time, the file references other modules, ' +
           'or you want to discover patterns used elsewhere in the codebase. ' +
-          'Examples: Understanding a component → get_file_context("src/Button.tsx") returns Button + similar patterns. ' +
-          'Reading a service → get_file_context("src/api.ts") returns api.ts + related implementations. ' +
+          'Examples: Understanding a component → read_with_context("src/Button.tsx") returns Button + similar patterns. ' +
+          'Reading a service → read_with_context("src/api.ts") returns api.ts + related implementations. ' +
           'Use basic Read instead when: you just need file contents, already understand the codebase, or making quick edits. ' +
           'Set include_related=false to get just the file without related chunks.',
         inputSchema: {
@@ -799,21 +799,21 @@ export class CodeSeekerMcpServer {
    * Tool 3: Get code relationships from the knowledge graph
    * Uses "Seed + Expand" strategy like the CLI's GraphAnalysisService
    */
-  private registerGetCodeRelationshipsTool(): void {
+  private registerShowDependenciesTool(): void {
     this.server.registerTool(
-      'get_code_relationships',
+      'show_dependencies',
       {
-        description: '**UNDERSTAND CODE CONNECTIONS** - Use after search_code to explore how files relate. ' +
+        description: '**UNDERSTAND CODE CONNECTIONS** - Use after search to explore how files relate. ' +
           'Maps imports, class hierarchies, function calls, dependencies. Essential for understanding impact of changes. ' +
           'Use when: planning refactors ("what breaks if I change this?"), understanding architecture ("what depends on this?"), ' +
           'tracing data flow ("where does this come from?"), before changing shared code. ' +
-          'WORKFLOW: 1) search_code to find files, 2) pass those paths here via filepaths parameter. ' +
+          'WORKFLOW: 1) search to find files, 2) pass those paths here via filepaths parameter. ' +
           'Filter with relationship_types: ["imports"], ["calls"], ["extends"] to reduce noise. ' +
           'Use direction="in" to find what USES this file, direction="out" for what this file USES.',
         inputSchema: {
           filepath: z.string().optional().describe('Single file path to explore (prefer filepaths for multiple)'),
-          filepaths: z.array(z.string()).optional().describe('PREFERRED: Array of file paths from search_code results'),
-          query: z.string().optional().describe('Fallback: semantic search to find seed files (prefer using filepaths from search_code)'),
+          filepaths: z.array(z.string()).optional().describe('PREFERRED: Array of file paths from search results'),
+          query: z.string().optional().describe('Fallback: semantic search to find seed files (prefer using filepaths from search)'),
           depth: z.number().optional().default(1).describe('How many relationship hops to traverse (1-3, default: 1). Use 1 for focused results, 2+ can return many nodes.'),
           relationship_types: z.array(z.enum([
             'imports', 'exports', 'calls', 'extends', 'implements', 'contains', 'uses', 'depends_on'
@@ -864,7 +864,7 @@ export class CodeSeekerMcpServer {
             return {
               content: [{
                 type: 'text' as const,
-                text: 'Project not indexed. Use index_project first.',
+                text: 'Project not indexed. Use index first.',
               }],
               isError: true,
             };
@@ -1086,14 +1086,14 @@ export class CodeSeekerMcpServer {
   /**
    * Tool 4: List indexed projects
    */
-  private registerListProjectsTool(): void {
+  private registerProjectsTool(): void {
     this.server.registerTool(
-      'list_projects',
+      'projects',
       {
         description: 'List all indexed projects with their metadata. ' +
           'Returns project names, paths, indexed file counts, and last index timestamps. ' +
-          'Use to discover available projects before running search_code or get_code_relationships. ' +
-          'Example: list_projects() shows all projects ready for semantic search.',
+          'Use to discover available projects before running search or show_dependencies. ' +
+          'Example: projects() shows all projects ready for semantic search.',
       },
       async () => {
         try {
@@ -1107,7 +1107,7 @@ export class CodeSeekerMcpServer {
             return {
               content: [{
                 type: 'text' as const,
-                text: 'No projects indexed. Use index_project to add a project.',
+                text: 'No projects indexed. Use index to add a project.',
               }],
             };
           }
@@ -1167,15 +1167,15 @@ export class CodeSeekerMcpServer {
    * Tool 5: Index a project (with proper embeddings and knowledge graph)
    * NOW RUNS IN BACKGROUND to prevent MCP timeouts
    */
-  private registerIndexProjectTool(): void {
+  private registerIndexTool(): void {
     this.server.registerTool(
-      'index_project',
+      'index',
       {
         description: 'Index a project directory for semantic search and knowledge graph. ' +
           'Scans code, documentation, configs, and other text files. Generates vector embeddings and extracts code relationships. ' +
-          'Run once per project, then use notify_file_changes for incremental updates. ' +
-          'Example: index_project({path: "/home/user/my-app"}) indexes all files in my-app.' +
-          '\n\nNOTE: Indexing runs in BACKGROUND to prevent timeouts. Use list_projects() to check indexing status.',
+          'Run once per project, then use sync for incremental updates. ' +
+          'Example: index({path: "/home/user/my-app"}) indexes all files in my-app.' +
+          '\n\nNOTE: Indexing runs in BACKGROUND to prevent timeouts. Use projects() to check indexing status.',
         inputSchema: {
           path: z.string().describe('Absolute path to the project directory'),
           name: z.string().optional().describe('Project name (defaults to directory name)'),
@@ -1224,7 +1224,7 @@ export class CodeSeekerMcpServer {
                   project_name: projectName,
                   project_path: absolutePath,
                   progress: existingJob.progress,
-                  message: 'Indexing already in progress. Use list_projects() to check status.',
+                  message: 'Indexing already in progress. Use projects() to check status.',
                 }, null, 2),
               }],
             };
@@ -1259,7 +1259,7 @@ export class CodeSeekerMcpServer {
                 status: 'indexing_started',
                 project_name: projectName,
                 project_path: absolutePath,
-                message: 'Indexing started in background. Search will work with partial results. Use list_projects() to check progress.',
+                message: 'Indexing started in background. Search will work with partial results. Use projects() to check progress.',
               }, null, 2),
             }],
           };
@@ -1288,7 +1288,7 @@ export class CodeSeekerMcpServer {
   }
 
   /**
-   * Tool 5b: Check indexing status (part of list_projects output now)
+   * Tool 5b: Check indexing status (part of projects output now)
    */
   private _getIndexingStatusForProject(projectId: string): Record<string, unknown> | null {
     const job = this.indexingJobs.get(projectId);
@@ -1307,12 +1307,12 @@ export class CodeSeekerMcpServer {
   /**
    * Tool 6: Notify file changes for incremental updates
    */
-  private registerNotifyFileChangesTool(): void {
+  private registerSyncTool(): void {
     this.server.registerTool(
-      'notify_file_changes',
+      'sync',
       {
         description: '**KEEP INDEX IN SYNC** - Call this after creating, editing, or deleting files. ' +
-          'IMPORTANT: If search_code returns stale results or grep finds content not in search results, ' +
+          'IMPORTANT: If search returns stale results or grep finds content not in search results, ' +
           'call this tool immediately to sync. Fast incremental updates (~100-500ms per file). ' +
           'Use after: Edit/Write tool, file deletions, or when search results seem outdated. ' +
           'For large changes (git pull, branch switch, many files), use full_reindex: true instead.',
@@ -1366,7 +1366,7 @@ export class CodeSeekerMcpServer {
               content: [{
                 type: 'text' as const,
                 text: project
-                  ? `Project not found: ${project}. Use list_projects to see available projects.`
+                  ? `Project not found: ${project}. Use projects to see available projects.`
                   : `Could not auto-detect project. Specify project name or use absolute paths in changes. Available: ${projects.map(p => p.name).join(', ')}`,
               }],
               isError: true,
@@ -1385,7 +1385,7 @@ export class CodeSeekerMcpServer {
                     status: 'already_indexing',
                     project: found.name,
                     progress: existingJob.progress,
-                    message: 'Full reindex already in progress. Use list_projects() to check status.',
+                    message: 'Full reindex already in progress. Use projects() to check status.',
                   }, null, 2),
                 }],
               };
@@ -1408,7 +1408,7 @@ export class CodeSeekerMcpServer {
                   status: 'reindex_started',
                   mode: 'full_reindex',
                   project: found.name,
-                  message: 'Full reindex started in background. Search will work with partial results. Use list_projects() to check progress.',
+                  message: 'Full reindex started in background. Search will work with partial results. Use projects() to check progress.',
                 }, null, 2),
               }],
             };
@@ -1507,14 +1507,14 @@ export class CodeSeekerMcpServer {
       }
     );
 
-    // get_coding_standards - Get auto-detected coding standards
+    // standards - Get auto-detected coding standards
     this.server.registerTool(
-      'get_coding_standards',
+      'standards',
       {
         description: 'Get auto-detected coding patterns and standards for a project. ' +
           'Returns validation patterns, error handling patterns, logging patterns, and testing patterns ' +
           'discovered from the codebase. Use this to write code that follows project conventions. ' +
-          'Example: get_coding_standards({project: "my-app", category: "validation"})',
+          'Example: standards({project: "my-app", category: "validation"})',
         inputSchema: {
           project: z.string().describe('Project name or path'),
           category: z.enum(['validation', 'error-handling', 'logging', 'testing', 'all']).optional().default('all')
@@ -1539,7 +1539,7 @@ export class CodeSeekerMcpServer {
             return {
               content: [{
                 type: 'text' as const,
-                text: `Project not found: ${project}. Use list_projects to see available projects.`,
+                text: `Project not found: ${project}. Use projects to see available projects.`,
               }],
               isError: true,
             };
@@ -1563,7 +1563,7 @@ export class CodeSeekerMcpServer {
               return {
                 content: [{
                   type: 'text' as const,
-                  text: 'No coding standards detected yet. The project may need to be indexed first using index_project.',
+                  text: 'No coding standards detected yet. The project may need to be indexed first using index.',
                 }],
                 isError: true,
               };
@@ -1607,15 +1607,15 @@ export class CodeSeekerMcpServer {
   /**
    * Tool 7: Install language support (Tree-sitter parsers)
    */
-  private registerInstallLanguageSupportTool(): void {
+  private registerInstallParsersTool(): void {
     this.server.registerTool(
-      'install_language_support',
+      'install_parsers',
       {
         description: 'Analyze project languages and install Tree-sitter parsers for better code understanding. ' +
           'Detects which programming languages are used in a project and installs enhanced parsers. ' +
           'Enhanced parsers provide better AST extraction for imports, classes, functions, and relationships. ' +
-          'Example: install_language_support({project: "/path/to/project"}) to auto-detect and install. ' +
-          'Example: install_language_support({languages: ["python", "java"]}) to install specific parsers.',
+          'Example: install_parsers({project: "/path/to/project"}) to auto-detect and install. ' +
+          'Example: install_parsers({languages: ["python", "java"]}) to install specific parsers.',
         inputSchema: {
           project: z.string().optional().describe('Project path to analyze for languages (auto-detects needed parsers)'),
           languages: z.array(z.string()).optional().describe('Specific languages to install parsers for (e.g., ["python", "java", "csharp"])'),
@@ -1648,7 +1648,7 @@ export class CodeSeekerMcpServer {
                     description: p.description,
                   })),
                   install_command: available.length > 0
-                    ? `Use install_language_support({languages: [${available.slice(0, 3).map(p => `"${p.language.toLowerCase()}"`).join(', ')}]})`
+                    ? `Use install_parsers({languages: [${available.slice(0, 3).map(p => `"${p.language.toLowerCase()}"`).join(', ')}]})`
                     : 'All parsers are already installed!',
                 }, null, 2),
               }],
@@ -1668,7 +1668,7 @@ export class CodeSeekerMcpServer {
                   failed: result.failed.length > 0 ? result.failed : undefined,
                   message: result.message,
                   next_step: result.success
-                    ? 'Reindex your project to use the new parsers: notify_file_changes({project: "...", full_reindex: true})'
+                    ? 'Reindex your project to use the new parsers: sync({project: "...", full_reindex: true})'
                     : 'Check the errors above and try again.',
                 }, null, 2),
               }],
@@ -1711,7 +1711,7 @@ export class CodeSeekerMcpServer {
                   })),
                   recommendations: analysis.recommendations,
                   install_command: missingLanguages.length > 0
-                    ? `Use install_language_support({languages: [${missingLanguages.map(l => `"${l}"`).join(', ')}]}) to install enhanced parsers`
+                    ? `Use install_parsers({languages: [${missingLanguages.map(l => `"${l}"`).join(', ')}]}) to install enhanced parsers`
                     : 'All detected languages have parsers installed!',
                 }, null, 2),
               }],
@@ -1724,9 +1724,9 @@ export class CodeSeekerMcpServer {
               type: 'text' as const,
               text: JSON.stringify({
                 usage: {
-                  analyze_project: 'install_language_support({project: "/path/to/project"}) - Detect languages and suggest parsers',
-                  install_specific: 'install_language_support({languages: ["python", "java"]}) - Install parsers for specific languages',
-                  list_available: 'install_language_support({list_available: true}) - Show all available parsers',
+                  analyze_project: 'install_parsers({project: "/path/to/project"}) - Detect languages and suggest parsers',
+                  install_specific: 'install_parsers({languages: ["python", "java"]}) - Install parsers for specific languages',
+                  list_available: 'install_parsers({list_available: true}) - Show all available parsers',
                 },
                 supported_languages: [
                   'TypeScript (bundled)', 'JavaScript (bundled)',
@@ -1756,14 +1756,14 @@ export class CodeSeekerMcpServer {
    * Allows Claude to exclude files that shouldn't be indexed (like Unity's Library folder)
    * and include files that were wrongly excluded
    */
-  private registerManageIndexTool(): void {
+  private registerExcludeTool(): void {
     this.server.registerTool(
-      'manage_index',
+      'exclude',
       {
         description: 'Dynamically manage which files are included or excluded from the index. ' +
           'Use this to exclude files that shouldn\'t be searched (e.g., Library/, build outputs, generated files) ' +
           'or include files that were incorrectly excluded. Exclusions persist in .codeseeker/exclusions.json. ' +
-          'Example: manage_index({action: "exclude", project: "my-app", paths: ["Library/**", "Temp/**"]}) ' +
+          'Example: exclude({action: "exclude", project: "my-app", paths: ["Library/**", "Temp/**"]}) ' +
           'to exclude Unity folders. Changes take effect immediately - excluded files are removed from the index.',
         inputSchema: {
           action: z.enum(['exclude', 'include', 'list']).describe(
@@ -1798,7 +1798,7 @@ export class CodeSeekerMcpServer {
             return {
               content: [{
                 type: 'text' as const,
-                text: `Project not found: ${project}. Use list_projects to see available projects.`,
+                text: `Project not found: ${project}. Use projects to see available projects.`,
               }],
               isError: true,
             };
@@ -1842,8 +1842,8 @@ export class CodeSeekerMcpServer {
                   patterns: exclusions.patterns,
                   last_modified: exclusions.lastModified,
                   usage: {
-                    exclude: 'manage_index({action: "exclude", project: "...", paths: ["pattern/**"]})',
-                    include: 'manage_index({action: "include", project: "...", paths: ["pattern/**"]})',
+                    exclude: 'exclude({action: "exclude", project: "...", paths: ["pattern/**"]})',
+                    include: 'exclude({action: "include", project: "...", paths: ["pattern/**"]})',
                   }
                 }, null, 2),
               }],
@@ -1964,7 +1964,7 @@ export class CodeSeekerMcpServer {
                       `Files matching these patterns will be indexed on next reindex.`
                     : 'No patterns were removed (none matched).',
                   next_step: removedPatterns.length > 0
-                    ? 'Run notify_file_changes({project: "...", full_reindex: true}) to index the previously excluded files.'
+                    ? 'Run sync({project: "...", full_reindex: true}) to index the previously excluded files.'
                     : undefined
                 }, null, 2),
               }],
