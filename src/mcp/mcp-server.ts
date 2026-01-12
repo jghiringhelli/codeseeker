@@ -36,6 +36,32 @@ import { LanguageSupportService } from '../cli/services/project/language-support
 const VERSION = '2.0.0';
 
 /**
+ * Background indexing job status
+ */
+interface IndexingJob {
+  projectId: string;
+  projectName: string;
+  projectPath: string;
+  status: 'running' | 'completed' | 'failed';
+  startedAt: Date;
+  completedAt?: Date;
+  progress?: {
+    phase: string;
+    filesProcessed: number;
+    filesTotal: number;
+    chunksCreated: number;
+  };
+  result?: {
+    filesIndexed: number;
+    chunksCreated: number;
+    nodesCreated: number;
+    edgesCreated: number;
+    durationMs: number;
+  };
+  error?: string;
+}
+
+/**
  * MCP Server for CodeSeeker
  */
 export class CodeSeekerMcpServer {
@@ -43,6 +69,9 @@ export class CodeSeekerMcpServer {
   private searchOrchestrator: SemanticSearchOrchestrator;
   private indexingService: IndexingService;
   private languageSupportService: LanguageSupportService;
+
+  // Background indexing state
+  private indexingJobs: Map<string, IndexingJob> = new Map();
 
   constructor() {
     this.server = new McpServer({
@@ -54,6 +83,101 @@ export class CodeSeekerMcpServer {
     this.indexingService = new IndexingService();
     this.languageSupportService = new LanguageSupportService();
     this.registerTools();
+  }
+
+  /**
+   * Start background indexing for a project
+   * Returns immediately, indexing happens asynchronously
+   */
+  private startBackgroundIndexing(
+    projectId: string,
+    projectName: string,
+    projectPath: string,
+    clearExisting: boolean = true
+  ): void {
+    // Create job entry
+    const job: IndexingJob = {
+      projectId,
+      projectName,
+      projectPath,
+      status: 'running',
+      startedAt: new Date(),
+      progress: {
+        phase: 'starting',
+        filesProcessed: 0,
+        filesTotal: 0,
+        chunksCreated: 0,
+      },
+    };
+    this.indexingJobs.set(projectId, job);
+
+    // Start indexing in background (don't await)
+    this.runBackgroundIndexing(job, clearExisting).catch((error) => {
+      job.status = 'failed';
+      job.error = error instanceof Error ? error.message : String(error);
+      job.completedAt = new Date();
+    });
+  }
+
+  /**
+   * Run the actual indexing (called asynchronously)
+   */
+  private async runBackgroundIndexing(job: IndexingJob, clearExisting: boolean): Promise<void> {
+    try {
+      const storageManager = await getStorageManager();
+      const vectorStore = storageManager.getVectorStore();
+      const graphStore = storageManager.getGraphStore();
+
+      // Clear existing data if requested
+      if (clearExisting) {
+        await vectorStore.deleteByProject(job.projectId);
+        await graphStore.deleteByProject(job.projectId);
+      }
+
+      // Run indexing with progress tracking
+      const result = await this.indexingService.indexProject(
+        job.projectPath,
+        job.projectId,
+        (progress) => {
+          job.progress = {
+            phase: progress.phase,
+            filesProcessed: progress.filesProcessed,
+            filesTotal: progress.filesTotal,
+            chunksCreated: progress.chunksCreated,
+          };
+        }
+      );
+
+      // Update job with results
+      job.status = 'completed';
+      job.completedAt = new Date();
+      job.result = {
+        filesIndexed: result.filesIndexed,
+        chunksCreated: result.chunksCreated,
+        nodesCreated: result.nodesCreated,
+        edgesCreated: result.edgesCreated,
+        durationMs: result.durationMs,
+      };
+
+      // Generate coding standards after indexing
+      try {
+        const generator = new CodingStandardsGenerator(vectorStore);
+        await generator.generateStandards(job.projectId, job.projectPath);
+      } catch {
+        // Non-fatal - standards generation is optional
+      }
+    } catch (error) {
+      job.status = 'failed';
+      job.error = error instanceof Error ? error.message : String(error);
+      job.completedAt = new Date();
+    }
+  }
+
+  /**
+   * Get indexing status for a project
+   */
+  private getIndexingStatus(projectId: string): IndexingJob | undefined {
+    return this.indexingJobs.get(projectId);
   }
 
   /**
@@ -988,18 +1112,29 @@ export class CodeSeekerMcpServer {
             };
           }
 
-          // Get file and chunk counts for each project
+          // Get file and chunk counts for each project, plus indexing status
           const projectsWithCounts = await Promise.all(
             projects.map(async (p) => {
               const fileCount = await vectorStore.countFiles(p.id);
               const chunkCount = await vectorStore.count(p.id);
-              return {
+
+              // Check for background indexing status
+              const indexingStatus = this._getIndexingStatusForProject(p.id);
+
+              const projectInfo: Record<string, unknown> = {
                 name: p.name,
                 path: p.path,
                 files: fileCount,
                 chunks: chunkCount,
                 last_indexed: p.updatedAt.toISOString(),
               };
+
+              // Add indexing status if job exists
+              if (indexingStatus) {
+                Object.assign(projectInfo, indexingStatus);
+              }
+
+              return projectInfo;
             })
           );
 
@@ -1030,6 +1165,7 @@ export class CodeSeekerMcpServer {
 
   /**
    * Tool 5: Index a project (with proper embeddings and knowledge graph)
+   * NOW RUNS IN BACKGROUND to prevent MCP timeouts
    */
   private registerIndexProjectTool(): void {
     this.server.registerTool(
@@ -1038,7 +1174,8 @@ export class CodeSeekerMcpServer {
         description: 'Index a project directory for semantic search and knowledge graph. ' +
           'Scans code, documentation, configs, and other text files. Generates vector embeddings and extracts code relationships. ' +
           'Run once per project, then use notify_file_changes for incremental updates. ' +
-          'Example: index_project({path: "/home/user/my-app"}) indexes all files in my-app.',
+          'Example: index_project({path: "/home/user/my-app"}) indexes all files in my-app.' +
+          '\n\nNOTE: Indexing runs in BACKGROUND to prevent timeouts. Use list_projects() to check indexing status.',
         inputSchema: {
           path: z.string().describe('Absolute path to the project directory'),
           name: z.string().optional().describe('Project name (defaults to directory name)'),
@@ -1074,82 +1211,68 @@ export class CodeSeekerMcpServer {
           }
 
           const projectName = name || path.basename(absolutePath);
+          const projectId = this.generateProjectId(absolutePath);
 
-          // Get storage and create project
+          // Check if already indexing
+          const existingJob = this.getIndexingStatus(projectId);
+          if (existingJob && existingJob.status === 'running') {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  status: 'already_indexing',
+                  project_name: projectName,
+                  project_path: absolutePath,
+                  progress: existingJob.progress,
+                  message: 'Indexing already in progress. Use list_projects() to check status.',
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Get storage and create project entry
           const storageManager = await getStorageManager();
           const projectStore = storageManager.getProjectStore();
-          const vectorStore = storageManager.getVectorStore();
-          const graphStore = storageManager.getGraphStore();
 
           // Create or update project
-          const project = await projectStore.upsert({
-            id: this.generateProjectId(absolutePath),
+          await projectStore.upsert({
+            id: projectId,
             name: projectName,
             path: absolutePath,
-            metadata: { indexedAt: new Date().toISOString() },
+            metadata: { indexedAt: new Date().toISOString(), indexing: true },
           });
-
-          // Clear existing index data for clean reindex
-          await vectorStore.deleteByProject(project.id);
-          await graphStore.deleteByProject(project.id);
 
           // Delete coding standards file (will be regenerated)
           const codingStandardsPath = path.join(absolutePath, '.codeseeker', 'coding-standards.json');
           if (fs.existsSync(codingStandardsPath)) {
-            fs.unlinkSync(codingStandardsPath);
+            try { fs.unlinkSync(codingStandardsPath); } catch { /* ignore */ }
           }
 
-          // Use IndexingService for proper indexing with embeddings and graph
-          // Track progress for detailed reporting
-          let lastProgress: import('./indexing-service').IndexingProgress | undefined;
+          // Start background indexing (returns immediately)
+          this.startBackgroundIndexing(projectId, projectName, absolutePath, true);
 
-          const result = await this.indexingService.indexProject(absolutePath, project.id, (progress) => {
-            lastProgress = progress;
-          });
-
-          // Build response with progress details
-          const response: Record<string, unknown> = {
-            success: result.success,
-            project_name: projectName,
-            project_path: absolutePath,
-            files_indexed: result.filesIndexed,
-            chunks_created: result.chunksCreated,
-            graph_nodes: result.nodesCreated,
-            graph_edges: result.edgesCreated,
-            duration_ms: result.durationMs,
-          };
-
-          // Add scanning summary if available
-          if (lastProgress?.scanningStatus) {
-            response.scanning_summary = {
-              folders_scanned: lastProgress.scanningStatus.foldersScanned,
-              files_found: lastProgress.scanningStatus.filesFound,
-            };
-          }
-
-          // Add warnings (file limits, recommendations)
-          if (result.warnings && result.warnings.length > 0) {
-            response.warnings = result.warnings;
-          }
-
-          // Add errors if any
-          if (result.errors.length > 0) {
-            response.errors = result.errors.slice(0, 5);
-          }
-
+          // Return immediately with "started" status
           return {
             content: [{
               type: 'text' as const,
-              text: JSON.stringify(response, null, 2),
+              text: JSON.stringify({
+                status: 'indexing_started',
+                project_name: projectName,
+                project_path: absolutePath,
+                message: 'Indexing started in background. Search will work with partial results. Use list_projects() to check progress.',
+              }, null, 2),
             }],
           };
+
+          // OLD SYNCHRONOUS CODE REMOVED - was causing MCP timeouts
+          // Now handled by startBackgroundIndexing()
 
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to index project: ${message}`,
+              text: JSON.stringify({ error: message }, null, 2),
             }],
             isError: true,
           };
@@ -1158,8 +1281,31 @@ export class CodeSeekerMcpServer {
     );
   }
 
+  // Remove the old synchronous indexing response builder (now in background)
+  private _unusedOldIndexingResponse(): void {
+    // This is a placeholder to mark where old code was removed
+    // The synchronous indexing logic is now in runBackgroundIndexing()
+  }
+
   /**
-   * Tool 5: Notify file changes for incremental updates
+   * Tool 5b: Check indexing status (part of list_projects output now)
+   */
+  private _getIndexingStatusForProject(projectId: string): Record<string, unknown> | null {
+    const job = this.indexingJobs.get(projectId);
+    if (!job) return null;
+
+    return {
+      indexing_status: job.status,
+      indexing_progress: job.progress,
+      indexing_result: job.result,
+      indexing_error: job.error,
+      indexing_started: job.startedAt.toISOString(),
+      indexing_completed: job.completedAt?.toISOString(),
+    };
+  }
+
+  /**
+   * Tool 6: Notify file changes for incremental updates
    */
   private registerNotifyFileChangesTool(): void {
     this.server.registerTool(
@@ -1227,70 +1373,43 @@ export class CodeSeekerMcpServer {
             };
           }
 
-          // Full reindex mode - use IndexingService
+          // Full reindex mode - NOW RUNS IN BACKGROUND
           if (full_reindex) {
-            // Clear existing index for this project
-            await vectorStore.deleteByProject(found.id);
-            await graphStore.deleteByProject(found.id);
+            // Check if already indexing
+            const existingJob = this.getIndexingStatus(found.id);
+            if (existingJob && existingJob.status === 'running') {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: JSON.stringify({
+                    status: 'already_indexing',
+                    project: found.name,
+                    progress: existingJob.progress,
+                    message: 'Full reindex already in progress. Use list_projects() to check status.',
+                  }, null, 2),
+                }],
+              };
+            }
 
             // Delete coding standards file (will be regenerated)
             const codingStandardsPath = path.join(found.path, '.codeseeker', 'coding-standards.json');
             if (fs.existsSync(codingStandardsPath)) {
-              fs.unlinkSync(codingStandardsPath);
+              try { fs.unlinkSync(codingStandardsPath); } catch { /* ignore */ }
             }
 
-            // Re-index all files using IndexingService (with proper embeddings and graph)
-            let lastProgress: import('./indexing-service').IndexingProgress | undefined;
-            const result = await this.indexingService.indexProject(found.path, found.id, (progress) => {
-              lastProgress = progress;
-            });
+            // Start background indexing (returns immediately)
+            this.startBackgroundIndexing(found.id, found.name, found.path, true);
 
-            // Update project metadata
-            await projectStore.upsert({
-              id: found.id,
-              name: found.name,
-              path: found.path,
-              metadata: {
-                ...found.metadata,
-                lastFullReindex: new Date().toISOString(),
-              },
-            });
-
-            // Build response with all details
-            const response: Record<string, unknown> = {
-              success: result.success,
-              mode: 'full_reindex',
-              project: found.name,
-              files_indexed: result.filesIndexed,
-              chunks_created: result.chunksCreated,
-              graph_nodes: result.nodesCreated,
-              graph_edges: result.edgesCreated,
-              duration_ms: result.durationMs,
-              message: `Complete reindex finished. ${result.filesIndexed} files indexed, ${result.chunksCreated} chunks created.`,
-            };
-
-            // Add scanning summary
-            if (lastProgress?.scanningStatus) {
-              response.scanning_summary = {
-                folders_scanned: lastProgress.scanningStatus.foldersScanned,
-                files_found: lastProgress.scanningStatus.filesFound,
-              };
-            }
-
-            // Add warnings
-            if (result.warnings && result.warnings.length > 0) {
-              response.warnings = result.warnings;
-            }
-
-            // Add errors
-            if (result.errors.length > 0) {
-              response.errors = result.errors.slice(0, 5);
-            }
-
+            // Return immediately with "started" status
             return {
               content: [{
                 type: 'text' as const,
-                text: JSON.stringify(response, null, 2),
+                text: JSON.stringify({
+                  status: 'reindex_started',
+                  mode: 'full_reindex',
+                  project: found.name,
+                  message: 'Full reindex started in background. Search will work with partial results. Use list_projects() to check progress.',
+                }, null, 2),
               }],
             };
           }
