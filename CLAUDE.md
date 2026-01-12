@@ -938,36 +938,69 @@ After reorganization, import paths have been updated:
 - `../services/semantic-search/` → `../services/search/semantic-search/`
 - `../services/file-scanner/` → `../services/monitoring/file-scanning/`
 
-## CodeSeeker MCP Tools (Preferred over grep/glob)
+## CodeSeeker MCP Tools - MANDATORY FOR CODE DISCOVERY
 
-This project is indexed with CodeSeeker for semantic code search.
+**CRITICAL**: This project has CodeSeeker MCP tools available. You MUST use them as your PRIMARY method for code discovery, NOT grep/glob.
 
-**IMPORTANT: Use CodeSeeker MCP tools instead of grep/glob for code discovery:**
+### Auto-Initialization Check
 
-| Task | Use This | Not This |
+**BEFORE any code search**, verify the project is indexed:
+1. Call `list_projects()` to see indexed projects
+2. If this project is NOT listed, call `index_project({path: "PROJECT_ROOT_PATH"})` first
+3. If tools return "Not connected", the MCP server may need restart
+
+### When to Use CodeSeeker (DEFAULT)
+
+**ALWAYS use CodeSeeker for these queries:**
+- "Where is X handled?" → `search_code("X handling logic")`
+- "Find the auth/login/validation code" → `search_code("authentication")`
+- "How does Y work?" → `find_and_read("Y implementation")`
+- "What calls/imports Z?" → `get_code_relationships({filepath: "path/to/Z"})`
+- "Show me the error handling" → `find_and_read("error handling patterns")`
+
+| Task | MUST Use | NOT This |
 |------|----------|----------|
-| Find code by meaning | `search_code("authentication logic")` | `grep -r "auth"` |
-| Search + read files | `find_and_read("error handling")` | `grep` then `cat` |
-| Show dependencies | `get_code_relationships({filepath})` | Manual file reading |
-| Find patterns | `get_coding_standards({project})` | Searching manually |
+| Find code by meaning | `search_code("authentication logic")` | ❌ `grep -r "auth"` |
+| Search + read files | `find_and_read("error handling")` | ❌ `grep` then `cat` |
+| Show dependencies | `get_code_relationships({filepath})` | ❌ Manual file reading |
+| Find patterns | `get_coding_standards({project})` | ❌ Searching manually |
+| Understand a file | `get_file_context({filepath})` | ❌ Just Read alone |
 
-**When to use grep/glob instead:**
-- Exact literal string matches (e.g., specific error codes, UUIDs)
-- Regex pattern matching (e.g., `grep -E "v[0-9]+\.[0-9]+"`)
-- You already know the exact file path
+### When to Use grep/glob (EXCEPTIONS ONLY)
 
-**Examples:**
-- ❌ `grep -r "error handling" src/` → finds literal text only
-- ✅ `search_code("how errors are handled")` → finds try-catch, error responses, validation
-- ❌ `grep -r "auth" && cat file.ts` → two steps, text-only matching
-- ✅ `find_and_read("authentication flow")` → one step, semantic search + file content
+Only fall back to grep/glob when:
+- Searching for **exact literal strings** (UUIDs, specific error codes, magic numbers)
+- Using **regex patterns** that semantic search can't handle
+- You **already know the exact file path**
 
-**Available CodeSeeker MCP tools:**
-- `search_code(query)` - Semantic search across all indexed files
-- `find_and_read(query)` - Search and read matching files in one call
-- `get_code_relationships({filepath})` - Show imports, exports, calls, dependencies
-- `get_file_context({filepath})` - Read file with related code context
-- `get_coding_standards({project})` - Show detected coding patterns
-- `index_project({path})` - Index/reindex a project
-- `notify_file_changes({changes})` - Update index after file changes
+### Why CodeSeeker is Better
 
+```
+❌ grep -r "error handling" src/
+   → Only finds literal text "error handling"
+
+✅ search_code("how errors are handled")
+   → Finds: try-catch blocks, .catch() callbacks, error responses,
+     validation errors, custom Error classes - even if they don't
+     contain the words "error handling"
+```
+
+### Available MCP Tools
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| `search_code(query)` | Semantic search | First choice for any "find X" query |
+| `find_and_read(query)` | Search + read combined | When you need file contents |
+| `get_code_relationships({filepath})` | Dependency graph | "What uses this?", "What does this depend on?" |
+| `get_file_context({filepath})` | File + related code | Reading a file for the first time |
+| `get_coding_standards({project})` | Project patterns | Before writing new code |
+| `index_project({path})` | Index a project | If project not indexed |
+| `notify_file_changes({changes})` | Update index | After editing files |
+| `list_projects()` | Show indexed projects | Check if project is indexed |
+
+### Keep Index Updated
+
+After using Edit/Write tools, call:
+```
+notify_file_changes({changes: [{type: "modified", path: "path/to/file"}]})
+```
