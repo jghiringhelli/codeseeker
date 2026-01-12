@@ -409,8 +409,9 @@ export class SQLiteVectorStore implements IVectorStore {
         matchSource += '+path';
       }
 
-      // ALWAYS cap final score at 1.0 (100%)
-      displayScore = Math.min(1.0, displayScore);
+      // ALWAYS clamp score to valid range [0, 1.0]
+      // Cosine similarity can be negative for anti-correlated embeddings
+      displayScore = Math.max(0, Math.min(1.0, displayScore));
 
       // Debug logging (only in development)
       if (process.env.DEBUG_SEARCH) {

@@ -112,7 +112,7 @@ export class FileParser {
         classes.push({
           name: className,
           extends: extendsClass,
-          implementsInterfaces,
+          implements: implementsInterfaces,
           methods,
           properties,
           startLine: this.getLineNumber(content, match.index),

@@ -42,7 +42,7 @@ export class RelationshipAnalyzer {
         }
 
         // Interface implementations
-        for (const interfaceName of cls.implementsInterfaces) {
+        for (const interfaceName of cls.implements) {
           const interfaceFile = this.findFileContaining(interfaceName, files);
           if (interfaceFile) {
             relationships.push({
