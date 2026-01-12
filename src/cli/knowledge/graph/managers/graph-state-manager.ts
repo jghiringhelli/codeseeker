@@ -234,12 +234,12 @@ export class GraphStateManager implements IGraphStateManager {
 
   getNodesByType(type: NodeType): KnowledgeNode[] {
     const nodeIds = this.nodeIndex.get(type) || new Set();
-    return Array.from(nodeIds).map(id => this.nodes.get(id)!).filter(Boolean);
+    return Array.from(nodeIds).map(id => this.nodes.get(id)).filter(Boolean);
   }
 
   getTriadsByRelation(relation: RelationType): KnowledgeTriad[] {
     const triadIds = this.relationIndex.get(relation) || new Set();
-    return Array.from(triadIds).map(id => this.triads.get(id)!).filter(Boolean);
+    return Array.from(triadIds).map(id => this.triads.get(id)).filter(Boolean);
   }
 
   // State validation

@@ -277,7 +277,7 @@ export class GraphologyGraphStore implements IGraphStore {
     visited.add(sourceId);
 
     while (queue.length > 0) {
-      const current = queue.shift()!;
+      const current = queue.shift();
 
       if (current.id === targetId) {
         // Reconstruct path

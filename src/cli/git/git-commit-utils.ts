@@ -91,7 +91,7 @@ export class GitCommitUtils {
 
       if (tsConfigExists) {
         const { stdout, stderr } = await execAsync('npm run build', { cwd: projectPath });
-        return !stderr || !stderr.includes('error');
+        return !stderr?.includes('error');
       }
 
       // Check for package.json scripts
@@ -106,7 +106,7 @@ export class GitCommitUtils {
         // Try common build scripts
         const buildScripts = ['build', 'compile', 'dist'];
         for (const script of buildScripts) {
-          if (packageJson.scripts && packageJson.scripts[script]) {
+          if (packageJson.scripts?.[script]) {
             try {
               await execAsync(`npm run ${script}`, {
                 cwd: projectPath,

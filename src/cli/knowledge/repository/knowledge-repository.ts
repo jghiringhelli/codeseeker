@@ -153,7 +153,7 @@ export class KnowledgeRepository extends EventEmitter {
     const cacheKey = this.generateCacheKey(query, options);
     if (this.semanticCache.has(cacheKey)) {
       this.logger.info('Returning cached search results');
-      return this.semanticCache.get(cacheKey)!;
+      return this.semanticCache.get(cacheKey);
     }
 
     let results: SearchResult[] = [];
@@ -219,7 +219,7 @@ export class KnowledgeRepository extends EventEmitter {
     // Convert to search results
     const results: SearchResult[] = [];
     for (const [docId, score] of docScores) {
-      const doc = this.documents.get(docId)!;
+      const doc = this.documents.get(docId);
       results.push({
         document: doc,
         score,
@@ -288,7 +288,7 @@ export class KnowledgeRepository extends EventEmitter {
       const id = result.document.id;
       if (merged.has(id)) {
         // Document appears in both - boost score
-        const existing = merged.get(id)!;
+        const existing = merged.get(id);
         existing.score += result.score * 0.4; // Semantic weight
         existing.explanation = 'Hybrid match: keyword + semantic';
       } else {
@@ -386,7 +386,7 @@ export class KnowledgeRepository extends EventEmitter {
       if (!byType.has(doc.type)) {
         byType.set(doc.type, []);
       }
-      byType.get(doc.type)!.push(doc);
+      byType.get(doc.type).push(doc);
     }
 
     let synthesis = `Based on ${documents.length} relevant sources:\n\n`;
@@ -578,7 +578,7 @@ export class KnowledgeRepository extends EventEmitter {
       if (!index.has(token)) {
         index.set(token, []);
       }
-      index.get(token)!.push(position);
+      index.get(token).push(position);
     });
     
     return index;
@@ -747,7 +747,7 @@ export class KnowledgeRepository extends EventEmitter {
       if (!this.invertedIndex.has(term)) {
         this.invertedIndex.set(term, new Set());
       }
-      this.invertedIndex.get(term)!.add(doc.id);
+      this.invertedIndex.get(term).add(doc.id);
     }
     
     // Update vector index

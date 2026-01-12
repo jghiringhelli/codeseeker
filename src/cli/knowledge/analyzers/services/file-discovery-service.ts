@@ -52,7 +52,7 @@ export class FileDiscoveryService implements IFileDiscoveryService {
       if (!filesByLanguage.has(language)) {
         filesByLanguage.set(language, []);
       }
-      filesByLanguage.get(language)!.push(file);
+      filesByLanguage.get(language).push(file);
     }
 
     return filesByLanguage;

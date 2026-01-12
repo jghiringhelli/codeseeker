@@ -1168,7 +1168,7 @@ sync({changes: [{type: "modified", path: "path/to/file"}]})
           // Find where the old guidance ends (next ## heading or end of file)
           const nextHeadingMatch = afterOldGuidance.match(/\n## [^#]/);
           let oldGuidanceEnd: number;
-          if (nextHeadingMatch && nextHeadingMatch.index !== undefined) {
+          if (nextHeadingMatch?.index !== undefined) {
             oldGuidanceEnd = oldGuidanceStart + oldMarker.length + nextHeadingMatch.index;
           } else {
             oldGuidanceEnd = existingContent.length;

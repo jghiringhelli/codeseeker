@@ -221,7 +221,7 @@ export class TestingService implements ITestingService {
 
       for (const file of files) {
         const fileCoverage = coverageMap[file];
-        if (fileCoverage && fileCoverage.s) {
+        if (fileCoverage?.s) {
           const statements = Object.keys(fileCoverage.s);
           totalStatements += statements.length;
           coveredStatements += statements.filter(key => fileCoverage.s[key] > 0).length;

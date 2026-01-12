@@ -468,7 +468,7 @@ export class CodingPatternsAnalyzer {
     if (!patternCounts.has(pattern)) {
       patternCounts.set(pattern, { count: 0, files: new Set(), examples: [] });
     }
-    const info = patternCounts.get(pattern)!;
+    const info = patternCounts.get(pattern);
     info.count++;
     info.files.add(filePath);
 

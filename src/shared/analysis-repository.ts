@@ -80,7 +80,7 @@ export class AnalysisRepository {
         FROM analysis_results
         WHERE project_id = $1
       `;
-      let values: any[] = [projectId];
+      const values: any[] = [projectId];
 
       if (toolName) {
         query += ` AND tool_name = $2`;

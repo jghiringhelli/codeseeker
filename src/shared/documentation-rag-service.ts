@@ -138,7 +138,7 @@ export class DocumentationRAGService {
         } else {
           // Log actual errors (permissions, etc.) as errors
           result.errors.push(`Failed to process ${docPath}: ${error.message}`);
-          this.logger.error(`Documentation ingestion error for ${docPath}`, error as any);
+          this.logger.error(`Documentation ingestion error for ${docPath}`, error);
         }
       }
     }
@@ -223,7 +223,7 @@ export class DocumentationRAGService {
         }
       };
     } catch (error) {
-      this.logger.error(`Failed to ingest documentation file ${filePath}`, error as any);
+      this.logger.error(`Failed to ingest documentation file ${filePath}`, error);
       throw error;
     }
   }
@@ -431,7 +431,7 @@ export class DocumentationRAGService {
 
       return results;
     } catch (error) {
-      this.logger.error('Documentation search failed', error as any);
+      this.logger.error('Documentation search failed', error);
       return [];
     }
   }

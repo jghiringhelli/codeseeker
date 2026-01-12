@@ -73,7 +73,7 @@ export class SystemConfigManager implements ConfigManager {
       if (current && typeof current === 'object' && k in current) {
         current = current[k];
       } else {
-        return defaultValue as T;
+        return defaultValue;
       }
     }
 
@@ -120,7 +120,7 @@ export class SystemConfigManager implements ConfigManager {
       
       this.logger.info(`Configuration loaded from: ${this.configPath}`);
     } catch (error) {
-      if ((error as any).code === 'ENOENT') {
+      if ((error).code === 'ENOENT') {
         this.logger.info(`Config file not found at ${this.configPath}, creating with defaults`);
         await this?.save();
       } else {

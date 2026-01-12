@@ -324,7 +324,7 @@ export class CompilationVerifier {
     
     try {
       // Determine test command  
-      let command = customCommand || 'npm test -- --passWithNoTests';
+      const command = customCommand || 'npm test -- --passWithNoTests';
       
       this.logger.info(`Running quick tests: ${command}`);
       const output = execSync(command, { 

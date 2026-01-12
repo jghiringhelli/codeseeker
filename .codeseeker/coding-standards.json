@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-01-12T15:47:01.981Z",
+  "generated_at": "2026-01-12T16:34:13.003Z",
   "project_id": "4b4d5b48-7d6f-490b-b2a0-1a7062d7ba3c",
   "project_path": "C:\\workspace\\claude\\CodeSeeker",
   "standards": {
@@ -7,46 +7,45 @@
       "validator-isemail": {
         "preferred": "validator.isEmail()",
         "import": "const validator = require('validator');",
-        "usage_count": 24,
+        "usage_count": 22,
         "files": [
           "src/cli/services/analysis/coding-patterns-analyzer.ts",
-          "tests/fixtures/ContractMaster-Test-Original/lib/helpers/ValidatorService.js",
           "docs/technical/coding-standards-validation.md",
           "docs/install/mcp-server.md",
-          "plugins/codeseeker/skills/code-standards.md"
+          "plugins/codeseeker/skills/code-standards.md",
+          "docs/install/claude-code-plugin.md"
         ],
         "confidence": "high",
-        "rationale": "Project standard - uses validator library in 24 files. Battle-tested validation with comprehensive edge case handling.",
+        "rationale": "Project standard - uses validator library in 22 files. Battle-tested validation with comprehensive edge case handling.",
         "example": "// === Yup Patterns (alternative to Zod) ===\r\n\r\n      // Pattern: yup.object() schema",
         "alternatives": [
           {
             "pattern": "validator.isMobilePhone()",
-            "usage_count": 5,
-            "recommendation": "Consider using \"validator.isEmail()\" instead (24 vs 5 occurrences)"
+            "usage_count": 4,
+            "recommendation": "Consider using \"validator.isEmail()\" instead (22 vs 4 occurrences)"
           },
           {
             "pattern": "validator.isURL()",
             "usage_count": 2,
-            "recommendation": "Consider using \"validator.isEmail()\" instead (24 vs 2 occurrences)"
+            "recommendation": "Consider using \"validator.isEmail()\" instead (22 vs 2 occurrences)"
           },
           {
             "pattern": "email.includes('@')",
             "usage_count": 2,
-            "recommendation": "Consider using \"validator.isEmail()\" instead (24 vs 2 occurrences)"
+            "recommendation": "Consider using \"validator.isEmail()\" instead (22 vs 2 occurrences)"
           }
         ]
       },
       "phone": {
         "preferred": "validator.isMobilePhone()",
         "import": "const validator = require('validator');",
-        "usage_count": 5,
+        "usage_count": 4,
         "files": [
           "src/cli/services/analysis/coding-patterns-analyzer.ts",
-          "tests/fixtures/ContractMaster-Test-Original/lib/helpers/ValidatorService.js",
           "docs/technical/coding-standards-validation.md"
         ],
         "confidence": "high",
-        "rationale": "Project standard - uses validator library in 5 files. Battle-tested validation with comprehensive edge case handling.",
+        "rationale": "Project standard - uses validator library in 4 files. Battle-tested validation with comprehensive edge case handling.",
         "example": "// === Yup Patterns (alternative to Zod) ===\r\n\r\n      // Pattern: yup.object() schema",
         "alternatives": []
       },
@@ -63,14 +62,16 @@
         "alternatives": []
       },
       "email": {
-        "preferred": "email-regex: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/",
-        "usage_count": 1,
+        "preferred": "Joi.string().email()",
+        "import": "const Joi = require('joi');",
+        "usage_count": 2,
         "files": [
-          "tests/fixtures/ContractMaster-Test-Original/server/services/contract-validator.js"
+          "src/cli/services/analysis/coding-patterns-analyzer.ts",
+          "CLAUDE.md"
         ],
-        "confidence": "low",
-        "rationale": "Custom regex validation found in 1 files. Consider using a validation library for better maintainability.",
-        "example": "switch (type) {\r\n            case 'employment':",
+        "confidence": "medium",
+        "rationale": "Project uses Joi schema validation in 2 files. Declarative validation with detailed error messages.",
+        "example": "if (content.match(/validator\\.isMobilePhone\\s*\\(/)) {\r\n        this.trackPattern(patternCounts, 'validator.isMobilePhone()', filePath, content, \"const validator = require('validator');\");\r\n      }",
         "alternatives": []
       },
       "yupresolver-react-hook-form": {
@@ -147,7 +148,7 @@
     "logging": {
       "console-logging": {
         "preferred": "console.log/error/warn",
-        "usage_count": 49,
+        "usage_count": 47,
         "files": [
           "src/utils/cli-logger.ts",
           "src/utils/logger.ts",
@@ -156,13 +157,13 @@
           "CLAUDE.md"
         ],
         "confidence": "high",
-        "rationale": "Pattern found in 49 files across the project.",
+        "rationale": "Pattern found in 47 files across the project.",
         "example": "if (!CLILogger.instance) {\n      CLILogger.instance = new CLILogger();\n    }",
         "alternatives": [
           {
             "pattern": "logger.info/error/warn (Winston/Bunyan)",
             "usage_count": 42,
-            "recommendation": "Consider using \"console.log/error/warn\" instead (49 vs 42 occurrences)"
+            "recommendation": "Consider using \"console.log/error/warn\" instead (47 vs 42 occurrences)"
           }
         ]
       },
@@ -246,11 +247,6 @@
         "example": "function createAuthMiddleware(authService) {\r\n    return {\r\n        // Authentication middleware",
         "alternatives": [
           {
-            "pattern": "Express app routes",
-            "usage_count": 3,
-            "recommendation": "Consider using \"Express middleware pattern\" instead (5 vs 3 occurrences)"
-          },
-          {
             "pattern": "Fetch API",
             "usage_count": 3,
             "recommendation": "Consider using \"Express middleware pattern\" instead (5 vs 3 occurrences)"
@@ -259,20 +255,13 @@
             "pattern": "Express Router",
             "usage_count": 2,
             "recommendation": "Consider using \"Express middleware pattern\" instead (5 vs 2 occurrences)"
+          },
+          {
+            "pattern": "Express app routes",
+            "usage_count": 1,
+            "recommendation": "Consider using \"Express middleware pattern\" instead (5 vs 1 occurrences)"
           }
         ]
-      },
-      "express-app-routes": {
-        "preferred": "Express app routes",
-        "usage_count": 3,
-        "files": [
-          "src/cli/scripts/start-tool-api.ts",
-          "tests/fixtures/ContractMaster-Test-Original/server/index.js"
-        ],
-        "confidence": "high",
-        "rationale": "Express.js routing used in 3 files for handling HTTP endpoints.",
-        "example": "#!/usr/bin/env node\n/**\n * Simple server to start the Tool Database API for testing",
-        "alternatives": []
       },
       "fetch-api": {
         "preferred": "Fetch API",
@@ -296,6 +285,17 @@
         "confidence": "medium",
         "rationale": "Express.js routing used in 2 files for handling HTTP endpoints.",
         "example": "// ============================================\n// REST API ENDPOINTS (Express Router)\n// ============================================",
+        "alternatives": []
+      },
+      "express-app-routes": {
+        "preferred": "Express app routes",
+        "usage_count": 1,
+        "files": [
+          "src/cli/scripts/start-tool-api.ts"
+        ],
+        "confidence": "low",
+        "rationale": "Express.js routing used in 1 files for handling HTTP endpoints.",
+        "example": "#!/usr/bin/env node\n/**\n * Simple server to start the Tool Database API for testing",
         "alternatives": []
       }
     }

@@ -97,7 +97,7 @@ export class ContextOptimizer {
     
     if (this.cache.has(cacheKey)) {
       this.logger.debug('Using cached context optimization');
-      return this.cache.get(cacheKey)!;
+      return this.cache.get(cacheKey);
     }
 
     this.logger.info(`Optimizing context for ${request.projectPath}`);
@@ -660,7 +660,7 @@ export class ContextOptimizer {
   }
 
   private getSemanticRelevanceScore(filePath: string, semanticContext: any): number {
-    if (!semanticContext || !semanticContext.primaryResults) return 0;
+    if (!semanticContext?.primaryResults) return 0;
 
     let relevanceScore = 0;
     const fileName = path.basename(filePath);

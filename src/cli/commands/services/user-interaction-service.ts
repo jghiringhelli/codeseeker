@@ -2173,7 +2173,7 @@ Please revise your approach based on this feedback and propose new changes.`;
    * Format tool result output for display (abbreviated)
    */
   private formatToolResult(toolName: string, output: string): string {
-    if (!output || !output.trim()) return '';
+    if (!output?.trim()) return '';
 
     // Filter out permission denial messages - we handle these separately
     if (output.includes('requested permissions') && output.includes("haven't")) {

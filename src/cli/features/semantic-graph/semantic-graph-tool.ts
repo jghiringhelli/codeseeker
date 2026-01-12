@@ -368,7 +368,7 @@ export class SemanticGraphTool extends InternalTool {
     // Focus area specific recommendations
     if (parameters?.focusArea) {
       const keyNodesInFocus = analysisData.keyNodes.filter((n: any) =>
-        n.name && n.name.toLowerCase().includes(parameters.focusArea.toLowerCase())
+        n.name?.toLowerCase().includes(parameters.focusArea.toLowerCase())
       );
 
       if (keyNodesInFocus.length > 0) {

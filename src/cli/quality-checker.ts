@@ -92,14 +92,14 @@ export class QualityChecker {
     try {
       // Run all checks in parallel for better performance
       const [compilation, tests, security, architecture] = await Promise.all([
-        this.compilationService!.runCompilationChecks(subTaskResults),
-        this.testingService!.runTestChecks(subTaskResults),
-        this.securityService!.runSecurityChecks(subTaskResults),
-        this.architectureService!.runArchitectureChecks(subTaskResults)
+        this.compilationService.runCompilationChecks(subTaskResults),
+        this.testingService.runTestChecks(subTaskResults),
+        this.securityService.runSecurityChecks(subTaskResults),
+        this.architectureService.runArchitectureChecks(subTaskResults)
       ]);
 
       // Calculate overall score
-      const overallScore = this.scoreCalculator!.calculateOverallScore(
+      const overallScore = this.scoreCalculator.calculateOverallScore(
         compilation,
         tests,
         security,
@@ -107,7 +107,7 @@ export class QualityChecker {
       );
 
       // Determine if quality passed
-      const passed = this.scoreCalculator!.determineQualityPassed(
+      const passed = this.scoreCalculator.determineQualityPassed(
         overallScore,
         compilation,
         tests,
@@ -116,7 +116,7 @@ export class QualityChecker {
       );
 
       // Generate recommendations
-      const recommendations = this.scoreCalculator!.generateRecommendations(
+      const recommendations = this.scoreCalculator.generateRecommendations(
         compilation,
         tests,
         security,

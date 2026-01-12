@@ -411,7 +411,7 @@ Provide actionable insights that can help improve the codebase and user experien
       });
 
       removedDirs.forEach(dir => {
-        if (request.beforeState!.directoryStructure[dir] === 'directory') {
+        if (request.beforeState.directoryStructure[dir] === 'directory') {
           structuralChanges.push({
             type: 'directory_removed',
             details: `Removed directory: ${dir}`

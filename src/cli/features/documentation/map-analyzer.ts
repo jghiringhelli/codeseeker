@@ -295,8 +295,8 @@ export class DocumentMapAnalyzer {
         );
 
         if (sharedDocs.length > 0) {
-          const conceptId1 = conceptNodes.get(concept1)!;
-          const conceptId2 = conceptNodes.get(concept2)!;
+          const conceptId1 = conceptNodes.get(concept1);
+          const conceptId2 = conceptNodes.get(concept2);
           
           await this.semanticGraph.addRelationship(conceptId1, conceptId2, 'RELATES_TO', {
             sharedDocuments: sharedDocs.length,
@@ -360,7 +360,7 @@ export class DocumentMapAnalyzer {
         if (!domainMap.has(topic)) {
           domainMap.set(topic, new Set());
         }
-        domainMap.get(topic)!.add(domain);
+        domainMap.get(topic).add(domain);
       }
     }
 

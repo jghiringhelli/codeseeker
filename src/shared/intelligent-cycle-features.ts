@@ -88,7 +88,7 @@ export class IntelligentCycleFeatures {
     await this.initialize();
 
     // Delegate to semantic deduplication service
-    return this.semanticDeduplicationService!.checkSemanticDuplication(
+    return this.semanticDeduplicationService.checkSemanticDuplication(
       userIntent, // functionality parameter
       userIntent, // userIntent parameter
       projectPath,
@@ -101,7 +101,7 @@ export class IntelligentCycleFeatures {
    */
   async analyzeUserIntent(userIntent: string): Promise<IntentAnalysisResult> {
     // Delegate to intent analysis service
-    return this.intentAnalysisService!.analyzeUserIntent(userIntent);
+    return this.intentAnalysisService.analyzeUserIntent(userIntent);
   }
 
   /**
@@ -114,7 +114,7 @@ export class IntelligentCycleFeatures {
     userIntent: string
   ): Promise<SmartSecurityResult> {
     // Delegate to security scanning service
-    return this.securityScanningService!.performSmartSecurity(
+    return this.securityScanningService.performSmartSecurity(
       userIntent, // functionality parameter
       userIntent,
       projectPath
@@ -130,7 +130,7 @@ export class IntelligentCycleFeatures {
     endLine: number
   ): Promise<string> {
     // Delegate to code extraction service
-    return this.codeExtractionService!.extractCodeSnippet(
+    return this.codeExtractionService.extractCodeSnippet(
       file,
       undefined, // functionName
       undefined, // className

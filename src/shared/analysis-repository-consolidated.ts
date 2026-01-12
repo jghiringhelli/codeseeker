@@ -483,8 +483,8 @@ export class ConsolidatedAnalysisRepository {
     const { contentTypes, threshold = 0.7, limit = 10 } = options;
 
     try {
-      let conditions = ['project_id = $1'];
-      let params: any[] = [projectId];
+      const conditions = ['project_id = $1'];
+      const params: any[] = [projectId];
       let paramIndex = 2;
 
       if (contentTypes && contentTypes.length > 0) {

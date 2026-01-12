@@ -188,7 +188,7 @@ export class WorkflowVisualizer {
       if (!levels.has(depth)) {
         levels.set(depth, []);
       }
-      levels.get(depth)!.push(node.id);
+      levels.get(depth).push(node.id);
     }
 
     // Find maximum parallelism

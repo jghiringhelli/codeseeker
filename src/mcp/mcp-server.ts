@@ -73,6 +73,26 @@ export class CodeSeekerMcpServer {
   // Background indexing state
   private indexingJobs: Map<string, IndexingJob> = new Map();
 
+  // Mutex for concurrent indexing protection
+  private indexingMutex: Set<string> = new Set();
+
+  // Cancellation tokens for running indexing jobs
+  private cancellationTokens: Map<string, { cancelled: boolean }> = new Map();
+
+  // Job cleanup interval (clean completed/failed jobs after 1 hour)
+  private readonly JOB_TTL_MS = 60 * 60 * 1000; // 1 hour
+  private cleanupTimer: NodeJS.Timeout | null = null;
+
+  // Dangerous paths that should never be indexed (security)
+  private readonly DANGEROUS_PATHS = [
+    // System directories
+    '/etc', '/var', '/usr', '/bin', '/sbin', '/lib', '/boot', '/root', '/proc', '/sys', '/dev',
+    // Windows system directories
+    'C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)', 'C:\\ProgramData',
+    // User sensitive directories
+    '.ssh', '.gnupg', '.aws', '.azure', '.config',
+  ];
+
   constructor() {
     this.server = new McpServer({
       name: 'codeseeker',
@@ -83,6 +103,79 @@ export class CodeSeekerMcpServer {
     this.indexingService = new IndexingService();
     this.languageSupportService = new LanguageSupportService();
     this.registerTools();
+
+    // Start cleanup timer for old indexing jobs
+    this.startJobCleanupTimer();
+  }
+
+  /**
+   * Start periodic cleanup of completed/failed indexing jobs
+   */
+  private startJobCleanupTimer(): void {
+    // Clean up every 10 minutes
+    this.cleanupTimer = setInterval(() => {
+      this.cleanupOldJobs();
+    }, 10 * 60 * 1000);
+
+    // Ensure timer doesn't prevent process exit
+    if (this.cleanupTimer.unref) {
+      this.cleanupTimer.unref();
+    }
+  }
+
+  /**
+   * Clean up completed/failed jobs older than TTL
+   */
+  private cleanupOldJobs(): void {
+    const now = Date.now();
+    const jobsToDelete: string[] = [];
+
+    for (const [projectId, job] of this.indexingJobs) {
+      // Only clean up non-running jobs
+      if (job.status !== 'running' && job.completedAt) {
+        const age = now - job.completedAt.getTime();
+        if (age > this.JOB_TTL_MS) {
+          jobsToDelete.push(projectId);
+        }
+      }
+    }
+
+    for (const projectId of jobsToDelete) {
+      this.indexingJobs.delete(projectId);
+    }
+  }
+
+  /**
+   * Validate that a path is safe to index (security)
+   * Returns error message if unsafe, null if safe
+   */
+  private validateProjectPath(projectPath: string): string | null {
+    const normalizedPath = path.normalize(projectPath);
+
+    // Check for path traversal attempts
+    if (normalizedPath.includes('..')) {
+      return 'Path traversal detected: paths with ".." are not allowed';
+    }
+
+    // Check for dangerous system directories
+    const lowerPath = normalizedPath.toLowerCase();
+    for (const dangerous of this.DANGEROUS_PATHS) {
+      const lowerDangerous = dangerous.toLowerCase();
+      if (lowerPath === lowerDangerous || lowerPath.startsWith(lowerDangerous + path.sep)) {
+        return `Security: cannot index system directory "${dangerous}"`;
+      }
+    }
+
+    // Check path components for sensitive directories
+    const pathParts = normalizedPath.split(path.sep);
+    for (const part of pathParts) {
+      const lowerPart = part.toLowerCase();
+      if (lowerPart === '.ssh' || lowerPart === '.gnupg' || lowerPart === '.aws') {
+        return `Security: cannot index sensitive directory "${part}"`;
+      }
+    }
+
+    return null; // Path is safe
   }
 
   /**
@@ -95,6 +188,10 @@ export class CodeSeekerMcpServer {
     projectPath: string,
     clearExisting: boolean = true
   ): void {
+    // Create cancellation token
+    const cancellationToken = { cancelled: false };
+    this.cancellationTokens.set(projectId, cancellationToken);
+
     // Create job entry
     const job: IndexingJob = {
       projectId,
@@ -111,18 +208,38 @@ export class CodeSeekerMcpServer {
     };
     this.indexingJobs.set(projectId, job);
 
+    // Release mutex once job is registered (actual indexing is tracked by job status)
+    this.indexingMutex.delete(projectId);
+
     // Start indexing in background (don't await)
-    this.runBackgroundIndexing(job, clearExisting).catch((error) => {
+    this.runBackgroundIndexing(job, clearExisting, cancellationToken).catch((error) => {
       job.status = 'failed';
       job.error = error instanceof Error ? error.message : String(error);
       job.completedAt = new Date();
+      this.cancellationTokens.delete(projectId);
     });
+  }
+
+  /**
+   * Cancel a running indexing job
+   */
+  cancelIndexing(projectId: string): boolean {
+    const token = this.cancellationTokens.get(projectId);
+    if (token) {
+      token.cancelled = true;
+      return true;
+    }
+    return false;
   }
 
   /**
    * Run the actual indexing (called asynchronously)
    */
-  private async runBackgroundIndexing(job: IndexingJob, clearExisting: boolean): Promise<void> {
+  private async runBackgroundIndexing(
+    job: IndexingJob,
+    clearExisting: boolean,
+    cancellationToken: { cancelled: boolean }
+  ): Promise<void> {
     try {
       const storageManager = await getStorageManager();
       const vectorStore = storageManager.getVectorStore();
@@ -134,11 +251,24 @@ export class CodeSeekerMcpServer {
         await graphStore.deleteByProject(job.projectId);
       }
 
+      // Check for cancellation before starting
+      if (cancellationToken.cancelled) {
+        job.status = 'failed';
+        job.error = 'Indexing cancelled by user';
+        job.completedAt = new Date();
+        this.cancellationTokens.delete(job.projectId);
+        return;
+      }
+
       // Run indexing with progress tracking
       const result = await this.indexingService.indexProject(
         job.projectPath,
         job.projectId,
         (progress) => {
+          // Check for cancellation during indexing
+          if (cancellationToken.cancelled) {
+            throw new Error('Indexing cancelled by user');
+          }
           job.progress = {
             phase: progress.phase,
             filesProcessed: progress.filesProcessed,
@@ -159,17 +289,23 @@ export class CodeSeekerMcpServer {
         durationMs: result.durationMs,
       };
 
-      // Generate coding standards after indexing
-      try {
-        const generator = new CodingStandardsGenerator(vectorStore);
-        await generator.generateStandards(job.projectId, job.projectPath);
-      } catch {
-        // Non-fatal - standards generation is optional
+      // Generate coding standards after indexing (if not cancelled)
+      if (!cancellationToken.cancelled) {
+        try {
+          const generator = new CodingStandardsGenerator(vectorStore);
+          await generator.generateStandards(job.projectId, job.projectPath);
+        } catch {
+          // Non-fatal - standards generation is optional
+        }
       }
+
+      // Clean up cancellation token
+      this.cancellationTokens.delete(job.projectId);
     } catch (error) {
       job.status = 'failed';
       job.error = error instanceof Error ? error.message : String(error);
       job.completedAt = new Date();
+      this.cancellationTokens.delete(job.projectId);
     }
   }
 
@@ -1190,6 +1326,18 @@ export class CodeSeekerMcpServer {
             ? projectPath
             : path.resolve(projectPath);
 
+          // Security: validate path is safe to index
+          const pathError = this.validateProjectPath(absolutePath);
+          if (pathError) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: pathError,
+              }],
+              isError: true,
+            };
+          }
+
           if (!fs.existsSync(absolutePath)) {
             return {
               content: [{
@@ -1213,9 +1361,24 @@ export class CodeSeekerMcpServer {
           const projectName = name || path.basename(absolutePath);
           const projectId = this.generateProjectId(absolutePath);
 
-          // Check if already indexing
+          // Mutex: prevent concurrent indexing of same project (race condition protection)
+          if (this.indexingMutex.has(projectId)) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  status: 'already_indexing',
+                  project_name: projectName,
+                  project_path: absolutePath,
+                  message: 'Indexing request already being processed. Please wait.',
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Check if already indexing (from job status)
           const existingJob = this.getIndexingStatus(projectId);
-          if (existingJob && existingJob.status === 'running') {
+          if (existingJob?.status === 'running') {
             return {
               content: [{
                 type: 'text' as const,
@@ -1229,6 +1392,9 @@ export class CodeSeekerMcpServer {
               }],
             };
           }
+
+          // Acquire mutex before starting
+          this.indexingMutex.add(projectId);
 
           // Get storage and create project entry
           const storageManager = await getStorageManager();
@@ -1377,7 +1543,7 @@ export class CodeSeekerMcpServer {
           if (full_reindex) {
             // Check if already indexing
             const existingJob = this.getIndexingStatus(found.id);
-            if (existingJob && existingJob.status === 'running') {
+            if (existingJob?.status === 'running') {
               return {
                 content: [{
                   type: 'text' as const,

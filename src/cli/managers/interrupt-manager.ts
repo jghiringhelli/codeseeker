@@ -38,9 +38,9 @@ export class InterruptManager extends EventEmitter {
     // Enable keypress events
     if (process.stdin.setRawMode) {
       this.keyPressListener = (str: string, key: any) => {
-        if (key && key.name === 'escape') {
+        if (key?.name === 'escape') {
           this.handleEscapeKey();
-        } else if (key && key.ctrl && key.name === 'c') {
+        } else if (key?.ctrl && key.name === 'c') {
           this.handleCtrlC();
         }
       };

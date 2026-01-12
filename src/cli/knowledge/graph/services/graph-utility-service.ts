@@ -51,7 +51,7 @@ export class GraphUtilityService implements IGraphUtilityService {
     if (nodes.length < 2) return 1.0;
 
     let totalConnections = 0;
-    let possibleConnections = nodes.length * (nodes.length - 1) / 2;
+    const possibleConnections = nodes.length * (nodes.length - 1) / 2;
 
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
@@ -103,7 +103,7 @@ export class GraphUtilityService implements IGraphUtilityService {
     const stack: string[] = [startNode];
 
     while (stack.length > 0) {
-      const nodeId = stack.pop()!;
+      const nodeId = stack.pop();
       if (visited.has(nodeId)) continue;
 
       visited.add(nodeId);

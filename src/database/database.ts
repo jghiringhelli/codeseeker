@@ -134,7 +134,7 @@ export class Database extends EventEmitter {
             ...this.parseInsertValues(sql, params)
         };
 
-        this.data.get(tableName)!.push(record);
+        this.data.get(tableName).push(record);
         await this.saveData();
 
         return { rows: [record], rowCount: 1 };

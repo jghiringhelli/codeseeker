@@ -279,7 +279,7 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
     // Extract properties (simplified - looks for assignments)
     for (const assignmentNode of assignmentNodes) {
       const leftNode = assignmentNode.childForFieldName('left');
-      if (leftNode && leftNode.type === 'identifier') {
+      if (leftNode?.type === 'identifier') {
         classInfo.properties.push(leftNode.text);
       }
     }

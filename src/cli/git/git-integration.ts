@@ -48,77 +48,77 @@ export class GitIntegration {
   // === GIT OPERATIONS DELEGATION ===
 
   async getCurrentCommit(): Promise<GitCommitInfo | null> {
-    return await this.gitOps!.getCurrentCommit();
+    return await this.gitOps.getCurrentCommit();
   }
 
   async getCommitsSince(since: string): Promise<GitCommitInfo[]> {
-    return await this.gitOps!.getCommitsSince(since);
+    return await this.gitOps.getCommitsSince(since);
   }
 
   async getDiffBetweenCommits(from: string, to: string = 'HEAD'): Promise<GitDiffResult[]> {
-    return await this.gitOps!.getDiffBetweenCommits(from, to);
+    return await this.gitOps.getDiffBetweenCommits(from, to);
   }
 
   async getWorkingDirectoryDiff(projectPath: string): Promise<GitDiffResult[]> {
-    return await this.gitOps!.getWorkingDirectoryDiff(projectPath);
+    return await this.gitOps.getWorkingDirectoryDiff(projectPath);
   }
 
   async getStagedFiles(projectPath: string): Promise<string[]> {
-    return await this.gitOps!.getStagedFiles(projectPath);
+    return await this.gitOps.getStagedFiles(projectPath);
   }
 
   async isGitRepository(): Promise<boolean> {
-    return await this.gitOps!.isGitRepository();
+    return await this.gitOps.isGitRepository();
   }
 
   // === GIT ANALYSIS DELEGATION ===
 
   async analyzeChangeSignificance(diff: GitDiffResult[]): Promise<ChangeSignificance> {
-    return await this.gitAnalysis!.analyzeChangeSignificance(diff);
+    return await this.gitAnalysis.analyzeChangeSignificance(diff);
   }
 
   async analyzeCommitRange(projectPath: string, from: string, to: string): Promise<any> {
-    return await this.gitAnalysis!.analyzeCommitRange(projectPath, from, to);
+    return await this.gitAnalysis.analyzeCommitRange(projectPath, from, to);
   }
 
   async compilesSuccessfully(): Promise<boolean> {
-    return await this.gitAnalysis!.compilesSuccessfully();
+    return await this.gitAnalysis.compilesSuccessfully();
   }
 
   // === GIT DATABASE DELEGATION ===
 
   async recordCommit(commit: GitCommitInfo, significance: ChangeSignificance, autoCommitted: boolean = false): Promise<void> {
-    return await this.gitDatabase!.recordCommit(commit, significance, autoCommitted);
+    return await this.gitDatabase.recordCommit(commit, significance, autoCommitted);
   }
 
   async updateDatabaseFromGitHistory(): Promise<void> {
-    return await this.gitDatabase!.updateDatabaseFromGitHistory();
+    return await this.gitDatabase.updateDatabaseFromGitHistory();
   }
 
   async getCommitHistory(limit: number = 20): Promise<CommitAnalysis[]> {
-    return await this.gitDatabase!.getCommitHistory(limit);
+    return await this.gitDatabase.getCommitHistory(limit);
   }
 
   async getIntegrationStatus(projectPath: string): Promise<any> {
-    return await this.gitDatabase!.getIntegrationStatus(projectPath);
+    return await this.gitDatabase.getIntegrationStatus(projectPath);
   }
 
   // === GIT AUTO-COMMIT DELEGATION ===
 
   async performAutoCommit(significance: ChangeSignificance): Promise<boolean> {
-    return await this.gitAutoCommit!.performAutoCommit(significance);
+    return await this.gitAutoCommit.performAutoCommit(significance);
   }
 
   async configureAutoCommit(projectPath: string, rules: Partial<AutoCommitRules>): Promise<void> {
-    return await this.gitAutoCommit!.configureAutoCommit(projectPath, rules);
+    return await this.gitAutoCommit.configureAutoCommit(projectPath, rules);
   }
 
   async startAutoCommitWatcher(): Promise<void> {
-    return await this.gitAutoCommit!.startAutoCommitWatcher();
+    return await this.gitAutoCommit.startAutoCommitWatcher();
   }
 
   async stopAutoCommitWatcher(): Promise<void> {
-    return await this.gitAutoCommit!.stopAutoCommitWatcher();
+    return await this.gitAutoCommit.stopAutoCommitWatcher();
   }
 
   // === CONVENIENCE METHODS ===

@@ -86,7 +86,7 @@ class ClaudeCodeIntegration {
       this.logger.info('🤖 Executing Claude Code with centralized command processor');
 
       // Process prompt (handle large prompts)
-      const promptResult = await this.promptService!.processLargePrompt(
+      const promptResult = await this.promptService.processLargePrompt(
         prompt,
         options.projectPath || '.',
         prompt
@@ -101,7 +101,7 @@ class ClaudeCodeIntegration {
       }
 
       // Execute using Claude Code
-      const response = await this.executionService!.executeClaudeCode(
+      const response = await this.executionService.executeClaudeCode(
         promptResult.finalPrompt,
         context,
         options
@@ -128,7 +128,7 @@ class ClaudeCodeIntegration {
    */
   async analyzeProject(projectPath: string, resumeToken?: string): Promise<AnalysisResult> {
     await this.ensureInitialized();
-    return this.analysisService!.analyzeProject(projectPath, resumeToken);
+    return this.analysisService.analyzeProject(projectPath, resumeToken);
   }
 
   /**
@@ -140,7 +140,7 @@ class ClaudeCodeIntegration {
     options: ClaudeCodeOptions = {}
   ): Promise<ClaudeCodeResponse> {
     await this.ensureInitialized();
-    return this.requestProcessor!.processRequest(userRequest, projectPath, options);
+    return this.requestProcessor.processRequest(userRequest, projectPath, options);
   }
 
   /**
@@ -148,23 +148,23 @@ class ClaudeCodeIntegration {
    */
   async buildProjectContext(projectPath: string): Promise<ProjectContext> {
     await this.ensureInitialized();
-    return this.contextBuilder!.buildProjectContext(projectPath);
+    return this.contextBuilder.buildProjectContext(projectPath);
   }
 
   // Session Management Operations (delegated to SessionManagementService)
   async getSessionForProject(projectPath: string): Promise<string> {
     await this.ensureInitialized();
-    return this.sessionManager!.getSessionForProject(projectPath);
+    return this.sessionManager.getSessionForProject(projectPath);
   }
 
   async startNewSession(projectPath: string): Promise<string> {
     await this.ensureInitialized();
-    return this.sessionManager!.startNewSession(projectPath);
+    return this.sessionManager.startNewSession(projectPath);
   }
 
   async endSession(sessionId: string): Promise<void> {
     await this.ensureInitialized();
-    return this.sessionManager!.endSession(sessionId);
+    return this.sessionManager.endSession(sessionId);
   }
 
   // Advanced Operations
@@ -184,12 +184,12 @@ class ClaudeCodeIntegration {
   // Analysis Operations (delegated to ProjectAnalysisService)
   async extractUseCases(projectPath: string, context: string): Promise<AnalysisResult['useCases']> {
     await this.ensureInitialized();
-    return this.analysisService!.extractUseCases(projectPath, context);
+    return this.analysisService.extractUseCases(projectPath, context);
   }
 
   async assessCodeQuality(projectPath: string, context: string): Promise<AnalysisResult['codeQuality']> {
     await this.ensureInitialized();
-    return this.analysisService!.assessCodeQuality(projectPath, context);
+    return this.analysisService.assessCodeQuality(projectPath, context);
   }
 
   async detectUserIntentSimple(query: string): Promise<{
@@ -234,7 +234,7 @@ class ClaudeCodeIntegration {
     originalRequest: string
   ): Promise<any> {
     await this.ensureInitialized();
-    return this.promptService!.processLargePrompt(prompt, projectPath, originalRequest);
+    return this.promptService.processLargePrompt(prompt, projectPath, originalRequest);
   }
 
   validatePromptSize(prompt: string): { valid: boolean; size: number; warning?: string } {
@@ -262,7 +262,7 @@ class ClaudeCodeIntegration {
     if (!this.initialized) return;
 
     try {
-      await this.sessionManager!.cleanupExpiredSessions();
+      await this.sessionManager.cleanupExpiredSessions();
       await this.dbConnections.close();
       this.initialized = false;
       this.logger.debug('🔗 Claude Code integration closed');
@@ -323,11 +323,11 @@ class ClaudeCodeIntegration {
   }
 
   validateRequest(request: string): { valid: boolean; error?: string } {
-    return this.requestProcessor!.validateRequest(request);
+    return this.requestProcessor.validateRequest(request);
   }
 
   sanitizeInput(input: string): string {
-    return this.requestProcessor!.sanitizeInput(input);
+    return this.requestProcessor.sanitizeInput(input);
   }
 }
 

@@ -46,8 +46,8 @@ export class SemanticAnalyzer {
 
     try {
       // 1. Discover and load files
-      const files = await this.fileDiscovery!.discoverFiles();
-      const fileContents = await this.fileDiscovery!.loadFileContents(files);
+      const files = await this.fileDiscovery.discoverFiles();
+      const fileContents = await this.fileDiscovery.loadFileContents(files);
 
       let totalNodes = 0;
       let totalTriads = 0;
@@ -55,7 +55,7 @@ export class SemanticAnalyzer {
 
       // 2. Analyze each file
       for (const [filePath, content] of fileContents) {
-        const analysis = await this.astAnalysis!.analyzeFile(filePath, content);
+        const analysis = await this.astAnalysis.analyzeFile(filePath, content);
         const nodes = await this.createNodesFromAnalysis(analysis, filePath);
 
         allNodes.push(...nodes);
@@ -68,7 +68,7 @@ export class SemanticAnalyzer {
 
       // 3. Detect semantic similarities
       if (this.config.enableSemanticSimilarity) {
-        const similarities = await this.patternDetection!.detectSemanticSimilarities(allNodes);
+        const similarities = await this.patternDetection.detectSemanticSimilarities(allNodes);
         totalTriads += similarities.length;
 
         // Add similarities to knowledge graph
@@ -81,7 +81,7 @@ export class SemanticAnalyzer {
       let patterns: SemanticPattern[] = [];
       if (this.config.enablePatternDetection) {
         const allTriads = await this.knowledgeGraph.queryTriads({});
-        patterns = await this.patternDetection!.detectSemanticPatterns(allNodes, allTriads);
+        patterns = await this.patternDetection.detectSemanticPatterns(allNodes, allTriads);
 
         // Add pattern nodes and relationships to graph
         for (const pattern of patterns) {

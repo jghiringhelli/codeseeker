@@ -213,7 +213,7 @@ export class ProjectIdentityService {
    * Convert Project interface to ProjectIdentity
    */
   private projectToIdentity(project: Project, overridePath?: string): ProjectIdentity {
-    const metadata = (project.metadata || {}) as Record<string, unknown>;
+    const metadata = (project.metadata || {});
     return {
       id: project.id,
       projectName: project.name,
@@ -240,7 +240,7 @@ export class ProjectIdentityService {
         return false;
       }
 
-      const metadata = (existing.metadata || {}) as Record<string, unknown>;
+      const metadata = (existing.metadata || {});
       const aliases = (metadata.aliases as string[]) || [];
       aliases.push(oldPath);
 

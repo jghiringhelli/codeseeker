@@ -78,21 +78,21 @@ export class GraphQueryManager implements IGraphQueryManager {
     // Apply confidence filter
     if (query.confidence !== undefined) {
       candidateNodes = candidateNodes.filter(node =>
-        (node.metadata?.confidence ?? 1.0) >= query.confidence!
+        (node.metadata?.confidence ?? 1.0) >= query.confidence
       );
     }
 
     // Apply metadata filters
     if (query.metadata) {
       candidateNodes = candidateNodes.filter(node =>
-        this.matchesMetadata(node.metadata, query.metadata!)
+        this.matchesMetadata(node.metadata, query.metadata)
       );
     }
 
     // Apply name filter
     if (query.nodes?.names) {
       candidateNodes = candidateNodes.filter(node =>
-        query.nodes!.names!.some(name =>
+        query.nodes.names.some(name =>
           node.name?.includes(name) || node.metadata?.name?.includes(name)
         )
       );
@@ -131,7 +131,7 @@ export class GraphQueryManager implements IGraphQueryManager {
     // Apply confidence filter
     if (query.confidence !== undefined) {
       candidateTriads = candidateTriads.filter(triad =>
-        (triad.confidence ?? 1.0) >= query.confidence!
+        (triad.confidence ?? 1.0) >= query.confidence
       );
     }
 
@@ -149,14 +149,14 @@ export class GraphQueryManager implements IGraphQueryManager {
   findNodesByType(type: NodeType, stateManager: IGraphStateManager): KnowledgeNode[] {
     const nodeIds = stateManager.getNodeIndex().get(type) || new Set();
     return Array.from(nodeIds)
-      .map(id => stateManager.getNodes().get(id)!)
+      .map(id => stateManager.getNodes().get(id))
       .filter(Boolean);
   }
 
   findTriadsByRelation(relation: RelationType, stateManager: IGraphStateManager): KnowledgeTriad[] {
     const triadIds = stateManager.getRelationIndex().get(relation) || new Set();
     return Array.from(triadIds)
-      .map(id => stateManager.getTriads().get(id)!)
+      .map(id => stateManager.getTriads().get(id))
       .filter(Boolean);
   }
 
@@ -201,7 +201,7 @@ export class GraphQueryManager implements IGraphQueryManager {
     const result: string[] = [];
 
     while (queue.length > 0) {
-      const { nodeId, degree } = queue.shift()!;
+      const { nodeId, degree } = queue.shift();
 
       if (visited.has(nodeId) || degree > degrees) continue;
 
@@ -233,7 +233,7 @@ export class GraphQueryManager implements IGraphQueryManager {
     const queue: { nodeId: string; path: string[] }[] = [{ nodeId: startNodeId, path: [startNodeId] }];
 
     while (queue.length > 0) {
-      const { nodeId, path } = queue.shift()!;
+      const { nodeId, path } = queue.shift();
 
       if (visited.has(nodeId)) continue;
       visited.add(nodeId);

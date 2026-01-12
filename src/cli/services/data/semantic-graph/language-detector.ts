@@ -168,7 +168,7 @@ export class LanguageDetector {
           languageStats.set(language.name, { count: 0, extensions: new Set() });
         }
         
-        const stats = languageStats.get(language.name)!;
+        const stats = languageStats.get(language.name);
         stats.count++;
         stats.extensions.add(ext);
       }

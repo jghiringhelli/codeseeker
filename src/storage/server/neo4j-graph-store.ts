@@ -262,7 +262,7 @@ export class Neo4jGraphStore implements IGraphStore {
     const session = this.driver.session({ database: this.database });
     try {
       let query: string;
-      let params: Record<string, string> = { nodeId };
+      const params: Record<string, string> = { nodeId };
 
       if (edgeType) {
         const relType = edgeType.toUpperCase();

@@ -51,7 +51,7 @@ export class CodeRelationshipParser {
    */
   async parseFile(filePath: string): Promise<ParsedFile> {
     const relativePath = path.relative(process.cwd(), filePath);
-    return await this.fileParsingService!.parseCodeFile(filePath, relativePath);
+    return await this.fileParsingService.parseCodeFile(filePath, relativePath);
   }
 
   /**
@@ -62,19 +62,19 @@ export class CodeRelationshipParser {
 
     try {
       // Step 1: Parse all code files and analyze relationships
-      const structure = await this.projectStructureService!.parseProjectStructure(projectPath);
+      const structure = await this.projectStructureService.parseProjectStructure(projectPath);
 
       // Step 2: Create nodes in Neo4j
       this.logger.info('📊 Creating graph nodes...');
-      const nodeIdMap = await this.graphPopulationService!.createGraphNodes(structure, projectId);
+      const nodeIdMap = await this.graphPopulationService.createGraphNodes(structure, projectId);
 
       // Step 3: Create relationships in Neo4j
       this.logger.info('🔗 Creating graph relationships...');
-      await this.graphPopulationService!.createGraphRelationships(structure, nodeIdMap, projectId);
+      await this.graphPopulationService.createGraphRelationships(structure, nodeIdMap, projectId);
 
       // Step 4: Extract business concepts
       this.logger.info('🧠 Extracting business concepts...');
-      await this.graphPopulationService!.extractBusinessConcepts(structure, projectId);
+      await this.graphPopulationService.extractBusinessConcepts(structure, projectId);
 
       // Step 5: Generate project summary
       this.generateProjectSummary(structure, projectId);
@@ -94,7 +94,7 @@ export class CodeRelationshipParser {
     this.logger.info(`📋 Analyzing project structure: ${projectPath}`);
 
     try {
-      const structure = await this.projectStructureService!.parseProjectStructure(projectPath);
+      const structure = await this.projectStructureService.parseProjectStructure(projectPath);
 
       // Generate analysis report
       this.logger.info('📊 Project Analysis Summary:');
@@ -134,7 +134,7 @@ export class CodeRelationshipParser {
   } {
     const languageStats = this.calculateLanguageStatistics(structure);
     const complexityStats = this.calculateComplexityStatistics(structure);
-    const architecturalPatterns = this.projectStructureService!.analyzeArchitecturalPatterns(structure);
+    const architecturalPatterns = this.projectStructureService.analyzeArchitecturalPatterns(structure);
 
     const classCount = structure.files.reduce((sum, file) => sum + file.classes.length, 0);
     const functionCount = structure.files.reduce((sum, file) => sum + file.functions.length, 0);

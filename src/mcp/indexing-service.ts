@@ -104,6 +104,31 @@ export class IndexingService {
     'Exec', 'DerivedData', 'Intermediate', 'Saved', 'Binaries'
   ];
 
+  // Sensitive files to never index (security)
+  private readonly SENSITIVE_FILE_PATTERNS = [
+    // Environment and secrets
+    '.env', '.env.local', '.env.development', '.env.production', '.env.test',
+    '.env.*',
+    // Credentials and keys
+    'credentials.json', 'credentials.yaml', 'credentials.yml',
+    'secrets.json', 'secrets.yaml', 'secrets.yml',
+    '*.pem', '*.key', '*.p12', '*.pfx', '*.jks',
+    'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
+    '*.keystore',
+    // Auth tokens
+    '.npmrc', '.pypirc', '.docker/config.json',
+    'token.json', 'tokens.json',
+    // Database
+    '*.sqlite', '*.db',
+    // AWS/Cloud credentials
+    'aws_credentials', '.aws/credentials',
+    // Google Cloud
+    '*-service-account.json', '*-credentials.json',
+  ];
+
+  // Maximum file size to index (5MB) - skip larger files
+  private readonly MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
   constructor() {
     this.embeddingService = new EmbeddingService({
       provider: 'xenova',
@@ -534,6 +559,45 @@ export class IndexingService {
   }
 
   /**
+   * Check if a file matches sensitive file patterns (should never be indexed)
+   */
+  private isSensitiveFile(filePath: string): boolean {
+    const fileName = path.basename(filePath).toLowerCase();
+    const normalizedPath = filePath.replace(/\\/g, '/').toLowerCase();
+
+    for (const pattern of this.SENSITIVE_FILE_PATTERNS) {
+      const normalizedPattern = pattern.toLowerCase();
+
+      // Exact filename match
+      if (fileName === normalizedPattern) {
+        return true;
+      }
+
+      // Glob pattern match
+      if (normalizedPattern.includes('*')) {
+        // Convert glob to regex
+        const regexPattern = normalizedPattern
+          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '.*');
+
+        try {
+          const regex = new RegExp(`(^|/)${regexPattern}$`, 'i');
+          if (regex.test(normalizedPath) || regex.test(fileName)) {
+            return true;
+          }
+        } catch {
+          // Fallback to simple check
+          if (fileName.includes(normalizedPattern.replace(/\*/g, ''))) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Scan for indexable files in a directory
    * Reports progress during scanning via callback
    * Respects user-defined exclusions from .codeseeker/exclusions.json
@@ -573,6 +637,14 @@ export class IndexingService {
       const pathParts = file.replace(/\\/g, '/').toLowerCase().split('/');
       return !pathParts.some(part => excludedDirSet.has(part));
     });
+
+    // Filter out sensitive files (security)
+    const beforeSensitiveCount = filteredFiles.length;
+    filteredFiles = filteredFiles.filter(file => !this.isSensitiveFile(file));
+    const sensitiveExcluded = beforeSensitiveCount - filteredFiles.length;
+    if (sensitiveExcluded > 0) {
+      this.logger.debug(`Security: excluded ${sensitiveExcluded} sensitive files (.env, credentials, keys, etc.)`);
+    }
 
     // Apply user-defined exclusions
     if (userExclusions.length > 0) {
@@ -624,6 +696,17 @@ export class IndexingService {
     projectId: string,
     vectorStore: IVectorStore
   ): Promise<number> {
+    // Check file size before reading (skip files > 5MB)
+    try {
+      const stats = fs.statSync(absolutePath);
+      if (stats.size > this.MAX_FILE_SIZE_BYTES) {
+        this.logger.debug(`Skipping large file (${(stats.size / 1024 / 1024).toFixed(1)}MB): ${relativePath}`);
+        return 0;
+      }
+    } catch {
+      // If stat fails, try to read anyway
+    }
+
     const content = fs.readFileSync(absolutePath, 'utf-8');
 
     // Skip very small files

@@ -75,7 +75,7 @@ export class OfflineFirstCache {
       // Level 1: Memory cache (fastest)
       if (this.memoryCache.has(cacheKey)) {
         this.stats.memoryHits++;
-        return this.memoryCache.get(cacheKey)!;
+        return this.memoryCache.get(cacheKey);
       }
 
       // Level 2: Redis cache (fast, if available)

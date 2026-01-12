@@ -515,8 +515,8 @@ export class GraphBuilder {
       for (let j = i + 1; j < fileList.length; j++) {
         const file1 = fileList[i];
         const file2 = fileList[j];
-        const node1 = this.fileNodes.get(file1)!;
-        const node2 = this.fileNodes.get(file2)!;
+        const node1 = this.fileNodes.get(file1);
+        const node2 = this.fileNodes.get(file2);
         
         const similarity = this.calculateSemanticSimilarity(node1, node2);
         if (similarity > 0.7) {

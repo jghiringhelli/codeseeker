@@ -133,7 +133,7 @@ export class CodingStandardsGenerator {
   async getStandards(projectId: string, projectPath: string): Promise<CodingStandards | null> {
     // Check cache first
     if (this.standardsCache.has(projectId)) {
-      return this.standardsCache.get(projectId)!;
+      return this.standardsCache.get(projectId);
     }
 
     // Load from file

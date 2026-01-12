@@ -64,7 +64,7 @@ export class RelationshipBuilder {
 
       if (resolvedPath && allFileNodes.has(resolvedPath)) {
         // Internal file import - create relationship
-        const targetNodeId = allFileNodes.get(resolvedPath)!;
+        const targetNodeId = allFileNodes.get(resolvedPath);
 
         await this.semanticGraph.addRelationship(
           fileNodeId,
