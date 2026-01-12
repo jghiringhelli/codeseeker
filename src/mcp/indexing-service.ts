@@ -184,7 +184,8 @@ export class IndexingService {
       // Apply file limit
       const filesToIndex = files.slice(0, this.FILE_LIMITS.maxFiles);
 
-      for (const file of filesToIndex) {
+      for (let i = 0; i < filesToIndex.length; i++) {
+        const file = filesToIndex[i];
         try {
           const chunksCreated = await this.indexFile(
             path.join(projectPath, file),
@@ -195,6 +196,12 @@ export class IndexingService {
           progress.filesProcessed++;
           progress.chunksCreated += chunksCreated;
           onProgress?.(progress);
+
+          // Yield to event loop every 10 files to prevent connection timeouts
+          // This allows the MCP transport to process heartbeats and signals
+          if (i % 10 === 0) {
+            await new Promise(resolve => setImmediate(resolve));
+          }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           errors.push(`Failed to index ${file}: ${message}`);
