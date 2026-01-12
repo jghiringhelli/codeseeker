@@ -135,6 +135,9 @@ export interface IGraphStore {
   /** Delete all nodes/edges for a project */
   deleteByProject(projectId: string): Promise<number>;
 
+  /** Delete all nodes/edges for specific files in a project (incremental deletion) */
+  deleteByFilePaths(projectId: string, filePaths: string[]): Promise<number>;
+
   /** Get node count for a project */
   countNodes(projectId: string): Promise<number>;
 

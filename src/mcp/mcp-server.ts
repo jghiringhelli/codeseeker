@@ -31,6 +31,7 @@ import { SemanticSearchOrchestrator } from '../cli/commands/services/semantic-se
 import { IndexingService } from './indexing-service';
 import { CodingStandardsGenerator } from '../cli/services/analysis/coding-standards-generator';
 import { LanguageSupportService } from '../cli/services/project/language-support-service';
+import { getQueryCacheService, QueryCacheService } from './query-cache-service';
 
 // Version from package.json
 const VERSION = '2.0.0';
@@ -69,6 +70,7 @@ export class CodeSeekerMcpServer {
   private searchOrchestrator: SemanticSearchOrchestrator;
   private indexingService: IndexingService;
   private languageSupportService: LanguageSupportService;
+  private queryCache: QueryCacheService;
 
   // Background indexing state
   private indexingJobs: Map<string, IndexingJob> = new Map();
@@ -102,6 +104,7 @@ export class CodeSeekerMcpServer {
     this.searchOrchestrator = new SemanticSearchOrchestrator();
     this.indexingService = new IndexingService();
     this.languageSupportService = new LanguageSupportService();
+    this.queryCache = getQueryCacheService();
     this.registerTools();
 
     // Start cleanup timer for old indexing jobs
@@ -299,6 +302,13 @@ export class CodeSeekerMcpServer {
         }
       }
 
+      // Invalidate query cache for this project (full reindex)
+      try {
+        await this.queryCache.invalidateProject(job.projectId);
+      } catch {
+        // Non-fatal - cache invalidation is optional
+      }
+
       // Clean up cancellation token
       this.cancellationTokens.delete(job.projectId);
     } catch (error) {
@@ -463,8 +473,29 @@ export class CodeSeekerMcpServer {
             }
           }
 
-          // Perform search
-          const results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
+          // Check cache first (only for 'full' mode - exists mode is fast enough)
+          let results: any[];
+          let fromCache = false;
+          const cacheProjectId = projectRecord?.id || this.generateProjectId(projectPath);
+
+          if (mode === 'full') {
+            const cached = await this.queryCache.get(query, cacheProjectId, search_type);
+            if (cached) {
+              results = cached.results;
+              fromCache = true;
+            } else {
+              // Perform actual search
+              results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
+              // Cache results for future queries
+              if (results.length > 0) {
+                await this.queryCache.set(query, cacheProjectId, results, search_type);
+              }
+            }
+          } else {
+            // exists mode - always search fresh (it's fast)
+            results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
+          }
+
           const limitedResults = results.slice(0, mode === 'exists' ? 5 : limit);
 
           if (limitedResults.length === 0) {
@@ -546,6 +577,11 @@ export class CodeSeekerMcpServer {
             results: formattedResults,
           };
 
+          // Add cache indicator
+          if (fromCache) {
+            response.cached = true;
+          }
+
           // Add truncation warning when results were limited
           if (wasLimited) {
             response.truncated = true;
@@ -561,11 +597,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Search failed: ${message}`,
+              text: this.formatErrorMessage('Search', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -791,11 +826,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Find and read failed: ${message}`,
+              text: this.formatErrorMessage('Find and read', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -918,11 +952,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to get file context: ${message}`,
+              text: this.formatErrorMessage('Get file context', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -1206,11 +1239,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to get code relationships: ${message}`,
+              text: this.formatErrorMessage('Get code relationships', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -1286,11 +1318,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to list projects: ${message}`,
+              text: this.formatErrorMessage('List projects', error instanceof Error ? error : String(error)),
             }],
             isError: true,
           };
@@ -1639,6 +1670,15 @@ export class CodeSeekerMcpServer {
             console.error('Failed to update coding standards:', error);
           }
 
+          // Invalidate query cache for this project (files changed)
+          let cacheInvalidated = 0;
+          try {
+            cacheInvalidated = await this.queryCache.invalidateProject(found.id);
+          } catch (error) {
+            // Don't fail if cache invalidation fails
+            console.error('Failed to invalidate query cache:', error);
+          }
+
           const duration = Date.now() - startTime;
 
           return {
@@ -1653,6 +1693,7 @@ export class CodeSeekerMcpServer {
                 files_skipped: filesSkipped > 0 ? filesSkipped : undefined,
                 chunks_created: chunksCreated,
                 chunks_deleted: chunksDeleted,
+                cache_invalidated: cacheInvalidated > 0 ? cacheInvalidated : undefined,
                 duration_ms: duration,
                 note: filesSkipped > 0 ? `${filesSkipped} file(s) unchanged (skipped via mtime/hash check)` : undefined,
                 errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
@@ -1661,11 +1702,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to process file changes: ${message}`,
+              text: this.formatErrorMessage('Process file changes', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -1757,11 +1797,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to get coding standards: ${message}`,
+              text: this.formatErrorMessage('Get coding standards', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -1904,11 +1943,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to manage language support: ${message}`,
+              text: this.formatErrorMessage('Manage language support', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -2147,11 +2185,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to manage index: ${message}`,
+              text: this.formatErrorMessage('Manage index exclusions', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -2212,6 +2249,71 @@ export class CodeSeekerMcpServer {
    */
   private generateProjectId(projectPath: string): string {
     return crypto.createHash('md5').update(projectPath).digest('hex');
+  }
+
+  /**
+   * Generate actionable error message based on error type
+   */
+  private formatErrorMessage(operation: string, error: Error | string, context?: { projectPath?: string }): string {
+    const message = error instanceof Error ? error.message : String(error);
+    const lowerMessage = message.toLowerCase();
+
+    // Common error patterns with actionable guidance
+    if (lowerMessage.includes('enoent') || lowerMessage.includes('not found') || lowerMessage.includes('no such file')) {
+      return `${operation} failed: File or directory not found.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Verify the path exists: ${context?.projectPath || 'the specified path'}\n` +
+        `• Check for typos in the path\n` +
+        `• Ensure you have read permissions`;
+    }
+
+    if (lowerMessage.includes('eacces') || lowerMessage.includes('permission denied')) {
+      return `${operation} failed: Permission denied.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Check file/folder permissions\n` +
+        `• Run with appropriate access rights\n` +
+        `• Avoid system-protected directories`;
+    }
+
+    if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) {
+      return `${operation} failed: Operation timed out.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Try again - the operation may complete on retry\n` +
+        `• For large projects, indexing runs in background - check status with projects()\n` +
+        `• Check network connectivity if using server storage mode`;
+    }
+
+    if (lowerMessage.includes('connection') || lowerMessage.includes('econnrefused') || lowerMessage.includes('network')) {
+      return `${operation} failed: Connection error.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Check if storage services are running (if using server mode)\n` +
+        `• Verify network connectivity\n` +
+        `• Consider switching to embedded mode for local development`;
+    }
+
+    if (lowerMessage.includes('not indexed') || lowerMessage.includes('no project')) {
+      const pathHint = context?.projectPath ? `index({path: "${context.projectPath}"})` : 'index({path: "/path/to/project"})';
+      return `${operation} failed: Project not indexed.\n\n` +
+        `ACTION REQUIRED:\n` +
+        `• First run: ${pathHint}\n` +
+        `• Then retry your search\n` +
+        `• Use projects() to see indexed projects`;
+    }
+
+    if (lowerMessage.includes('out of memory') || lowerMessage.includes('heap')) {
+      return `${operation} failed: Out of memory.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Try indexing fewer files at once\n` +
+        `• Use exclude() to skip large directories (e.g., node_modules, dist)\n` +
+        `• Increase Node.js memory: NODE_OPTIONS=--max-old-space-size=4096`;
+    }
+
+    // Default: include original message with generic guidance
+    return `${operation} failed: ${message}\n\n` +
+      `TROUBLESHOOTING:\n` +
+      `• Check the error message above for details\n` +
+      `• Use projects() to verify project status\n` +
+      `• Try sync({project: "...", full_reindex: true}) if index seems corrupted`;
   }
 
   /**

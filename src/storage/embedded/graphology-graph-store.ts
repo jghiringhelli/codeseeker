@@ -332,6 +332,51 @@ export class GraphologyGraphStore implements IGraphStore {
     return nodesToDelete.length;
   }
 
+  async deleteByFilePaths(projectId: string, filePaths: string[]): Promise<number> {
+    if (filePaths.length === 0) return 0;
+
+    // Create a set of normalized file paths for faster lookup
+    const filePathSet = new Set(filePaths.map(fp => fp.replace(/\\/g, '/')));
+
+    const nodesToDelete: string[] = [];
+
+    this.graph.forEachNode((nodeId, attributes) => {
+      // Only check nodes in this project
+      if (attributes.projectId !== projectId) return;
+
+      // Check if node's filePath matches any of the deleted files
+      const nodeFilePath = attributes.filePath?.replace(/\\/g, '/');
+      if (nodeFilePath && filePathSet.has(nodeFilePath)) {
+        nodesToDelete.push(nodeId);
+        return;
+      }
+
+      // Also check if node's relativePath property matches
+      const relPath = attributes.relativePath?.replace(/\\/g, '/');
+      if (relPath && filePathSet.has(relPath)) {
+        nodesToDelete.push(nodeId);
+        return;
+      }
+
+      // Check if node ID contains the file path (for file-* nodes)
+      for (const fp of filePaths) {
+        const normalizedFp = fp.replace(/[\/\\]/g, '-');
+        if (nodeId.includes(normalizedFp)) {
+          nodesToDelete.push(nodeId);
+          return;
+        }
+      }
+    });
+
+    // Delete nodes (this also removes connected edges automatically)
+    for (const nodeId of nodesToDelete) {
+      this.graph.dropNode(nodeId);
+    }
+
+    this.isDirty = true;
+    return nodesToDelete.length;
+  }
+
   async countNodes(projectId: string): Promise<number> {
     let count = 0;
     this.graph.forEachNode((_, attributes) => {
