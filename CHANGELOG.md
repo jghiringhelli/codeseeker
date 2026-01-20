@@ -5,6 +5,49 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-01-20
+
+### Added
+
+- **npm postinstall script**: Automatically configures AI assistant instruction files on package install
+  - Searches for user-level agent instruction files (~/.claude/CLAUDE.md, ~/.cursor/rules, etc.)
+  - Prompts for permission before modifying files (skips in CI/non-interactive mode)
+  - Falls back to suggesting `codeseeker init` if user declines
+  - Supports: Claude, Cursor, Copilot, Windsurf, Gemini, Grok, Cody, and more
+
+### Changed
+
+- **Renamed CodeMind → CodeSeeker** in all root documentation files
+  - CODESEEKER.md, CONTRIBUTING.md, SECURITY.md, PROMOTION.md
+  - deploy/scripts/README.md, deploy/kubernetes/README.md
+  - Environment variables now use `CODESEEKER_` prefix in docs
+
+### Fixed
+
+- Postinstall script handles non-interactive environments gracefully (CI/CD pipelines)
+
+## [1.7.0] - 2026-01-12
+
+### Added
+
+- **Query result caching**: Search results cached for 5 minutes using ICacheStore interface
+  - Works with both embedded (LRU-cache) and server (Redis) storage modes
+  - Cache automatically invalidated on file sync/index operations
+  - `fromCache` indicator in search responses
+
+- **Improved error messages**: All MCP tool errors now include actionable troubleshooting guidance
+  - Pattern-based detection for common issues (ENOENT, EACCES, timeout, connection, memory)
+  - Specific suggestions for each error type
+
+- **Encoding detection**: Safe file reading with automatic encoding detection
+  - UTF-8, UTF-16 LE/BE, BOM detection
+  - Binary file detection and skipping
+  - Fallback to latin1 for non-UTF-8 text files
+
+- **Graph incremental deletion**: `deleteByFilePaths()` method for surgical graph cleanup
+  - Deletes only nodes related to changed files (not entire project)
+  - Implemented in both embedded (Graphology) and server (Neo4j) modes
+
 ## [1.4.0] - 2026-01-10
 
 ### Breaking Changes
