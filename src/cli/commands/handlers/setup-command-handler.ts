@@ -1079,6 +1079,26 @@ After using Edit/Write tools, call:
 sync({changes: [{type: "modified", path: "path/to/file"}]})
 \`\`\`
 
+## Claude Code Best Practices (from 2000+ hours of expert usage)
+
+### Subagent Strategy for Complex Tasks
+- For multi-step or complex tasks, spawn subagents using the **main model** (not cheaper/smaller models) instead of cramming everything into one context
+- Pattern: "Orchestrator coordinates + focused subagents execute" >> "Single massive context"
+- Use subagents MORE than you think necessary, especially for large codebases
+- Each subagent gets fresh, focused context = better quality output
+
+### Context Hygiene - Prevent "Lost in the Middle"
+- Quality degrades as context grows - the "lost in the middle" problem is real
+- Use **double-escape (Esc Esc)** to time travel when context gets polluted with failed attempts
+- Compact strategically and intentionally, not automatically
+- When output quality drops, consider starting fresh rather than adding more context
+
+### Error Attribution Mindset
+- Issues in AI-generated code trace back to **prompting or context engineering**
+- When something fails, ask "what context was missing?" not "the AI is broken"
+- Log failures mentally: prompt → context → outcome. Patterns will emerge.
+- Better input = better output. Always.
+
 `;
 
   /**
