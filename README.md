@@ -12,20 +12,26 @@
 
 ## Installation (2 commands, 60 seconds)
 
-> **🚨 Important:** CodeSeeker is **NOT a VS Code extension**. It's an **MCP server** (Model Context Protocol) that works WITH AI assistants like Claude Code and GitHub Copilot. Don't look for it in the VS Code marketplace—install it via npm instead.
+> **🚨 Important:** CodeSeeker is **NOT a VS Code extension**. It's an **MCP server** (Model Context Protocol) that works WITH AI assistants like Claude Code and GitHub Copilot. Don't look for it in the VS Code marketplace—install it via package managers instead.
 
-### Fastest Install (Recommended)
+### Option 1: Package Managers (Recommended)
 
+**macOS/Linux (Homebrew):**
 ```bash
-# 1. Install globally
-npm install -g codeseeker
+brew install codeseeker
+codeseeker install --vscode      # or --cursor, --windsurf
+```
 
-# 2. Configure for your AI assistant
-codeseeker install --vscode      # VS Code (Claude Code & GitHub Copilot)
-# OR
-codeseeker install --cursor      # Cursor IDE
-# OR
-codeseeker install --windsurf    # Windsurf IDE
+**Windows (Chocolatey):**
+```powershell
+choco install codeseeker
+codeseeker install --vscode      # or --cursor, --windsurf
+```
+
+**Cross-platform (npm):**
+```bash
+npm install -g codeseeker
+codeseeker install --vscode      # or --cursor, --windsurf
 ```
 
 Restart your IDE. Done! CodeSeeker tools are now available to your AI assistant.
