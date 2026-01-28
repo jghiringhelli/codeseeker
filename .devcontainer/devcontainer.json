@@ -1,0 +1,27 @@
+{
+  "name": "Project with CodeSeeker",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+  },
+
+  "postCreateCommand": "npm install -g codeseeker && codeseeker install --vscode",
+
+  "postStartCommand": "echo '✓ CodeSeeker is ready! Ask your AI assistant: What CodeSeeker tools do you have?'",
+
+  "remoteUser": "node"
+}

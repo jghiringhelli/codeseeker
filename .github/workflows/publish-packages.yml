@@ -1,0 +1,125 @@
+name: Publish Packages
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew Formula
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for npm registry propagation
+        run: sleep 30
+
+      - name: Calculate SHA256
+        id: sha
+        run: |
+          VERSION=${{ github.event.release.tag_name }}
+          VERSION_NO_V=${VERSION#v}
+          echo "Calculating SHA256 for version $VERSION_NO_V"
+          SHA=$(curl -sL https://registry.npmjs.org/codeseeker/-/codeseeker-${VERSION_NO_V}.tgz | shasum -a 256 | cut -d ' ' -f 1)
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+          echo "SHA256: $SHA"
+
+      - name: Update Homebrew Formula
+        uses: mislav/bump-homebrew-formula-action@v3
+        with:
+          formula-name: codeseeker
+          homebrew-tap: jghiringhelli/homebrew-codeseeker
+          download-url: https://registry.npmjs.org/codeseeker/-/codeseeker-${{ github.event.release.tag_name }}.tgz
+          commit-message: |
+            codeseeker ${{ github.event.release.tag_name }}
+
+            Automated update via GitHub Actions
+        env:
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  publish-snap:
+    name: Publish to Snap Store
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update snapcraft.yaml version
+        run: |
+          VERSION=${{ github.event.release.tag_name }}
+          VERSION_NO_V=${VERSION#v}
+          sed -i "s/version: '.*'/version: '$VERSION_NO_V'/" snap/snapcraft.yaml
+          sed -i "s|source: https://registry.npmjs.org/codeseeker/-/codeseeker-.*\.tgz|source: https://registry.npmjs.org/codeseeker/-/codeseeker-${VERSION_NO_V}.tgz|" snap/snapcraft.yaml
+
+      - uses: snapcore/action-build@v1
+        id: snapcraft
+
+      - uses: snapcore/action-publish@v1
+        with:
+          snap: ${{ steps.snapcraft.outputs.snap }}
+          release: stable
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
+
+  publish-chocolatey:
+    name: Publish to Chocolatey
+    needs: publish-npm
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update Chocolatey Package Version
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.release.tag_name }}".TrimStart('v')
+          (Get-Content chocolatey/codeseeker.nuspec) -replace '<version>.*</version>', "<version>$version</version>" | Set-Content chocolatey/codeseeker.nuspec
+
+      - name: Pack Chocolatey Package
+        run: choco pack chocolatey/codeseeker.nuspec
+
+      - name: Publish to Chocolatey
+        run: |
+          choco apikey --key ${{ secrets.CHOCO_API_KEY }} --source https://push.chocolatey.org/
+          $version = "${{ github.event.release.tag_name }}".TrimStart('v')
+          choco push "codeseeker.$version.nupkg" --source https://push.chocolatey.org/
+        shell: pwsh
+
+  update-plugin-branch:
+    name: Update Plugin Branch
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update plugin branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout plugin || git checkout -b plugin
+          git merge master --no-edit
+          git push origin plugin

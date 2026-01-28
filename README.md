@@ -10,11 +10,27 @@
 
 > **⚠️ NOT A VS CODE EXTENSION:** CodeSeeker is installed via `npm`, not the VS Code marketplace. It's an MCP server that enhances AI assistants, not a standalone extension.
 
-## Installation (2 commands, 60 seconds)
+## Installation
 
-> **🚨 Important:** CodeSeeker is **NOT a VS Code extension**. It's an **MCP server** (Model Context Protocol) that works WITH AI assistants like Claude Code and GitHub Copilot. Don't look for it in the VS Code marketplace—install it via package managers instead.
+> **🚨 Important:** CodeSeeker is **NOT a VS Code extension**. It's an **MCP server** (Model Context Protocol) that works WITH AI assistants like Claude Code and GitHub Copilot. Don't look for it in the VS Code marketplace—install via the methods below.
 
-### Option 1: Package Managers (Recommended)
+### ⚡ One-Line Install (Easiest)
+
+Copy/paste ONE command - auto-detects your system and configures everything:
+
+**macOS/Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/jghiringhelli/codeseeker/master/scripts/install.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/jghiringhelli/codeseeker/master/scripts/install.ps1 | iex
+```
+
+Restart your IDE and you're done!
+
+### 📦 Package Managers (Advanced)
 
 **Linux (Snap) - All Distributions:**
 ```bash
@@ -40,9 +56,15 @@ npm install -g codeseeker
 codeseeker install --vscode      # or --cursor, --windsurf
 ```
 
-Restart your IDE. Done! CodeSeeker tools are now available to your AI assistant.
+### 🚀 No Install Required (npx)
 
-### Alternative: Claude Code Plugin
+Run without installing:
+```bash
+npx codeseeker init
+npx codeseeker -c "how does authentication work?"
+```
+
+### 🔌 Claude Code Plugin
 
 If you use Claude Code CLI, you can install as a plugin:
 
@@ -52,7 +74,21 @@ If you use Claude Code CLI, you can install as a plugin:
 
 This gives you auto-sync hooks and slash commands (`/codeseeker:init`, `/codeseeker:reindex`).
 
-### Verify Installation
+### ☁️ Devcontainer / GitHub Codespaces
+
+CodeSeeker auto-installs in devcontainers! Just add `.devcontainer/devcontainer.json`:
+
+```json
+{
+  "name": "My Project",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
+  "postCreateCommand": "npm install -g codeseeker && codeseeker install --vscode"
+}
+```
+
+Or use our pre-configured devcontainer (already included in this repo).
+
+### ✅ Verify Installation
 
 Ask your AI assistant: *"What CodeSeeker tools do you have?"*
 
