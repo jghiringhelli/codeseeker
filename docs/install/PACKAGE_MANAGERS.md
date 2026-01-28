@@ -1,6 +1,110 @@
 # Package Manager Setup Guide
 
-This guide explains how to publish CodeSeeker to Homebrew and Chocolatey package managers.
+This guide explains how to publish CodeSeeker to Snap, Homebrew, and Chocolatey package managers.
+
+## Snap (Linux - All Distributions)
+
+### Prerequisites
+
+- Snapcraft account (free): https://dashboard.snapcraft.io/
+- Ubuntu or Ubuntu VM for building (or use remote build service)
+- npm package published to npm registry
+
+### Why Snap?
+
+- ✅ **Universal**: Works on Ubuntu, Debian, Fedora, Arch, openSUSE, and more
+- ✅ **Single package**: One build works across all distributions
+- ✅ **Auto-updates**: Users get updates automatically
+- ✅ **Official**: Canonical-supported (Ubuntu/Linux official package system)
+
+### Publishing to Snap Store
+
+1. **Install snapcraft:**
+   ```bash
+   sudo snap install snapcraft --classic
+   ```
+
+2. **Create Snapcraft account:**
+   - Go to https://dashboard.snapcraft.io/
+   - Register/login with Ubuntu One account
+
+3. **Register snap name (first time only):**
+   ```bash
+   snapcraft login
+   snapcraft register codeseeker
+   ```
+
+4. **Build the snap:**
+   ```bash
+   cd snap
+   snapcraft
+   ```
+
+   This creates `codeseeker_1.7.1_amd64.snap`
+
+5. **Test locally before publishing:**
+   ```bash
+   sudo snap install codeseeker_1.7.1_amd64.snap --dangerous --classic
+   codeseeker --version
+   codeseeker install --vscode
+   sudo snap remove codeseeker
+   ```
+
+6. **Upload to Snap Store:**
+   ```bash
+   snapcraft upload codeseeker_1.7.1_amd64.snap
+   ```
+
+7. **Release to stable channel:**
+   ```bash
+   # Get revision number from upload output
+   snapcraft release codeseeker <revision> stable
+   ```
+
+### Using Remote Build (No Ubuntu VM Required)
+
+If you don't have Ubuntu locally:
+
+```bash
+cd snap
+snapcraft remote-build
+```
+
+This builds on Launchpad and uploads automatically.
+
+### Testing the Snap
+
+```bash
+# Install from stable channel
+sudo snap install codeseeker --classic
+
+# Verify
+codeseeker --version
+
+# Test install command
+codeseeker install --vscode
+
+# Uninstall
+sudo snap remove codeseeker
+```
+
+### Updating the Snap
+
+When releasing a new version:
+
+1. Update version in `snap/snapcraft.yaml`:
+   ```yaml
+   version: '1.7.2'
+   source: https://registry.npmjs.org/codeseeker/-/codeseeker-1.7.2.tgz
+   ```
+
+2. Build and upload:
+   ```bash
+   cd snap
+   snapcraft
+   snapcraft upload codeseeker_1.7.2_amd64.snap
+   snapcraft release codeseeker <revision> stable
+   ```
 
 ## Homebrew (macOS/Linux)
 
@@ -225,6 +329,20 @@ jobs:
         env:
           COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
+  publish-snap:
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: snapcore/action-build@v1
+        id: snapcraft
+      - uses: snapcore/action-publish@v1
+        with:
+          snap: ${{ steps.snapcraft.outputs.snap }}
+          release: stable
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
+
   publish-chocolatey:
     needs: publish-npm
     runs-on: windows-latest
@@ -244,6 +362,7 @@ Add these to your repository settings (Settings → Secrets → Actions):
 
 - `NPM_TOKEN`: npm authentication token (from npmjs.com)
 - `HOMEBREW_TAP_TOKEN`: GitHub personal access token with repo access
+- `SNAPCRAFT_TOKEN`: Snapcraft export token (from `snapcraft export-login`)
 - `CHOCO_API_KEY`: Chocolatey API key (from chocolatey.org)
 
 ## Version Bump Checklist
@@ -253,6 +372,7 @@ When releasing a new version (e.g., 1.7.2):
 - [ ] Update `package.json` version
 - [ ] Update `plugins/codeseeker/.claude-plugin/plugin.json` version
 - [ ] Update `plugins/codeseeker/version.json` version and releaseDate
+- [ ] Update `snap/snapcraft.yaml` version and source URL
 - [ ] Update `CHANGELOG.md`
 - [ ] Update `Formula/codeseeker.rb` version (SHA256 will be calculated after npm publish)
 - [ ] Update `chocolatey/codeseeker.nuspec` version
@@ -282,7 +402,15 @@ git commit -m "Update codeseeker to v1.7.2"
 git push origin main
 ```
 
-### 3. Chocolatey
+### 3. Snap
+```bash
+cd snap
+snapcraft
+snapcraft upload codeseeker_1.7.2_amd64.snap
+snapcraft release codeseeker <revision> stable
+```
+
+### 4. Chocolatey
 ```powershell
 cd chocolatey
 choco pack codeseeker.nuspec
@@ -293,7 +421,12 @@ choco push codeseeker.1.7.2.nupkg --source https://push.chocolatey.org/
 
 After successful publishing, users can install via:
 
-**macOS/Linux:**
+**Linux (All Distributions):**
+```bash
+sudo snap install codeseeker --classic
+```
+
+**macOS/Linux (Homebrew):**
 ```bash
 brew install codeseeker
 # or: brew tap jghiringhelli/codeseeker && brew install codeseeker
@@ -304,7 +437,7 @@ brew install codeseeker
 choco install codeseeker
 ```
 
-**Cross-platform:**
+**Cross-platform (npm):**
 ```bash
 npm install -g codeseeker
 ```

@@ -16,6 +16,12 @@
 
 ### Option 1: Package Managers (Recommended)
 
+**Linux (Snap) - All Distributions:**
+```bash
+sudo snap install codeseeker --classic
+codeseeker install --vscode      # or --cursor, --windsurf
+```
+
 **macOS/Linux (Homebrew):**
 ```bash
 brew install codeseeker
