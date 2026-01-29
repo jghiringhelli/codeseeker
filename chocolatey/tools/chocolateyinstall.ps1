@@ -1,15 +1,17 @@
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 
 $packageName = 'codeseeker'
 $toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
 
-# Install via npm
+# Install via npm (suppress npm warnings that aren't errors)
 Write-Host "Installing CodeSeeker via npm..."
-& npm install -g codeseeker
-
-# Verify installation
+$npmOutput = & npm install -g codeseeker 2>&1
 $exitCode = $LASTEXITCODE
+
+# Only fail on actual errors (exit code != 0), not deprecation warnings
 if ($exitCode -ne 0) {
+  Write-Host "npm output:" -ForegroundColor Red
+  Write-Host $npmOutput
   throw "npm install failed with exit code $exitCode"
 }
 
