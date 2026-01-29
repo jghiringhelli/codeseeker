@@ -40,7 +40,7 @@ codeseeker install --vscode      # or --cursor, --windsurf
 
 **macOS/Linux (Homebrew):**
 ```bash
-brew install codeseeker
+brew install jghiringhelli/codeseeker/codeseeker
 codeseeker install --vscode      # or --cursor, --windsurf
 ```
 
