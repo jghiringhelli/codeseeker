@@ -41,7 +41,7 @@ install_codeseeker() {
   if command -v brew >/dev/null 2>&1; then
     echo "${GREEN}✓${RESET} Found Homebrew package manager"
     echo "${BLUE}→${RESET} Installing via Homebrew..."
-    brew install codeseeker
+    brew install jghiringhelli/codeseeker/codeseeker
     return 0
   fi
 

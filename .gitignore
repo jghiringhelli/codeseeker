@@ -112,3 +112,4 @@ tests/fixtures/.temp/
 # CLAUDE CODE - Local settings (user-specific)
 # -----------------------------------------------------------------------------
 .claude/settings.local.json
+*.nupkg

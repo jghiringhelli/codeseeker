@@ -41,7 +41,7 @@ After installing CodeSeeker via Chocolatey:
 
 ```powershell
 # Configure for your AI assistant
-codeseeker install --vscode      # VS Code (Claude Code & GitHub Copilot)
+codeseeker install --vscode      # VS Code (Claude Code and GitHub Copilot)
 codeseeker install --cursor      # Cursor IDE
 codeseeker install --windsurf    # Windsurf IDE
 ```
