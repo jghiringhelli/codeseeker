@@ -454,6 +454,10 @@ Open an issue: [GitHub Issues](https://github.com/jghiringhelli/codeseeker/issue
 
 > **Note:** Claude Code and GitHub Copilot both run in VS Code and share the same MCP configuration (`.vscode/mcp.json`). The flags `--vscode`, `--claude-code`, and `--copilot` are interchangeable.
 
+## Support
+
+If CodeSeeker is useful to you, consider [sponsoring the project](https://github.com/sponsors/jghiringhelli).
+
 ## License
 
 MIT License. See [LICENSE](LICENSE).
