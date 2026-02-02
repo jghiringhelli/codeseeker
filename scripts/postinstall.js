@@ -166,7 +166,8 @@ function isNonInteractive() {
          process.env.CI === 'true' ||
          process.env.CONTINUOUS_INTEGRATION === 'true' ||
          process.env.npm_config_yes === 'true' ||
-         process.env.CODESEEKER_SKIP_POSTINSTALL === 'true';
+         process.env.CODESEEKER_SKIP_POSTINSTALL === 'true' ||
+         process.env.ChocolateyInstall !== undefined;  // Skip in Chocolatey environments
 }
 
 /**
@@ -312,6 +313,12 @@ ${CODESEEKER_MCP_GUIDANCE}
  * Main postinstall logic
  */
 async function main() {
+  // Silent exit if in Chocolatey environment to avoid install failures
+  if (process.env.ChocolateyInstall !== undefined) {
+    // Exit silently - Chocolatey doesn't need interactive prompts
+    return;
+  }
+
   console.log(`\n${colors.cyan}${colors.bright}🔍 CodeSeeker Post-Install Setup${colors.reset}\n`);
 
   // Check for non-interactive mode

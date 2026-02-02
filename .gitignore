@@ -112,4 +112,14 @@ tests/fixtures/.temp/
 # CLAUDE CODE - Local settings (user-specific)
 # -----------------------------------------------------------------------------
 .claude/settings.local.json
+
+# -----------------------------------------------------------------------------
+# PACKAGE MANAGER CREDENTIALS - NEVER commit these!
+# -----------------------------------------------------------------------------
+# Snapcraft credentials
+snapcraft-credentials.txt
+.snapcraft/
+*.snap
+
+# Chocolatey packages (built locally)
 *.nupkg

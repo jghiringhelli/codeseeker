@@ -1,6 +1,8 @@
 name: codeseeker
 base: core22
-version: '1.7.1'
+version: '1.7.2'
+title: CodeSeeker
+license: MIT
 summary: Graph-powered code intelligence for Claude Code and AI assistants
 description: |
   CodeSeeker builds a knowledge graph of your codebase—not just embeddings—so
@@ -24,12 +26,17 @@ description: |
   Verify Installation:
     Ask your AI assistant: "What CodeSeeker tools do you have?"
 
+contact: https://github.com/jghiringhelli/codeseeker/issues
+issues: https://github.com/jghiringhelli/codeseeker/issues
+source-code: https://github.com/jghiringhelli/codeseeker
+website: https://github.com/jghiringhelli/codeseeker
+
 grade: stable
 confinement: classic
 
 apps:
   codeseeker:
-    command: bin/codeseeker
+    command: bin/node $SNAP/lib/node_modules/codeseeker/bin/codeseeker.js
     plugs:
       - home
       - network
@@ -38,7 +45,8 @@ apps:
 parts:
   codeseeker:
     plugin: npm
-    source: https://registry.npmjs.org/codeseeker/-/codeseeker-1.7.1.tgz
+    source: https://registry.npmjs.org/codeseeker/-/codeseeker-1.7.2.tgz
+    npm-include-node: true
     npm-node-version: "18.20.5"
     build-packages:
       - python3
@@ -46,15 +54,3 @@ parts:
       - g++
     stage-packages:
       - libsqlite3-0
-    override-build: |
-      # Install dependencies and build
-      npm install --legacy-peer-deps
-      npm run build
-
-      # Copy built files to snap install location
-      craftctl default
-
-      # Create symlink for the binary
-      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
-      cp $SNAPCRAFT_PART_SRC/bin/codeseeker.js $SNAPCRAFT_PART_INSTALL/bin/codeseeker
-      chmod +x $SNAPCRAFT_PART_INSTALL/bin/codeseeker
