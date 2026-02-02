@@ -205,10 +205,10 @@ export async function isServerStorageAvailable(config?: StorageConfig): Promise<
   try {
     const neo4j = await import('neo4j-driver');
     const driver = neo4j.default.driver(
-      effectiveConfig.server.neo4j!.uri,
+      effectiveConfig.server.neo4j.uri,
       neo4j.default.auth.basic(
-        effectiveConfig.server.neo4j!.user,
-        effectiveConfig.server.neo4j!.password
+        effectiveConfig.server.neo4j.user,
+        effectiveConfig.server.neo4j.password
       )
     );
     const session = driver.session();
@@ -225,10 +225,10 @@ export async function isServerStorageAvailable(config?: StorageConfig): Promise<
     const { createClient } = await import('redis');
     const client = createClient({
       socket: {
-        host: effectiveConfig.server.redis!.host,
-        port: effectiveConfig.server.redis!.port
+        host: effectiveConfig.server.redis.host,
+        port: effectiveConfig.server.redis.port
       },
-      password: effectiveConfig.server.redis!.password
+      password: effectiveConfig.server.redis.password
     });
     await client.connect();
     await client.ping();

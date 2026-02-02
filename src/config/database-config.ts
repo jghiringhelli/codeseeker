@@ -94,7 +94,7 @@ export class DatabaseConnections {
   }
 
   async getRedisConnection(): Promise<any> {
-    if (!this.redisClient || !this.redisClient.isOpen) {
+    if (!this.redisClient?.isOpen) {
       // Clean up any existing client
       if (this.redisClient) {
         try {

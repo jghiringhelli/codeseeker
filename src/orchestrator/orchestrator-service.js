@@ -135,7 +135,7 @@ class OrchestratorService extends EventEmitter {
         try {
             const workflow = this.activeWorkflows.get(executionId);
             
-            if (workflow && workflow.workflowOrchestrator) {
+            if (workflow?.workflowOrchestrator) {
                 // Pause actual workflow
                 await workflow.workflowOrchestrator.pauseExecution?.(workflow.actualExecutionId);
             }
@@ -168,7 +168,7 @@ class OrchestratorService extends EventEmitter {
         try {
             const workflow = this.activeWorkflows.get(executionId);
             
-            if (workflow && workflow.workflowOrchestrator) {
+            if (workflow?.workflowOrchestrator) {
                 // Resume actual workflow
                 await workflow.workflowOrchestrator.resumeExecution?.(workflow.actualExecutionId);
             }
@@ -201,7 +201,7 @@ class OrchestratorService extends EventEmitter {
         try {
             const workflow = this.activeWorkflows.get(executionId);
             
-            if (workflow && workflow.workflowOrchestrator) {
+            if (workflow?.workflowOrchestrator) {
                 // Cancel actual workflow
                 await workflow.workflowOrchestrator.cancelExecution?.(workflow.actualExecutionId);
                 this.activeWorkflows.delete(executionId);

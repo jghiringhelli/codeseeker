@@ -1,6 +1,6 @@
-# Contributing to CodeMind
+# Contributing to CodeSeeker
 
-Thank you for your interest in contributing to CodeMind! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to CodeSeeker! This document provides guidelines and information for contributors.
 
 ## Getting Started
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing to CodeMind! This document provides 
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/jghiringhelli/codemind.git
-   cd codemind
+   git clone https://github.com/jghiringhelli/codeseeker.git
+   cd codeseeker
    ```
 
 2. **Install dependencies**
@@ -89,7 +89,7 @@ npm run dev
 
 ### Architecture
 
-CodeMind follows SOLID principles and a layered architecture:
+CodeSeeker follows SOLID principles and a layered architecture:
 
 - **CLI Layer**: Command handlers and user interaction
 - **Service Layer**: Business logic and orchestration
@@ -142,7 +142,7 @@ CodeMind follows SOLID principles and a layered architecture:
 
 When reporting issues, please include:
 
-- CodeMind version (`codemind --version`)
+- CodeSeeker version (`codeseeker --version`)
 - Node.js version (`node --version`)
 - Operating system
 - Steps to reproduce

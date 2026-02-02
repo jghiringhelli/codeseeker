@@ -262,7 +262,7 @@ export class Neo4jGraphStore implements IGraphStore {
     const session = this.driver.session({ database: this.database });
     try {
       let query: string;
-      let params: Record<string, string> = { nodeId };
+      const params: Record<string, string> = { nodeId };
 
       if (edgeType) {
         const relType = edgeType.toUpperCase();
@@ -315,6 +315,30 @@ export class Neo4jGraphStore implements IGraphStore {
         DETACH DELETE n
         RETURN count(n) as deleted
       `, { projectId });
+
+      return result.records[0]?.get('deleted')?.toNumber() || 0;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async deleteByFilePaths(projectId: string, filePaths: string[]): Promise<number> {
+    if (filePaths.length === 0) return 0;
+
+    await this.initialize();
+
+    const session = this.driver.session({ database: this.database });
+    try {
+      // Delete nodes that match any of the file paths
+      // Handles both filePath property and relativePath property
+      const result = await session.run(`
+        MATCH (n:CodeNode {projectId: $projectId})
+        WHERE n.filePath IN $filePaths
+           OR n.relativePath IN $filePaths
+           OR ANY(fp IN $filePaths WHERE n.id CONTAINS replace(replace(fp, '/', '-'), '\\\\', '-'))
+        DETACH DELETE n
+        RETURN count(n) as deleted
+      `, { projectId, filePaths });
 
       return result.records[0]?.get('deleted')?.toNumber() || 0;
     } finally {

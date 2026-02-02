@@ -1,12 +1,16 @@
 {
   "mcpServers": {
-    "codemind": {
+    "codeseeker": {
       "command": "npx",
-      "args": ["-y", "codemind-enhanced-cli", "serve", "--mcp"],
+      "args": [
+        "-y",
+        "codeseeker",
+        "serve",
+        "--mcp"
+      ],
       "env": {
-        "CODEMIND_STORAGE_MODE": "embedded"
-      },
-      "description": "CodeMind semantic search and code analysis MCP server"
+        "CODESEEKER_STORAGE_MODE": "embedded"
+      }
     }
   }
 }

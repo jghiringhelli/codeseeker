@@ -472,7 +472,7 @@ export class DatabaseDocumentationGenerator {
       if (!tableConnections.has(rel.fromTable)) {
         tableConnections.set(rel.fromTable, []);
       }
-      tableConnections.get(rel.fromTable)!.push(rel.toTable);
+      tableConnections.get(rel.fromTable).push(rel.toTable);
     });
 
     // Identify hub tables (connected to many others)

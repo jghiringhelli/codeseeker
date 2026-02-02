@@ -93,7 +93,7 @@ class SemanticGraphService implements IGraphStorage {
     if (this.initialized) return;
 
     try {
-      await this.storageService!.initialize();
+      await this.storageService.initialize();
       await this.ensureIndexes();
       this.initialized = true;
       this.logger.debug('🔗 Semantic graph service initialized');
@@ -107,7 +107,7 @@ class SemanticGraphService implements IGraphStorage {
     if (!this.initialized) return;
 
     try {
-      await this.storageService!.close();
+      await this.storageService.close();
       this.initialized = false;
       this.logger.debug('🔗 Semantic graph service closed');
     } catch (error) {
@@ -118,59 +118,59 @@ class SemanticGraphService implements IGraphStorage {
   // File Processing Operations (delegated to FileProcessingService)
   async buildGraphFromFiles(files: FileInfo[]): Promise<IntegratedSemanticResult> {
     await this.ensureInitialized();
-    return this.fileProcessingService!.buildGraphFromFiles(files);
+    return this.fileProcessingService.buildGraphFromFiles(files);
   }
 
   // Storage Operations (delegated to GraphStorageService)
   async addNode(type: NodeType, properties: Record<string, any>): Promise<string> {
     await this.ensureInitialized();
-    return this.storageService!.addNode(type, properties);
+    return this.storageService.addNode(type, properties);
   }
 
   async addRelationship(fromId: string, toId: string, type: RelationshipType, properties?: Record<string, any>): Promise<void> {
     await this.ensureInitialized();
-    return this.storageService!.addRelationship(fromId, toId, type, properties);
+    return this.storageService.addRelationship(fromId, toId, type, properties);
   }
 
   async batchCreateNodes(nodes: Array<{ type: NodeType; properties: Record<string, any> }>): Promise<string[]> {
     await this.ensureInitialized();
-    return this.storageService!.batchCreateNodes(nodes);
+    return this.storageService.batchCreateNodes(nodes);
   }
 
   async updateNodeProperty(nodeId: string, propertyName: string, propertyValue: string): Promise<void> {
     await this.ensureInitialized();
-    return this.storageService!.updateNodeProperty(nodeId, propertyName, propertyValue);
+    return this.storageService.updateNodeProperty(nodeId, propertyName, propertyValue);
   }
 
   // Query Operations (delegated to GraphQueryService)
   async searchNodes(query: string, context?: SearchContext): Promise<SearchResult> {
     await this.ensureInitialized();
-    return this.queryService!.searchNodes(query, context);
+    return this.queryService.searchNodes(query, context);
   }
 
   async findRelatedNodes(nodeId: string, maxDepth?: number): Promise<GraphNode[]> {
     await this.ensureInitialized();
-    return this.queryService!.findRelatedNodes(nodeId, maxDepth);
+    return this.queryService.findRelatedNodes(nodeId, maxDepth);
   }
 
   async findPathBetweenNodes(fromId: string, toId: string): Promise<GraphNode[]> {
     await this.ensureInitialized();
-    return this.queryService!.findPathBetweenNodes(fromId, toId);
+    return this.queryService.findPathBetweenNodes(fromId, toId);
   }
 
   async getNodesByType(type: NodeType): Promise<GraphNode[]> {
     await this.ensureInitialized();
-    return this.queryService!.getNodesByType(type);
+    return this.queryService.getNodesByType(type);
   }
 
   async analyzeImpact(nodeId: string): Promise<ImpactAnalysisResult> {
     await this.ensureInitialized();
-    return this.queryService!.analyzeImpact(nodeId);
+    return this.queryService.analyzeImpact(nodeId);
   }
 
   async performCrossReference(concept: string): Promise<CrossReferenceResult> {
     await this.ensureInitialized();
-    return this.queryService!.performCrossReference(concept);
+    return this.queryService.performCrossReference(concept);
   }
 
   // Advanced Operations
@@ -236,7 +236,7 @@ class SemanticGraphService implements IGraphStorage {
 
   // Backward Compatibility Methods (Legacy API support)
   async filterFiles(files: FileInfo[]): Promise<FileInfo[]> {
-    return this.fileProcessingService!.filterFiles(files);
+    return this.fileProcessingService.filterFiles(files);
   }
 
   async categorizeFiles(files: FileInfo[]): Promise<{
@@ -244,7 +244,7 @@ class SemanticGraphService implements IGraphStorage {
     claude: FileInfo[];
     fallback: FileInfo[];
   }> {
-    return this.fileProcessingService!.categorizeFiles(files);
+    return this.fileProcessingService.categorizeFiles(files);
   }
 
   calculateRelevanceScore(node: GraphNode, keywords: string[]): number {

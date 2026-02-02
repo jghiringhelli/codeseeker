@@ -740,6 +740,106 @@ export class PaymentService {
     }, 30000);
   });
 
+  describe('Search Result Formatting', () => {
+    beforeAll(async () => {
+      // Re-index for these tests
+      const storageManager = await getStorageManager();
+      const projectStore = storageManager.getProjectStore();
+      const vectorStore = storageManager.getVectorStore();
+
+      await projectStore.upsert({
+        id: testProjectId,
+        name: TEST_PROJECT_NAME,
+        path: TEST_PROJECT_PATH,
+        metadata: { indexedAt: new Date().toISOString() },
+      });
+
+      for (const [filePath, content] of Object.entries(TEST_FILES)) {
+        const fullPath = path.join(TEST_PROJECT_PATH, filePath);
+        const docId = crypto.createHash('md5').update(fullPath).digest('hex');
+
+        await vectorStore.upsert({
+          id: docId,
+          projectId: testProjectId,
+          filePath: fullPath,
+          content: content,
+          embedding: generateTestEmbedding(),
+          metadata: {
+            fileName: path.basename(filePath),
+            extension: path.extname(filePath),
+            indexedAt: new Date().toISOString(),
+          },
+        });
+      }
+    });
+
+    it('should include debug info with match source in hybrid search results', async () => {
+      const storageManager = await getStorageManager();
+      const vectorStore = storageManager.getVectorStore();
+
+      // Perform hybrid search
+      const results = await vectorStore.searchHybrid(
+        'authentication',
+        generateTestEmbedding(),
+        testProjectId,
+        10
+      );
+
+      expect(results.length).toBeGreaterThan(0);
+
+      // Check that debug info is present
+      for (const result of results) {
+        expect(result.matchType).toBe('hybrid');
+        expect(result.debug).toBeDefined();
+        expect(result.debug?.matchSource).toBeDefined();
+        expect(typeof result.debug?.vectorScore).toBe('number');
+        expect(typeof result.debug?.textScore).toBe('number');
+        expect(typeof result.debug?.pathMatch).toBe('boolean');
+      }
+    });
+
+    it('should have all scores capped at 1.0 (100%)', async () => {
+      const storageManager = await getStorageManager();
+      const vectorStore = storageManager.getVectorStore();
+
+      const results = await vectorStore.searchHybrid(
+        'controller service function',
+        generateTestEmbedding(),
+        testProjectId,
+        10
+      );
+
+      for (const result of results) {
+        expect(result.score).toBeLessThanOrEqual(1.0);
+        expect(result.score).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    it('should track path match in debug info', async () => {
+      const storageManager = await getStorageManager();
+      const vectorStore = storageManager.getVectorStore();
+
+      // Search for term that matches file path
+      const results = await vectorStore.searchHybrid(
+        'auth',
+        generateTestEmbedding(),
+        testProjectId,
+        10
+      );
+
+      // Find result for auth-service.ts
+      const authResult = results.find(r =>
+        r.document.filePath.includes('auth-service')
+      );
+
+      if (authResult) {
+        // Path should match since 'auth' is in 'auth-service.ts'
+        expect(authResult.debug?.pathMatch).toBe(true);
+        expect(authResult.debug?.matchSource).toContain('path');
+      }
+    });
+  });
+
   describe('Cleanup', () => {
     it('should delete all project data from vector store', async () => {
       const storageManager = await getStorageManager();

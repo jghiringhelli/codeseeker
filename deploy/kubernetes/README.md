@@ -1,8 +1,8 @@
-# CodeMind Kubernetes Deployment
+# CodeSeeker Kubernetes Deployment
 
-Production-ready Kubernetes manifests for deploying CodeMind's server-mode databases.
+Production-ready Kubernetes manifests for deploying CodeSeeker's server-mode databases.
 
-> **Note**: Most users don't need Kubernetes deployment. CodeMind works out-of-the-box with **embedded mode** (SQLite + Graphology) - just `npm install -g codemind && codemind init`. Use Kubernetes only for production deployments with 100K+ files or multi-user requirements.
+> **Note**: Most users don't need Kubernetes deployment. CodeSeeker works out-of-the-box with **embedded mode** (SQLite + Graphology) - just `npm install -g codeseeker && codeseeker init`. Use Kubernetes only for production deployments with 100K+ files or multi-user requirements.
 
 ## Overview
 
@@ -15,16 +15,16 @@ These manifests deploy:
 
 ```bash
 # Create namespace
-kubectl create namespace codemind
+kubectl create namespace codeseeker
 
 # Apply all manifests
-kubectl apply -f . -n codemind
+kubectl apply -f . -n codeseeker
 
 # Check status
-kubectl get pods -n codemind
+kubectl get pods -n codeseeker
 
 # Wait for all pods to be ready
-kubectl wait --for=condition=ready pod --all -n codemind --timeout=120s
+kubectl wait --for=condition=ready pod --all -n codeseeker --timeout=120s
 ```
 
 ## Configuration
@@ -35,17 +35,17 @@ Before deploying, create the required secrets:
 
 ```bash
 # Create secrets (replace with your passwords)
-kubectl create secret generic codemind-postgres-secret \
+kubectl create secret generic codeseeker-postgres-secret \
   --from-literal=password=your-secure-password \
-  -n codemind
+  -n codeseeker
 
-kubectl create secret generic codemind-neo4j-secret \
+kubectl create secret generic codeseeker-neo4j-secret \
   --from-literal=password=your-secure-password \
-  -n codemind
+  -n codeseeker
 
-kubectl create secret generic codemind-redis-secret \
+kubectl create secret generic codeseeker-redis-secret \
   --from-literal=password=your-secure-password \
-  -n codemind
+  -n codeseeker
 ```
 
 ### 2. Configure Storage
@@ -61,39 +61,39 @@ Edit the PersistentVolumeClaim sizes in each manifest based on your needs:
 ### 3. Apply Manifests
 
 ```bash
-kubectl apply -f postgres.yaml -n codemind
-kubectl apply -f neo4j.yaml -n codemind
-kubectl apply -f redis.yaml -n codemind
+kubectl apply -f postgres.yaml -n codeseeker
+kubectl apply -f neo4j.yaml -n codeseeker
+kubectl apply -f redis.yaml -n codeseeker
 ```
 
-## Connecting CodeMind
+## Connecting CodeSeeker
 
-After deployment, configure CodeMind to use server mode:
+After deployment, configure CodeSeeker to use server mode:
 
 ```bash
 # Get service endpoints (if using LoadBalancer)
-kubectl get svc -n codemind
+kubectl get svc -n codeseeker
 
 # Or port-forward for local access
-kubectl port-forward svc/codemind-postgres 5432:5432 -n codemind &
-kubectl port-forward svc/codemind-neo4j 7687:7687 -n codemind &
-kubectl port-forward svc/codemind-redis 6379:6379 -n codemind &
+kubectl port-forward svc/codeseeker-postgres 5432:5432 -n codeseeker &
+kubectl port-forward svc/codeseeker-neo4j 7687:7687 -n codeseeker &
+kubectl port-forward svc/codeseeker-redis 6379:6379 -n codeseeker &
 ```
 
 Configure environment variables:
 
 ```bash
-export CODEMIND_STORAGE_MODE=server
-export CODEMIND_PG_HOST=localhost  # or service IP
-export CODEMIND_PG_PORT=5432
-export CODEMIND_PG_DATABASE=codemind
-export CODEMIND_PG_USER=codemind
-export CODEMIND_PG_PASSWORD=your-secure-password
-export CODEMIND_NEO4J_URI=bolt://localhost:7687
-export CODEMIND_NEO4J_USER=neo4j
-export CODEMIND_NEO4J_PASSWORD=your-secure-password
-export CODEMIND_REDIS_HOST=localhost
-export CODEMIND_REDIS_PORT=6379
+export CODESEEKER_STORAGE_MODE=server
+export CODESEEKER_PG_HOST=localhost  # or service IP
+export CODESEEKER_PG_PORT=5432
+export CODESEEKER_PG_DATABASE=codeseeker
+export CODESEEKER_PG_USER=codeseeker
+export CODESEEKER_PG_PASSWORD=your-secure-password
+export CODESEEKER_NEO4J_URI=bolt://localhost:7687
+export CODESEEKER_NEO4J_USER=neo4j
+export CODESEEKER_NEO4J_PASSWORD=your-secure-password
+export CODESEEKER_REDIS_HOST=localhost
+export CODESEEKER_REDIS_PORT=6379
 ```
 
 ## Files
@@ -140,8 +140,8 @@ resources:
 ### Pod not starting
 
 ```bash
-kubectl describe pod <pod-name> -n codemind
-kubectl logs <pod-name> -n codemind
+kubectl describe pod <pod-name> -n codeseeker
+kubectl logs <pod-name> -n codeseeker
 ```
 
 ### Connection refused
@@ -149,7 +149,7 @@ kubectl logs <pod-name> -n codemind
 Verify services are running and endpoints are correct:
 
 ```bash
-kubectl get endpoints -n codemind
+kubectl get endpoints -n codeseeker
 ```
 
 ### Storage issues
@@ -157,5 +157,5 @@ kubectl get endpoints -n codemind
 Check PersistentVolumeClaims:
 
 ```bash
-kubectl get pvc -n codemind
+kubectl get pvc -n codeseeker
 ```

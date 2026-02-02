@@ -31,9 +31,36 @@ import { SemanticSearchOrchestrator } from '../cli/commands/services/semantic-se
 import { IndexingService } from './indexing-service';
 import { CodingStandardsGenerator } from '../cli/services/analysis/coding-standards-generator';
 import { LanguageSupportService } from '../cli/services/project/language-support-service';
+import { getQueryCacheService, QueryCacheService } from './query-cache-service';
 
 // Version from package.json
 const VERSION = '2.0.0';
+
+/**
+ * Background indexing job status
+ */
+interface IndexingJob {
+  projectId: string;
+  projectName: string;
+  projectPath: string;
+  status: 'running' | 'completed' | 'failed';
+  startedAt: Date;
+  completedAt?: Date;
+  progress?: {
+    phase: string;
+    filesProcessed: number;
+    filesTotal: number;
+    chunksCreated: number;
+  };
+  result?: {
+    filesIndexed: number;
+    chunksCreated: number;
+    nodesCreated: number;
+    edgesCreated: number;
+    durationMs: number;
+  };
+  error?: string;
+}
 
 /**
  * MCP Server for CodeSeeker
@@ -43,6 +70,30 @@ export class CodeSeekerMcpServer {
   private searchOrchestrator: SemanticSearchOrchestrator;
   private indexingService: IndexingService;
   private languageSupportService: LanguageSupportService;
+  private queryCache: QueryCacheService;
+
+  // Background indexing state
+  private indexingJobs: Map<string, IndexingJob> = new Map();
+
+  // Mutex for concurrent indexing protection
+  private indexingMutex: Set<string> = new Set();
+
+  // Cancellation tokens for running indexing jobs
+  private cancellationTokens: Map<string, { cancelled: boolean }> = new Map();
+
+  // Job cleanup interval (clean completed/failed jobs after 1 hour)
+  private readonly JOB_TTL_MS = 60 * 60 * 1000; // 1 hour
+  private cleanupTimer: NodeJS.Timeout | null = null;
+
+  // Dangerous paths that should never be indexed (security)
+  private readonly DANGEROUS_PATHS = [
+    // System directories
+    '/etc', '/var', '/usr', '/bin', '/sbin', '/lib', '/boot', '/root', '/proc', '/sys', '/dev',
+    // Windows system directories
+    'C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)', 'C:\\ProgramData',
+    // User sensitive directories
+    '.ssh', '.gnupg', '.aws', '.azure', '.config',
+  ];
 
   constructor() {
     this.server = new McpServer({
@@ -53,7 +104,226 @@ export class CodeSeekerMcpServer {
     this.searchOrchestrator = new SemanticSearchOrchestrator();
     this.indexingService = new IndexingService();
     this.languageSupportService = new LanguageSupportService();
+    this.queryCache = getQueryCacheService();
     this.registerTools();
+
+    // Start cleanup timer for old indexing jobs
+    this.startJobCleanupTimer();
+  }
+
+  /**
+   * Start periodic cleanup of completed/failed indexing jobs
+   */
+  private startJobCleanupTimer(): void {
+    // Clean up every 10 minutes
+    this.cleanupTimer = setInterval(() => {
+      this.cleanupOldJobs();
+    }, 10 * 60 * 1000);
+
+    // Ensure timer doesn't prevent process exit
+    if (this.cleanupTimer.unref) {
+      this.cleanupTimer.unref();
+    }
+  }
+
+  /**
+   * Clean up completed/failed jobs older than TTL
+   */
+  private cleanupOldJobs(): void {
+    const now = Date.now();
+    const jobsToDelete: string[] = [];
+
+    for (const [projectId, job] of this.indexingJobs) {
+      // Only clean up non-running jobs
+      if (job.status !== 'running' && job.completedAt) {
+        const age = now - job.completedAt.getTime();
+        if (age > this.JOB_TTL_MS) {
+          jobsToDelete.push(projectId);
+        }
+      }
+    }
+
+    for (const projectId of jobsToDelete) {
+      this.indexingJobs.delete(projectId);
+    }
+  }
+
+  /**
+   * Validate that a path is safe to index (security)
+   * Returns error message if unsafe, null if safe
+   */
+  private validateProjectPath(projectPath: string): string | null {
+    const normalizedPath = path.normalize(projectPath);
+
+    // Check for path traversal attempts
+    if (normalizedPath.includes('..')) {
+      return 'Path traversal detected: paths with ".." are not allowed';
+    }
+
+    // Check for dangerous system directories
+    const lowerPath = normalizedPath.toLowerCase();
+    for (const dangerous of this.DANGEROUS_PATHS) {
+      const lowerDangerous = dangerous.toLowerCase();
+      if (lowerPath === lowerDangerous || lowerPath.startsWith(lowerDangerous + path.sep)) {
+        return `Security: cannot index system directory "${dangerous}"`;
+      }
+    }
+
+    // Check path components for sensitive directories
+    const pathParts = normalizedPath.split(path.sep);
+    for (const part of pathParts) {
+      const lowerPart = part.toLowerCase();
+      if (lowerPart === '.ssh' || lowerPart === '.gnupg' || lowerPart === '.aws') {
+        return `Security: cannot index sensitive directory "${part}"`;
+      }
+    }
+
+    return null; // Path is safe
+  }
+
+  /**
+   * Start background indexing for a project
+   * Returns immediately, indexing happens asynchronously
+   */
+  private startBackgroundIndexing(
+    projectId: string,
+    projectName: string,
+    projectPath: string,
+    clearExisting: boolean = true
+  ): void {
+    // Create cancellation token
+    const cancellationToken = { cancelled: false };
+    this.cancellationTokens.set(projectId, cancellationToken);
+
+    // Create job entry
+    const job: IndexingJob = {
+      projectId,
+      projectName,
+      projectPath,
+      status: 'running',
+      startedAt: new Date(),
+      progress: {
+        phase: 'starting',
+        filesProcessed: 0,
+        filesTotal: 0,
+        chunksCreated: 0,
+      },
+    };
+    this.indexingJobs.set(projectId, job);
+
+    // Release mutex once job is registered (actual indexing is tracked by job status)
+    this.indexingMutex.delete(projectId);
+
+    // Start indexing in background (don't await)
+    this.runBackgroundIndexing(job, clearExisting, cancellationToken).catch((error) => {
+      job.status = 'failed';
+      job.error = error instanceof Error ? error.message : String(error);
+      job.completedAt = new Date();
+      this.cancellationTokens.delete(projectId);
+    });
+  }
+
+  /**
+   * Cancel a running indexing job
+   */
+  cancelIndexing(projectId: string): boolean {
+    const token = this.cancellationTokens.get(projectId);
+    if (token) {
+      token.cancelled = true;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Run the actual indexing (called asynchronously)
+   */
+  private async runBackgroundIndexing(
+    job: IndexingJob,
+    clearExisting: boolean,
+    cancellationToken: { cancelled: boolean }
+  ): Promise<void> {
+    try {
+      const storageManager = await getStorageManager();
+      const vectorStore = storageManager.getVectorStore();
+      const graphStore = storageManager.getGraphStore();
+
+      // Clear existing data if requested
+      if (clearExisting) {
+        await vectorStore.deleteByProject(job.projectId);
+        await graphStore.deleteByProject(job.projectId);
+      }
+
+      // Check for cancellation before starting
+      if (cancellationToken.cancelled) {
+        job.status = 'failed';
+        job.error = 'Indexing cancelled by user';
+        job.completedAt = new Date();
+        this.cancellationTokens.delete(job.projectId);
+        return;
+      }
+
+      // Run indexing with progress tracking
+      const result = await this.indexingService.indexProject(
+        job.projectPath,
+        job.projectId,
+        (progress) => {
+          // Check for cancellation during indexing
+          if (cancellationToken.cancelled) {
+            throw new Error('Indexing cancelled by user');
+          }
+          job.progress = {
+            phase: progress.phase,
+            filesProcessed: progress.filesProcessed,
+            filesTotal: progress.filesTotal,
+            chunksCreated: progress.chunksCreated,
+          };
+        }
+      );
+
+      // Update job with results
+      job.status = 'completed';
+      job.completedAt = new Date();
+      job.result = {
+        filesIndexed: result.filesIndexed,
+        chunksCreated: result.chunksCreated,
+        nodesCreated: result.nodesCreated,
+        edgesCreated: result.edgesCreated,
+        durationMs: result.durationMs,
+      };
+
+      // Generate coding standards after indexing (if not cancelled)
+      if (!cancellationToken.cancelled) {
+        try {
+          const generator = new CodingStandardsGenerator(vectorStore);
+          await generator.generateStandards(job.projectId, job.projectPath);
+        } catch {
+          // Non-fatal - standards generation is optional
+        }
+      }
+
+      // Invalidate query cache for this project (full reindex)
+      try {
+        await this.queryCache.invalidateProject(job.projectId);
+      } catch {
+        // Non-fatal - cache invalidation is optional
+      }
+
+      // Clean up cancellation token
+      this.cancellationTokens.delete(job.projectId);
+    } catch (error) {
+      job.status = 'failed';
+      job.error = error instanceof Error ? error.message : String(error);
+      job.completedAt = new Date();
+      this.cancellationTokens.delete(job.projectId);
+    }
+  }
+
+  /**
+   * Get indexing status for a project
+   */
+  private getIndexingStatus(projectId: string): IndexingJob | undefined {
+    return this.indexingJobs.get(projectId);
   }
 
   /**
@@ -80,31 +350,31 @@ export class CodeSeekerMcpServer {
    * Register all MCP tools
    */
   private registerTools(): void {
-    this.registerSearchCodeTool();
-    this.registerFindAndReadTool();
-    this.registerGetFileContextTool();
-    this.registerGetCodeRelationshipsTool();
-    this.registerListProjectsTool();
-    this.registerIndexProjectTool();
-    this.registerNotifyFileChangesTool();
-    this.registerInstallLanguageSupportTool();
-    this.registerManageIndexTool();
+    this.registerSearchTool();
+    this.registerSearchAndReadTool();
+    this.registerReadWithContextTool();
+    this.registerShowDependenciesTool();
+    this.registerProjectsTool();
+    this.registerIndexTool();
+    this.registerSyncTool();
+    this.registerInstallParsersTool();
+    this.registerExcludeTool();
   }
 
   /**
    * Tool 1: Semantic search across indexed projects
    */
-  private registerSearchCodeTool(): void {
+  private registerSearchTool(): void {
     this.server.registerTool(
-      'search_code',
+      'search',
       {
         description: '**DEFAULT TOOL FOR CODE DISCOVERY** - Use this BEFORE grep/glob for any code search. ' +
           'This semantic search finds code by meaning, not just text patterns. ' +
           'ALWAYS use for: "Where is X handled?", "Find the auth logic", "How does Y work?", "What calls Z?" ' +
           'Only fall back to grep when: you need exact literal strings, regex patterns, or already know the exact file. ' +
           'Why better than grep: finds "user authentication" even if code says "login", "session", "credentials". ' +
-          'Examples: ❌ grep -r "damage.*ship" → ✅ search_code("how ships take damage"). ' +
-          'Returns absolute file paths ready for the Read tool. If not indexed, call index_project first.',
+          'Examples: ❌ grep -r "damage.*ship" → ✅ search("how ships take damage"). ' +
+          'Returns absolute file paths ready for the Read tool. If not indexed, call index first.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
           project: z.string().optional().describe('Project path (optional - auto-detects from indexed projects if omitted)'),
@@ -163,7 +433,7 @@ export class CodeSeekerMcpServer {
               return {
                 content: [{
                   type: 'text' as const,
-                  text: `No indexed projects found. Use index_project to index a project first.`,
+                  text: `No indexed projects found. Use index to index a project first.`,
                 }],
                 isError: true,
               };
@@ -185,7 +455,7 @@ export class CodeSeekerMcpServer {
                   content: [{
                     type: 'text' as const,
                     text: `⚠️  Project "${path.basename(projectPath)}" found but not indexed.\n\n` +
-                      `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry this search.`,
+                      `ACTION REQUIRED: Call index({path: "${projectPath}"}) then retry this search.`,
                   }],
                   isError: true,
                 };
@@ -196,15 +466,36 @@ export class CodeSeekerMcpServer {
                 content: [{
                   type: 'text' as const,
                   text: `⚠️  Project "${path.basename(projectPath)}" needs indexing.\n\n` +
-                    `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry this search.`,
+                    `ACTION REQUIRED: Call index({path: "${projectPath}"}) then retry this search.`,
                 }],
                 isError: true,
               };
             }
           }
 
-          // Perform search
-          const results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
+          // Check cache first (only for 'full' mode - exists mode is fast enough)
+          let results: any[];
+          let fromCache = false;
+          const cacheProjectId = projectRecord?.id || this.generateProjectId(projectPath);
+
+          if (mode === 'full') {
+            const cached = await this.queryCache.get(query, cacheProjectId, search_type);
+            if (cached) {
+              results = cached.results;
+              fromCache = true;
+            } else {
+              // Perform actual search
+              results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
+              // Cache results for future queries
+              if (results.length > 0) {
+                await this.queryCache.set(query, cacheProjectId, results, search_type);
+              }
+            }
+          } else {
+            // exists mode - always search fresh (it's fast)
+            results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
+          }
+
           const limitedResults = results.slice(0, mode === 'exists' ? 5 : limit);
 
           if (limitedResults.length === 0) {
@@ -257,7 +548,7 @@ export class CodeSeekerMcpServer {
             };
           }
 
-          // Format full results with absolute paths
+          // Format full results with absolute paths and match type info
           const formattedResults = limitedResults.map((r, i) => {
             const absolutePath = path.isAbsolute(r.file)
               ? r.file
@@ -269,30 +560,47 @@ export class CodeSeekerMcpServer {
               relative_path: r.file,
               score: Math.round(r.similarity * 100) / 100,
               type: r.type,
+              // Include match source for better understanding of why file matched
+              match_source: r.debug?.matchSource || 'hybrid',
               chunk: r.content.substring(0, 500) + (r.content.length > 500 ? '...' : ''),
               lines: r.lineStart && r.lineEnd ? `${r.lineStart}-${r.lineEnd}` : undefined,
             };
           });
 
+          // Build response with truncation warning if applicable
+          const wasLimited = results.length > limit;
+          const response: Record<string, unknown> = {
+            query,
+            project: projectPath,
+            total_results: limitedResults.length,
+            search_type,
+            results: formattedResults,
+          };
+
+          // Add cache indicator
+          if (fromCache) {
+            response.cached = true;
+          }
+
+          // Add truncation warning when results were limited
+          if (wasLimited) {
+            response.truncated = true;
+            response.total_available = results.length;
+            response.hint = `Showing ${limit} of ${results.length} results. Use limit parameter to see more.`;
+          }
+
           return {
             content: [{
               type: 'text' as const,
-              text: JSON.stringify({
-                query,
-                project: projectPath,
-                total_results: limitedResults.length,
-                search_type,
-                results: formattedResults,
-              }, null, 2),
+              text: JSON.stringify(response, null, 2),
             }],
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Search failed: ${message}`,
+              text: this.formatErrorMessage('Search', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -304,17 +612,17 @@ export class CodeSeekerMcpServer {
   /**
    * Tool 2: Find and read - combined search + read in one call
    */
-  private registerFindAndReadTool(): void {
+  private registerSearchAndReadTool(): void {
     this.server.registerTool(
-      'find_and_read',
+      'search_and_read',
       {
         description: '**SEARCH + READ IN ONE STEP** - Use when you need to see actual code, not just file paths. ' +
-          'Combines search_code + Read into a single call. Saves a round-trip when you know you\'ll need to read results. ' +
-          'Use this instead of search_code when: implementing something similar, understanding HOW code works, ' +
+          'Combines search + Read into a single call. Saves a round-trip when you know you\'ll need to read results. ' +
+          'Use this instead of search when: implementing something similar, understanding HOW code works, ' +
           'user asks "show me the X code", or you need full context to make changes. ' +
-          'Examples: "Show me how damage is calculated" → find_and_read("damage calculation"). ' +
-          '"I need to add validation like login" → find_and_read("login form validation"). ' +
-          'Use search_code instead when: you only need file paths, checking if something exists (mode="exists"), ' +
+          'Examples: "Show me how damage is calculated" → search_and_read("damage calculation"). ' +
+          '"I need to add validation like login" → search_and_read("login form validation"). ' +
+          'Use search instead when: you only need file paths, checking if something exists (mode="exists"), ' +
           'or want to see many results before picking one. Returns full file content with line numbers.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
@@ -374,7 +682,7 @@ export class CodeSeekerMcpServer {
               return {
                 content: [{
                   type: 'text' as const,
-                  text: `No indexed projects found. Use index_project to index a project first.`,
+                  text: `No indexed projects found. Use index to index a project first.`,
                 }],
                 isError: true,
               };
@@ -395,7 +703,7 @@ export class CodeSeekerMcpServer {
                   content: [{
                     type: 'text' as const,
                     text: `⚠️  Project "${path.basename(projectPath)}" found but not indexed.\n\n` +
-                      `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry.`,
+                      `ACTION REQUIRED: Call index({path: "${projectPath}"}) then retry.`,
                   }],
                   isError: true,
                 };
@@ -405,7 +713,7 @@ export class CodeSeekerMcpServer {
                 content: [{
                   type: 'text' as const,
                   text: `⚠️  Project "${path.basename(projectPath)}" needs indexing.\n\n` +
-                    `ACTION REQUIRED: Call index_project({path: "${projectPath}"}) then retry.`,
+                    `ACTION REQUIRED: Call index({path: "${projectPath}"}) then retry.`,
                 }],
                 isError: true,
               };
@@ -446,7 +754,8 @@ export class CodeSeekerMcpServer {
             file: string;
             relative_path: string;
             score: number;
-            match_type: string;
+            file_type: string;
+            match_source: string;
             line_count: number;
             content: string;
             truncated: boolean;
@@ -476,7 +785,8 @@ export class CodeSeekerMcpServer {
                 file: absolutePath,
                 relative_path: result.file,
                 score: Math.round(result.similarity * 100) / 100,
-                match_type: result.type,
+                file_type: result.type,
+                match_source: result.debug?.matchSource || 'hybrid',
                 line_count: lines.length,
                 content: numberedContent + (truncated ? `\n... (truncated at ${lineLimit} lines)` : ''),
                 truncated,
@@ -516,11 +826,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Find and read failed: ${message}`,
+              text: this.formatErrorMessage('Find and read', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -532,15 +841,15 @@ export class CodeSeekerMcpServer {
   /**
    * Tool 3: Get file with semantic context
    */
-  private registerGetFileContextTool(): void {
+  private registerReadWithContextTool(): void {
     this.server.registerTool(
-      'get_file_context',
+      'read_with_context',
       {
         description: '**READ FILE WITH RELATED CODE** - Enhanced Read that includes semantically similar code. ' +
           'Use instead of basic Read when: reading a file for the first time, the file references other modules, ' +
           'or you want to discover patterns used elsewhere in the codebase. ' +
-          'Examples: Understanding a component → get_file_context("src/Button.tsx") returns Button + similar patterns. ' +
-          'Reading a service → get_file_context("src/api.ts") returns api.ts + related implementations. ' +
+          'Examples: Understanding a component → read_with_context("src/Button.tsx") returns Button + similar patterns. ' +
+          'Reading a service → read_with_context("src/api.ts") returns api.ts + related implementations. ' +
           'Use basic Read instead when: you just need file contents, already understand the codebase, or making quick edits. ' +
           'Set include_related=false to get just the file without related chunks.',
         inputSchema: {
@@ -643,11 +952,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to get file context: ${message}`,
+              text: this.formatErrorMessage('Get file context', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -660,21 +968,21 @@ export class CodeSeekerMcpServer {
    * Tool 3: Get code relationships from the knowledge graph
    * Uses "Seed + Expand" strategy like the CLI's GraphAnalysisService
    */
-  private registerGetCodeRelationshipsTool(): void {
+  private registerShowDependenciesTool(): void {
     this.server.registerTool(
-      'get_code_relationships',
+      'show_dependencies',
       {
-        description: '**UNDERSTAND CODE CONNECTIONS** - Use after search_code to explore how files relate. ' +
+        description: '**UNDERSTAND CODE CONNECTIONS** - Use after search to explore how files relate. ' +
           'Maps imports, class hierarchies, function calls, dependencies. Essential for understanding impact of changes. ' +
           'Use when: planning refactors ("what breaks if I change this?"), understanding architecture ("what depends on this?"), ' +
           'tracing data flow ("where does this come from?"), before changing shared code. ' +
-          'WORKFLOW: 1) search_code to find files, 2) pass those paths here via filepaths parameter. ' +
+          'WORKFLOW: 1) search to find files, 2) pass those paths here via filepaths parameter. ' +
           'Filter with relationship_types: ["imports"], ["calls"], ["extends"] to reduce noise. ' +
           'Use direction="in" to find what USES this file, direction="out" for what this file USES.',
         inputSchema: {
           filepath: z.string().optional().describe('Single file path to explore (prefer filepaths for multiple)'),
-          filepaths: z.array(z.string()).optional().describe('PREFERRED: Array of file paths from search_code results'),
-          query: z.string().optional().describe('Fallback: semantic search to find seed files (prefer using filepaths from search_code)'),
+          filepaths: z.array(z.string()).optional().describe('PREFERRED: Array of file paths from search results'),
+          query: z.string().optional().describe('Fallback: semantic search to find seed files (prefer using filepaths from search)'),
           depth: z.number().optional().default(1).describe('How many relationship hops to traverse (1-3, default: 1). Use 1 for focused results, 2+ can return many nodes.'),
           relationship_types: z.array(z.enum([
             'imports', 'exports', 'calls', 'extends', 'implements', 'contains', 'uses', 'depends_on'
@@ -725,7 +1033,7 @@ export class CodeSeekerMcpServer {
             return {
               content: [{
                 type: 'text' as const,
-                text: 'Project not indexed. Use index_project first.',
+                text: 'Project not indexed. Use index first.',
               }],
               isError: true,
             };
@@ -931,11 +1239,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to get code relationships: ${message}`,
+              text: this.formatErrorMessage('Get code relationships', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -947,14 +1254,14 @@ export class CodeSeekerMcpServer {
   /**
    * Tool 4: List indexed projects
    */
-  private registerListProjectsTool(): void {
+  private registerProjectsTool(): void {
     this.server.registerTool(
-      'list_projects',
+      'projects',
       {
         description: 'List all indexed projects with their metadata. ' +
           'Returns project names, paths, indexed file counts, and last index timestamps. ' +
-          'Use to discover available projects before running search_code or get_code_relationships. ' +
-          'Example: list_projects() shows all projects ready for semantic search.',
+          'Use to discover available projects before running search or show_dependencies. ' +
+          'Example: projects() shows all projects ready for semantic search.',
       },
       async () => {
         try {
@@ -968,23 +1275,34 @@ export class CodeSeekerMcpServer {
             return {
               content: [{
                 type: 'text' as const,
-                text: 'No projects indexed. Use index_project to add a project.',
+                text: 'No projects indexed. Use index to add a project.',
               }],
             };
           }
 
-          // Get file and chunk counts for each project
+          // Get file and chunk counts for each project, plus indexing status
           const projectsWithCounts = await Promise.all(
             projects.map(async (p) => {
               const fileCount = await vectorStore.countFiles(p.id);
               const chunkCount = await vectorStore.count(p.id);
-              return {
+
+              // Check for background indexing status
+              const indexingStatus = this._getIndexingStatusForProject(p.id);
+
+              const projectInfo: Record<string, unknown> = {
                 name: p.name,
                 path: p.path,
                 files: fileCount,
                 chunks: chunkCount,
                 last_indexed: p.updatedAt.toISOString(),
               };
+
+              // Add indexing status if job exists
+              if (indexingStatus) {
+                Object.assign(projectInfo, indexingStatus);
+              }
+
+              return projectInfo;
             })
           );
 
@@ -1000,11 +1318,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to list projects: ${message}`,
+              text: this.formatErrorMessage('List projects', error instanceof Error ? error : String(error)),
             }],
             isError: true,
           };
@@ -1015,15 +1332,17 @@ export class CodeSeekerMcpServer {
 
   /**
    * Tool 5: Index a project (with proper embeddings and knowledge graph)
+   * NOW RUNS IN BACKGROUND to prevent MCP timeouts
    */
-  private registerIndexProjectTool(): void {
+  private registerIndexTool(): void {
     this.server.registerTool(
-      'index_project',
+      'index',
       {
         description: 'Index a project directory for semantic search and knowledge graph. ' +
           'Scans code, documentation, configs, and other text files. Generates vector embeddings and extracts code relationships. ' +
-          'Run once per project, then use notify_file_changes for incremental updates. ' +
-          'Example: index_project({path: "/home/user/my-app"}) indexes all files in my-app.',
+          'Run once per project, then use sync for incremental updates. ' +
+          'Example: index({path: "/home/user/my-app"}) indexes all files in my-app.' +
+          '\n\nNOTE: Indexing runs in BACKGROUND to prevent timeouts. Use projects() to check indexing status.',
         inputSchema: {
           path: z.string().describe('Absolute path to the project directory'),
           name: z.string().optional().describe('Project name (defaults to directory name)'),
@@ -1037,6 +1356,18 @@ export class CodeSeekerMcpServer {
           const absolutePath = path.isAbsolute(projectPath)
             ? projectPath
             : path.resolve(projectPath);
+
+          // Security: validate path is safe to index
+          const pathError = this.validateProjectPath(absolutePath);
+          if (pathError) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: pathError,
+              }],
+              isError: true,
+            };
+          }
 
           if (!fs.existsSync(absolutePath)) {
             return {
@@ -1059,82 +1390,86 @@ export class CodeSeekerMcpServer {
           }
 
           const projectName = name || path.basename(absolutePath);
+          const projectId = this.generateProjectId(absolutePath);
 
-          // Get storage and create project
+          // Mutex: prevent concurrent indexing of same project (race condition protection)
+          if (this.indexingMutex.has(projectId)) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  status: 'already_indexing',
+                  project_name: projectName,
+                  project_path: absolutePath,
+                  message: 'Indexing request already being processed. Please wait.',
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Check if already indexing (from job status)
+          const existingJob = this.getIndexingStatus(projectId);
+          if (existingJob?.status === 'running') {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  status: 'already_indexing',
+                  project_name: projectName,
+                  project_path: absolutePath,
+                  progress: existingJob.progress,
+                  message: 'Indexing already in progress. Use projects() to check status.',
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Acquire mutex before starting
+          this.indexingMutex.add(projectId);
+
+          // Get storage and create project entry
           const storageManager = await getStorageManager();
           const projectStore = storageManager.getProjectStore();
-          const vectorStore = storageManager.getVectorStore();
-          const graphStore = storageManager.getGraphStore();
 
           // Create or update project
-          const project = await projectStore.upsert({
-            id: this.generateProjectId(absolutePath),
+          await projectStore.upsert({
+            id: projectId,
             name: projectName,
             path: absolutePath,
-            metadata: { indexedAt: new Date().toISOString() },
+            metadata: { indexedAt: new Date().toISOString(), indexing: true },
           });
-
-          // Clear existing index data for clean reindex
-          await vectorStore.deleteByProject(project.id);
-          await graphStore.deleteByProject(project.id);
 
           // Delete coding standards file (will be regenerated)
           const codingStandardsPath = path.join(absolutePath, '.codeseeker', 'coding-standards.json');
           if (fs.existsSync(codingStandardsPath)) {
-            fs.unlinkSync(codingStandardsPath);
+            try { fs.unlinkSync(codingStandardsPath); } catch { /* ignore */ }
           }
 
-          // Use IndexingService for proper indexing with embeddings and graph
-          // Track progress for detailed reporting
-          let lastProgress: import('./indexing-service').IndexingProgress | undefined;
+          // Start background indexing (returns immediately)
+          this.startBackgroundIndexing(projectId, projectName, absolutePath, true);
 
-          const result = await this.indexingService.indexProject(absolutePath, project.id, (progress) => {
-            lastProgress = progress;
-          });
-
-          // Build response with progress details
-          const response: Record<string, unknown> = {
-            success: result.success,
-            project_name: projectName,
-            project_path: absolutePath,
-            files_indexed: result.filesIndexed,
-            chunks_created: result.chunksCreated,
-            graph_nodes: result.nodesCreated,
-            graph_edges: result.edgesCreated,
-            duration_ms: result.durationMs,
-          };
-
-          // Add scanning summary if available
-          if (lastProgress?.scanningStatus) {
-            response.scanning_summary = {
-              folders_scanned: lastProgress.scanningStatus.foldersScanned,
-              files_found: lastProgress.scanningStatus.filesFound,
-            };
-          }
-
-          // Add warnings (file limits, recommendations)
-          if (result.warnings && result.warnings.length > 0) {
-            response.warnings = result.warnings;
-          }
-
-          // Add errors if any
-          if (result.errors.length > 0) {
-            response.errors = result.errors.slice(0, 5);
-          }
-
+          // Return immediately with "started" status
           return {
             content: [{
               type: 'text' as const,
-              text: JSON.stringify(response, null, 2),
+              text: JSON.stringify({
+                status: 'indexing_started',
+                project_name: projectName,
+                project_path: absolutePath,
+                message: 'Indexing started in background. Search will work with partial results. Use projects() to check progress.',
+              }, null, 2),
             }],
           };
+
+          // OLD SYNCHRONOUS CODE REMOVED - was causing MCP timeouts
+          // Now handled by startBackgroundIndexing()
 
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to index project: ${message}`,
+              text: JSON.stringify({ error: message }, null, 2),
             }],
             isError: true,
           };
@@ -1143,15 +1478,38 @@ export class CodeSeekerMcpServer {
     );
   }
 
+  // Remove the old synchronous indexing response builder (now in background)
+  private _unusedOldIndexingResponse(): void {
+    // This is a placeholder to mark where old code was removed
+    // The synchronous indexing logic is now in runBackgroundIndexing()
+  }
+
   /**
-   * Tool 5: Notify file changes for incremental updates
+   * Tool 5b: Check indexing status (part of projects output now)
    */
-  private registerNotifyFileChangesTool(): void {
+  private _getIndexingStatusForProject(projectId: string): Record<string, unknown> | null {
+    const job = this.indexingJobs.get(projectId);
+    if (!job) return null;
+
+    return {
+      indexing_status: job.status,
+      indexing_progress: job.progress,
+      indexing_result: job.result,
+      indexing_error: job.error,
+      indexing_started: job.startedAt.toISOString(),
+      indexing_completed: job.completedAt?.toISOString(),
+    };
+  }
+
+  /**
+   * Tool 6: Notify file changes for incremental updates
+   */
+  private registerSyncTool(): void {
     this.server.registerTool(
-      'notify_file_changes',
+      'sync',
       {
         description: '**KEEP INDEX IN SYNC** - Call this after creating, editing, or deleting files. ' +
-          'IMPORTANT: If search_code returns stale results or grep finds content not in search results, ' +
+          'IMPORTANT: If search returns stale results or grep finds content not in search results, ' +
           'call this tool immediately to sync. Fast incremental updates (~100-500ms per file). ' +
           'Use after: Edit/Write tool, file deletions, or when search results seem outdated. ' +
           'For large changes (git pull, branch switch, many files), use full_reindex: true instead.',
@@ -1205,77 +1563,50 @@ export class CodeSeekerMcpServer {
               content: [{
                 type: 'text' as const,
                 text: project
-                  ? `Project not found: ${project}. Use list_projects to see available projects.`
+                  ? `Project not found: ${project}. Use projects to see available projects.`
                   : `Could not auto-detect project. Specify project name or use absolute paths in changes. Available: ${projects.map(p => p.name).join(', ')}`,
               }],
               isError: true,
             };
           }
 
-          // Full reindex mode - use IndexingService
+          // Full reindex mode - NOW RUNS IN BACKGROUND
           if (full_reindex) {
-            // Clear existing index for this project
-            await vectorStore.deleteByProject(found.id);
-            await graphStore.deleteByProject(found.id);
+            // Check if already indexing
+            const existingJob = this.getIndexingStatus(found.id);
+            if (existingJob?.status === 'running') {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: JSON.stringify({
+                    status: 'already_indexing',
+                    project: found.name,
+                    progress: existingJob.progress,
+                    message: 'Full reindex already in progress. Use projects() to check status.',
+                  }, null, 2),
+                }],
+              };
+            }
 
             // Delete coding standards file (will be regenerated)
             const codingStandardsPath = path.join(found.path, '.codeseeker', 'coding-standards.json');
             if (fs.existsSync(codingStandardsPath)) {
-              fs.unlinkSync(codingStandardsPath);
+              try { fs.unlinkSync(codingStandardsPath); } catch { /* ignore */ }
             }
 
-            // Re-index all files using IndexingService (with proper embeddings and graph)
-            let lastProgress: import('./indexing-service').IndexingProgress | undefined;
-            const result = await this.indexingService.indexProject(found.path, found.id, (progress) => {
-              lastProgress = progress;
-            });
+            // Start background indexing (returns immediately)
+            this.startBackgroundIndexing(found.id, found.name, found.path, true);
 
-            // Update project metadata
-            await projectStore.upsert({
-              id: found.id,
-              name: found.name,
-              path: found.path,
-              metadata: {
-                ...found.metadata,
-                lastFullReindex: new Date().toISOString(),
-              },
-            });
-
-            // Build response with all details
-            const response: Record<string, unknown> = {
-              success: result.success,
-              mode: 'full_reindex',
-              project: found.name,
-              files_indexed: result.filesIndexed,
-              chunks_created: result.chunksCreated,
-              graph_nodes: result.nodesCreated,
-              graph_edges: result.edgesCreated,
-              duration_ms: result.durationMs,
-              message: `Complete reindex finished. ${result.filesIndexed} files indexed, ${result.chunksCreated} chunks created.`,
-            };
-
-            // Add scanning summary
-            if (lastProgress?.scanningStatus) {
-              response.scanning_summary = {
-                folders_scanned: lastProgress.scanningStatus.foldersScanned,
-                files_found: lastProgress.scanningStatus.filesFound,
-              };
-            }
-
-            // Add warnings
-            if (result.warnings && result.warnings.length > 0) {
-              response.warnings = result.warnings;
-            }
-
-            // Add errors
-            if (result.errors.length > 0) {
-              response.errors = result.errors.slice(0, 5);
-            }
-
+            // Return immediately with "started" status
             return {
               content: [{
                 type: 'text' as const,
-                text: JSON.stringify(response, null, 2),
+                text: JSON.stringify({
+                  status: 'reindex_started',
+                  mode: 'full_reindex',
+                  project: found.name,
+                  message: 'Full reindex started in background. Search will work with partial results. Use projects() to check progress.',
+                }, null, 2),
               }],
             };
           }
@@ -1339,6 +1670,15 @@ export class CodeSeekerMcpServer {
             console.error('Failed to update coding standards:', error);
           }
 
+          // Invalidate query cache for this project (files changed)
+          let cacheInvalidated = 0;
+          try {
+            cacheInvalidated = await this.queryCache.invalidateProject(found.id);
+          } catch (error) {
+            // Don't fail if cache invalidation fails
+            console.error('Failed to invalidate query cache:', error);
+          }
+
           const duration = Date.now() - startTime;
 
           return {
@@ -1353,6 +1693,7 @@ export class CodeSeekerMcpServer {
                 files_skipped: filesSkipped > 0 ? filesSkipped : undefined,
                 chunks_created: chunksCreated,
                 chunks_deleted: chunksDeleted,
+                cache_invalidated: cacheInvalidated > 0 ? cacheInvalidated : undefined,
                 duration_ms: duration,
                 note: filesSkipped > 0 ? `${filesSkipped} file(s) unchanged (skipped via mtime/hash check)` : undefined,
                 errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
@@ -1361,11 +1702,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to process file changes: ${message}`,
+              text: this.formatErrorMessage('Process file changes', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -1373,14 +1713,14 @@ export class CodeSeekerMcpServer {
       }
     );
 
-    // get_coding_standards - Get auto-detected coding standards
+    // standards - Get auto-detected coding standards
     this.server.registerTool(
-      'get_coding_standards',
+      'standards',
       {
         description: 'Get auto-detected coding patterns and standards for a project. ' +
           'Returns validation patterns, error handling patterns, logging patterns, and testing patterns ' +
           'discovered from the codebase. Use this to write code that follows project conventions. ' +
-          'Example: get_coding_standards({project: "my-app", category: "validation"})',
+          'Example: standards({project: "my-app", category: "validation"})',
         inputSchema: {
           project: z.string().describe('Project name or path'),
           category: z.enum(['validation', 'error-handling', 'logging', 'testing', 'all']).optional().default('all')
@@ -1405,7 +1745,7 @@ export class CodeSeekerMcpServer {
             return {
               content: [{
                 type: 'text' as const,
-                text: `Project not found: ${project}. Use list_projects to see available projects.`,
+                text: `Project not found: ${project}. Use projects to see available projects.`,
               }],
               isError: true,
             };
@@ -1429,7 +1769,7 @@ export class CodeSeekerMcpServer {
               return {
                 content: [{
                   type: 'text' as const,
-                  text: 'No coding standards detected yet. The project may need to be indexed first using index_project.',
+                  text: 'No coding standards detected yet. The project may need to be indexed first using index.',
                 }],
                 isError: true,
               };
@@ -1457,11 +1797,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to get coding standards: ${message}`,
+              text: this.formatErrorMessage('Get coding standards', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -1473,15 +1812,15 @@ export class CodeSeekerMcpServer {
   /**
    * Tool 7: Install language support (Tree-sitter parsers)
    */
-  private registerInstallLanguageSupportTool(): void {
+  private registerInstallParsersTool(): void {
     this.server.registerTool(
-      'install_language_support',
+      'install_parsers',
       {
         description: 'Analyze project languages and install Tree-sitter parsers for better code understanding. ' +
           'Detects which programming languages are used in a project and installs enhanced parsers. ' +
           'Enhanced parsers provide better AST extraction for imports, classes, functions, and relationships. ' +
-          'Example: install_language_support({project: "/path/to/project"}) to auto-detect and install. ' +
-          'Example: install_language_support({languages: ["python", "java"]}) to install specific parsers.',
+          'Example: install_parsers({project: "/path/to/project"}) to auto-detect and install. ' +
+          'Example: install_parsers({languages: ["python", "java"]}) to install specific parsers.',
         inputSchema: {
           project: z.string().optional().describe('Project path to analyze for languages (auto-detects needed parsers)'),
           languages: z.array(z.string()).optional().describe('Specific languages to install parsers for (e.g., ["python", "java", "csharp"])'),
@@ -1514,7 +1853,7 @@ export class CodeSeekerMcpServer {
                     description: p.description,
                   })),
                   install_command: available.length > 0
-                    ? `Use install_language_support({languages: [${available.slice(0, 3).map(p => `"${p.language.toLowerCase()}"`).join(', ')}]})`
+                    ? `Use install_parsers({languages: [${available.slice(0, 3).map(p => `"${p.language.toLowerCase()}"`).join(', ')}]})`
                     : 'All parsers are already installed!',
                 }, null, 2),
               }],
@@ -1534,7 +1873,7 @@ export class CodeSeekerMcpServer {
                   failed: result.failed.length > 0 ? result.failed : undefined,
                   message: result.message,
                   next_step: result.success
-                    ? 'Reindex your project to use the new parsers: notify_file_changes({project: "...", full_reindex: true})'
+                    ? 'Reindex your project to use the new parsers: sync({project: "...", full_reindex: true})'
                     : 'Check the errors above and try again.',
                 }, null, 2),
               }],
@@ -1577,7 +1916,7 @@ export class CodeSeekerMcpServer {
                   })),
                   recommendations: analysis.recommendations,
                   install_command: missingLanguages.length > 0
-                    ? `Use install_language_support({languages: [${missingLanguages.map(l => `"${l}"`).join(', ')}]}) to install enhanced parsers`
+                    ? `Use install_parsers({languages: [${missingLanguages.map(l => `"${l}"`).join(', ')}]}) to install enhanced parsers`
                     : 'All detected languages have parsers installed!',
                 }, null, 2),
               }],
@@ -1590,9 +1929,9 @@ export class CodeSeekerMcpServer {
               type: 'text' as const,
               text: JSON.stringify({
                 usage: {
-                  analyze_project: 'install_language_support({project: "/path/to/project"}) - Detect languages and suggest parsers',
-                  install_specific: 'install_language_support({languages: ["python", "java"]}) - Install parsers for specific languages',
-                  list_available: 'install_language_support({list_available: true}) - Show all available parsers',
+                  analyze_project: 'install_parsers({project: "/path/to/project"}) - Detect languages and suggest parsers',
+                  install_specific: 'install_parsers({languages: ["python", "java"]}) - Install parsers for specific languages',
+                  list_available: 'install_parsers({list_available: true}) - Show all available parsers',
                 },
                 supported_languages: [
                   'TypeScript (bundled)', 'JavaScript (bundled)',
@@ -1604,11 +1943,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to manage language support: ${message}`,
+              text: this.formatErrorMessage('Manage language support', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -1622,14 +1960,14 @@ export class CodeSeekerMcpServer {
    * Allows Claude to exclude files that shouldn't be indexed (like Unity's Library folder)
    * and include files that were wrongly excluded
    */
-  private registerManageIndexTool(): void {
+  private registerExcludeTool(): void {
     this.server.registerTool(
-      'manage_index',
+      'exclude',
       {
         description: 'Dynamically manage which files are included or excluded from the index. ' +
           'Use this to exclude files that shouldn\'t be searched (e.g., Library/, build outputs, generated files) ' +
           'or include files that were incorrectly excluded. Exclusions persist in .codeseeker/exclusions.json. ' +
-          'Example: manage_index({action: "exclude", project: "my-app", paths: ["Library/**", "Temp/**"]}) ' +
+          'Example: exclude({action: "exclude", project: "my-app", paths: ["Library/**", "Temp/**"]}) ' +
           'to exclude Unity folders. Changes take effect immediately - excluded files are removed from the index.',
         inputSchema: {
           action: z.enum(['exclude', 'include', 'list']).describe(
@@ -1664,7 +2002,7 @@ export class CodeSeekerMcpServer {
             return {
               content: [{
                 type: 'text' as const,
-                text: `Project not found: ${project}. Use list_projects to see available projects.`,
+                text: `Project not found: ${project}. Use projects to see available projects.`,
               }],
               isError: true,
             };
@@ -1708,8 +2046,8 @@ export class CodeSeekerMcpServer {
                   patterns: exclusions.patterns,
                   last_modified: exclusions.lastModified,
                   usage: {
-                    exclude: 'manage_index({action: "exclude", project: "...", paths: ["pattern/**"]})',
-                    include: 'manage_index({action: "include", project: "...", paths: ["pattern/**"]})',
+                    exclude: 'exclude({action: "exclude", project: "...", paths: ["pattern/**"]})',
+                    include: 'exclude({action: "include", project: "...", paths: ["pattern/**"]})',
                   }
                 }, null, 2),
               }],
@@ -1830,7 +2168,7 @@ export class CodeSeekerMcpServer {
                       `Files matching these patterns will be indexed on next reindex.`
                     : 'No patterns were removed (none matched).',
                   next_step: removedPatterns.length > 0
-                    ? 'Run notify_file_changes({project: "...", full_reindex: true}) to index the previously excluded files.'
+                    ? 'Run sync({project: "...", full_reindex: true}) to index the previously excluded files.'
                     : undefined
                 }, null, 2),
               }],
@@ -1847,11 +2185,10 @@ export class CodeSeekerMcpServer {
           };
 
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
           return {
             content: [{
               type: 'text' as const,
-              text: `Failed to manage index: ${message}`,
+              text: this.formatErrorMessage('Manage index exclusions', error instanceof Error ? error : String(error), { projectPath: project }),
             }],
             isError: true,
           };
@@ -1912,6 +2249,71 @@ export class CodeSeekerMcpServer {
    */
   private generateProjectId(projectPath: string): string {
     return crypto.createHash('md5').update(projectPath).digest('hex');
+  }
+
+  /**
+   * Generate actionable error message based on error type
+   */
+  private formatErrorMessage(operation: string, error: Error | string, context?: { projectPath?: string }): string {
+    const message = error instanceof Error ? error.message : String(error);
+    const lowerMessage = message.toLowerCase();
+
+    // Common error patterns with actionable guidance
+    if (lowerMessage.includes('enoent') || lowerMessage.includes('not found') || lowerMessage.includes('no such file')) {
+      return `${operation} failed: File or directory not found.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Verify the path exists: ${context?.projectPath || 'the specified path'}\n` +
+        `• Check for typos in the path\n` +
+        `• Ensure you have read permissions`;
+    }
+
+    if (lowerMessage.includes('eacces') || lowerMessage.includes('permission denied')) {
+      return `${operation} failed: Permission denied.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Check file/folder permissions\n` +
+        `• Run with appropriate access rights\n` +
+        `• Avoid system-protected directories`;
+    }
+
+    if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) {
+      return `${operation} failed: Operation timed out.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Try again - the operation may complete on retry\n` +
+        `• For large projects, indexing runs in background - check status with projects()\n` +
+        `• Check network connectivity if using server storage mode`;
+    }
+
+    if (lowerMessage.includes('connection') || lowerMessage.includes('econnrefused') || lowerMessage.includes('network')) {
+      return `${operation} failed: Connection error.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Check if storage services are running (if using server mode)\n` +
+        `• Verify network connectivity\n` +
+        `• Consider switching to embedded mode for local development`;
+    }
+
+    if (lowerMessage.includes('not indexed') || lowerMessage.includes('no project')) {
+      const pathHint = context?.projectPath ? `index({path: "${context.projectPath}"})` : 'index({path: "/path/to/project"})';
+      return `${operation} failed: Project not indexed.\n\n` +
+        `ACTION REQUIRED:\n` +
+        `• First run: ${pathHint}\n` +
+        `• Then retry your search\n` +
+        `• Use projects() to see indexed projects`;
+    }
+
+    if (lowerMessage.includes('out of memory') || lowerMessage.includes('heap')) {
+      return `${operation} failed: Out of memory.\n\n` +
+        `TROUBLESHOOTING:\n` +
+        `• Try indexing fewer files at once\n` +
+        `• Use exclude() to skip large directories (e.g., node_modules, dist)\n` +
+        `• Increase Node.js memory: NODE_OPTIONS=--max-old-space-size=4096`;
+    }
+
+    // Default: include original message with generic guidance
+    return `${operation} failed: ${message}\n\n` +
+      `TROUBLESHOOTING:\n` +
+      `• Check the error message above for details\n` +
+      `• Use projects() to verify project status\n` +
+      `• Try sync({project: "...", full_reindex: true}) if index seems corrupted`;
   }
 
   /**

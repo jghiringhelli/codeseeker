@@ -338,7 +338,7 @@ export class DuplicateCodeDetector {
       structuralDuplicates > 0 ? `Consider architectural improvements for ${structuralDuplicates} structural duplicate groups` : null,
       potentialSavings > 100 ? `Significant code reduction opportunity: ${potentialSavings} lines could be eliminated` : null,
       groups.length > 10 ? 'Consider implementing automated duplication detection in CI/CD pipeline' : null
-    ].filter(Boolean) as string[];
+    ].filter(Boolean);
 
     return {
       totalChunksAnalyzed: chunks.length,

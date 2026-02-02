@@ -68,7 +68,7 @@ export class GraphTraversalManager implements IGraphTraversalManager {
     let maxDepthReached = 0;
 
     while (queue.length > 0) {
-      const { nodeId, depth } = queue.shift()!;
+      const { nodeId, depth } = queue.shift();
 
       if (visited.has(nodeId) || depth > maxDepth) continue;
 
@@ -112,7 +112,7 @@ export class GraphTraversalManager implements IGraphTraversalManager {
     const queue = [startNodeId];
 
     while (queue.length > 0) {
-      const nodeId = queue.shift()!;
+      const nodeId = queue.shift();
       if (visited.has(nodeId)) continue;
 
       visited.add(nodeId);
@@ -162,7 +162,7 @@ export class GraphTraversalManager implements IGraphTraversalManager {
     const queue: { nodeId: string; path: string[] }[] = [{ nodeId: startId, path: [startId] }];
 
     while (queue.length > 0) {
-      const { nodeId, path } = queue.shift()!;
+      const { nodeId, path } = queue.shift();
 
       if (visited.has(nodeId)) continue;
       visited.add(nodeId);
@@ -274,7 +274,7 @@ export class GraphTraversalManager implements IGraphTraversalManager {
     const queue: { nodeId: string; depth: number }[] = [{ nodeId: startNodeId, depth: 0 }];
 
     while (queue.length > 0) {
-      const { nodeId, depth } = queue.shift()!;
+      const { nodeId, depth } = queue.shift();
 
       if (exploredNodes.has(nodeId) || depth > explorationDepth) continue;
 
@@ -360,7 +360,7 @@ export class GraphTraversalManager implements IGraphTraversalManager {
     const queue = [startNodeId];
 
     while (queue.length > 0) {
-      const nodeId = queue.shift()!;
+      const nodeId = queue.shift();
 
       if (visited.has(nodeId)) continue;
       visited.add(nodeId);
@@ -395,7 +395,7 @@ export class GraphTraversalManager implements IGraphTraversalManager {
     const queue: { nodeId: string; depth: number }[] = [{ nodeId: startNodeId, depth: 0 }];
 
     while (queue.length > 0) {
-      const { nodeId, depth } = queue.shift()!;
+      const { nodeId, depth } = queue.shift();
 
       if (visited.has(nodeId) || depth > maxDepth) continue;
       visited.add(nodeId);
@@ -529,7 +529,7 @@ export class GraphTraversalManager implements IGraphTraversalManager {
     const queue = [startNodeId];
 
     while (queue.length > 0) {
-      const nodeId = queue.shift()!;
+      const nodeId = queue.shift();
 
       if (visited.has(nodeId)) continue;
       visited.add(nodeId);

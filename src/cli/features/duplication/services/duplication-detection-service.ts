@@ -26,7 +26,7 @@ export class DuplicationDetectionService implements IDuplicationDetectionService
       if (!hashMap.has(hash)) {
         hashMap.set(hash, []);
       }
-      hashMap.get(hash)!.push(block);
+      hashMap.get(hash).push(block);
     }
 
     // Create duplication groups for blocks with identical hashes
@@ -56,7 +56,7 @@ export class DuplicationDetectionService implements IDuplicationDetectionService
       if (!structuralMap.has(structuralKey)) {
         structuralMap.set(structuralKey, []);
       }
-      structuralMap.get(structuralKey)!.push(block);
+      structuralMap.get(structuralKey).push(block);
     }
 
     // Create groups for structurally similar blocks
@@ -146,7 +146,7 @@ export class DuplicationDetectionService implements IDuplicationDetectionService
         if (!normalizedMap.has(hash)) {
           normalizedMap.set(hash, []);
         }
-        normalizedMap.get(hash)!.push(block);
+        normalizedMap.get(hash).push(block);
       }
 
       // Create groups for blocks that are identical after normalization

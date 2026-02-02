@@ -254,7 +254,7 @@ export class GraphAnalyzer implements IGraphAnalyzer {
     const clusterVisited = new Set<string>();
 
     while (queue.length > 0) {
-      const nodeId = queue.shift()!;
+      const nodeId = queue.shift();
       if (clusterVisited.has(nodeId)) continue;
 
       clusterVisited.add(nodeId);

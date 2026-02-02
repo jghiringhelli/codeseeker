@@ -313,7 +313,7 @@ export class TaskDecompositionService {
     // Filter by file patterns
     if (filter.filePatterns && filter.filePatterns.length > 0) {
       filteredResults = filteredResults.filter(r =>
-        filter.filePatterns!.some(pattern => {
+        filter.filePatterns.some(pattern => {
           const regex = new RegExp(pattern.replace(/\*/g, '.*').replace(/\?/g, '.'));
           return regex.test(r.file);
         })
@@ -323,7 +323,7 @@ export class TaskDecompositionService {
     // Filter by file types
     if (filter.fileTypes && filter.fileTypes.length > 0) {
       filteredResults = filteredResults.filter(r =>
-        filter.fileTypes!.includes(r.type)
+        filter.fileTypes.includes(r.type)
       );
     }
 

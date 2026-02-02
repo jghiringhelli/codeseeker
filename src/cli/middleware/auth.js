@@ -166,7 +166,7 @@ function createAuthMiddleware(authService) {
             const sessionToken = req.cookies?.sessionToken;
             
             // Check for API key in Authorization header
-            if (authHeader && authHeader.startsWith('Bearer ')) {
+            if (authHeader?.startsWith('Bearer ')) {
                 const token = authHeader.substring(7);
                 const validation = await authService.validateSession(token);
                 
@@ -198,7 +198,7 @@ function createAuthMiddleware(authService) {
             const authHeader = req.headers.authorization;
             const sessionToken = req.cookies?.sessionToken;
             
-            if (authHeader && authHeader.startsWith('Bearer ')) {
+            if (authHeader?.startsWith('Bearer ')) {
                 const token = authHeader.substring(7);
                 const validation = await authService.validateSession(token);
                 

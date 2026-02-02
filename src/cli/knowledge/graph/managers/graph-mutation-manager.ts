@@ -511,7 +511,7 @@ export class GraphMutationManager implements IGraphMutationManager {
     stateManager.getNodes().clear();
 
     for (const [oldId, node] of oldNodes.entries()) {
-      const newId = idMapping.get(oldId)!;
+      const newId = idMapping.get(oldId);
       const updatedNode = { ...node, id: newId };
       stateManager.getNodes().set(newId, updatedNode);
     }

@@ -19,7 +19,7 @@ export abstract class BaseCommandHandler {
    */
   protected parsePathAndFlags(args: string): PathAnalysisOptions {
     const parts = args.trim().split(/\s+/);
-    let targetPath = parts[0] || '/';  // Default to root if no path
+    const targetPath = parts[0] || '/';  // Default to root if no path
     let recursive = true;  // Default to recursive
 
     // Check for --no-recursive flag

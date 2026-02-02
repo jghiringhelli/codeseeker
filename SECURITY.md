@@ -9,7 +9,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in CodeMind, please report it responsibly.
+If you discover a security vulnerability in CodeSeeker, please report it responsibly.
 
 ### How to Report
 
@@ -58,13 +58,13 @@ If you discover a security vulnerability in CodeMind, please report it responsib
 
 ### Claude CLI Integration
 
-- CodeMind uses local Claude CLI execution only
+- CodeSeeker uses local Claude CLI execution only
 - No API keys are transmitted over network
 - All processing happens locally
 
 ## Security Best Practices for Users
 
-1. **Keep CodeMind updated** to the latest version
+1. **Keep CodeSeeker updated** to the latest version
 2. **Secure your database credentials** - use strong passwords
 3. **Run in isolated environments** when possible
 4. **Review generated code** before committing to production
@@ -72,6 +72,6 @@ If you discover a security vulnerability in CodeMind, please report it responsib
 
 ## Acknowledgments
 
-We appreciate security researchers who help keep CodeMind secure. Contributors will be acknowledged (with permission) in release notes.
+We appreciate security researchers who help keep CodeSeeker secure. Contributors will be acknowledged (with permission) in release notes.
 
-Thank you for helping keep CodeMind and its users safe!
+Thank you for helping keep CodeSeeker and its users safe!

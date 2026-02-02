@@ -37,7 +37,7 @@ export class FileProcessor implements IFileProcessor {
       });
 
       const batchResults = await Promise.all(batchPromises);
-      embeddings.push(...batchResults.filter(result => result !== null) as FileEmbedding[]);
+      embeddings.push(...batchResults.filter(result => result !== null));
 
       // Small delay between batches to prevent overwhelming the system
       if (i + batchSize < files.length) {

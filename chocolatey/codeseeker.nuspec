@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>codeseeker</id>
+    <version>1.7.1</version>
+    <packageSourceUrl>https://github.com/jghiringhelli/codeseeker</packageSourceUrl>
+    <owners>CodeSeeker Team</owners>
+    <title>CodeSeeker - Graph-Powered Code Intelligence</title>
+    <authors>CodeSeeker Team</authors>
+    <projectUrl>https://github.com/jghiringhelli/codeseeker</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/jghiringhelli/codeseeker/master/docs/assets/codeseeker-icon.png</iconUrl>
+    <licenseUrl>https://github.com/jghiringhelli/codeseeker/blob/master/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/jghiringhelli/codeseeker</projectSourceUrl>
+    <docsUrl>https://github.com/jghiringhelli/codeseeker#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/jghiringhelli/codeseeker/issues</bugTrackerUrl>
+    <tags>codeseeker claude-code mcp semantic-search knowledge-graph ai code-intelligence developer-tools</tags>
+    <summary>Graph-powered code intelligence for Claude Code, GitHub Copilot, Cursor, and other AI assistants</summary>
+    <description>
+# CodeSeeker
+
+**Graph-powered code intelligence for Claude Code.** CodeSeeker builds a knowledge graph of your codebase—not just embeddings—so Claude understands how your code actually connects.
+
+## What is CodeSeeker?
+
+An MCP server that gives AI assistants semantic code search and knowledge graph traversal. Works with **Claude Code**, **GitHub Copilot**, **Cursor**, and **Claude Desktop**.
+
+**NOT A VS CODE EXTENSION:** CodeSeeker is an MCP server that works WITH AI assistants, not a standalone extension.
+
+## Features
+
+- **Hybrid Search**: Vector + text + path search with Reciprocal Rank Fusion
+- **Knowledge Graph**: Maps imports, calls, extends, implements relationships
+- **Auto-Detected Patterns**: Learns your project's coding standards
+- **Graph RAG**: Retrieval-Augmented Generation using code relationships
+- **Local Storage**: All data stored in `.codeseeker/` - no external services
+
+## Installation
+
+After installing CodeSeeker via Chocolatey:
+
+```powershell
+# Configure for your AI assistant
+codeseeker install --vscode      # VS Code (Claude Code and GitHub Copilot)
+codeseeker install --cursor      # Cursor IDE
+codeseeker install --windsurf    # Windsurf IDE
+```
+
+Then restart your IDE.
+
+## Verify Installation
+
+Ask your AI assistant: "What CodeSeeker tools do you have?"
+
+You should see: `search`, `search_and_read`, `show_dependencies`, `read_with_context`, `standards`, etc.
+
+## Documentation
+
+Full documentation: https://github.com/jghiringhelli/codeseeker#readme
+    </description>
+    <releaseNotes>https://github.com/jghiringhelli/codeseeker/releases</releaseNotes>
+    <dependencies>
+      <dependency id="nodejs" version="18.0.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

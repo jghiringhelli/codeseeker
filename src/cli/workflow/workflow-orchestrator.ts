@@ -60,23 +60,23 @@ export class CodeSeekerWorkflowOrchestrator implements IWorkflowOrchestrator {
 
     try {
       // STEP 1: Analyze user intent and select appropriate tools
-      const intent = await this.intentAnalysisService!.analyzeIntentAndSelectTools(request);
+      const intent = await this.intentAnalysisService.analyzeIntentAndSelectTools(request);
       this.logger.info(`Intent: ${intent.intention} (${intent.complexity} complexity, ${intent.suggestedTools.length} tools)`);
 
       // STEP 2: Execute semantic search + graph traversal for complete context
-      const context = await this.contextGatheringService!.gatherSemanticContext(request.query, intent);
+      const context = await this.contextGatheringService.gatherSemanticContext(request.query, intent);
       this.logger.info(`Context: ${context.totalFiles} files (${Math.round(context.contextSize / 1000)}KB)`);
 
       // STEP 3: Create git branch for safe development
-      const gitBranch = await this.gitWorkflowService!.createFeatureBranch(workflowId, request.query);
+      const gitBranch = await this.gitWorkflowService.createFeatureBranch(workflowId, request.query);
       this.logger.info(`Git branch: ${gitBranch}`);
 
       // STEP 4: Split request into manageable sub-tasks
-      const subTasks = await this.taskOrchestrationService!.splitIntoSubTasks(request, intent, context);
+      const subTasks = await this.taskOrchestrationService.splitIntoSubTasks(request, intent, context);
       this.logger.info(`Sub-tasks: ${subTasks.length} tasks identified`);
 
       // STEP 5: Process each sub-task with Claude + focused context
-      const subTaskResults = await this.taskOrchestrationService!.processAllSubTasks(subTasks, context);
+      const subTaskResults = await this.taskOrchestrationService.processAllSubTasks(subTasks, context);
       this.logger.info(`Sub-tasks completed: ${subTaskResults.filter(r => r.success).length}/${subTasks.length} successful`);
 
       // STEP 6: Run comprehensive quality checks (skip for report requests)
@@ -85,12 +85,12 @@ export class CodeSeekerWorkflowOrchestrator implements IWorkflowOrchestrator {
         this.logger.info('📋 Skipping quality checks for report request');
         qualityResult = this.createSkippedQualityResult();
       } else {
-        qualityResult = await this.qualityAssuranceService!.runQualityChecks(subTaskResults);
+        qualityResult = await this.qualityAssuranceService.runQualityChecks(subTaskResults);
         this.logger.info(`Quality score: ${qualityResult.overallScore}% (${qualityResult.compilation.success ? 'compiles' : 'compilation errors'})`);
       }
 
       // STEP 7: If quality checks pass, commit and merge; otherwise rollback
-      const finalResult = await this.gitWorkflowService!.finalizeChanges(
+      const finalResult = await this.gitWorkflowService.finalizeChanges(
         gitBranch,
         qualityResult,
         subTaskResults,
@@ -98,7 +98,7 @@ export class CodeSeekerWorkflowOrchestrator implements IWorkflowOrchestrator {
       );
 
       // STEP 8: Update all databases with changes made
-      const databaseUpdates = await this.databaseSyncService!.updateAllDatabases(finalResult.filesModified, context);
+      const databaseUpdates = await this.databaseSyncService.updateAllDatabases(finalResult.filesModified, context);
       finalResult.databases = databaseUpdates;
 
       this.logger.info(`✅ Workflow complete: ${finalResult.success ? 'SUCCESS' : 'FAILED'}`);
@@ -109,7 +109,7 @@ export class CodeSeekerWorkflowOrchestrator implements IWorkflowOrchestrator {
 
       // Rollback any changes made
       try {
-        await this.gitWorkflowService!.rollbackChanges(workflowId);
+        await this.gitWorkflowService.rollbackChanges(workflowId);
       } catch (rollbackError) {
         this.logger.error('Rollback also failed:', rollbackError);
       }
@@ -131,13 +131,13 @@ export class CodeSeekerWorkflowOrchestrator implements IWorkflowOrchestrator {
 
     try {
       // Analyze intent
-      const intent = await this.intentAnalysisService!.analyzeIntentAndSelectTools({
+      const intent = await this.intentAnalysisService.analyzeIntentAndSelectTools({
         ...request,
         query: request.query + ' (analysis only)'
       });
 
       // Gather context
-      const context = await this.contextGatheringService!.gatherSemanticContext(request.query, intent);
+      const context = await this.contextGatheringService.gatherSemanticContext(request.query, intent);
 
       // Generate analysis report
       const analysis = this.generateAnalysisReport(intent, context);
@@ -169,10 +169,10 @@ export class CodeSeekerWorkflowOrchestrator implements IWorkflowOrchestrator {
   }> {
     try {
       // Check database connections
-      const databaseHealth = await this.databaseSyncService!.validateDatabaseConnections();
+      const databaseHealth = await this.databaseSyncService.validateDatabaseConnections();
 
       // Check git status
-      const gitStatus = await this.gitWorkflowService!.getBranchStatus();
+      const gitStatus = await this.gitWorkflowService.getBranchStatus();
 
       const services = {
         intentAnalysis: true, // These are lightweight services
@@ -230,7 +230,7 @@ export class CodeSeekerWorkflowOrchestrator implements IWorkflowOrchestrator {
   }
 
   private generateAnalysisReport(intent: any, context: any): string {
-    const contextSummary = this.contextGatheringService!.formatContextForClaude(context);
+    const contextSummary = this.contextGatheringService.formatContextForClaude(context);
 
     return [
       '# CodeSeeker Analysis Report',

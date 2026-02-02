@@ -269,7 +269,7 @@ export class FileWatcherService extends EventEmitter {
       clearTimeout(this.syncTimer);
     }
 
-    console.log(Theme.colors.info(`⏰ Auto-sync scheduled in ${this.options.syncDelayMs! / 1000}s...`));
+    console.log(Theme.colors.info(`⏰ Auto-sync scheduled in ${this.options.syncDelayMs / 1000}s...`));
 
     this.syncTimer = setTimeout(async () => {
       try {

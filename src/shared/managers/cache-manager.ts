@@ -119,7 +119,7 @@ export class LocalCacheManager {
       try {
         const cacheData = fs.readFileSync(this.cachePath, 'utf-8');
         this.cache = JSON.parse(cacheData);
-        this.cache!.metadata.cacheHits++;
+        this.cache.metadata.cacheHits++;
         this.logger.debug('Local cache loaded from file');
       } catch (error) {
         this.logger.warn('Failed to load cache, creating new one');
@@ -243,7 +243,7 @@ export class LocalCacheManager {
    * Get project context if not expired
    */
   getContext(): LocalCacheData['context'] | null {
-    if (!this.cache || !this.cache.context.lastFetched) return null;
+    if (!this.cache?.context.lastFetched) return null;
 
     const lastFetched = new Date(this.cache.context.lastFetched);
     const now = new Date();

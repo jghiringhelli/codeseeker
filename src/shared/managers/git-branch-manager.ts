@@ -356,7 +356,7 @@ export class GitBranchManager {
     let targetCommit: string;
 
     if (options.targetSnapshot) {
-      const snapshot = featureBranch.snapshots.find(s => s.commitHash.startsWith(options.targetSnapshot!));
+      const snapshot = featureBranch.snapshots.find(s => s.commitHash.startsWith(options.targetSnapshot));
       if (!snapshot) {
         throw new Error(`Snapshot ${options.targetSnapshot} not found`);
       }

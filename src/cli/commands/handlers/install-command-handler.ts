@@ -3,12 +3,16 @@
  * Single Responsibility: Handle MCP configuration installation for various IDEs
  *
  * Usage:
- *   codeseeker install --copilot          Configure VS Code + GitHub Copilot
+ *   codeseeker install --claude-code      Configure Claude Code CLI (.mcp.json at project root)
+ *   codeseeker install --vscode           Configure VS Code GitHub Copilot (.vscode/mcp.json)
+ *   codeseeker install --copilot          Same as --vscode
  *   codeseeker install --cursor           Configure Cursor IDE
- *   codeseeker install --vscode           Configure VS Code (same as --copilot)
  *   codeseeker install --visual-studio    Configure Visual Studio
- *   codeseeker install --global           Install to global/user settings (default: workspace)
+ *   codeseeker install --global           Install to user/global settings (default: workspace)
  *   codeseeker install --list             List current MCP configurations
+ *
+ * Note: Claude Code CLI uses .mcp.json (mcpServers format) at project root,
+ *       while VS Code extensions use .vscode/mcp.json (servers format).
  */
 
 import * as fs from 'fs';
@@ -19,7 +23,20 @@ import { CommandResult } from '../command-context';
 import { Theme } from '../../ui/theme';
 import { Logger } from '../../../utils/logger';
 
-interface McpConfig {
+// VS Code/Copilot format uses "servers" with "type": "stdio"
+interface VSCodeMcpConfig {
+  servers: {
+    codeseeker: {
+      type: string;
+      command: string;
+      args: string[];
+      env?: Record<string, string>;
+    };
+  };
+}
+
+// Cursor/Claude Desktop format uses "mcpServers"
+interface CursorMcpConfig {
   mcpServers: {
     codeseeker: {
       command: string;
@@ -29,12 +46,16 @@ interface McpConfig {
   };
 }
 
+// Union type for both formats
+type McpConfig = VSCodeMcpConfig | CursorMcpConfig;
+
 interface IdeConfig {
   name: string;
   configDir: string;
   configFile: string;
   globalConfigPath?: string;
   description: string;
+  configFormat: 'vscode' | 'cursor';  // Which format to use
 }
 
 export class InstallCommandHandler extends BaseCommandHandler {
@@ -42,40 +63,55 @@ export class InstallCommandHandler extends BaseCommandHandler {
 
   // IDE configuration mappings
   private readonly ideConfigs: Record<string, IdeConfig> = {
-    copilot: {
-      name: 'VS Code + GitHub Copilot',
-      configDir: '.vscode',
-      configFile: 'mcp.json',
-      globalConfigPath: this.getVSCodeGlobalConfigPath(),
-      description: 'MCP configuration for GitHub Copilot in VS Code'
+    // Claude Code CLI uses .mcp.json at project root (NOT .vscode/mcp.json)
+    'claude-code': {
+      name: 'Claude Code CLI',
+      configDir: '',  // Root of project
+      configFile: '.mcp.json',
+      globalConfigPath: this.getClaudeCodeGlobalConfigPath(),
+      description: 'MCP configuration for Claude Code CLI (uses .mcp.json at project root)',
+      configFormat: 'cursor'  // Claude Code uses mcpServers format like Cursor
     },
+    // VS Code extensions (GitHub Copilot) use .vscode/mcp.json
     vscode: {
-      name: 'VS Code + GitHub Copilot',
+      name: 'VS Code (GitHub Copilot)',
       configDir: '.vscode',
       configFile: 'mcp.json',
       globalConfigPath: this.getVSCodeGlobalConfigPath(),
-      description: 'MCP configuration for GitHub Copilot in VS Code'
+      description: 'MCP configuration for VS Code GitHub Copilot extension',
+      configFormat: 'vscode'
+    },
+    copilot: {
+      name: 'VS Code (GitHub Copilot)',
+      configDir: '.vscode',
+      configFile: 'mcp.json',
+      globalConfigPath: this.getVSCodeGlobalConfigPath(),
+      description: 'MCP configuration for VS Code GitHub Copilot extension',
+      configFormat: 'vscode'
     },
     cursor: {
       name: 'Cursor',
       configDir: '.cursor',
       configFile: 'mcp.json',
       globalConfigPath: this.getCursorGlobalConfigPath(),
-      description: 'MCP configuration for Cursor IDE'
+      description: 'MCP configuration for Cursor IDE',
+      configFormat: 'cursor'
     },
     'visual-studio': {
       name: 'Visual Studio',
       configDir: '.vs',
       configFile: 'mcp.json',
       globalConfigPath: this.getVisualStudioGlobalConfigPath(),
-      description: 'MCP configuration for Visual Studio (full IDE)'
+      description: 'MCP configuration for Visual Studio (full IDE)',
+      configFormat: 'vscode'
     },
     windsurf: {
       name: 'Windsurf',
       configDir: '.windsurf',
       configFile: 'mcp.json',
       globalConfigPath: this.getWindsurfGlobalConfigPath(),
-      description: 'MCP configuration for Windsurf IDE'
+      description: 'MCP configuration for Windsurf IDE',
+      configFormat: 'cursor'
     }
   };
 
@@ -128,8 +164,9 @@ export class InstallCommandHandler extends BaseCommandHandler {
   private parseInstallFlags(args: string): Record<string, boolean> {
     const argParts = args.toLowerCase().split(/\s+/).filter(Boolean);
     return {
-      copilot: argParts.includes('--copilot') || argParts.includes('-c'),
       vscode: argParts.includes('--vscode') || argParts.includes('-v'),
+      'claude-code': argParts.includes('--claude-code') || argParts.includes('--cc'),
+      copilot: argParts.includes('--copilot') || argParts.includes('-c'),
       cursor: argParts.includes('--cursor'),
       'visual-studio': argParts.includes('--visual-studio') || argParts.includes('--vs'),
       windsurf: argParts.includes('--windsurf'),
@@ -144,7 +181,10 @@ export class InstallCommandHandler extends BaseCommandHandler {
    * Determine which IDE the user wants to configure
    */
   private determineTargetIde(flags: Record<string, boolean>): string | null {
-    if (flags.copilot || flags.vscode) return 'copilot';
+    // Claude Code CLI uses different config than VS Code extensions
+    if (flags['claude-code']) return 'claude-code';
+    // VS Code extensions (GitHub Copilot) use .vscode/mcp.json
+    if (flags.vscode || flags.copilot) return 'vscode';
     if (flags.cursor) return 'cursor';
     if (flags['visual-studio']) return 'visual-studio';
     if (flags.windsurf) return 'windsurf';
@@ -173,6 +213,14 @@ export class InstallCommandHandler extends BaseCommandHandler {
     } else {
       return path.join(home, '.config', 'Code', 'User', 'mcp.json');
     }
+  }
+
+  /**
+   * Get Claude Code CLI global config path (~/.claude.json)
+   */
+  private getClaudeCodeGlobalConfigPath(): string {
+    const home = os.homedir();
+    return path.join(home, '.claude.json');
   }
 
   /**
@@ -217,14 +265,35 @@ export class InstallCommandHandler extends BaseCommandHandler {
   }
 
   /**
-   * Generate the MCP configuration for CodeSeeker
+   * Generate the MCP configuration for CodeSeeker in VS Code format
    */
-  private generateMcpConfig(): McpConfig {
+  private generateVSCodeMcpConfig(): VSCodeMcpConfig {
+    return {
+      servers: {
+        codeseeker: {
+          type: 'stdio',
+          command: 'npx',
+          args: ['-y', 'codeseeker', 'serve', '--mcp'],
+          env: {
+            CODESEEKER_STORAGE_MODE: 'embedded'
+          }
+        }
+      }
+    };
+  }
+
+  /**
+   * Generate the MCP configuration for CodeSeeker in Cursor format
+   */
+  private generateCursorMcpConfig(): CursorMcpConfig {
     return {
       mcpServers: {
         codeseeker: {
-          command: 'codeseeker',
-          args: ['serve', '--mcp']
+          command: 'npx',
+          args: ['-y', 'codeseeker', 'serve', '--mcp'],
+          env: {
+            CODESEEKER_STORAGE_MODE: 'embedded'
+          }
         }
       }
     };
@@ -249,9 +318,6 @@ export class InstallCommandHandler extends BaseCommandHandler {
         console.log(Theme.colors.muted(`   Created directory: ${configDir}`));
       }
 
-      // Generate new config
-      const newConfig = this.generateMcpConfig();
-
       // Check if file already exists
       let existingConfig: Record<string, unknown> = {};
       if (fs.existsSync(targetPath)) {
@@ -264,8 +330,8 @@ export class InstallCommandHandler extends BaseCommandHandler {
         }
       }
 
-      // Merge configurations (preserve existing mcpServers, add/update codeseeker)
-      const mergedConfig = this.mergeConfigs(existingConfig, newConfig);
+      // Merge configurations based on IDE format
+      const mergedConfig = this.mergeConfigs(existingConfig, ideConfig.configFormat);
 
       // Write the merged configuration
       fs.writeFileSync(targetPath, JSON.stringify(mergedConfig, null, 2) + '\n');
@@ -298,18 +364,31 @@ export class InstallCommandHandler extends BaseCommandHandler {
    */
   private mergeConfigs(
     existing: Record<string, unknown>,
-    newConfig: McpConfig
+    format: 'vscode' | 'cursor'
   ): Record<string, unknown> {
-    // Deep merge mcpServers
-    const existingServers = (existing.mcpServers as Record<string, unknown>) || {};
-
-    return {
-      ...existing,
-      mcpServers: {
-        ...existingServers,
-        ...newConfig.mcpServers
-      }
-    };
+    if (format === 'vscode') {
+      // VS Code uses "servers" key
+      const newConfig = this.generateVSCodeMcpConfig();
+      const existingServers = (existing.servers as Record<string, unknown>) || {};
+      return {
+        ...existing,
+        servers: {
+          ...existingServers,
+          ...newConfig.servers
+        }
+      };
+    } else {
+      // Cursor uses "mcpServers" key
+      const newConfig = this.generateCursorMcpConfig();
+      const existingServers = (existing.mcpServers as Record<string, unknown>) || {};
+      return {
+        ...existing,
+        mcpServers: {
+          ...existingServers,
+          ...newConfig.mcpServers
+        }
+      };
+    }
   }
 
   /**
@@ -318,7 +397,12 @@ export class InstallCommandHandler extends BaseCommandHandler {
   private showPostInstallInstructions(ideConfig: IdeConfig, isGlobal: boolean): void {
     console.log(Theme.colors.primary('\n📋 Next steps:'));
 
-    if (ideConfig.name.includes('VS Code') || ideConfig.name.includes('Copilot')) {
+    if (ideConfig.name === 'Claude Code CLI') {
+      console.log(Theme.colors.muted('   1. Start a new Claude Code session (or restart current one)'));
+      console.log(Theme.colors.muted('   2. Claude Code will prompt you to approve the MCP server'));
+      console.log(Theme.colors.muted('   3. Index your project: npx codeseeker init'));
+      console.log(Theme.colors.muted('   4. Start using search_code("query") in your conversations'));
+    } else if (ideConfig.name.includes('VS Code') || ideConfig.name.includes('Copilot')) {
       console.log(Theme.colors.muted('   1. Restart VS Code or reload the window (Ctrl+Shift+P → "Reload Window")'));
       console.log(Theme.colors.muted('   2. GitHub Copilot will automatically detect the MCP server'));
       console.log(Theme.colors.muted('   3. Index your project: search_code("your query") will trigger indexing'));
@@ -353,8 +437,8 @@ export class InstallCommandHandler extends BaseCommandHandler {
     let foundAny = false;
 
     for (const [key, ideConfig] of Object.entries(this.ideConfigs)) {
-      // Skip duplicates (vscode is alias for copilot)
-      if (key === 'vscode') continue;
+      // Skip duplicates (claude-code and copilot are aliases for vscode)
+      if (key === 'claude-code' || key === 'copilot') continue;
 
       // Check workspace config
       const workspacePath = path.join(userCwd, ideConfig.configDir, ideConfig.configFile);
@@ -385,7 +469,7 @@ export class InstallCommandHandler extends BaseCommandHandler {
 
     if (!foundAny) {
       console.log(Theme.colors.muted('   No MCP configurations found.'));
-      console.log(Theme.colors.muted('   Run "codeseeker install --copilot" to configure for GitHub Copilot.'));
+      console.log(Theme.colors.muted('   Run "codeseeker install --vscode" to configure for VS Code (Claude Code & GitHub Copilot).'));
     }
 
     return {
@@ -401,7 +485,8 @@ export class InstallCommandHandler extends BaseCommandHandler {
     try {
       const content = fs.readFileSync(configPath, 'utf-8');
       const config = JSON.parse(content);
-      return !!(config.mcpServers?.codeseeker);
+      // Check both formats: VS Code uses "servers", Cursor uses "mcpServers"
+      return !!(config.servers?.codeseeker || config.mcpServers?.codeseeker);
     } catch {
       return false;
     }
@@ -420,8 +505,9 @@ ${Theme.colors.success('Usage:')}
   codeseeker install <ide> [options]
 
 ${Theme.colors.success('IDE Options:')}
-  --copilot, -c         VS Code + GitHub Copilot (recommended)
-  --vscode, -v          Same as --copilot
+  --claude-code, --cc   Claude Code CLI (creates .mcp.json at project root)
+  --vscode, -v          VS Code GitHub Copilot (creates .vscode/mcp.json)
+  --copilot, -c         Same as --vscode
   --cursor              Cursor IDE
   --visual-studio, --vs Visual Studio (full IDE, not VS Code)
   --windsurf            Windsurf IDE
@@ -433,14 +519,21 @@ ${Theme.colors.success('Options:')}
   --help, -h            Show this help message
 
 ${Theme.colors.success('Examples:')}
-  codeseeker install --copilot          Configure current project for GitHub Copilot
+  codeseeker install --claude-code      Configure Claude Code CLI (.mcp.json)
+  codeseeker install --vscode           Configure VS Code GitHub Copilot (.vscode/mcp.json)
   codeseeker install --cursor --global  Configure Cursor globally
   codeseeker install --list             Show existing MCP configurations
 
+${Theme.colors.success('Important:')}
+  Claude Code CLI and VS Code extensions use DIFFERENT config files:
+  • Claude Code CLI:     .mcp.json (project root) or ~/.claude.json (global)
+  • VS Code/Copilot:     .vscode/mcp.json (project) or user settings (global)
+
 ${Theme.colors.success('After Installation:')}
-  1. Restart your IDE or reload the window
-  2. The AI assistant will automatically use CodeSeeker for code search
-  3. Try: "search_code('authentication logic')" in your AI chat
+  1. For Claude Code: Start a new session, approve the MCP server when prompted
+  2. For VS Code: Restart or reload the window
+  3. Index your project: npx codeseeker init
+  4. Try: "search_code('authentication logic')" in your AI chat
 `;
 
     console.log(helpText);

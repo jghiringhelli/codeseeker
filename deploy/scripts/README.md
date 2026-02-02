@@ -1,19 +1,19 @@
-# CodeMind Database Setup Scripts
+# CodeSeeker Database Setup Scripts
 
 > **Recommended** for server mode deployments. These scripts give you full control over your database setup and are suitable for production use.
 
 ## When to Use These Scripts
 
-**Most users don't need server mode.** CodeMind works out-of-the-box with embedded storage (SQLite + Graphology). Only use server mode if you need:
+**Most users don't need server mode.** CodeSeeker works out-of-the-box with embedded storage (SQLite + Graphology). Only use server mode if you need:
 - Support for 100K+ files
 - Multi-user/team access
 - Production deployment with high availability
 
-If you just want to try CodeMind, use embedded mode: `npm install -g codemind && codemind init --quick`
+If you just want to try CodeSeeker, use embedded mode: `npm install -g codeseeker && codeseeker init --quick`
 
 ## Overview
 
-These scripts set up the required database schemas for CodeMind server mode:
+These scripts set up the required database schemas for CodeSeeker server mode:
 
 | Script | Database | Purpose |
 |--------|----------|---------|
@@ -120,12 +120,12 @@ psql -U postgres -f setup-postgres.sql
 psql -h localhost -U postgres -f setup-postgres.sql
 
 # Verify setup
-psql -U codemind -d codemind -c "\dt"
+psql -U codeseeker -d codeseeker -c "\dt"
 ```
 
 **Important**: The script creates:
-- User `codemind` with password `codemind123`
-- Database `codemind`
+- User `codeseeker` with password `codeseeker123`
+- Database `codeseeker`
 - pgvector extension
 - Required tables and indexes
 - Hybrid search function
@@ -154,35 +154,35 @@ redis-cli ping
 # Should return: PONG
 ```
 
-## Configuring CodeMind
+## Configuring CodeSeeker
 
-After running the scripts, configure CodeMind:
+After running the scripts, configure CodeSeeker:
 
 ### Option 1: Environment Variables
 
 ```bash
-export CODEMIND_STORAGE_MODE=server
+export CODESEEKER_STORAGE_MODE=server
 
 # PostgreSQL
-export CODEMIND_PG_HOST=localhost
-export CODEMIND_PG_PORT=5432
-export CODEMIND_PG_DATABASE=codemind
-export CODEMIND_PG_USER=codemind
-export CODEMIND_PG_PASSWORD=codemind123
+export CODESEEKER_PG_HOST=localhost
+export CODESEEKER_PG_PORT=5432
+export CODESEEKER_PG_DATABASE=codeseeker
+export CODESEEKER_PG_USER=codeseeker
+export CODESEEKER_PG_PASSWORD=codeseeker123
 
 # Neo4j
-export CODEMIND_NEO4J_URI=bolt://localhost:7687
-export CODEMIND_NEO4J_USER=neo4j
-export CODEMIND_NEO4J_PASSWORD=your-password
+export CODESEEKER_NEO4J_URI=bolt://localhost:7687
+export CODESEEKER_NEO4J_USER=neo4j
+export CODESEEKER_NEO4J_PASSWORD=your-password
 
 # Redis
-export CODEMIND_REDIS_HOST=localhost
-export CODEMIND_REDIS_PORT=6379
+export CODESEEKER_REDIS_HOST=localhost
+export CODESEEKER_REDIS_PORT=6379
 ```
 
 ### Option 2: Config File
 
-Create `~/.codemind/storage.json` (or `%APPDATA%\codemind\storage.json` on Windows):
+Create `~/.codeseeker/storage.json` (or `%APPDATA%\codeseeker\storage.json` on Windows):
 
 ```json
 {
@@ -191,9 +191,9 @@ Create `~/.codemind/storage.json` (or `%APPDATA%\codemind\storage.json` on Windo
     "postgres": {
       "host": "localhost",
       "port": 5432,
-      "database": "codemind",
-      "user": "codemind",
-      "password": "codemind123"
+      "database": "codeseeker",
+      "user": "codeseeker",
+      "password": "codeseeker123"
     },
     "neo4j": {
       "uri": "bolt://localhost:7687",
@@ -214,14 +214,14 @@ Test the setup:
 
 ```bash
 # Check storage mode
-codemind storage status
+codeseeker storage status
 
 # Test connections
-codemind storage test
+codeseeker storage test
 
 # Initialize a project
 cd /path/to/project
-codemind init
+codeseeker init
 ```
 
 ## Troubleshooting

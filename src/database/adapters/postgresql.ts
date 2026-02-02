@@ -229,7 +229,7 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
     Object.entries(updates)?.forEach(([key, value]) => {
       if (key === 'id' || key === 'createdAt') return;
       
-      let dbColumn = this?.mapFieldToColumn(key);
+      const dbColumn = this?.mapFieldToColumn(key);
       if (key === 'languages' || key === 'frameworks' || key === 'metadata') {
         fields?.push(`${dbColumn} = $${paramCount}`);
         values?.push(JSON.stringify(value));
@@ -241,7 +241,7 @@ export class PostgreSQLAdapter extends DatabaseAdapter {
     });
 
     if (fields?.length === 0) {
-      return this?.getProjectById(id) as Promise<Project>;
+      return this?.getProjectById(id);
     }
 
     values?.push(id);

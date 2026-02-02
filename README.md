@@ -6,7 +6,95 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
 
-> **What is CodeSeeker?** An MCP server that gives Claude semantic code search and knowledge graph traversal. Works with Claude Code, Claude Desktop, and Cursor.
+> **What is CodeSeeker?** An MCP server that gives AI assistants semantic code search and knowledge graph traversal. Works with **Claude Code**, **GitHub Copilot**, **Cursor**, and **Claude Desktop**.
+
+> **⚠️ NOT A VS CODE EXTENSION:** CodeSeeker is installed via `npm`, not the VS Code marketplace. It's an MCP server that enhances AI assistants, not a standalone extension.
+
+## Installation
+
+> **🚨 Important:** CodeSeeker is **NOT a VS Code extension**. It's an **MCP server** (Model Context Protocol) that works WITH AI assistants like Claude Code and GitHub Copilot. Don't look for it in the VS Code marketplace—install via the methods below.
+
+### ⚡ One-Line Install (Easiest)
+
+Copy/paste ONE command - auto-detects your system and configures everything:
+
+**macOS/Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/jghiringhelli/codeseeker/master/scripts/install.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/jghiringhelli/codeseeker/master/scripts/install.ps1 | iex
+```
+
+Restart your IDE and you're done!
+
+### 📦 Package Managers (Advanced)
+
+**Linux (Snap) - All Distributions:**
+```bash
+sudo snap install codeseeker --classic
+codeseeker install --vscode      # or --cursor, --windsurf
+```
+
+**macOS/Linux (Homebrew):**
+```bash
+brew install jghiringhelli/codeseeker/codeseeker
+codeseeker install --vscode      # or --cursor, --windsurf
+```
+
+**Windows (Chocolatey):**
+```powershell
+choco install codeseeker
+codeseeker install --vscode      # or --cursor, --windsurf
+```
+
+**Cross-platform (npm):**
+```bash
+npm install -g codeseeker
+codeseeker install --vscode      # or --cursor, --windsurf
+```
+
+### 🚀 No Install Required (npx)
+
+Run without installing:
+```bash
+npx codeseeker init
+npx codeseeker -c "how does authentication work?"
+```
+
+### 🔌 Claude Code Plugin
+
+If you use Claude Code CLI, you can install as a plugin:
+
+```bash
+/plugin install codeseeker@github:jghiringhelli/codeseeker#plugin
+```
+
+This gives you auto-sync hooks and slash commands (`/codeseeker:init`, `/codeseeker:reindex`).
+
+### ☁️ Devcontainer / GitHub Codespaces
+
+CodeSeeker auto-installs in devcontainers! Just add `.devcontainer/devcontainer.json`:
+
+```json
+{
+  "name": "My Project",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
+  "postCreateCommand": "npm install -g codeseeker && codeseeker install --vscode"
+}
+```
+
+Or use our pre-configured devcontainer (already included in this repo).
+
+### ✅ Verify Installation
+
+Ask your AI assistant: *"What CodeSeeker tools do you have?"*
+
+You should see: `search`, `search_and_read`, `show_dependencies`, `read_with_context`, `standards`, etc.
+
+---
 
 ## The Problem
 
@@ -41,29 +129,14 @@ When you ask "add password reset to authentication", Claude doesn't just find fi
 
 This is **Graph RAG** (Retrieval-Augmented Generation), not just vector search.
 
-## Installation
+## Advanced Installation Options
 
-### Claude Code (Terminal or VS Code)
+<details>
+<summary><b>📋 Manual MCP Configuration</b> (if auto-install doesn't work)</summary>
 
-**Option A: Plugin (Recommended)**
+### VS Code (Claude Code & GitHub Copilot)
 
-```
-/plugin install codeseeker@github:jghiringhelli/codeseeker#plugin
-```
-
-This installs the plugin with:
-- MCP server auto-configured
-- Hooks that keep the index in sync when Claude edits files
-- Slash commands (`/codeseeker:init`, `/codeseeker:reindex`)
-
-Then initialize in any project:
-```
-/codeseeker:init
-```
-
-**Option B: Manual MCP Configuration**
-
-Add to `~/.claude/settings.json`:
+Add to `.vscode/mcp.json` in your project:
 
 ```json
 {
@@ -79,11 +152,9 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-Restart Claude Code. CodeSeeker tools are now available.
-
 ### Cursor
 
-Add to `.cursor/mcp.json` in your project (or global settings):
+Add to `.cursor/mcp.json` in your project:
 
 ```json
 {
@@ -120,7 +191,20 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
-### CLI Standalone
+### Global vs Project-Level Configuration
+
+```bash
+# Apply to all projects (user-level)
+codeseeker install --vscode --global
+
+# Apply to current project only
+codeseeker install --vscode
+```
+
+</details>
+
+<details>
+<summary><b>🖥️ CLI Standalone Usage</b> (without AI assistant)</summary>
 
 ```bash
 npm install -g codeseeker
@@ -128,6 +212,8 @@ cd your-project
 codeseeker init
 codeseeker -c "how does authentication work in this project?"
 ```
+
+</details>
 
 ## What You Get
 
@@ -320,11 +406,19 @@ For large teams (100K+ files, shared indexes), server mode supports PostgreSQL +
 
 ## Troubleshooting
 
+### "I can't find CodeSeeker in the VS Code marketplace"
+
+**CodeSeeker is NOT a VS Code extension.** It's an MCP server that works WITH AI assistants.
+
+✅ **Correct:** Install via npm: `npm install -g codeseeker`
+❌ **Wrong:** Looking for it in VS Code Extensions marketplace
+
 ### MCP server not connecting
 
-1. Verify npx works: `npx -y codeseeker --version`
-2. Check MCP config file syntax (valid JSON)
-3. Restart your editor/Claude application
+1. Verify npm and npx work: `npx -y codeseeker --version`
+2. Check MCP config file syntax (valid JSON, no trailing commas)
+3. Restart your editor/Claude application completely
+4. Check that Node.js is installed: `node --version` (need v18+)
 
 ### Indexing seems slow
 
@@ -332,7 +426,14 @@ First-time indexing of large projects (50K+ files) can take 5+ minutes. Subseque
 
 ### Tools not appearing in Claude
 
-MCP tools appear automatically once the server connects. Ask Claude "what CodeSeeker tools do you have?" to verify.
+1. Ask Claude: *"What CodeSeeker tools do you have?"*
+2. If no tools appear, check MCP config file exists and has correct syntax
+3. Restart your IDE completely (not just reload window)
+4. Check Claude/Copilot MCP connection status in IDE
+
+### Still stuck?
+
+Open an issue: [GitHub Issues](https://github.com/jghiringhelli/codeseeker/issues)
 
 ## Documentation
 
@@ -340,11 +441,18 @@ MCP tools appear automatically once the server connects. Ask Claude "what CodeSe
 - [Architecture](docs/technical/architecture.md) - Technical deep dive
 - [CLI Commands](docs/install/cli_commands_manual.md) - Full command reference
 
-## Compatibility Note
+## Supported Platforms
 
-**GitHub Copilot**: Not compatible. Copilot uses a different architecture (not MCP).
+| Platform | MCP Support | Install Command |
+|----------|-------------|-----------------|
+| **Claude Code** (VS Code) | Yes | `codeseeker install --vscode` or plugin |
+| **GitHub Copilot** (VS Code) | Yes (VS Code 1.99+) | `codeseeker install --vscode` |
+| **Cursor** | Yes | `codeseeker install --cursor` |
+| **Claude Desktop** | Yes | Manual config |
+| **Windsurf** | Yes | `codeseeker install --windsurf` |
+| **Visual Studio** | Yes | `codeseeker install --vs` |
 
-**Supported platforms**: Claude Code, Claude Desktop, Cursor, and any MCP-compatible client.
+> **Note:** Claude Code and GitHub Copilot both run in VS Code and share the same MCP configuration (`.vscode/mcp.json`). The flags `--vscode`, `--claude-code`, and `--copilot` are interchangeable.
 
 ## License
 

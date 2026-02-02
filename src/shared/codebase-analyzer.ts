@@ -42,7 +42,7 @@ export class CodebaseAnalyzer {
   async analyzeCodebase(projectPath: string): Promise<CodebaseAnalysis> {
     // Check cache first
     if (this.analysisCache.has(projectPath)) {
-      return this.analysisCache.get(projectPath)!;
+      return this.analysisCache.get(projectPath);
     }
 
     // Mock analysis - in real implementation would scan files

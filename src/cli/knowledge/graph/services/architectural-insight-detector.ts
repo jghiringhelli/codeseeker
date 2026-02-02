@@ -538,7 +538,7 @@ export class ArchitecturalInsightDetector implements IArchitecturalInsightDetect
               pattern: 'Move Method',
               description: `Method ${node.metadata?.name} uses ${nodes.get(externalClassId)?.metadata?.name} more than its own class`,
               confidence: 0.7,
-              nodes: [node.id, ownClass!, externalClassId],
+              nodes: [node.id, ownClass, externalClassId],
               recommendation: 'Consider moving this method to the class it uses most',
               impact: 'low'
             });

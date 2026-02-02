@@ -1,6 +1,6 @@
 # CodeSeeker Promotion Strategy
 
-A comprehensive guide to promoting CodeMind as an open source MCP plugin.
+A comprehensive guide to promoting CodeSeeker as an open source MCP plugin.
 
 ## Target Audience
 
@@ -10,7 +10,7 @@ A comprehensive guide to promoting CodeMind as an open source MCP plugin.
 
 ## Key Value Propositions
 
-1. **MCP Plugin for Claude Code** - One command install: `/plugin install codemind@github:jghiringhelli/codemind#plugin`
+1. **MCP Plugin for Claude Code** - One command install: `/plugin install codeseeker@github:jghiringhelli/codeseeker#plugin`
 2. **Semantic Code Search** - Find code by meaning, not just text patterns
 3. **Hybrid Search** - Vector similarity + Full-text (BM25) + Path matching with RRF fusion
 4. **Multi-IDE Support** - Works with Claude Code, GitHub Copilot, Cursor, Visual Studio
@@ -32,21 +32,21 @@ A comprehensive guide to promoting CodeMind as an open source MCP plugin.
 **README Enhancements**
 - [ ] Add GIF/video demo showing the 11-step core cycle
 - [ ] Clear "Quick Start" section (3-5 commands)
-- [ ] Comparison table: CodeMind vs raw Claude Code
+- [ ] Comparison table: CodeSeeker vs raw Claude Code
 - [ ] Architecture diagram showing hybrid search flow
 
 **Badges to Add**
 ```markdown
-![npm version](https://img.shields.io/npm/v/codemind-enhanced-cli)
-![License](https://img.shields.io/github/license/jghiringhelli/codemind)
-![Build Status](https://img.shields.io/github/actions/workflow/status/jghiringhelli/codemind/ci.yml)
+![npm version](https://img.shields.io/npm/v/codeseeker)
+![License](https://img.shields.io/github/license/jghiringhelli/codeseeker)
+![Build Status](https://img.shields.io/github/actions/workflow/status/jghiringhelli/codeseeker/ci.yml)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
 ```
 
 ### 2. Developer Communities
 
 **Hacker News**
-- Post as "Show HN: CodeMind - Semantic context enhancement for Claude Code"
+- Post as "Show HN: CodeSeeker - Semantic context enhancement for Claude Code"
 - Best posting time: Tuesday-Thursday, 9-11 AM EST
 - Prepare for questions about:
   - How it differs from MCP servers (like Serena)
@@ -98,16 +98,16 @@ A comprehensive guide to promoting CodeMind as an open source MCP plugin.
 ### 5. Content Creation
 
 **YouTube Video Ideas**
-1. "5-Minute Demo: CodeMind MCP Plugin for Claude Code" (intro)
+1. "5-Minute Demo: CodeSeeker MCP Plugin for Claude Code" (intro)
 2. "Deep Dive: Hybrid Search Architecture" (technical)
-3. "Setting Up CodeMind with Multiple IDEs" (tutorial)
-4. "CodeMind vs grep: Finding Code by Meaning" (comparison)
+3. "Setting Up CodeSeeker with Multiple IDEs" (tutorial)
+4. "CodeSeeker vs grep: Finding Code by Meaning" (comparison)
 
 **Blog Post Series**
 1. Introduction and Quick Start (plugin install)
 2. Semantic Search: Why "Find auth logic" beats grep
 3. Hybrid Search: Vector + FTS + Path with RRF Fusion
-4. Auto-Detected Coding Standards: How CodeMind Learns Your Patterns
+4. Auto-Detected Coding Standards: How CodeSeeker Learns Your Patterns
 5. Multi-IDE Setup: Claude Code, Copilot, Cursor
 
 ### 6. Documentation Site
@@ -157,14 +157,14 @@ Consider GitHub Pages or similar:
 - The problem: AI assistants don't understand your codebase
 - grep/glob find text, not meaning
 
-**2. The Solution: CodeMind (3 min)**
+**2. The Solution: CodeSeeker (3 min)**
 - MCP plugin for semantic code search
-- One-command install: `/plugin install codemind@github:jghiringhelli/codemind#plugin`
+- One-command install: `/plugin install codeseeker@github:jghiringhelli/codeseeker#plugin`
 - Works with Claude Code, Copilot, Cursor
 
 **3. Live Demo: Search Comparison (5 min)**
 - Show grep: `grep -r "authentication"` - finds literal text
-- Show CodeMind: `search_code("user login flow")` - finds auth, session, credentials
+- Show CodeSeeker: `search("user login flow")` - finds auth, session, credentials
 - Key message: "Find code by WHAT it does, not just WHAT it says"
 
 **4. How It Works: Hybrid Search (5 min)**
@@ -191,8 +191,8 @@ Consider GitHub Pages or similar:
 - Same MCP server, different configs
 
 **8. Q&A / Call to Action (5 min)**
-- GitHub: github.com/jghiringhelli/codemind
-- Try it: `/plugin install codemind@github:jghiringhelli/codemind#plugin`
+- GitHub: github.com/jghiringhelli/codeseeker
+- Try it: `/plugin install codeseeker@github:jghiringhelli/codeseeker#plugin`
 
 ### Demo Script
 
@@ -206,8 +206,8 @@ Consider GitHub Pages or similar:
 # Traditional: grep finds "auth" literally
 grep -r "auth" src/
 
-# CodeMind: finds authentication even if code says "login", "session", "credentials"
-search_code("user authentication flow")
+# CodeSeeker: finds authentication even if code says "login", "session", "credentials"
+search("user authentication flow")
 ```
 
 **Demo 2: find_and_read**
@@ -250,13 +250,13 @@ get_coding_standards({project: "my-app", category: "validation"})
 ## Messaging Templates
 
 ### One-Liner
-> CodeMind: Semantic code search plugin for Claude Code and other AI assistants
+> CodeSeeker: Semantic code search plugin for Claude Code and other AI assistants
 
 ### Elevator Pitch
-> CodeMind is an MCP plugin that gives AI assistants semantic understanding of your codebase. Instead of grep-style text matching, CodeMind finds code by meaning - ask for "authentication logic" and it finds files about login, sessions, and credentials. Install in one command, works with Claude Code, GitHub Copilot, and Cursor.
+> CodeSeeker is an MCP plugin that gives AI assistants semantic understanding of your codebase. Instead of grep-style text matching, CodeSeeker finds code by meaning - ask for "authentication logic" and it finds files about login, sessions, and credentials. Install in one command, works with Claude Code, GitHub Copilot, and Cursor.
 
 ### Technical Description
-> CodeMind provides semantic code search via MCP (Model Context Protocol):
+> CodeSeeker provides semantic code search via MCP (Model Context Protocol):
 > - Hybrid search: Vector embeddings + BM25 full-text + path matching with RRF fusion
 > - Embedded mode: SQLite + MiniSearch - zero setup, instant start
 > - Two-stage change detection: mtime (~0.1ms) then hash (~1-5ms) for fast sync

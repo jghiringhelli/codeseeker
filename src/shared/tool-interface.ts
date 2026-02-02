@@ -116,7 +116,7 @@ export abstract class AnalysisTool implements BaseToolInterface {
       const executionTime = Date.now() - startTime;
       
       // Save results to both databases
-      if (freshAnalysis && freshAnalysis.data) {
+      if (freshAnalysis?.data) {
         await this.saveData(projectId, freshAnalysis.data);
         
         await analysisRepo.storeAnalysis(projectId, this.name, {

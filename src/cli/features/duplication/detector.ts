@@ -66,7 +66,7 @@ export class DuplicationDetector {
     try {
       // Step 1: Get all files to analyze
       this.logger.debug('📂 Discovering project files...');
-      const files = await this.fileAnalysisService!.getProjectFiles(
+      const files = await this.fileAnalysisService.getProjectFiles(
         request.projectPath,
         request.filePatterns,
         request.excludePatterns
@@ -80,7 +80,7 @@ export class DuplicationDetector {
       for (const file of files) {
         try {
           const filePath = require('path').join(request.projectPath, file);
-          const blocks = await this.fileAnalysisService!.extractCodeBlocks(filePath);
+          const blocks = await this.fileAnalysisService.extractCodeBlocks(filePath);
           allCodeBlocks.push(...blocks);
           scanInfo.analyzedFiles++;
         } catch (error) {
@@ -97,13 +97,13 @@ export class DuplicationDetector {
       if (request.includeRefactoringSuggestions) {
         this.logger.debug('💡 Generating refactoring advice...');
         for (const group of duplicateGroups) {
-          group.refactoring = this.advisorService!.generateRefactoringAdvice(group);
+          group.refactoring = this.advisorService.generateRefactoringAdvice(group);
         }
       }
 
       // Step 5: Calculate statistics
       this.logger.debug('📊 Calculating statistics...');
-      const statistics = this.statisticsService!.calculateStatistics(duplicateGroups);
+      const statistics = this.statisticsService.calculateStatistics(duplicateGroups);
 
       // Complete scan info
       scanInfo.processingTime = Date.now() - startTime;
@@ -125,7 +125,7 @@ export class DuplicationDetector {
       return {
         duplicates: [],
         scanInfo,
-        statistics: this.statisticsService!.calculateStatistics([])
+        statistics: this.statisticsService.calculateStatistics([])
       };
     }
   }
@@ -156,11 +156,11 @@ export class DuplicationDetector {
   }
 
   async generateReport(result: DuplicationResult): Promise<string> {
-    return this.statisticsService!.generateSummaryReport(result.duplicates);
+    return this.statisticsService.generateSummaryReport(result.duplicates);
   }
 
   async getPriorityGroups(result: DuplicationResult, topN: number = 10): Promise<DuplicationGroup[]> {
-    return this.statisticsService!.identifyPriorityGroups(result.duplicates, topN);
+    return this.statisticsService.identifyPriorityGroups(result.duplicates, topN);
   }
 
   // Helper method for finding all duplicate types
@@ -171,18 +171,18 @@ export class DuplicationDetector {
     const allGroups: DuplicationGroup[] = [];
 
     // Find exact duplicates
-    const exactGroups = this.detectionService!.findExactDuplicates(codeBlocks);
+    const exactGroups = this.detectionService.findExactDuplicates(codeBlocks);
     allGroups.push(...exactGroups);
 
     // Find structural duplicates
-    const structuralGroups = this.detectionService!.findStructuralDuplicates(
+    const structuralGroups = this.detectionService.findStructuralDuplicates(
       codeBlocks,
       request.similarityThreshold
     );
     allGroups.push(...structuralGroups);
 
     // Find renamed duplicates
-    const renamedGroups = this.detectionService!.findRenamedDuplicates(
+    const renamedGroups = this.detectionService.findRenamedDuplicates(
       codeBlocks,
       request.similarityThreshold
     );
@@ -190,7 +190,7 @@ export class DuplicationDetector {
 
     // Find semantic duplicates (if enabled)
     if (request.includeSemantic) {
-      const semanticGroups = await this.detectionService!.findSemanticDuplicates(
+      const semanticGroups = await this.detectionService.findSemanticDuplicates(
         codeBlocks,
         request.similarityThreshold
       );

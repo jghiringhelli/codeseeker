@@ -1,12 +1,13 @@
 {
   "name": "codeseeker",
-  "version": "1.4.0",
+  "version": "1.7.2",
   "description": "Graph-powered code intelligence for Claude Code. Semantic search + knowledge graph for better AI code understanding.",
   "main": "dist/index.js",
   "bin": {
     "codeseeker": "bin/codeseeker.js"
   },
   "scripts": {
+    "postinstall": "node scripts/postinstall.js",
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "start": "node dist/cli/codeseeker-cli.js",
@@ -133,6 +134,7 @@
   "files": [
     "bin/",
     "dist/",
+    "scripts/postinstall.js",
     "README.md",
     "LICENSE"
   ],
@@ -145,7 +147,6 @@
   },
   "homepage": "https://github.com/jghiringhelli/codeseeker#readme",
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   }
 }

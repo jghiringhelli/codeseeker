@@ -57,50 +57,50 @@ export class ToolDatabaseAPI {
 
   async saveToolData(projectId: string, toolName: string, data: any): Promise<any> {
     if (toolName === 'semantic-search') {
-      return await this.semanticSearchService!.saveSemanticSearchData(projectId, data);
+      return await this.semanticSearchService.saveSemanticSearchData(projectId, data);
     }
-    return await this.toolDataService!.saveToolData(projectId, toolName, data);
+    return await this.toolDataService.saveToolData(projectId, toolName, data);
   }
 
   async getToolData(projectId: string, toolName: string, options?: any): Promise<any> {
     // For backward compatibility, ignore options for now
-    return await this.toolDataService!.getToolData(projectId, toolName);
+    return await this.toolDataService.getToolData(projectId, toolName);
   }
 
   async deleteToolData(projectId: string, toolName: string): Promise<void> {
-    return await this.toolDataService!.deleteToolData(projectId, toolName);
+    return await this.toolDataService.deleteToolData(projectId, toolName);
   }
 
   // === SEMANTIC SEARCH DELEGATION ===
 
   async getSemanticSearchData(projectId: string, filters?: any): Promise<any[]> {
-    return await this.semanticSearchService!.getSemanticSearchData(projectId, filters);
+    return await this.semanticSearchService.getSemanticSearchData(projectId, filters);
   }
 
   async saveSemanticSearchData(projectId: string, data: any[]): Promise<any> {
-    return await this.semanticSearchService!.saveSemanticSearchData(projectId, data);
+    return await this.semanticSearchService.saveSemanticSearchData(projectId, data);
   }
 
   async saveSemanticSearch(projectId: string, data: any[]): Promise<any> {
-    return await this.semanticSearchService!.saveSemanticSearch(projectId, data);
+    return await this.semanticSearchService.saveSemanticSearch(projectId, data);
   }
 
   async getSemanticSearch(projectId: string, filters?: any): Promise<any[]> {
-    return await this.semanticSearchService!.getSemanticSearch(projectId, filters);
+    return await this.semanticSearchService.getSemanticSearch(projectId, filters);
   }
 
   // === CODE DUPLICATIONS DELEGATION ===
 
   async getCodeDuplications(projectId: string, filters: any = {}): Promise<any[]> {
-    return await this.codeDuplicationsService!.getDuplications(projectId, filters);
+    return await this.codeDuplicationsService.getDuplications(projectId, filters);
   }
 
   async saveCodeDuplications(projectId: string, data: any[]): Promise<any> {
-    return await this.codeDuplicationsService!.saveDuplications(projectId, data);
+    return await this.codeDuplicationsService.saveDuplications(projectId, data);
   }
 
   async deleteCodeDuplications(projectId: string): Promise<void> {
-    return await this.codeDuplicationsService!.deleteDuplications(projectId);
+    return await this.codeDuplicationsService.deleteDuplications(projectId);
   }
 
   // === CONVENIENCE METHODS ===
@@ -115,9 +115,9 @@ export class ToolDatabaseAPI {
         semanticSearchData,
         duplicationsData
       ] = await Promise.all([
-        this.toolDataService!.getToolData(projectId, 'overview').catch(() => null),
-        this.semanticSearchService!.getSemanticSearchData(projectId, { limit: 10 }),
-        this.codeDuplicationsService!.getDuplications(projectId, { limit: 10 })
+        this.toolDataService.getToolData(projectId, 'overview').catch(() => null),
+        this.semanticSearchService.getSemanticSearchData(projectId, { limit: 10 }),
+        this.codeDuplicationsService.getDuplications(projectId, { limit: 10 })
       ]);
 
       return {
@@ -139,8 +139,8 @@ export class ToolDatabaseAPI {
   async cleanProjectData(projectId: string): Promise<any> {
     try {
       await Promise.all([
-        this.semanticSearchService!.deleteSemanticSearchData(projectId),
-        this.codeDuplicationsService!.deleteDuplications(projectId),
+        this.semanticSearchService.deleteSemanticSearchData(projectId),
+        this.codeDuplicationsService.deleteDuplications(projectId),
         // Note: Tool data cleanup would need getAllToolTypes method
       ]);
 

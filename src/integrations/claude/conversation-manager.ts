@@ -108,11 +108,11 @@ export class ClaudeConversationManager {
 
     // Update session metadata
     session.lastActivity = Date.now();
-    session.totalTokens += userMsg.tokens! + assistantMsg.tokens!;
+    session.totalTokens += userMsg.tokens + assistantMsg.tokens;
 
     return {
       response: result.data || '',
-      tokensUsed: assistantMsg.tokens!
+      tokensUsed: assistantMsg.tokens
     };
   }
 
@@ -145,7 +145,7 @@ export class ClaudeConversationManager {
 
     // Add the current request
     const latestUserMessage = session.messages[session.messages.length - 1];
-    if (latestUserMessage && latestUserMessage.role === 'user') {
+    if (latestUserMessage?.role === 'user') {
       parts.push(`# Current Request\n${latestUserMessage.content}`);
     }
 

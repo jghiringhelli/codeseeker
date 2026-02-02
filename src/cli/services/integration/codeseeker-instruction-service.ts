@@ -44,7 +44,7 @@ export class CodeSeekerInstructionService {
 
     // Return cached if available
     if (this.cachedInstructions.has(cacheKey)) {
-      return this.cachedInstructions.get(cacheKey)!;
+      return this.cachedInstructions.get(cacheKey);
     }
 
     this.logger.info(`📋 Loading CODESEEKER.md instructions for: ${projectPath}`);

@@ -60,12 +60,12 @@ export class CodeSeekerValidationCycle {
       const qualityResult = await this.executeQualityCycle(context);
 
       // Aggregate and finalize results
-      const aggregatedResult = this.aggregatorService!.aggregateResults(coreResult, qualityResult);
+      const aggregatedResult = this.aggregatorService.aggregateResults(coreResult, qualityResult);
       const finalResult = this.finalizeResult(aggregatedResult, context);
 
       // Generate comprehensive report
-      const report = this.reportService!.generateReport(finalResult, context);
-      const shouldBlock = this.aggregatorService!.shouldBlockExecution(finalResult);
+      const report = this.reportService.generateReport(finalResult, context);
+      const shouldBlock = this.aggregatorService.shouldBlockExecution(finalResult);
 
       const totalDuration = Date.now() - startTime;
       this.logger.info(`✅ Validation cycle completed in ${totalDuration}ms`);
@@ -77,7 +77,7 @@ export class CodeSeekerValidationCycle {
       };
     } catch (error) {
       const errorResult = this.createErrorResult(error, Date.now() - startTime);
-      const errorReport = this.reportService!.generateReport(errorResult, context);
+      const errorReport = this.reportService.generateReport(errorResult, context);
 
       this.logger.error('❌ Validation cycle failed:', error);
 
@@ -98,7 +98,7 @@ export class CodeSeekerValidationCycle {
     }
 
     this.logger.debug('🛡️ Executing core safety cycle...');
-    return await this.coreSafetyService!.runCoreSafetyChecks(context);
+    return await this.coreSafetyService.runCoreSafetyChecks(context);
   }
 
   /**
@@ -110,7 +110,7 @@ export class CodeSeekerValidationCycle {
     }
 
     this.logger.debug('📊 Executing quality validation cycle...');
-    return await this.qualityService!.runQualityChecks(context);
+    return await this.qualityService.runQualityChecks(context);
   }
 
   /**
@@ -123,12 +123,12 @@ export class CodeSeekerValidationCycle {
   }> {
     try {
       const coreResult = await this.executeCoreSafetyCycle(context);
-      const summary = this.aggregatorService!.getIssueSummary(coreResult);
+      const summary = this.aggregatorService.getIssueSummary(coreResult);
 
       return {
-        status: this.reportService!.generateQuickStatus(coreResult),
+        status: this.reportService.generateQuickStatus(coreResult),
         criticalIssues: summary.criticalErrors + summary.blockingErrors,
-        canProceed: !this.aggregatorService!.shouldBlockExecution(coreResult)
+        canProceed: !this.aggregatorService.shouldBlockExecution(coreResult)
       };
     } catch (error) {
       this.logger.error('Quick validation check failed:', error);
@@ -144,14 +144,14 @@ export class CodeSeekerValidationCycle {
    * Export validation results in specified format
    */
   exportValidationResults(result: CycleResult, format: 'json' | 'markdown' | 'text'): string {
-    return this.reportService!.exportResults(result, format);
+    return this.reportService.exportResults(result, format);
   }
 
   /**
    * Get validation metrics for monitoring/analytics
    */
   getValidationMetrics(result: CycleResult): ReturnType<typeof this.reportService.generateMetrics> {
-    return this.reportService!.generateMetrics(result);
+    return this.reportService.generateMetrics(result);
   }
 
   /**
@@ -176,10 +176,10 @@ export class CodeSeekerValidationCycle {
 
   private finalizeResult(result: CycleResult, context: ProjectContext): CycleResult {
     // Add generated recommendations
-    const generatedRecommendations = this.aggregatorService!.generateRecommendations(result, context);
+    const generatedRecommendations = this.aggregatorService.generateRecommendations(result, context);
 
     // Prioritize all issues
-    const prioritized = this.aggregatorService!.prioritizeIssues({
+    const prioritized = this.aggregatorService.prioritizeIssues({
       ...result,
       recommendations: [...result.recommendations, ...generatedRecommendations]
     });
@@ -202,7 +202,7 @@ export class CodeSeekerValidationCycle {
 
     return {
       result,
-      report: this.reportService!.generateReport(result, context),
+      report: this.reportService.generateReport(result, context),
       shouldBlock: false
     };
   }

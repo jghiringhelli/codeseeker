@@ -139,7 +139,7 @@ export class SequentialWorkflowOrchestrator {
     request: OrchestrationRequest,
     workflowGraph: WorkflowGraph
   ): Promise<void> {
-    const result = this.activeOrchestrations.get(orchestrationId)!;
+    const result = this.activeOrchestrations.get(orchestrationId);
     result.status = 'running';
     
     try {
@@ -258,7 +258,7 @@ export class SequentialWorkflowOrchestrator {
     await this.redis.cleanupWorkflow(orchestrationId);
     
     this.logger.error(`❌ Workflow ${orchestrationId} failed`, {
-      durationMs: result.endTime! - result.startTime,
+      durationMs: result.endTime - result.startTime,
       errorMessage: error.message
     } as any);
   }

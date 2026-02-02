@@ -384,14 +384,14 @@ export class MiniSearchTextStore implements ITextStore {
       // Check project-specific synonyms first
       const projectKey = `${projectId}:${token}`;
       if (this.synonymMap.has(projectKey)) {
-        const synonyms = this.synonymMap.get(projectKey)!;
+        const synonyms = this.synonymMap.get(projectKey);
         expandedTokens.push(...synonyms);
         synonymsApplied.push({ term: token, synonyms });
       }
 
       // Then check global synonyms
       if (this.synonymMap.has(token)) {
-        const synonyms = this.synonymMap.get(token)!;
+        const synonyms = this.synonymMap.get(token);
         expandedTokens.push(...synonyms);
         synonymsApplied.push({ term: token, synonyms });
       }

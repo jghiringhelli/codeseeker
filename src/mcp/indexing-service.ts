@@ -104,11 +104,156 @@ export class IndexingService {
     'Exec', 'DerivedData', 'Intermediate', 'Saved', 'Binaries'
   ];
 
+  // Sensitive files to never index (security)
+  private readonly SENSITIVE_FILE_PATTERNS = [
+    // Environment and secrets
+    '.env', '.env.local', '.env.development', '.env.production', '.env.test',
+    '.env.*',
+    // Credentials and keys
+    'credentials.json', 'credentials.yaml', 'credentials.yml',
+    'secrets.json', 'secrets.yaml', 'secrets.yml',
+    '*.pem', '*.key', '*.p12', '*.pfx', '*.jks',
+    'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
+    '*.keystore',
+    // Auth tokens
+    '.npmrc', '.pypirc', '.docker/config.json',
+    'token.json', 'tokens.json',
+    // Database
+    '*.sqlite', '*.db',
+    // AWS/Cloud credentials
+    'aws_credentials', '.aws/credentials',
+    // Google Cloud
+    '*-service-account.json', '*-credentials.json',
+  ];
+
+  // Maximum file size to index (5MB) - skip larger files
+  private readonly MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
   constructor() {
     this.embeddingService = new EmbeddingService({
       provider: 'xenova',
       model: 'Xenova/all-MiniLM-L6-v2'
     });
+  }
+
+  /**
+   * Safely read a file with encoding detection
+   * Returns null if file cannot be read (binary, unknown encoding, etc.)
+   *
+   * Detection strategy:
+   * 1. Check for BOM (Byte Order Mark) to detect UTF-16/UTF-32
+   * 2. Check for null bytes (likely binary file)
+   * 3. Try UTF-8 decoding
+   * 4. Fall back to latin1 for legacy Windows files
+   */
+  private safeReadFile(absolutePath: string): { content: string; encoding: string } | null {
+    try {
+      // Read as buffer first for encoding detection
+      const buffer = fs.readFileSync(absolutePath);
+
+      // Check for BOM (Byte Order Mark)
+      if (buffer.length >= 2) {
+        // UTF-16 LE BOM: FF FE
+        if (buffer[0] === 0xFF && buffer[1] === 0xFE) {
+          // Exclude UTF-32 LE (FF FE 00 00)
+          if (buffer.length >= 4 && buffer[2] === 0x00 && buffer[3] === 0x00) {
+            this.logger.debug(`Skipping UTF-32 file: ${absolutePath}`);
+            return null; // UTF-32 not commonly used in source code
+          }
+          const content = buffer.toString('utf16le').slice(1); // Skip BOM
+          return { content, encoding: 'utf16le' };
+        }
+        // UTF-16 BE BOM: FE FF
+        if (buffer[0] === 0xFE && buffer[1] === 0xFF) {
+          // Node doesn't have native utf16be, swap bytes and use utf16le
+          const swapped = Buffer.alloc(buffer.length - 2);
+          for (let i = 2; i < buffer.length; i += 2) {
+            if (i + 1 < buffer.length) {
+              swapped[i - 2] = buffer[i + 1];
+              swapped[i - 1] = buffer[i];
+            }
+          }
+          const content = swapped.toString('utf16le');
+          return { content, encoding: 'utf16be' };
+        }
+        // UTF-8 BOM: EF BB BF
+        if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+          const content = buffer.toString('utf8').slice(1); // Skip BOM
+          return { content, encoding: 'utf8-bom' };
+        }
+      }
+
+      // Check for binary content (null bytes in first 8KB)
+      const checkLength = Math.min(buffer.length, 8192);
+      for (let i = 0; i < checkLength; i++) {
+        if (buffer[i] === 0x00) {
+          this.logger.debug(`Skipping binary file (null byte detected): ${absolutePath}`);
+          return null;
+        }
+      }
+
+      // Try UTF-8 first (most common for source code)
+      try {
+        const content = buffer.toString('utf8');
+        // Validate UTF-8 by checking for replacement characters
+        // that would indicate invalid UTF-8 sequences
+        if (!content.includes('\uFFFD') || this.hasValidUtf8Structure(buffer)) {
+          return { content, encoding: 'utf8' };
+        }
+      } catch {
+        // UTF-8 decoding failed
+      }
+
+      // Fall back to latin1 (Windows-1252 compatible) for legacy files
+      // This encoding never fails as it maps each byte to a character
+      const content = buffer.toString('latin1');
+      return { content, encoding: 'latin1' };
+
+    } catch (error) {
+      this.logger.debug(`Failed to read file: ${absolutePath}: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Check if buffer has valid UTF-8 structure (heuristic)
+   * Checks for proper multi-byte sequences
+   */
+  private hasValidUtf8Structure(buffer: Buffer): boolean {
+    let i = 0;
+    while (i < buffer.length) {
+      const byte = buffer[i];
+      if (byte < 0x80) {
+        // ASCII
+        i++;
+      } else if ((byte & 0xE0) === 0xC0) {
+        // 2-byte sequence
+        if (i + 1 >= buffer.length || (buffer[i + 1] & 0xC0) !== 0x80) {
+          return false;
+        }
+        i += 2;
+      } else if ((byte & 0xF0) === 0xE0) {
+        // 3-byte sequence
+        if (i + 2 >= buffer.length ||
+            (buffer[i + 1] & 0xC0) !== 0x80 ||
+            (buffer[i + 2] & 0xC0) !== 0x80) {
+          return false;
+        }
+        i += 3;
+      } else if ((byte & 0xF8) === 0xF0) {
+        // 4-byte sequence
+        if (i + 3 >= buffer.length ||
+            (buffer[i + 1] & 0xC0) !== 0x80 ||
+            (buffer[i + 2] & 0xC0) !== 0x80 ||
+            (buffer[i + 3] & 0xC0) !== 0x80) {
+          return false;
+        }
+        i += 4;
+      } else {
+        return false; // Invalid UTF-8 start byte
+      }
+    }
+    return true;
   }
 
   /**
@@ -184,7 +329,8 @@ export class IndexingService {
       // Apply file limit
       const filesToIndex = files.slice(0, this.FILE_LIMITS.maxFiles);
 
-      for (const file of filesToIndex) {
+      for (let i = 0; i < filesToIndex.length; i++) {
+        const file = filesToIndex[i];
         try {
           const chunksCreated = await this.indexFile(
             path.join(projectPath, file),
@@ -195,6 +341,12 @@ export class IndexingService {
           progress.filesProcessed++;
           progress.chunksCreated += chunksCreated;
           onProgress?.(progress);
+
+          // Yield to event loop every 10 files to prevent connection timeouts
+          // This allows the MCP transport to process heartbeats and signals
+          if (i % 10 === 0) {
+            await new Promise(resolve => setImmediate(resolve));
+          }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           errors.push(`Failed to index ${file}: ${message}`);
@@ -294,8 +446,12 @@ export class IndexingService {
           }
 
           // Stage 2: mtime changed, check hash (~1-5ms)
-          const content = fs.readFileSync(absolutePath, 'utf-8');
-          const currentHash = crypto.createHash('md5').update(content).digest('hex');
+          const fileData = this.safeReadFile(absolutePath);
+          if (!fileData) {
+            this.logger.debug(`Skipping unreadable file: ${relativePath}`);
+            return { success: true, chunksCreated: 0, skipped: true, skipReason: 'unreadable' };
+          }
+          const currentHash = crypto.createHash('md5').update(fileData.content).digest('hex');
 
           if (storedMetadata.fileHash === currentHash) {
             this.logger.debug(`Skipping ${relativePath} - content unchanged (hash match)`);
@@ -347,7 +503,13 @@ export class IndexingService {
 
     try {
       const absolutePath = path.join(projectPath, relativePath);
-      const content = fs.readFileSync(absolutePath, 'utf-8');
+      const fileData = this.safeReadFile(absolutePath);
+      if (!fileData) {
+        this.logger.debug(`Skipping unreadable file for graph: ${relativePath}`);
+        return 0;
+      }
+
+      const { content } = fileData;
 
       // Create file node
       const fileNodeId = `file-${projectId}-${relativePath.replace(/[\/\\]/g, '-')}`;
@@ -527,6 +689,45 @@ export class IndexingService {
   }
 
   /**
+   * Check if a file matches sensitive file patterns (should never be indexed)
+   */
+  private isSensitiveFile(filePath: string): boolean {
+    const fileName = path.basename(filePath).toLowerCase();
+    const normalizedPath = filePath.replace(/\\/g, '/').toLowerCase();
+
+    for (const pattern of this.SENSITIVE_FILE_PATTERNS) {
+      const normalizedPattern = pattern.toLowerCase();
+
+      // Exact filename match
+      if (fileName === normalizedPattern) {
+        return true;
+      }
+
+      // Glob pattern match
+      if (normalizedPattern.includes('*')) {
+        // Convert glob to regex
+        const regexPattern = normalizedPattern
+          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '.*');
+
+        try {
+          const regex = new RegExp(`(^|/)${regexPattern}$`, 'i');
+          if (regex.test(normalizedPath) || regex.test(fileName)) {
+            return true;
+          }
+        } catch {
+          // Fallback to simple check
+          if (fileName.includes(normalizedPattern.replace(/\*/g, ''))) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Scan for indexable files in a directory
    * Reports progress during scanning via callback
    * Respects user-defined exclusions from .codeseeker/exclusions.json
@@ -566,6 +767,14 @@ export class IndexingService {
       const pathParts = file.replace(/\\/g, '/').toLowerCase().split('/');
       return !pathParts.some(part => excludedDirSet.has(part));
     });
+
+    // Filter out sensitive files (security)
+    const beforeSensitiveCount = filteredFiles.length;
+    filteredFiles = filteredFiles.filter(file => !this.isSensitiveFile(file));
+    const sensitiveExcluded = beforeSensitiveCount - filteredFiles.length;
+    if (sensitiveExcluded > 0) {
+      this.logger.debug(`Security: excluded ${sensitiveExcluded} sensitive files (.env, credentials, keys, etc.)`);
+    }
 
     // Apply user-defined exclusions
     if (userExclusions.length > 0) {
@@ -617,7 +826,25 @@ export class IndexingService {
     projectId: string,
     vectorStore: IVectorStore
   ): Promise<number> {
-    const content = fs.readFileSync(absolutePath, 'utf-8');
+    // Check file size before reading (skip files > 5MB)
+    try {
+      const stats = fs.statSync(absolutePath);
+      if (stats.size > this.MAX_FILE_SIZE_BYTES) {
+        this.logger.debug(`Skipping large file (${(stats.size / 1024 / 1024).toFixed(1)}MB): ${relativePath}`);
+        return 0;
+      }
+    } catch {
+      // If stat fails, try to read anyway
+    }
+
+    // Use safe file reading with encoding detection
+    const fileData = this.safeReadFile(absolutePath);
+    if (!fileData) {
+      this.logger.debug(`Skipping unreadable file: ${relativePath}`);
+      return 0;
+    }
+
+    const { content } = fileData;
 
     // Skip very small files
     if (content.length < 50) {
@@ -744,7 +971,13 @@ export class IndexingService {
     for (const file of filesToProcess) {
       try {
         const absolutePath = path.join(projectPath, file);
-        const content = fs.readFileSync(absolutePath, 'utf-8');
+        const fileData = this.safeReadFile(absolutePath);
+        if (!fileData) {
+          this.logger.debug(`Skipping unreadable file for graph: ${file}`);
+          continue;
+        }
+
+        const { content } = fileData;
 
         // Create file node
         const fileNodeId = `file-${projectId}-${file.replace(/[\/\\]/g, '-')}`;
@@ -1136,33 +1369,25 @@ export class IndexingService {
 
   /**
    * Delete graph nodes for a specific file
+   * Uses the deleteByFilePaths method for incremental deletion
    */
   private async deleteFileGraphNodes(
     projectId: string,
     relativePath: string,
     graphStore: IGraphStore
   ): Promise<number> {
-    // Note: IGraphStore doesn't support individual node/edge deletion
-    // Graph nodes for deleted files will be cleaned up on next full reindex
-    // This is a limitation of the current storage abstraction
-    const fileNodeId = `file-${projectId}-${relativePath.replace(/[\/\\]/g, '-')}`;
-
     try {
-      // Check if the node exists (for logging purposes)
-      const node = await graphStore.getNode(fileNodeId);
-      if (node) {
-        this.logger.debug(
-          `Graph node for ${relativePath} exists but individual deletion not supported. ` +
-          `Will be cleaned up on next full reindex.`
-        );
-        // Count edges for informational purposes
-        const edges = await graphStore.getEdges(fileNodeId, 'both');
-        return 1 + edges.length; // Return count of what would be deleted
-      }
-    } catch (error) {
-      this.logger.debug(`Failed to check graph nodes for ${relativePath}: ${error}`);
-    }
+      // Use the new incremental deletion method
+      const nodesDeleted = await graphStore.deleteByFilePaths(projectId, [relativePath]);
 
-    return 0;
+      if (nodesDeleted > 0) {
+        this.logger.debug(`Deleted ${nodesDeleted} graph node(s) for ${relativePath}`);
+      }
+
+      return nodesDeleted;
+    } catch (error) {
+      this.logger.debug(`Failed to delete graph nodes for ${relativePath}: ${error}`);
+      return 0;
+    }
   }
 }

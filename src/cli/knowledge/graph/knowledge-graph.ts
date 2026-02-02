@@ -76,15 +76,15 @@ export class SemanticKnowledgeGraph {
   private async initializeGraph(): Promise<void> {
     try {
       // Initialize database
-      await this.databaseService!.initializeDatabase();
+      await this.databaseService.initializeDatabase();
 
       // Initialize state manager
-      this.stateManager!.initializeIndexes();
+      this.stateManager.initializeIndexes();
 
       // Load existing data
-      await this.stateManager!.loadState(this.databaseService!);
+      await this.stateManager.loadState(this.databaseService);
 
-      this.logger.debug(`Knowledge graph initialized with ${this.stateManager!.getNodeCount()} nodes and ${this.stateManager!.getTriadCount()} triads`);
+      this.logger.debug(`Knowledge graph initialized with ${this.stateManager.getNodeCount()} nodes and ${this.stateManager.getTriadCount()} triads`);
     } catch (error) {
       // Don't log error - database service handles its own notification
       this.logger.debug('Knowledge graph running in fallback mode (database unavailable)');
@@ -93,78 +93,78 @@ export class SemanticKnowledgeGraph {
 
   // Node Management - Delegate to StateManager
   async addNode(node: Omit<KnowledgeNode, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    return this.stateManager!.addNode(node, this.utilityService!, this.databaseService!);
+    return this.stateManager.addNode(node, this.utilityService, this.databaseService);
   }
 
   // Triad Management - Delegate to StateManager
   async addTriad(triad: Omit<KnowledgeTriad, 'id' | 'createdAt'>): Promise<string> {
-    return this.stateManager!.addTriad(triad, this.utilityService!, this.databaseService!);
+    return this.stateManager.addTriad(triad, this.utilityService, this.databaseService);
   }
 
   // Query Operations - Delegate to QueryManager
   async queryNodes(query: GraphQuery): Promise<KnowledgeNode[]> {
-    return this.queryManager!.queryNodes(query, this.databaseService!, this.stateManager!);
+    return this.queryManager.queryNodes(query, this.databaseService, this.stateManager);
   }
 
   async queryTriads(query: GraphQuery): Promise<KnowledgeTriad[]> {
-    return this.queryManager!.queryTriads(query, this.databaseService!, this.stateManager!);
+    return this.queryManager.queryTriads(query, this.databaseService, this.stateManager);
   }
 
   // Traversal Operations - Delegate to TraversalManager
   async traverse(query: TraversalQuery): Promise<{ nodes: KnowledgeNode[]; path: string[] }> {
-    return this.traversalManager!.traverse(query, this.stateManager!);
+    return this.traversalManager.traverse(query, this.stateManager);
   }
 
   // Analysis Operations - Delegate to Analyzer Service
   async analyzeGraph(): Promise<GraphAnalysis> {
-    return this.analyzer!.analyzeGraph(this.stateManager!.getNodes(), this.stateManager!.getTriads());
+    return this.analyzer.analyzeGraph(this.stateManager.getNodes(), this.stateManager.getTriads());
   }
 
   async findSemanticClusters(minClusterSize = 3): Promise<SemanticCluster[]> {
-    return this.analyzer!.findSemanticClusters(this.stateManager!.getNodes(), this.stateManager!.getTriads(), minClusterSize);
+    return this.analyzer.findSemanticClusters(this.stateManager.getNodes(), this.stateManager.getTriads(), minClusterSize);
   }
 
   async detectArchitecturalInsights(): Promise<ArchitecturalInsight[]> {
-    return this.insightDetector!.detectArchitecturalInsights(this.stateManager!.getNodes(), this.stateManager!.getTriads());
+    return this.insightDetector.detectArchitecturalInsights(this.stateManager.getNodes(), this.stateManager.getTriads());
   }
 
   // Mutation Operations - Delegate to MutationManager
   async mutateGraph(mutation: GraphMutation): Promise<void> {
-    return this.mutationManager!.mutateGraph(mutation, this.stateManager!, this.databaseService!);
+    return this.mutationManager.mutateGraph(mutation, this.stateManager, this.databaseService);
   }
 
   // Convenience methods for common operations
   async findNodeById(id: string): Promise<KnowledgeNode | undefined> {
-    return this.queryManager!.findNodeById(id, this.stateManager!);
+    return this.queryManager.findNodeById(id, this.stateManager);
   }
 
   async findTriadById(id: string): Promise<KnowledgeTriad | undefined> {
-    return this.queryManager!.findTriadById(id, this.stateManager!);
+    return this.queryManager.findTriadById(id, this.stateManager);
   }
 
   async findNodesByType(type: NodeType): Promise<KnowledgeNode[]> {
-    return this.queryManager!.findNodesByType(type, this.stateManager!);
+    return this.queryManager.findNodesByType(type, this.stateManager);
   }
 
   async findTriadsByRelation(relation: RelationType): Promise<KnowledgeTriad[]> {
-    return this.queryManager!.findTriadsByRelation(relation, this.stateManager!);
+    return this.queryManager.findTriadsByRelation(relation, this.stateManager);
   }
 
   async findConnectedNodes(nodeId: string): Promise<string[]> {
-    return this.queryManager!.findConnectedNodes(nodeId, this.stateManager!);
+    return this.queryManager.findConnectedNodes(nodeId, this.stateManager);
   }
 
   async findShortestPath(startId: string, endId: string): Promise<string[]> {
-    return this.queryManager!.findShortestPath(startId, endId, this.stateManager!);
+    return this.queryManager.findShortestPath(startId, endId, this.stateManager);
   }
 
   // Advanced operations
   async optimizeGraph(): Promise<{ orphanedNodes: string[]; duplicateTriads: string[]; weakConnections: string[] }> {
-    return this.mutationManager!.optimizeGraph(this.stateManager!);
+    return this.mutationManager.optimizeGraph(this.stateManager);
   }
 
   async validateGraph(): Promise<{ isValid: boolean; errors: string[] }> {
-    return this.stateManager!.validateState();
+    return this.stateManager.validateState();
   }
 
   async getGraphStatistics(): Promise<{
@@ -175,12 +175,12 @@ export class SemanticKnowledgeGraph {
     nodeTypeDistribution: Record<string, number>;
     relationTypeDistribution: Record<string, number>;
   }> {
-    return this.queryManager!.getQueryStats(this.stateManager!);
+    return this.queryManager.getQueryStats(this.stateManager);
   }
 
   // Memory management
   getMemoryUsage(): { nodes: number; triads: number; indexes: number; total: number } {
-    return this.stateManager!.getMemoryUsage();
+    return this.stateManager.getMemoryUsage();
   }
 
   // Lifecycle management
@@ -207,35 +207,35 @@ export class SemanticKnowledgeGraph {
   // Legacy method implementations for backward compatibility
   async removeNode(nodeId: string): Promise<void> {
     // Find and remove all related triads first
-    const relatedTriads = Array.from(this.stateManager!.getTriads().values())
+    const relatedTriads = Array.from(this.stateManager.getTriads().values())
       .filter(triad => triad.subject === nodeId || triad.object === nodeId);
 
     for (const triad of relatedTriads) {
-      await this.stateManager!.removeTriad(triad.id);
+      await this.stateManager.removeTriad(triad.id);
     }
 
-    await this.stateManager!.removeNode(nodeId);
+    await this.stateManager.removeNode(nodeId);
     this.logger.debug(`Removed node ${nodeId} and ${relatedTriads.length} related triads`);
   }
 
   private async removeTriad(triadId: string): Promise<void> {
-    await this.stateManager!.removeTriad(triadId);
+    await this.stateManager.removeTriad(triadId);
   }
 
   private async updateNode(nodeId: string, updates: Partial<KnowledgeNode>): Promise<void> {
-    await this.stateManager!.updateNode(nodeId, updates);
+    await this.stateManager.updateNode(nodeId, updates);
   }
 
   private async updateTriad(triadId: string, updates: Partial<KnowledgeTriad>): Promise<void> {
-    await this.stateManager!.updateTriad(triadId, updates);
+    await this.stateManager.updateTriad(triadId, updates);
   }
 
   private generateNodeId(type: NodeType, name: string, namespace?: string): string {
-    return this.utilityService!.generateNodeId(type, name, namespace);
+    return this.utilityService.generateNodeId(type, name, namespace);
   }
 
   private generateTriadId(subject: string, predicate: RelationType, object: string): string {
-    return this.utilityService!.generateTriadId(subject, predicate, object);
+    return this.utilityService.generateTriadId(subject, predicate, object);
   }
 
   private matchesMetadata(nodeMetadata: any, queryMetadata: any): boolean {
@@ -255,39 +255,39 @@ export class SemanticKnowledgeGraph {
   }
 
   private async calculateCentralityScores(): Promise<Record<string, number>> {
-    return this.analyzer!.calculateCentralityScores(this.stateManager!.getNodes(), this.stateManager!.getTriads());
+    return this.analyzer.calculateCentralityScores(this.stateManager.getNodes(), this.stateManager.getTriads());
   }
 
   private async findStronglyConnectedComponents(): Promise<string[][]> {
-    return this.analyzer!.findStronglyConnectedComponents(this.stateManager!.getNodes(), this.stateManager!.getTriads());
+    return this.analyzer.findStronglyConnectedComponents(this.stateManager.getNodes(), this.stateManager.getTriads());
   }
 
   private calculateClusteringCoefficient(): number {
-    return this.utilityService!.calculateClusteringCoefficient(this.stateManager!.getNodes(), this.stateManager!.getTriads());
+    return this.utilityService.calculateClusteringCoefficient(this.stateManager.getNodes(), this.stateManager.getTriads());
   }
 
   private hasConnection(node1: string, node2: string): boolean {
-    return this.utilityService!.hasConnection(node1, node2, this.stateManager!.getTriads());
+    return this.utilityService.hasConnection(node1, node2, this.stateManager.getTriads());
   }
 
   private async expandSemanticCluster(startNodeId: string, visited: Set<string>): Promise<SemanticCluster> {
-    return this.traversalManager!.expandSemanticCluster(startNodeId, visited, this.stateManager!, this.utilityService!);
+    return this.traversalManager.expandSemanticCluster(startNodeId, visited, this.stateManager, this.utilityService);
   }
 
   private async detectDesignPatterns(): Promise<ArchitecturalInsight[]> {
-    return this.insightDetector!.detectDesignPatterns(this.stateManager!.getNodes(), this.stateManager!.getTriads());
+    return this.insightDetector.detectDesignPatterns(this.stateManager.getNodes(), this.stateManager.getTriads());
   }
 
   private async detectAntiPatterns(): Promise<ArchitecturalInsight[]> {
-    return this.insightDetector!.detectAntiPatterns(this.stateManager!.getNodes(), this.stateManager!.getTriads());
+    return this.insightDetector.detectAntiPatterns(this.stateManager.getNodes(), this.stateManager.getTriads());
   }
 
   private async detectCouplingIssues(): Promise<ArchitecturalInsight[]> {
-    return this.insightDetector!.detectCouplingIssues(this.stateManager!.getNodes(), this.stateManager!.getTriads());
+    return this.insightDetector.detectCouplingIssues(this.stateManager.getNodes(), this.stateManager.getTriads());
   }
 
   private async detectRefactoringOpportunities(): Promise<ArchitecturalInsight[]> {
-    return this.insightDetector!.detectRefactoringOpportunities(this.stateManager!.getNodes(), this.stateManager!.getTriads());
+    return this.insightDetector.detectRefactoringOpportunities(this.stateManager.getNodes(), this.stateManager.getTriads());
   }
 
   // Additional convenience methods that were in the original

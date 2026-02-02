@@ -261,7 +261,7 @@ export class ContextAwareClarificationService {
       if (!classGroups.has(pattern)) {
         classGroups.set(pattern, []);
       }
-      classGroups.get(pattern)!.push({
+      classGroups.get(pattern).push({
         name: cls.name,
         file: cls.filePath || '',
         type: cls.type,

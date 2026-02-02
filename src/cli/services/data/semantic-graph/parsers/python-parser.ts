@@ -120,7 +120,7 @@ export class PythonParser extends BaseLanguageParser {
       }
 
       // Look ahead to find methods and properties in this class
-      let indentLevel = this.getIndentLevel(lines[currentIndex + 1] || '');
+      const indentLevel = this.getIndentLevel(lines[currentIndex + 1] || '');
       for (let j = currentIndex + 1; j < lines.length; j++) {
         const nextLine = lines[j].trim();
         if (!nextLine) continue;

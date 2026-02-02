@@ -374,7 +374,7 @@ Please proceed with this consolidation task step by step.
 
     const totalLinesReduced = successful.reduce((sum, r) => sum + r.linesReduced, 0);
     const allModifiedFiles = [...new Set(successful.flatMap(r => r.filesModified))];
-    const newUtilities = successful.map(r => r.newUtilityCreated).filter(Boolean) as string[];
+    const newUtilities = successful.map(r => r.newUtilityCreated).filter(Boolean);
 
     const avgQualityScore = successful.length > 0
       ? successful.reduce((sum, r) => sum + (r.qualityScore || 0), 0) / successful.length

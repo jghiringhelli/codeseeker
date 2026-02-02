@@ -46,7 +46,7 @@ class MemorySystem {
     if (this.initialized) return;
 
     try {
-      await this.storageService!.initialize();
+      await this.storageService.initialize();
       this.initialized = true;
       this.logger.info('🧠 Memory system initialized');
     } catch (error) {
@@ -59,7 +59,7 @@ class MemorySystem {
     if (!this.initialized) return;
 
     try {
-      await this.storageService!.close();
+      await this.storageService.close();
       this.initialized = false;
       this.logger.info('🧠 Memory system closed');
     } catch (error) {
@@ -71,52 +71,52 @@ class MemorySystem {
   // Storage Operations
   async storeInteraction(interaction: InteractionMemory): Promise<void> {
     await this.ensureInitialized();
-    return this.storageService!.storeInteraction(interaction);
+    return this.storageService.storeInteraction(interaction);
   }
 
   async storeRequest(request: RequestMemory): Promise<void> {
     await this.ensureInitialized();
-    return this.storageService!.storeRequest(request);
+    return this.storageService.storeRequest(request);
   }
 
   async storeSession(session: SessionMemory): Promise<void> {
     await this.ensureInitialized();
-    return this.storageService!.storeSession(session);
+    return this.storageService.storeSession(session);
   }
 
   async storeProject(project: ProjectMemory): Promise<void> {
     await this.ensureInitialized();
-    return this.storageService!.storeProject(project);
+    return this.storageService.storeProject(project);
   }
 
   async loadInteraction(id: string): Promise<InteractionMemory | null> {
     await this.ensureInitialized();
-    return this.storageService!.loadInteraction(id);
+    return this.storageService.loadInteraction(id);
   }
 
   async loadRequest(requestId: string): Promise<RequestMemory | null> {
     await this.ensureInitialized();
-    return this.storageService!.loadRequest(requestId);
+    return this.storageService.loadRequest(requestId);
   }
 
   async loadSession(sessionId: string): Promise<SessionMemory | null> {
     await this.ensureInitialized();
-    return this.storageService!.loadSession(sessionId);
+    return this.storageService.loadSession(sessionId);
   }
 
   async loadProject(projectId: string): Promise<ProjectMemory | null> {
     await this.ensureInitialized();
-    return this.storageService!.loadProject(projectId);
+    return this.storageService.loadProject(projectId);
   }
 
   async updateInteractionEffectiveness(id: string, effectiveness: number): Promise<void> {
     await this.ensureInitialized();
-    return this.storageService!.updateInteractionEffectiveness(id, effectiveness);
+    return this.storageService.updateInteractionEffectiveness(id, effectiveness);
   }
 
   async updateProjectKnowledge(projectId: string, knowledge: ProjectMemory['knowledge']): Promise<void> {
     await this.ensureInitialized();
-    return this.storageService!.updateProjectKnowledge(projectId, knowledge);
+    return this.storageService.updateProjectKnowledge(projectId, knowledge);
   }
 
   // Retrieval Operations
@@ -126,27 +126,27 @@ class MemorySystem {
     sessionId?: string
   ): Promise<ContextualContinuation> {
     await this.ensureInitialized();
-    return this.retrievalService!.getContextForNewRequest(userRequest, projectPath, sessionId);
+    return this.retrievalService.getContextForNewRequest(userRequest, projectPath, sessionId);
   }
 
   async findSimilarRequests(userRequest: string, projectMemory: ProjectMemory): Promise<RequestMemory[]> {
     await this.ensureInitialized();
-    return this.retrievalService!.findSimilarRequests(userRequest, projectMemory);
+    return this.retrievalService.findSimilarRequests(userRequest, projectMemory);
   }
 
   async findRelevantPatterns(userRequest: string, projectPath: string): Promise<string[]> {
     await this.ensureInitialized();
-    return this.retrievalService!.findRelevantPatterns(userRequest, projectPath);
+    return this.retrievalService.findRelevantPatterns(userRequest, projectPath);
   }
 
   async getProjectMemory(projectPath: string): Promise<ProjectMemory> {
     await this.ensureInitialized();
-    return this.retrievalService!.getProjectMemory(projectPath);
+    return this.retrievalService.getProjectMemory(projectPath);
   }
 
   async getSessionMemory(sessionId: string): Promise<SessionMemory | null> {
     await this.ensureInitialized();
-    return this.retrievalService!.getSessionMemory(sessionId);
+    return this.retrievalService.getSessionMemory(sessionId);
   }
 
   // Optimization Operations
@@ -155,58 +155,58 @@ class MemorySystem {
     outcome: RequestMemory['outcome']
   ): Promise<MemoryCompressionResult> {
     await this.ensureInitialized();
-    return this.optimizationService!.compressAndSummarize(interactions, outcome);
+    return this.optimizationService.compressAndSummarize(interactions, outcome);
   }
 
   async extractKeyPatterns(interactions: InteractionMemory[]): Promise<string[]> {
     await this.ensureInitialized();
-    return this.optimizationService!.extractKeyPatterns(interactions);
+    return this.optimizationService.extractKeyPatterns(interactions);
   }
 
   async extractImportantOutcomes(interactions: InteractionMemory[], outcome: RequestMemory['outcome']): Promise<string[]> {
     await this.ensureInitialized();
-    return this.optimizationService!.extractImportantOutcomes(interactions, outcome);
+    return this.optimizationService.extractImportantOutcomes(interactions, outcome);
   }
 
   async extractCriticalLearnings(interactions: InteractionMemory[]): Promise<string[]> {
     await this.ensureInitialized();
-    return this.optimizationService!.extractCriticalLearnings(interactions);
+    return this.optimizationService.extractCriticalLearnings(interactions);
   }
 
   async calculateInteractionEffectiveness(interaction: InteractionMemory, finalOutcome: RequestMemory['outcome']): Promise<number> {
     await this.ensureInitialized();
-    return this.optimizationService!.calculateInteractionEffectiveness(interaction, finalOutcome);
+    return this.optimizationService.calculateInteractionEffectiveness(interaction, finalOutcome);
   }
 
   async extractInteractionPatterns(interaction: InteractionMemory): Promise<string[]> {
     await this.ensureInitialized();
-    return this.optimizationService!.extractInteractionPatterns(interaction);
+    return this.optimizationService.extractInteractionPatterns(interaction);
   }
 
   async suggestInteractionImprovements(interaction: InteractionMemory): Promise<string[]> {
     await this.ensureInitialized();
-    return this.optimizationService!.suggestInteractionImprovements(interaction);
+    return this.optimizationService.suggestInteractionImprovements(interaction);
   }
 
   async optimizeMemoryUsage(): Promise<void> {
     await this.ensureInitialized();
-    return this.optimizationService!.optimizeMemoryUsage();
+    return this.optimizationService.optimizeMemoryUsage();
   }
 
   async cleanupExpiredSessions(): Promise<void> {
     await this.ensureInitialized();
-    return this.optimizationService!.cleanupExpiredSessions();
+    return this.optimizationService.cleanupExpiredSessions();
   }
 
   async compressOldInteractions(threshold: Date): Promise<void> {
     await this.ensureInitialized();
-    return this.optimizationService!.compressOldInteractions(threshold);
+    return this.optimizationService.compressOldInteractions(threshold);
   }
 
   // Analytics Operations
   async getMemoryStats(): Promise<MemoryStats> {
     await this.ensureInitialized();
-    return this.analyticsService!.getMemoryStats();
+    return this.analyticsService.getMemoryStats();
   }
 
   async analyzeTrends(projectId: string, timeRange: { start: Date; end: Date }): Promise<{
@@ -216,7 +216,7 @@ class MemorySystem {
     commonPatterns: string[];
   }> {
     await this.ensureInitialized();
-    return this.analyticsService!.analyzeTrends(projectId, timeRange);
+    return this.analyticsService.analyzeTrends(projectId, timeRange);
   }
 
   async generateInsights(projectId: string): Promise<{
@@ -225,7 +225,7 @@ class MemorySystem {
     recommendations: string[];
   }> {
     await this.ensureInitialized();
-    return this.analyticsService!.generateInsights(projectId);
+    return this.analyticsService.generateInsights(projectId);
   }
 
   // Helper Methods

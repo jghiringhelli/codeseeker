@@ -94,7 +94,7 @@ export function createReconcileCommand(): Command {
             result = await ReconciliationHelpers.selectiveReconciliation(
               resolvedProjectPath,
               projectId,
-              targetTools!,
+              targetTools,
               options.dryRun
             );
             break;
@@ -103,7 +103,7 @@ export function createReconcileCommand(): Command {
             result = await reconciler.reconcile({
               projectPath: resolvedProjectPath,
               projectId,
-              scope: options.scope as any,
+              scope: options.scope,
               targetTools,
               dryRun: options.dryRun
             });

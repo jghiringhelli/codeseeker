@@ -208,6 +208,88 @@ describe('Storage Abstraction Layer', () => {
       // Deletion successful if no error
       expect(true).toBe(true);
     });
+
+    test('should get file hashes for incremental indexing', async () => {
+      // Add documents with file hash metadata
+      const docWithHash: Omit<VectorDocument, 'createdAt' | 'updatedAt'> = {
+        id: `${testProjectId}:hash-test.ts:0`,
+        projectId: testProjectId,
+        filePath: 'hash-test.ts',
+        content: 'function test() {}',
+        embedding: testEmbedding,
+        metadata: {
+          full_file_hash: 'abc123hash',
+          total_chunks: 1
+        }
+      };
+
+      await vectorStore.upsert(docWithHash);
+
+      // Get file hashes
+      const hashes = await vectorStore.getFileHashes(testProjectId);
+
+      expect(hashes).toBeInstanceOf(Map);
+      expect(hashes.get('hash-test.ts')).toBe('abc123hash');
+
+      // Cleanup
+      await vectorStore.delete(docWithHash.id);
+    });
+
+    test('should delete documents by specific files', async () => {
+      // Add multiple documents
+      const doc1: Omit<VectorDocument, 'createdAt' | 'updatedAt'> = {
+        id: `${testProjectId}:delete-test1.ts:0`,
+        projectId: testProjectId,
+        filePath: 'delete-test1.ts',
+        content: 'function test1() {}',
+        embedding: testEmbedding,
+        metadata: {}
+      };
+
+      const doc2: Omit<VectorDocument, 'createdAt' | 'updatedAt'> = {
+        id: `${testProjectId}:delete-test2.ts:0`,
+        projectId: testProjectId,
+        filePath: 'delete-test2.ts',
+        content: 'function test2() {}',
+        embedding: testEmbedding,
+        metadata: {}
+      };
+
+      const doc3: Omit<VectorDocument, 'createdAt' | 'updatedAt'> = {
+        id: `${testProjectId}:keep-test.ts:0`,
+        projectId: testProjectId,
+        filePath: 'keep-test.ts',
+        content: 'function keep() {}',
+        embedding: testEmbedding,
+        metadata: {}
+      };
+
+      await vectorStore.upsertMany([doc1, doc2, doc3]);
+
+      // Delete only specific files
+      const deletedCount = await vectorStore.deleteByFiles(testProjectId, ['delete-test1.ts', 'delete-test2.ts']);
+
+      // Should have deleted 2 documents
+      expect(deletedCount).toBe(2);
+
+      // Verify the remaining document still exists by counting
+      const remainingCount = await vectorStore.count(testProjectId);
+      expect(remainingCount).toBeGreaterThanOrEqual(1);
+
+      // Cleanup
+      await vectorStore.delete(doc3.id);
+    });
+
+    test('deleteByFiles should return 0 for empty file list', async () => {
+      const deletedCount = await vectorStore.deleteByFiles(testProjectId, []);
+      expect(deletedCount).toBe(0);
+    });
+
+    test('getFileHashes should return empty map for non-existent project', async () => {
+      const hashes = await vectorStore.getFileHashes('non-existent-project-id');
+      expect(hashes).toBeInstanceOf(Map);
+      expect(hashes.size).toBe(0);
+    });
   });
 
   describe('IGraphStore', () => {
