@@ -34,9 +34,10 @@ Restart your IDE and you're done!
 
 **Linux (Snap) - All Distributions:**
 ```bash
-sudo snap install codeseeker --classic
+sudo snap install codeseeker
 codeseeker install --vscode      # or --cursor, --windsurf
 ```
+> ⚠️ **Snap limitation:** Due to strict confinement, the snap can only access projects in your home directory (`~/`). For projects outside `~/`, use npm or Homebrew instead.
 
 **macOS/Linux (Homebrew):**
 ```bash
