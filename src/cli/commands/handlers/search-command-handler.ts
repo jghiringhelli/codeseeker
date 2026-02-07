@@ -105,9 +105,9 @@ export class SearchCommandHandler extends BaseCommandHandler {
 
     try {
       // Get all code files
-      const files = await glob(['**/*.{ts,js,jsx,tsx,py,java,cs,cpp,c,h,hpp}'], {
+      const files = await glob(['**/*.{ts,js,jsx,tsx,py,java,cs,cpp,c,h,hpp,php,rb,go,rs,swift,kt,scala}'], {
         cwd: projectPath,
-        ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**']
+        ignore: ['**/node_modules/**', '**/vendor/**', '**/dist/**', '**/build/**', '**/.git/**']
       });
 
       console.log(`📂 Found ${files.length} files to scan`);
