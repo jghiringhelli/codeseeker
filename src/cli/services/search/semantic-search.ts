@@ -56,8 +56,8 @@ export class SemanticSearchService extends AnalysisTool implements IProjectIndex
 
   // Configuration
   private config = {
-    supportedExtensions: ['.ts', '.js', '.py', '.java', '.go', '.rs', '.cpp', '.c', '.h'],
-    excludePatterns: ['node_modules', '.git', 'dist', 'build', 'coverage'],
+    supportedExtensions: ['.ts', '.js', '.py', '.java', '.go', '.rs', '.cpp', '.c', '.h', '.php', '.rb', '.swift', '.kt', '.scala', '.cs'],
+    excludePatterns: ['node_modules', 'vendor', '.git', 'dist', 'build', 'coverage'],
     batchSize: 50,
     enableCaching: true
   };
