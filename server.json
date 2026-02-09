@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
+  "name": "io.github.jghiringhelli/codeseeker",
+  "description": "Graph-powered code intelligence for Claude Code and AI assistants. Provides semantic code search with hybrid vector + text + path matching, knowledge graph traversal for imports/calls/extends relationships, and auto-detected coding standards.",
+  "status": "active",
+  "websiteUrl": "https://github.com/jghiringhelli/codeseeker",
+  "repository": {
+    "url": "https://github.com/jghiringhelli/codeseeker",
+    "source": "github"
+  },
+  "version": "1.7.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "codeseeker",
+      "version": "1.7.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtime": "node",
+      "commandFunction": {
+        "type": "npx",
+        "args": ["-y", "codeseeker", "serve", "--mcp"]
+      }
+    }
+  ]
+}

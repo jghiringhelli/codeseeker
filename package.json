@@ -148,5 +148,6 @@
   "homepage": "https://github.com/jghiringhelli/codeseeker#readme",
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "mcpName": "io.github.jghiringhelli/codeseeker"
 }
