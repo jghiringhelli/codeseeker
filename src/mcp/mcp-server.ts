@@ -32,6 +32,8 @@ import { IndexingService } from './indexing-service';
 import { CodingStandardsGenerator } from '../cli/services/analysis/coding-standards-generator';
 import { LanguageSupportService } from '../cli/services/project/language-support-service';
 import { getQueryCacheService, QueryCacheService } from './query-cache-service';
+import { DuplicateCodeDetector } from '../cli/services/analysis/deduplication/duplicate-code-detector';
+import { SemanticKnowledgeGraph } from '../cli/knowledge/graph/knowledge-graph';
 
 // Version from package.json
 const VERSION = '2.0.0';
@@ -359,6 +361,8 @@ export class CodeSeekerMcpServer {
     this.registerSyncTool();
     this.registerInstallParsersTool();
     this.registerExcludeTool();
+    this.registerFindDuplicatesTool();
+    this.registerFindDeadCodeTool();
   }
 
   /**
@@ -374,10 +378,11 @@ export class CodeSeekerMcpServer {
           'Only fall back to grep when: you need exact literal strings, regex patterns, or already know the exact file. ' +
           'Why better than grep: finds "user authentication" even if code says "login", "session", "credentials". ' +
           'Examples: ❌ grep -r "damage.*ship" → ✅ search("how ships take damage"). ' +
-          'Returns absolute file paths ready for the Read tool. If not indexed, call index first.',
+          'Returns absolute file paths ready for the Read tool. If not indexed, call index first. ' +
+          '**IMPORTANT**: Always pass the project parameter with the current working directory to ensure correct index is searched.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
-          project: z.string().optional().describe('Project path (optional - auto-detects from indexed projects if omitted)'),
+          project: z.string().optional().describe('Project path - RECOMMENDED: pass cwd/workspace root to ensure correct index. Auto-detects if omitted but may select wrong project.'),
           limit: z.number().optional().default(10).describe('Maximum results (default: 10)'),
           search_type: z.enum(['hybrid', 'fts', 'vector', 'graph']).optional().default('hybrid')
             .describe('Search method: hybrid (default), fts, vector, or graph'),
@@ -412,28 +417,31 @@ export class CodeSeekerMcpServer {
               projectPath = await this.findProjectPath(path.resolve(project));
             }
           } else {
-            // Auto-detect: try cwd first, then fall back to most recently indexed project
-            const cwd = process.cwd();
-            projectRecord = projects.find(p =>
-              p.path === cwd ||
-              cwd.startsWith(p.path + path.sep) ||
-              cwd.startsWith(p.path + '/')
-            );
-
-            if (projectRecord) {
-              projectPath = projectRecord.path;
-            } else if (projects.length > 0) {
-              // Use most recently updated project
-              const sorted = [...projects].sort((a, b) =>
-                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-              );
-              projectRecord = sorted[0];
-              projectPath = projectRecord.path;
-            } else {
+            // No project specified - this is unreliable! MCP servers don't receive client's cwd.
+            // We'll try to auto-detect but require explicit parameter when ambiguous.
+            if (projects.length === 0) {
               return {
                 content: [{
                   type: 'text' as const,
                   text: `No indexed projects found. Use index to index a project first.`,
+                }],
+                isError: true,
+              };
+            } else if (projects.length === 1) {
+              // Only one project indexed - safe to use it
+              projectRecord = projects[0];
+              projectPath = projectRecord.path;
+            } else {
+              // Multiple projects - we can't reliably detect which one
+              // Return an error asking for explicit project parameter
+              const projectList = projects.map(p => `  - "${p.name}" (${p.path})`).join('\n');
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: `⚠️ Multiple projects indexed. Please specify which project to search:\n\n` +
+                    `${projectList}\n\n` +
+                    `Example: search({query: "${query}", project: "/path/to/project"})\n\n` +
+                    `TIP: Always pass the 'project' parameter with your workspace root path.`,
                 }],
                 isError: true,
               };
@@ -623,10 +631,11 @@ export class CodeSeekerMcpServer {
           'Examples: "Show me how damage is calculated" → search_and_read("damage calculation"). ' +
           '"I need to add validation like login" → search_and_read("login form validation"). ' +
           'Use search instead when: you only need file paths, checking if something exists (mode="exists"), ' +
-          'or want to see many results before picking one. Returns full file content with line numbers.',
+          'or want to see many results before picking one. Returns full file content with line numbers. ' +
+          '**IMPORTANT**: Always pass the project parameter with the current working directory to ensure correct index is searched.',
         inputSchema: {
           query: z.string().describe('Natural language query or code snippet (e.g., "validation logic", "error handling")'),
-          project: z.string().optional().describe('Project path (optional - auto-detects from indexed projects if omitted)'),
+          project: z.string().optional().describe('Project path - RECOMMENDED: pass cwd/workspace root to ensure correct index. Auto-detects if omitted but may select wrong project.'),
           max_files: z.number().optional().default(1).describe('Maximum files to read (default: 1, max: 3)'),
           max_lines: z.number().optional().default(500).describe('Maximum lines per file (default: 500, max: 1000)'),
         },
@@ -661,28 +670,29 @@ export class CodeSeekerMcpServer {
               projectPath = await this.findProjectPath(path.resolve(project));
             }
           } else {
-            // Auto-detect: try cwd first, then fall back to most recently indexed project
-            const cwd = process.cwd();
-            projectRecord = projects.find(p =>
-              p.path === cwd ||
-              cwd.startsWith(p.path + path.sep) ||
-              cwd.startsWith(p.path + '/')
-            );
-
-            if (projectRecord) {
-              projectPath = projectRecord.path;
-            } else if (projects.length > 0) {
-              // Use most recently updated project
-              const sorted = [...projects].sort((a, b) =>
-                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-              );
-              projectRecord = sorted[0];
-              projectPath = projectRecord.path;
-            } else {
+            // No project specified - require explicit parameter when ambiguous
+            if (projects.length === 0) {
               return {
                 content: [{
                   type: 'text' as const,
                   text: `No indexed projects found. Use index to index a project first.`,
+                }],
+                isError: true,
+              };
+            } else if (projects.length === 1) {
+              // Only one project indexed - safe to use it
+              projectRecord = projects[0];
+              projectPath = projectRecord.path;
+            } else {
+              // Multiple projects - require explicit project parameter
+              const projectList = projects.map(p => `  - "${p.name}" (${p.path})`).join('\n');
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: `⚠️ Multiple projects indexed. Please specify which project to search:\n\n` +
+                    `${projectList}\n\n` +
+                    `Example: search_and_read({query: "${query}", project: "/path/to/project"})\n\n` +
+                    `TIP: Always pass the 'project' parameter with your workspace root path.`,
                 }],
                 isError: true,
               };
@@ -2314,6 +2324,228 @@ export class CodeSeekerMcpServer {
       `• Check the error message above for details\n` +
       `• Use projects() to verify project status\n` +
       `• Try sync({project: "...", full_reindex: true}) if index seems corrupted`;
+  }
+
+  /**
+   * Tool 10: Find duplicate code patterns
+   */
+  private registerFindDuplicatesTool(): void {
+    this.server.registerTool(
+      'find_duplicates',
+      {
+        description: '**FIND DUPLICATE CODE** - Detects duplicate and similar code patterns using semantic analysis. ' +
+          'Finds: exact copies, semantically similar code (same logic, different names), and structurally similar patterns. ' +
+          'Use when: cleaning up codebase, finding copy-paste code, reducing maintenance burden. ' +
+          'Returns groups of duplicates with consolidation suggestions and estimated savings. ' +
+          '**IMPORTANT**: Always pass the project parameter with your workspace root path.',
+        inputSchema: {
+          project: z.string().describe('Project path - REQUIRED: the workspace root path to analyze'),
+          similarity_threshold: z.number().optional().default(0.80)
+            .describe('Minimum similarity score (0.0-1.0) to consider as duplicate. Default: 0.80'),
+          min_lines: z.number().optional().default(5)
+            .describe('Minimum lines in a code block to analyze. Default: 5'),
+          include_types: z.array(z.enum(['function', 'class', 'method', 'block'])).optional()
+            .describe('Types of code to analyze. Default: all types'),
+        },
+      },
+      async ({ project, similarity_threshold = 0.80, min_lines = 5, include_types }) => {
+        try {
+          const storageManager = await getStorageManager();
+          const projectStore = storageManager.getProjectStore();
+          const projects = await projectStore.list();
+
+          // Find the project
+          const projectRecord = projects.find(p =>
+            p.name === project ||
+            p.path === project ||
+            path.basename(p.path) === project ||
+            path.resolve(project) === p.path
+          );
+
+          const projectPath = projectRecord?.path || path.resolve(project);
+
+          // Verify project exists
+          if (!fs.existsSync(projectPath)) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: `Project path not found: ${projectPath}`,
+              }],
+              isError: true,
+            };
+          }
+
+          // Run duplicate detection
+          const detector = new DuplicateCodeDetector();
+          const report = await detector.analyzeProject(projectPath, {
+            semanticSimilarityThreshold: similarity_threshold,
+            minimumChunkSize: min_lines,
+            includeTypes: include_types || ['function', 'class', 'method', 'block'],
+          });
+
+          // Format results
+          const duplicateGroups = report.duplicateGroups.slice(0, 20).map(group => ({
+            type: group.type,
+            similarity: `${(group.similarity * 100).toFixed(1)}%`,
+            files_affected: group.estimatedSavings.filesAffected,
+            lines_savable: group.estimatedSavings.linesReduced,
+            suggestion: group.consolidationSuggestion,
+            locations: group.chunks.map(c => ({
+              file: c.filePath,
+              lines: `${c.startLine}-${c.endLine}`,
+              name: c.functionName || c.className || 'code block',
+            })),
+          }));
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({
+                project: path.basename(projectPath),
+                summary: {
+                  total_chunks_analyzed: report.totalChunksAnalyzed,
+                  exact_duplicates: report.summary.exactDuplicates,
+                  semantic_duplicates: report.summary.semanticDuplicates,
+                  structural_duplicates: report.summary.structuralDuplicates,
+                  total_lines_affected: report.summary.totalLinesAffected,
+                  potential_lines_saved: report.summary.potentialSavings,
+                },
+                duplicate_groups: duplicateGroups,
+                recommendations: report.recommendations,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: this.formatErrorMessage('Find duplicates', error instanceof Error ? error : String(error), { projectPath: project }),
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+  }
+
+  /**
+   * Tool 11: Find dead/unused code
+   */
+  private registerFindDeadCodeTool(): void {
+    this.server.registerTool(
+      'find_dead_code',
+      {
+        description: '**FIND DEAD/UNUSED CODE** - Detects code that is never used or referenced. ' +
+          'Uses the knowledge graph to find: unused classes, unused functions, isolated code components. ' +
+          'Also detects: God classes (too many responsibilities), circular dependencies, feature envy. ' +
+          'Use when: cleaning up codebase, finding code to remove, improving architecture. ' +
+          '**IMPORTANT**: Always pass the project parameter. Project must be indexed first.',
+        inputSchema: {
+          project: z.string().describe('Project path - REQUIRED: the workspace root path to analyze'),
+          include_patterns: z.array(z.enum(['dead_code', 'god_class', 'circular_deps', 'feature_envy', 'coupling'])).optional()
+            .describe('Anti-patterns to detect. Default: all patterns'),
+        },
+      },
+      async ({ project, include_patterns }) => {
+        try {
+          const storageManager = await getStorageManager();
+          const projectStore = storageManager.getProjectStore();
+          const projects = await projectStore.list();
+
+          // Find the project
+          const projectRecord = projects.find(p =>
+            p.name === project ||
+            p.path === project ||
+            path.basename(p.path) === project ||
+            path.resolve(project) === p.path
+          );
+
+          if (!projectRecord) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: `Project not found or not indexed: ${project}\n\n` +
+                  `Use index({path: "${project}"}) to index the project first.`,
+              }],
+              isError: true,
+            };
+          }
+
+          // Load the knowledge graph for this project
+          const knowledgeGraph = new SemanticKnowledgeGraph(projectRecord.path);
+
+          // Run architectural insight detection (includes dead code, god classes, circular deps, etc.)
+          const allInsights = await knowledgeGraph.detectArchitecturalInsights();
+
+          // Filter by requested patterns
+          const patterns = include_patterns || ['dead_code', 'god_class', 'circular_deps', 'feature_envy', 'coupling'];
+          const patternMapping: Record<string, string[]> = {
+            'dead_code': ['Dead Code'],
+            'god_class': ['God Class'],
+            'circular_deps': ['Circular Dependencies', 'Circular Dependency'],
+            'feature_envy': ['Feature Envy'],
+            'coupling': ['High Coupling', 'Inappropriate Intimacy'],
+          };
+
+          const selectedPatterns = patterns.flatMap(p => patternMapping[p] || []);
+          const filteredInsights = allInsights.filter(insight =>
+            selectedPatterns.some(pattern =>
+              insight.pattern?.toLowerCase().includes(pattern.toLowerCase()) ||
+              insight.description?.toLowerCase().includes(pattern.toLowerCase())
+            )
+          );
+
+          // Group by type
+          const deadCode = filteredInsights.filter(i => i.pattern === 'Dead Code');
+          const antiPatterns = filteredInsights.filter(i => i.type === 'anti_pattern' && i.pattern !== 'Dead Code');
+          const couplingIssues = filteredInsights.filter(i => i.type === 'coupling_issue');
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({
+                project: projectRecord.name,
+                summary: {
+                  total_issues: filteredInsights.length,
+                  dead_code_count: deadCode.length,
+                  anti_patterns_count: antiPatterns.length,
+                  coupling_issues_count: couplingIssues.length,
+                },
+                dead_code: deadCode.slice(0, 20).map(d => ({
+                  type: d.pattern,
+                  description: d.description,
+                  confidence: `${((d.confidence || 0) * 100).toFixed(0)}%`,
+                  impact: d.impact,
+                  recommendation: d.recommendation,
+                })),
+                anti_patterns: antiPatterns.slice(0, 10).map(a => ({
+                  type: a.pattern,
+                  description: a.description,
+                  confidence: `${((a.confidence || 0) * 100).toFixed(0)}%`,
+                  impact: a.impact,
+                  recommendation: a.recommendation,
+                })),
+                coupling_issues: couplingIssues.slice(0, 10).map(c => ({
+                  type: c.pattern,
+                  description: c.description,
+                  confidence: `${((c.confidence || 0) * 100).toFixed(0)}%`,
+                  impact: c.impact,
+                  recommendation: c.recommendation,
+                })),
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: this.formatErrorMessage('Find dead code', error instanceof Error ? error : String(error), { projectPath: project }),
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
   }
 
   /**

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.jghiringhelli/codeseeker",
+  "description": "Graph-powered code intelligence with semantic search and knowledge graph for AI assistants",
+  "status": "active",
+  "websiteUrl": "https://github.com/jghiringhelli/codeseeker",
+  "repository": {
+    "url": "https://github.com/jghiringhelli/codeseeker",
+    "source": "github"
+  },
+  "version": "1.8.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "codeseeker",
+      "version": "1.8.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtime": "node",
+      "commandFunction": {
+        "type": "npx",
+        "args": ["-y", "codeseeker", "serve", "--mcp"]
+      }
+    }
+  ]
+}

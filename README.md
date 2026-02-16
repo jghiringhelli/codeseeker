@@ -34,9 +34,10 @@ Restart your IDE and you're done!
 
 **Linux (Snap) - All Distributions:**
 ```bash
-sudo snap install codeseeker --classic
+sudo snap install codeseeker
 codeseeker install --vscode      # or --cursor, --windsurf
 ```
+> ⚠️ **Snap limitation:** Due to strict confinement, the snap can only access projects in your home directory (`~/`). For projects outside `~/`, use npm or Homebrew instead.
 
 **macOS/Linux (Homebrew):**
 ```bash
@@ -453,6 +454,10 @@ Open an issue: [GitHub Issues](https://github.com/jghiringhelli/codeseeker/issue
 | **Visual Studio** | Yes | `codeseeker install --vs` |
 
 > **Note:** Claude Code and GitHub Copilot both run in VS Code and share the same MCP configuration (`.vscode/mcp.json`). The flags `--vscode`, `--claude-code`, and `--copilot` are interchangeable.
+
+## Support
+
+If CodeSeeker is useful to you, consider [sponsoring the project](https://github.com/sponsors/jghiringhelli).
 
 ## License
 

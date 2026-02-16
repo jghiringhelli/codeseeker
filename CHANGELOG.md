@@ -5,6 +5,42 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-02-16
+
+### Added
+
+- **find_duplicates MCP tool**: Detect duplicate code patterns across your codebase
+  - Uses semantic similarity and hash comparison
+  - Returns similarity scores, file paths, and line numbers
+  - Configurable similarity threshold
+
+- **find_dead_code MCP tool**: Identify unused code through knowledge graph analysis
+  - Detects orphan functions/classes with no incoming references
+  - Identifies god classes with too many methods
+  - Returns file paths, line numbers, and confidence scores
+
+- **MCP Registry support**: CodeSeeker now listed in the official MCP Registry
+  - Added `mcpName` field to package.json
+  - Created server.json manifest for registry publishing
+  - Automated publishing via GitHub Actions release workflow
+
+- **GitHub Actions release workflow**: Automated publishing on version tags
+  - Publishes to npm, Homebrew, Chocolatey, Snap, and MCP Registry
+  - Creates GitHub Release with installation instructions
+
+### Fixed
+
+- **Project auto-detection**: Fixed bug where CodeSeeker would search wrong index when multiple projects are indexed
+  - Now requires explicit `project` parameter when multiple projects exist
+  - Returns clear error message listing available projects
+  - Single-project scenarios still work with auto-detection
+
+### Changed
+
+- **Snap confinement**: Changed from classic to strict confinement
+  - Uses `home`, `network`, `removable-media` plugs
+  - More secure sandbox model
+
 ## [1.7.1] - 2026-01-20
 
 ### Added

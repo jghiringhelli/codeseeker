@@ -27,20 +27,26 @@ description: |
     Ask your AI assistant: "What CodeSeeker tools do you have?"
 
 contact: https://github.com/jghiringhelli/codeseeker/issues
+donation: https://github.com/sponsors/jghiringhelli
 issues: https://github.com/jghiringhelli/codeseeker/issues
 source-code: https://github.com/jghiringhelli/codeseeker
 website: https://github.com/jghiringhelli/codeseeker
 
 grade: stable
-confinement: classic
+confinement: strict
+
+# Note: Strict confinement limits filesystem access to ~/
+# Projects outside home directory won't be accessible.
+# For full filesystem access, use npm/Homebrew/Chocolatey install instead.
 
 apps:
   codeseeker:
     command: bin/node $SNAP/lib/node_modules/codeseeker/bin/codeseeker.js
     plugs:
-      - home
-      - network
-      - network-bind
+      - home              # Access to ~/ (auto-connected)
+      - network           # Outbound network (auto-connected)
+      - network-bind      # Listen on ports (auto-connected)
+      - removable-media   # Access to /media, /mnt (requires: snap connect codeseeker:removable-media)
 
 parts:
   codeseeker:
