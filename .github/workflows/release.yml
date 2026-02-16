@@ -1,0 +1,162 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm run build
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-homebrew:
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Homebrew formula
+        env:
+          HOMEBREW_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          SHA256=$(curl -sL "https://registry.npmjs.org/codeseeker/-/codeseeker-${VERSION}.tgz" | sha256sum | cut -d' ' -f1)
+
+          git clone https://x-access-token:${HOMEBREW_GITHUB_TOKEN}@github.com/jghiringhelli/homebrew-codeseeker.git
+          cd homebrew-codeseeker
+
+          cat > Formula/codeseeker.rb << EOF
+          class Codeseeker < Formula
+            desc "Graph-powered code intelligence for Claude Code"
+            homepage "https://github.com/jghiringhelli/codeseeker"
+            url "https://registry.npmjs.org/codeseeker/-/codeseeker-${VERSION}.tgz"
+            sha256 "${SHA256}"
+            license "MIT"
+            depends_on "node@18"
+
+            def install
+              system "npm", "install", *std_npm_args
+              bin.install_symlink Dir["\#{libexec}/bin/*"]
+            end
+
+            test do
+              system "\#{bin}/codeseeker", "--version"
+            end
+          end
+          EOF
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Formula/codeseeker.rb
+          git commit -m "Update codeseeker to ${VERSION}"
+          git push
+
+  publish-chocolatey:
+    needs: publish-npm
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update and push Chocolatey package
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+
+          # Update nuspec version
+          $nuspec = Get-Content chocolatey/codeseeker.nuspec
+          $nuspec = $nuspec -replace '<version>.*</version>', "<version>$version</version>"
+          $nuspec | Set-Content chocolatey/codeseeker.nuspec
+
+          # Update install script version
+          $install = Get-Content chocolatey/tools/chocolateyinstall.ps1
+          $install = $install -replace "codeseeker@[\d.]+", "codeseeker@$version"
+          $install | Set-Content chocolatey/tools/chocolateyinstall.ps1
+
+          # Pack and push
+          cd chocolatey
+          choco pack
+          choco push codeseeker.$version.nupkg --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
+
+  publish-snap:
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update snapcraft.yaml version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          sed -i "s/version: .*/version: '${VERSION}'/" snap/snapcraft.yaml
+          sed -i "s|codeseeker-.*\.tgz|codeseeker-${VERSION}.tgz|" snap/snapcraft.yaml
+      - uses: snapcore/action-build@v1
+        id: build
+      - uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
+        with:
+          snap: ${{ steps.build.outputs.snap }}
+          release: stable
+
+  publish-mcp-registry:
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Update server.json version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/g" server.json
+      - name: Build and publish to MCP Registry
+        env:
+          MCP_REGISTRY_TOKEN: ${{ secrets.MCP_REGISTRY_TOKEN }}
+        run: |
+          git clone https://github.com/modelcontextprotocol/registry.git /tmp/mcp-registry
+          cd /tmp/mcp-registry
+          make publisher
+          # Use OIDC auth for GitHub Actions
+          ./bin/mcp-publisher publish ${{ github.workspace }}/server.json --auth-method=github-oidc
+
+  create-release:
+    needs: [publish-npm, publish-homebrew, publish-chocolatey, publish-snap, publish-mcp-registry]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            ```bash
+            # npm (recommended)
+            npm install -g codeseeker
+
+            # Homebrew
+            brew install jghiringhelli/codeseeker/codeseeker
+
+            # Chocolatey
+            choco install codeseeker
+
+            # Snap
+            sudo snap install codeseeker
+            ```

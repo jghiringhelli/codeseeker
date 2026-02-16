@@ -942,21 +942,40 @@ After reorganization, import paths have been updated:
 
 **CRITICAL**: This project has CodeSeeker MCP tools available. You MUST use them as your PRIMARY method for code discovery, NOT grep/glob.
 
+### ⚠️ ALWAYS Pass the Project Parameter
+
+**CRITICAL**: MCP servers cannot detect your current working directory. You MUST always pass the `project` parameter with the workspace root path to ensure the correct index is searched.
+
+```typescript
+// ✅ CORRECT - Always pass project parameter
+search({query: "authentication", project: "/path/to/current/project"})
+search_and_read({query: "error handling", project: "/path/to/current/project"})
+find_duplicates({project: "/path/to/current/project"})
+find_dead_code({project: "/path/to/current/project"})
+
+// ❌ WRONG - Omitting project parameter may search wrong index
+search({query: "authentication"})  // May search a different project!
+```
+
+**Why this matters**: When multiple projects are indexed, CodeSeeker cannot automatically determine which project you're working in. Without the `project` parameter, searches may return results from the wrong codebase.
+
 ### Auto-Initialization Check
 
 **BEFORE any code search**, verify the project is indexed:
-1. Call `list_projects()` to see indexed projects
-2. If this project is NOT listed, call `index_project({path: "PROJECT_ROOT_PATH"})` first
+1. Call `projects()` to see indexed projects
+2. If this project is NOT listed, call `index({path: "PROJECT_ROOT_PATH"})` first
 3. If tools return "Not connected", the MCP server may need restart
 
 ### When to Use CodeSeeker (DEFAULT)
 
-**ALWAYS use CodeSeeker for these queries:**
-- "Where is X handled?" → `search_code("X handling logic")`
-- "Find the auth/login/validation code" → `search_code("authentication")`
-- "How does Y work?" → `find_and_read("Y implementation")`
-- "What calls/imports Z?" → `get_code_relationships({filepath: "path/to/Z"})`
-- "Show me the error handling" → `find_and_read("error handling patterns")`
+**ALWAYS use CodeSeeker for these queries** (remember to include `project` parameter!):
+- "Where is X handled?" → `search({query: "X handling logic", project: "..."})`
+- "Find the auth/login/validation code" → `search({query: "authentication", project: "..."})`
+- "How does Y work?" → `search_and_read({query: "Y implementation", project: "..."})`
+- "What calls/imports Z?" → `show_dependencies({filepath: "path/to/Z", project: "..."})`
+- "Show me the error handling" → `search_and_read({query: "error handling patterns", project: "..."})`
+- "Find duplicate code" → `find_duplicates({project: "..."})`
+- "Find unused/dead code" → `find_dead_code({project: "..."})`
 
 | Task | MUST Use | NOT This |
 |------|----------|----------|
@@ -989,14 +1008,18 @@ Only fall back to grep/glob when:
 
 | Tool | Purpose | When to Use |
 |------|---------|-------------|
-| `search_code(query)` | Semantic search | First choice for any "find X" query |
-| `find_and_read(query)` | Search + read combined | When you need file contents |
-| `get_code_relationships({filepath})` | Dependency graph | "What uses this?", "What does this depend on?" |
-| `get_file_context({filepath})` | File + related code | Reading a file for the first time |
-| `get_coding_standards({project})` | Project patterns | Before writing new code |
-| `index_project({path})` | Index a project | If project not indexed |
-| `notify_file_changes({changes})` | Update index | After editing files |
-| `list_projects()` | Show indexed projects | Check if project is indexed |
+| `search({query, project})` | Semantic search | First choice for any "find X" query |
+| `search_and_read({query, project})` | Search + read combined | When you need file contents |
+| `read_with_context({filepath, project})` | File + related code | Reading a file for the first time |
+| `show_dependencies({filepath, project})` | Dependency graph | "What uses this?", "What does this depend on?" |
+| `standards({project, category})` | Project patterns | Before writing new code |
+| `index({path})` | Index a project | If project not indexed |
+| `sync({project, changes})` | Update index | After editing files |
+| `projects()` | Show indexed projects | Check if project is indexed |
+| `find_duplicates({project})` | Find duplicate code | Cleaning up codebase, reducing copy-paste |
+| `find_dead_code({project})` | Find unused code | Finding code to remove, improving architecture |
+| `exclude({project, action, paths})` | Manage exclusions | Exclude build artifacts, generated files |
+| `install_parsers({project})` | Install language parsers | Better code understanding for specific languages |
 
 ### Keep Index Updated
 
