@@ -4,27 +4,31 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      skip_homebrew:
+        description: 'Skip Homebrew publish'
+        type: boolean
+        default: false
+      skip_chocolatey:
+        description: 'Skip Chocolatey publish'
+        type: boolean
+        default: false
+      skip_snap:
+        description: 'Skip Snap publish'
+        type: boolean
+        default: false
+      skip_mcp:
+        description: 'Skip MCP Registry publish'
+        type: boolean
+        default: false
+
+# Note: npm publishing is done manually due to 2FA requirements
+# Run: npm login && npm publish --access public
 
 jobs:
-  publish-npm:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run build
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
   publish-homebrew:
-    needs: publish-npm
+    if: ${{ !inputs.skip_homebrew }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +69,7 @@ jobs:
           git push
 
   publish-chocolatey:
-    needs: publish-npm
+    if: ${{ !inputs.skip_chocolatey }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,7 +96,7 @@ jobs:
           choco push codeseeker.$version.nupkg --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
 
   publish-snap:
-    needs: publish-npm
+    if: ${{ !inputs.skip_snap }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -111,7 +115,7 @@ jobs:
           release: stable
 
   publish-mcp-registry:
-    needs: publish-npm
+    if: ${{ !inputs.skip_mcp }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -134,7 +138,8 @@ jobs:
           ./bin/mcp-publisher publish ${{ github.workspace }}/server.json --auth-method=github-oidc
 
   create-release:
-    needs: [publish-npm, publish-homebrew, publish-chocolatey, publish-snap, publish-mcp-registry]
+    needs: [publish-homebrew, publish-chocolatey, publish-snap, publish-mcp-registry]
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     permissions:
       contents: write

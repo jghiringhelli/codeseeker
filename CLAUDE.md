@@ -766,10 +766,17 @@ See `.github/VERSIONING.md` for full details.
 
 ### Release Creation Steps
 
-1. **Ensure version files are updated** (package.json, plugin.json, version.json)
+1. **Ensure version files are updated** (package.json, plugin.json, version.json, server.json)
 2. **Ensure CHANGELOG.md is updated** with the new version entry
 3. **Commit and push** the version changes to master
-4. **Create the GitHub release**:
+4. **Publish to npm manually** (required due to 2FA - cannot be automated):
+
+```bash
+npm login      # Authenticate with npm (opens browser)
+npm publish --access public   # Publish the package
+```
+
+5. **Create the GitHub release**:
 
 ```bash
 # Create release with gh CLI
@@ -797,7 +804,11 @@ EOF
 )"
 ```
 
-5. **Sync to plugin branch** if not already done
+6. **Sync to plugin branch** if not already done
+
+### Why Manual npm Publishing?
+
+npm requires 2FA for publishing and [revoked all classic tokens in December 2025](https://github.blog/changelog/2025-12-09-npm-classic-tokens-revoked-session-based-auth-and-cli-token-management-now-available/). Granular Access Tokens cannot bypass 2FA, so automated publishing from GitHub Actions is not possible. The manual `npm login` + `npm publish` workflow handles 2FA through browser authentication.
 
 ### Release Notes Format
 
