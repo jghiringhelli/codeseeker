@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
+      version:
+        description: 'Version to publish (e.g., 1.8.0)'
+        required: true
+        type: string
       skip_homebrew:
         description: 'Skip Homebrew publish'
         type: boolean
@@ -26,6 +30,10 @@ on:
 # Note: npm publishing is done manually due to 2FA requirements
 # Run: npm login && npm publish --access public
 
+env:
+  # Use input version for workflow_dispatch, or extract from tag for push
+  VERSION: ${{ inputs.version || github.ref_name }}
+
 jobs:
   publish-homebrew:
     if: ${{ !inputs.skip_homebrew }}
@@ -35,8 +43,9 @@ jobs:
       - name: Update Homebrew formula
         env:
           HOMEBREW_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          RELEASE_VERSION: ${{ env.VERSION }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${RELEASE_VERSION#v}
           SHA256=$(curl -sL "https://registry.npmjs.org/codeseeker/-/codeseeker-${VERSION}.tgz" | sha256sum | cut -d' ' -f1)
 
           git clone https://x-access-token:${HOMEBREW_GITHUB_TOKEN}@github.com/jghiringhelli/homebrew-codeseeker.git
@@ -78,7 +87,7 @@ jobs:
           CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
+          $version = "${{ env.VERSION }}".TrimStart('v')
 
           # Update nuspec version
           $nuspec = Get-Content chocolatey/codeseeker.nuspec
@@ -101,8 +110,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Update snapcraft.yaml version
+        env:
+          RELEASE_VERSION: ${{ env.VERSION }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${RELEASE_VERSION#v}
           sed -i "s/version: .*/version: '${VERSION}'/" snap/snapcraft.yaml
           sed -i "s|codeseeker-.*\.tgz|codeseeker-${VERSION}.tgz|" snap/snapcraft.yaml
       - uses: snapcore/action-build@v1
@@ -124,9 +135,11 @@ jobs:
         with:
           go-version: '1.24'
       - name: Update server.json version
+        env:
+          RELEASE_VERSION: ${{ env.VERSION }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/g" server.json
+          VERSION=${RELEASE_VERSION#v}
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/g" server.json
       - name: Build and publish to MCP Registry
         env:
           MCP_REGISTRY_TOKEN: ${{ secrets.MCP_REGISTRY_TOKEN }}
@@ -139,7 +152,8 @@ jobs:
 
   create-release:
     needs: [publish-homebrew, publish-chocolatey, publish-snap, publish-mcp-registry]
-    if: always() && !cancelled()
+    # Only create release on tag push, not workflow_dispatch (release already exists)
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
