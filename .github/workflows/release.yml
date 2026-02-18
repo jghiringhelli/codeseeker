@@ -114,8 +114,10 @@ jobs:
           RELEASE_VERSION: ${{ env.VERSION }}
         run: |
           VERSION=${RELEASE_VERSION#v}
-          sed -i "s/version: .*/version: '${VERSION}'/" snap/snapcraft.yaml
-          sed -i "s|codeseeker-.*\.tgz|codeseeker-${VERSION}.tgz|" snap/snapcraft.yaml
+          # Only update the package version line (line 3), not npm-node-version
+          sed -i "s/^version: .*/version: '${VERSION}'/" snap/snapcraft.yaml
+          # Update the npm tarball URL
+          sed -i "s|codeseeker-[0-9.]*\.tgz|codeseeker-${VERSION}.tgz|" snap/snapcraft.yaml
       - uses: snapcore/action-build@v1
         id: build
       - uses: snapcore/action-publish@v1
