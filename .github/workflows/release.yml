@@ -130,27 +130,25 @@ jobs:
   publish-mcp-registry:
     if: ${{ !inputs.skip_mcp }}
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for OIDC authentication
+      contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
       - name: Update server.json version
         env:
           RELEASE_VERSION: ${{ env.VERSION }}
         run: |
           VERSION=${RELEASE_VERSION#v}
-          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/g" server.json
-      - name: Build and publish to MCP Registry
-        env:
-          MCP_REGISTRY_TOKEN: ${{ secrets.MCP_REGISTRY_TOKEN }}
+          # Update both version fields in server.json
+          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
+      - name: Install mcp-publisher
         run: |
-          git clone https://github.com/modelcontextprotocol/registry.git /tmp/mcp-registry
-          cd /tmp/mcp-registry
-          make publisher
-          # Use OIDC auth for GitHub Actions
-          ./bin/mcp-publisher publish ${{ github.workspace }}/server.json --auth-method=github-oidc
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+      - name: Publish server to MCP Registry
+        run: ./mcp-publisher publish
 
   create-release:
     needs: [publish-homebrew, publish-chocolatey, publish-snap, publish-mcp-registry]
