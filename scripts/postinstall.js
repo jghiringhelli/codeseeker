@@ -163,11 +163,14 @@ const USER_LEVEL_AGENT_FILES = [
  */
 function isNonInteractive() {
   return !process.stdin.isTTY ||
+         !process.stdout.isTTY ||
          process.env.CI === 'true' ||
          process.env.CONTINUOUS_INTEGRATION === 'true' ||
          process.env.npm_config_yes === 'true' ||
          process.env.CODESEEKER_SKIP_POSTINSTALL === 'true' ||
-         process.env.ChocolateyInstall !== undefined;  // Skip in Chocolatey environments
+         process.env.ChocolateyInstall !== undefined ||  // Chocolatey package manager
+         process.env.CHOCOLATEY_VERSION !== undefined || // Another Chocolatey indicator
+         process.env.ChocolateyToolsLocation !== undefined; // Yet another Chocolatey indicator
 }
 
 /**
