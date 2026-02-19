@@ -5,6 +5,17 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - 2026-02-19
+
+### Fixed
+
+- **find_duplicates MCP tool**: Fixed undefined error when no duplicates found
+- **find_dead_code MCP tool**: Fixed undefined error when no dead code found
+- **Chocolatey automated testing**: Made npm install fully non-interactive
+  - Set `CI=true` and npm config environment variables
+  - Added `--no-progress --no-fund --no-audit` flags
+- **Dead code removal**: Removed unused analyzeDuplicateCode function
+
 ## [1.8.1] - 2026-02-18
 
 ### Fixed
