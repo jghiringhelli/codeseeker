@@ -1,464 +1,153 @@
-# CodeSeeker
+# MCP Registry
 
-**Graph-powered code intelligence for Claude Code.** CodeSeeker builds a knowledge graph of your codebase—not just embeddings—so Claude understands how your code actually connects.
+The MCP registry provides MCP clients with a list of MCP servers, like an app store for MCP servers.
 
-[![npm version](https://img.shields.io/npm/v/codeseeker.svg)](https://www.npmjs.com/package/codeseeker)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
+[**📤 Publish my MCP server**](docs/modelcontextprotocol-io/quickstart.mdx) | [**⚡️ Live API docs**](https://registry.modelcontextprotocol.io/docs) | [**👀 Ecosystem vision**](docs/design/ecosystem-vision.md) | 📖 **[Full documentation](./docs)**
 
-> An MCP server + CLI that gives AI assistants semantic code search and knowledge graph traversal. Works with **Claude Code**, **GitHub Copilot**, **Cursor**, and **Claude Desktop**.
+## Development Status
 
-## Installation
+**2025-10-24 update**: The Registry API has entered an **API freeze (v0.1)** 🎉. For the next month or more, the API will remain stable with no breaking changes, allowing integrators to confidently implement support. This freeze applies to v0.1 while development continues on v0. We'll use this period to validate the API in real-world integrations and gather feedback to shape v1 for general availability. Thank you to everyone for your contributions and patience—your involvement has been key to getting us here!
 
-### ⚡ One-Line Install (Easiest)
+**2025-09-08 update**: The registry has launched in preview 🎉 ([announcement blog post](https://blog.modelcontextprotocol.io/posts/2025-09-08-mcp-registry-preview/)). While the system is now more stable, this is still a preview release and breaking changes or data resets may occur. A general availability (GA) release will follow later. We'd love your feedback in [GitHub discussions](https://github.com/modelcontextprotocol/registry/discussions/new?category=ideas) or in the [#registry-dev Discord](https://discord.com/channels/1358869848138059966/1369487942862504016) ([joining details here](https://modelcontextprotocol.io/community/communication)).
 
-Copy/paste ONE command - auto-detects your system and configures everything:
+Current key maintainers:
+- **Adam Jones** (Anthropic) [@domdomegg](https://github.com/domdomegg)  
+- **Tadas Antanavicius** (PulseMCP) [@tadasant](https://github.com/tadasant)
+- **Toby Padilla** (GitHub) [@toby](https://github.com/toby)
+- **Radoslav (Rado) Dimitrov** (Stacklok) [@rdimitrov](https://github.com/rdimitrov)
 
-**macOS/Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/jghiringhelli/codeseeker/master/scripts/install.sh | sh
-```
+## Contributing
 
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/jghiringhelli/codeseeker/master/scripts/install.ps1 | iex
-```
+We use multiple channels for collaboration - see [modelcontextprotocol.io/community/communication](https://modelcontextprotocol.io/community/communication).
 
-Restart your IDE and you're done!
+Often (but not always) ideas flow through this pipeline:
 
-### 📦 Package Managers (Advanced)
+- **[Discord](https://modelcontextprotocol.io/community/communication)** - Real-time community discussions
+- **[Discussions](https://github.com/modelcontextprotocol/registry/discussions)** - Propose and discuss product/technical requirements
+- **[Issues](https://github.com/modelcontextprotocol/registry/issues)** - Track well-scoped technical work  
+- **[Pull Requests](https://github.com/modelcontextprotocol/registry/pulls)** - Contribute work towards issues
 
-**Linux (Snap) - All Distributions:**
-```bash
-sudo snap install codeseeker
-codeseeker install --vscode      # or --cursor, --windsurf
-```
-> ⚠️ **Snap limitation:** Due to strict confinement, the snap can only access projects in your home directory (`~/`). For projects outside `~/`, use npm or Homebrew instead.
+### Quick start:
 
-**macOS/Linux (Homebrew):**
-```bash
-brew install jghiringhelli/codeseeker/codeseeker
-codeseeker install --vscode      # or --cursor, --windsurf
-```
+#### Pre-requisites
 
-**Windows (Chocolatey):**
-```powershell
-choco install codeseeker
-codeseeker install --vscode      # or --cursor, --windsurf
-```
+- **Docker**
+- **Go 1.24.x**
+- **ko** - Container image builder for Go ([installation instructions](https://ko.build/install/))
+- **golangci-lint v2.4.0**
 
-**Cross-platform (npm):**
-```bash
-npm install -g codeseeker
-codeseeker install --vscode      # or --cursor, --windsurf
-```
-
-### 🚀 No Install Required (npx)
-
-Run without installing:
-```bash
-npx codeseeker init
-npx codeseeker -c "how does authentication work?"
-```
-
-### 🔌 Claude Code Plugin
-
-If you use Claude Code CLI, you can install as a plugin:
+#### Running the server
 
 ```bash
-/plugin install codeseeker@github:jghiringhelli/codeseeker#plugin
+# Start full development environment
+make dev-compose
 ```
 
-This gives you auto-sync hooks and slash commands (`/codeseeker:init`, `/codeseeker:reindex`).
+This starts the registry at [`localhost:8080`](http://localhost:8080) with PostgreSQL. The database uses ephemeral storage and is reset each time you restart the containers, ensuring a clean state for development and testing.
 
-### ☁️ Devcontainer / GitHub Codespaces
+**Note:** The registry uses [ko](https://ko.build) to build container images. The `make dev-compose` command automatically builds the registry image with ko and loads it into your local Docker daemon before starting the services.
 
-CodeSeeker auto-installs in devcontainers! Just add `.devcontainer/devcontainer.json`:
+By default, the registry seeds from the production API with a filtered subset of servers (to keep startup fast). This ensures your local environment mirrors production behavior and all seed data passes validation. For offline development you can seed from a file without validation with `MCP_REGISTRY_SEED_FROM=data/seed.json MCP_REGISTRY_ENABLE_REGISTRY_VALIDATION=false make dev-compose`.
 
-```json
-{
-  "name": "My Project",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
-  "postCreateCommand": "npm install -g codeseeker && codeseeker install --vscode"
-}
-```
-
-Or use our pre-configured devcontainer (already included in this repo).
-
-### ✅ Verify Installation
-
-Ask your AI assistant: *"What CodeSeeker tools do you have?"*
-
-You should see: `search`, `search_and_read`, `show_dependencies`, `read_with_context`, `standards`, etc.
-
----
-
-## The Problem
-
-Claude Code is powerful, but it navigates your codebase like a tourist with a phrasebook:
-- **Grep searches** find text matches, not semantic meaning
-- **File reads** show code in isolation, missing the bigger picture
-- **No memory** of your project's patterns—every session starts fresh
-
-The result? Claude asks you to explain code relationships it should already know. It writes validation logic that doesn't match your existing patterns. It misses dependencies and breaks things.
-
-## How CodeSeeker Fixes This
-
-CodeSeeker builds a **knowledge graph** of your codebase:
-
-```
-┌─────────────┐     imports      ┌─────────────┐
-│  auth.ts    │ ───────────────▶ │  user.ts    │
-└─────────────┘                  └─────────────┘
-       │                                │
-       │ calls                          │ extends
-       ▼                                ▼
-┌─────────────┐     implements   ┌─────────────┐
-│ session.ts  │ ◀─────────────── │ BaseUser.ts │
-└─────────────┘                  └─────────────┘
-```
-
-When you ask "add password reset to authentication", Claude doesn't just find files containing "auth"—it traverses the graph to find:
-- What `auth.ts` imports and exports
-- Which services call authentication functions
-- What patterns exist in related code
-- How your project handles similar flows
-
-This is **Graph RAG** (Retrieval-Augmented Generation), not just vector search.
-
-## Advanced Installation Options
+The setup can be configured with environment variables in [docker-compose.yml](./docker-compose.yml) - see [.env.example](./.env.example) for a reference.
 
 <details>
-<summary><b>📋 Manual MCP Configuration</b> (if auto-install doesn't work)</summary>
+<summary>Alternative: Running a pre-built Docker image</summary>
 
-### VS Code (Claude Code & GitHub Copilot)
-
-Add to `.vscode/mcp.json` in your project:
-
-```json
-{
-  "mcpServers": {
-    "codeseeker": {
-      "command": "npx",
-      "args": ["-y", "codeseeker", "serve", "--mcp"],
-      "env": {
-        "CODESEEKER_STORAGE_MODE": "embedded"
-      }
-    }
-  }
-}
-```
-
-### Cursor
-
-Add to `.cursor/mcp.json` in your project:
-
-```json
-{
-  "mcpServers": {
-    "codeseeker": {
-      "command": "npx",
-      "args": ["-y", "codeseeker", "serve", "--mcp"],
-      "env": {
-        "CODESEEKER_STORAGE_MODE": "embedded"
-      }
-    }
-  }
-}
-```
-
-### Claude Desktop
-
-Add to your `claude_desktop_config.json`:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "codeseeker": {
-      "command": "npx",
-      "args": ["-y", "codeseeker", "serve", "--mcp"],
-      "env": {
-        "CODESEEKER_STORAGE_MODE": "embedded"
-      }
-    }
-  }
-}
-```
-
-### Global vs Project-Level Configuration
+Pre-built Docker images are automatically published to GitHub Container Registry:
 
 ```bash
-# Apply to all projects (user-level)
-codeseeker install --vscode --global
+# Run latest stable release
+docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:latest
 
-# Apply to current project only
-codeseeker install --vscode
+# Run latest from main branch (continuous deployment)
+docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:main
+
+# Run specific release version
+docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:v1.0.0
+
+# Run development build from main branch
+docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:main-20250906-abc123d
 ```
+
+**Available tags:** 
+- **Releases**: `latest`, `v1.0.0`, `v1.1.0`, etc.
+- **Continuous**: `main` (latest main branch build)
+- **Development**: `main-<date>-<sha>` (specific commit builds)
 
 </details>
 
-<details>
-<summary><b>🖥️ CLI Standalone Usage</b> (without AI assistant)</summary>
+#### Publishing a server
+
+To publish a server, we've built a simple CLI. You can use it with:
 
 ```bash
-npm install -g codeseeker
-cd your-project
-codeseeker init
-codeseeker -c "how does authentication work in this project?"
+# Build the latest CLI
+make publisher
+
+# Use it!
+./bin/mcp-publisher --help
 ```
 
-</details>
+See [the publisher guide](./docs/modelcontextprotocol-io/quickstart.mdx) for more details.
 
-## What You Get
+#### Other commands
 
-Once configured, Claude has access to these MCP tools (used automatically):
-
-| Tool | What It Does |
-|------|--------------|
-| `search_code` | Hybrid search: vector + text + path with RRF fusion |
-| `find_and_read` | Search + Read in one step - returns file content directly |
-| `get_code_relationships` | Traverse the knowledge graph (imports, calls, extends) |
-| `get_file_context` | Read a file with its related code automatically included |
-| `get_coding_standards` | Your project's detected patterns (validation, error handling) |
-| `index_project` | Manually trigger indexing (rarely needed) |
-| `notify_file_changes` | Update index for specific files |
-| `manage_index` | Dynamically exclude/include files from the index |
-
-**You don't invoke these manually**—Claude uses them automatically when searching code or analyzing relationships.
-
-## How Indexing Works
-
-**You don't need to manually index.** When Claude uses any CodeSeeker tool, the tool automatically checks if the project is indexed. If not, it indexes on first use.
-
-```
-User: "Find the authentication logic"
-        │
-        ▼
-┌─────────────────────────────────────┐
-│ Claude calls search_code()          │
-│         │                           │
-│         ▼                           │
-│ Project indexed? ──No──► Index now  │
-│         │                  (auto)   │
-│        Yes                   │      │
-│         │◀───────────────────┘      │
-│         ▼                           │
-│ Return search results               │
-└─────────────────────────────────────┘
+```bash
+# Run lint, unit tests and integration tests
+make check
 ```
 
-First search on a new project takes 30 seconds to several minutes (depending on size). Subsequent searches are instant.
+There are also a few more helpful commands for development. Run `make help` to learn more, or look in [Makefile](./Makefile).
 
-## What Makes It Different
-
-| Approach | How It Works | Strengths | Limitations |
-|----------|--------------|-----------|-------------|
-| **Grep/ripgrep** | Text pattern matching | Fast, universal | No semantic understanding |
-| **Vector search only** | Embedding similarity | Finds similar code | Misses structural relationships |
-| **LSP-based tools** | Language server protocol | Precise symbol definitions | No semantic search, no cross-file reasoning |
-| **CodeSeeker** | Knowledge graph + hybrid search | Semantic + structure + patterns | Requires initial indexing (30s-5min) |
-
-### CodeSeeker's Unique Capabilities
-
-**What LSP tools can't do:**
-- *"Find code that handles errors like this"* → Semantic search finds similar patterns
-- *"What validation approach does this project use?"* → Auto-detected coding standards
-- *"Show me everything related to authentication"* → Graph traversal across indirect dependencies
-
-**What vector-only search misses:**
-- Direct import/export relationships
-- Class inheritance chains
-- Function call graphs
-- Which files actually depend on which
-
-CodeSeeker combines all three: **graph traversal** for structure, **vector search** for meaning, **text search** for precision—fused with Reciprocal Rank Fusion (RRF) for optimal results.
-
-## Auto-Detected Coding Standards
-
-CodeSeeker analyzes your codebase and extracts patterns:
-
-```json
-{
-  "validation": {
-    "email": {
-      "preferred": "z.string().email()",
-      "usage_count": 12,
-      "files": ["src/auth.ts", "src/user.ts"]
-    }
-  },
-  "react-patterns": {
-    "state": {
-      "preferred": "useState<T>()",
-      "usage_count": 45
-    }
-  }
-}
-```
-
-Detected pattern categories:
-- **validation**: Zod, Yup, Joi, validator.js, custom regex
-- **error-handling**: API error responses, try-catch patterns, custom Error classes
-- **logging**: Console, Winston, Bunyan, structured logging
-- **testing**: Jest/Vitest setup, assertion patterns
-- **react-patterns**: Hooks (useState, useEffect, useMemo, useCallback, useRef)
-- **state-management**: Redux Toolkit, Zustand, React Context, TanStack Query
-- **api-patterns**: Fetch, Axios, Express routes, Next.js API routes
-
-When Claude writes new code, it follows your existing conventions instead of inventing new ones.
-
-## Managing Index Exclusions
-
-If Claude notices files that shouldn't be indexed (like Unity's Library folder, build outputs, or generated files), it can dynamically exclude them:
-
-```typescript
-// Exclude Unity Library folder and generated files
-manage_index({
-  action: "exclude",
-  project: "my-unity-game",
-  paths: ["Library/**", "Temp/**", "*.generated.cs"],
-  reason: "Unity build artifacts"
-})
-```
-
-Exclusions are persisted in `.codeseeker/exclusions.json` and automatically respected during reindexing.
-
-## Language Support
-
-| Language | Parser | Relationship Extraction |
-|----------|--------|------------------------|
-| TypeScript/JavaScript | Babel AST | Excellent |
-| Python | Tree-sitter | Excellent |
-| Java | Tree-sitter | Excellent |
-| C# | Regex | Good |
-| Go | Regex | Good |
-| Rust, C/C++, Ruby, PHP | Regex | Basic |
-
-Tree-sitter parsers install automatically when needed.
-
-## Keeping the Index in Sync
-
-### With Claude Code Plugin
-
-The plugin installs **hooks** that automatically update the index:
-
-| Event | What Happens |
-|-------|--------------|
-| Claude edits a file | Index updated automatically |
-| Claude runs `git pull/checkout/merge` | Full reindex triggered |
-| You run `/codeseeker:reindex` | Manual full reindex |
-
-**You don't need to do anything**—the plugin handles sync automatically.
-
-### With MCP Server Only (Cursor, Claude Desktop)
-
-- **Claude-initiated changes**: Claude can call `notify_file_changes` tool
-- **Manual changes**: Not automatically detected—ask Claude to reindex periodically
-
-### Sync Summary
-
-| Setup | Claude Edits | Git Operations | Manual Edits |
-|-------|--------------|----------------|--------------|
-| **Plugin** (Claude Code) | Auto | Auto | Manual |
-| **MCP** (Cursor, Desktop) | Ask Claude | Ask Claude | Ask Claude |
-| **CLI** | Auto | Auto | Manual |
-
-## When CodeSeeker Helps Most
-
-**Good fit:**
-- Large codebases (10K+ files) where Claude struggles to find relevant code
-- Projects with established patterns you want Claude to follow
-- Complex dependency chains across multiple files
-- Teams wanting consistent AI-generated code
-
-**Less useful:**
-- Greenfield projects with little existing code
-- Single-file scripts
-- Projects where you're actively changing architecture
+<!--
+For Claude and other AI tools: Always prefer make targets over custom commands where possible.
+-->
 
 ## Architecture
 
+### Project Structure
+
 ```
-┌──────────────────────────────────────────────────────────┐
-│                     Claude Code                          │
-│                         │                                │
-│                    MCP Protocol                          │
-│                         │                                │
-│  ┌──────────────────────▼──────────────────────────┐    │
-│  │              CodeSeeker MCP Server               │    │
-│  │  ┌─────────────┬─────────────┬────────────────┐ │    │
-│  │  │   Vector    │  Knowledge  │    Coding      │ │    │
-│  │  │   Search    │    Graph    │   Standards    │ │    │
-│  │  │  (SQLite)   │  (SQLite)   │   (JSON)       │ │    │
-│  │  └─────────────┴─────────────┴────────────────┘ │    │
-│  └─────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────┘
+├── cmd/                     # Application entry points
+│   └── publisher/           # Server publishing tool
+├── data/                    # Seed data
+├── deploy/                  # Deployment configuration (Pulumi)
+├── docs/                    # Documentation
+├── internal/                # Private application code
+│   ├── api/                 # HTTP handlers and routing
+│   ├── auth/                # Authentication (GitHub OAuth, JWT, namespace blocking)
+│   ├── config/              # Configuration management
+│   ├── database/            # Data persistence (PostgreSQL)
+│   ├── service/             # Business logic
+│   ├── telemetry/           # Metrics and monitoring
+│   └── validators/          # Input validation
+├── pkg/                     # Public packages
+│   ├── api/                 # API types and structures
+│   │   └── v0/              # Version 0 API types
+│   └── model/               # Data models for server.json
+├── scripts/                 # Development and testing scripts
+├── tests/                   # Integration tests
+└── tools/                   # CLI tools and utilities
+    └── validate-*.sh        # Schema validation tools
 ```
 
-All data stored locally in `.codeseeker/`. No external services required.
+### Authentication
 
-For large teams (100K+ files, shared indexes), server mode supports PostgreSQL + Neo4j. See [Storage Documentation](docs/technical/storage.md).
+Publishing supports multiple authentication methods:
+- **GitHub OAuth** - For publishing by logging into GitHub
+- **GitHub OIDC** - For publishing from GitHub Actions
+- **DNS verification** - For proving ownership of a domain and its subdomains
+- **HTTP verification** - For proving ownership of a domain
 
-## Troubleshooting
+The registry validates namespace ownership when publishing. E.g. to publish...:
+- `io.github.domdomegg/my-cool-mcp` you must login to GitHub as `domdomegg`, or be in a GitHub Action on domdomegg's repos
+- `me.adamjones/my-cool-mcp` you must prove ownership of `adamjones.me` via DNS or HTTP challenge
 
-### "I can't find CodeSeeker in the VS Code marketplace"
+## Community Projects
 
-**CodeSeeker is NOT a VS Code extension.** It's an MCP server that works WITH AI assistants.
+Check out [community projects](docs/community-projects.md) to explore notable registry-related work created by the community.
 
-✅ **Correct:** Install via npm: `npm install -g codeseeker`
-❌ **Wrong:** Looking for it in VS Code Extensions marketplace
+## More documentation
 
-### MCP server not connecting
-
-1. Verify npm and npx work: `npx -y codeseeker --version`
-2. Check MCP config file syntax (valid JSON, no trailing commas)
-3. Restart your editor/Claude application completely
-4. Check that Node.js is installed: `node --version` (need v18+)
-
-### Indexing seems slow
-
-First-time indexing of large projects (50K+ files) can take 5+ minutes. Subsequent uses are instant.
-
-### Tools not appearing in Claude
-
-1. Ask Claude: *"What CodeSeeker tools do you have?"*
-2. If no tools appear, check MCP config file exists and has correct syntax
-3. Restart your IDE completely (not just reload window)
-4. Check Claude/Copilot MCP connection status in IDE
-
-### Still stuck?
-
-Open an issue: [GitHub Issues](https://github.com/jghiringhelli/codeseeker/issues)
-
-## Documentation
-
-- [Integration Guide](docs/INTEGRATION.md) - How all components connect
-- [Architecture](docs/technical/architecture.md) - Technical deep dive
-- [CLI Commands](docs/install/cli_commands_manual.md) - Full command reference
-
-## Supported Platforms
-
-| Platform | MCP Support | Install Command |
-|----------|-------------|-----------------|
-| **Claude Code** (VS Code) | Yes | `codeseeker install --vscode` or plugin |
-| **GitHub Copilot** (VS Code) | Yes (VS Code 1.99+) | `codeseeker install --vscode` |
-| **Cursor** | Yes | `codeseeker install --cursor` |
-| **Claude Desktop** | Yes | Manual config |
-| **Windsurf** | Yes | `codeseeker install --windsurf` |
-| **Visual Studio** | Yes | `codeseeker install --vs` |
-
-> **Note:** Claude Code and GitHub Copilot both run in VS Code and share the same MCP configuration (`.vscode/mcp.json`). The flags `--vscode`, `--claude-code`, and `--copilot` are interchangeable.
-
-## Support
-
-If CodeSeeker is useful to you, consider [sponsoring the project](https://github.com/sponsors/jghiringhelli).
-
-## License
-
-MIT License. See [LICENSE](LICENSE).
-
----
-
-*CodeSeeker gives Claude the code understanding that grep and embeddings alone can't provide.*
+See the [documentation](./docs) for more details if your question has not been answered here!

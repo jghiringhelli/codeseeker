@@ -1,6 +1,6 @@
 {
   "name": "codeseeker",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Graph-powered code intelligence for Claude Code. Semantic search + knowledge graph for better AI code understanding.",
   "main": "dist/index.js",
   "bin": {

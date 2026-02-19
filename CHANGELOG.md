@@ -5,6 +5,14 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-02-18
+
+### Fixed
+
+- **Chocolatey install hang**: Improved non-interactive detection in postinstall script
+  - Added additional Chocolatey environment variable checks
+  - Added stdout.isTTY check to prevent hangs during moderation tests
+
 ## [1.8.0] - 2026-02-16
 
 ### Added
