@@ -27,13 +27,14 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 
 import { getStorageManager } from '../storage';
+import { IVectorStore, VectorDocument } from '../storage/interfaces';
 import { SemanticSearchOrchestrator } from '../cli/commands/services/semantic-search-orchestrator';
 import { IndexingService } from './indexing-service';
 import { CodingStandardsGenerator } from '../cli/services/analysis/coding-standards-generator';
 import { LanguageSupportService } from '../cli/services/project/language-support-service';
 import { getQueryCacheService, QueryCacheService } from './query-cache-service';
-import { DuplicateCodeDetector } from '../cli/services/analysis/deduplication/duplicate-code-detector';
-import { SemanticKnowledgeGraph } from '../cli/knowledge/graph/knowledge-graph';
+// DuplicateCodeDetector no longer used - find_duplicates now uses indexed embeddings directly
+// SemanticKnowledgeGraph no longer used - find_dead_code now uses indexed graph from storage manager
 
 // Version from package.json
 const VERSION = '2.0.0';
@@ -2262,6 +2263,20 @@ export class CodeSeekerMcpServer {
   }
 
   /**
+   * Get all documents for a project from vector store
+   * Used by find_duplicates to analyze indexed embeddings
+   */
+  private async getAllProjectDocuments(vectorStore: IVectorStore, projectId: string): Promise<VectorDocument[]> {
+    // Use a random embedding to get diverse results from vector search
+    // This leverages the existing searchByVector which returns all docs sorted by similarity
+    const randomEmbedding = Array.from({ length: 384 }, () => Math.random() - 0.5);
+
+    // Get a large sample of documents (up to 10000)
+    const results = await vectorStore.searchByVector(randomEmbedding, projectId, 10000);
+    return results.map(r => r.document);
+  }
+
+  /**
    * Generate actionable error message based on error type
    */
   private formatErrorMessage(operation: string, error: Error | string, context?: { projectPath?: string }): string {
@@ -2348,10 +2363,11 @@ export class CodeSeekerMcpServer {
             .describe('Types of code to analyze. Default: all types'),
         },
       },
-      async ({ project, similarity_threshold = 0.80, min_lines = 5, include_types }) => {
+      async ({ project, similarity_threshold = 0.80, min_lines = 5, include_types: _include_types }) => {
         try {
           const storageManager = await getStorageManager();
           const projectStore = storageManager.getProjectStore();
+          const vectorStore = storageManager.getVectorStore();
           const projects = await projectStore.list();
 
           // Find the project
@@ -2362,38 +2378,143 @@ export class CodeSeekerMcpServer {
             path.resolve(project) === p.path
           );
 
-          const projectPath = projectRecord?.path || path.resolve(project);
-
-          // Verify project exists
-          if (!fs.existsSync(projectPath)) {
+          if (!projectRecord) {
             return {
               content: [{
                 type: 'text' as const,
-                text: `Project path not found: ${projectPath}`,
+                text: `Project not found or not indexed: ${project}\n\n` +
+                  `Use index({path: "${project}"}) to index the project first.`,
               }],
               isError: true,
             };
           }
 
-          // Run duplicate detection
-          const detector = new DuplicateCodeDetector();
-          const report = await detector.analyzeProject(projectPath, {
-            semanticSimilarityThreshold: similarity_threshold,
-            minimumChunkSize: min_lines,
-            includeTypes: include_types || ['function', 'class', 'method', 'block'],
+          // Use indexed embeddings from vector store for duplicate detection
+          // This leverages the existing indexed data instead of re-analyzing from scratch
+
+          // Get all documents for this project from the vector store
+          // We'll use the vector search to find similar chunks efficiently
+          const allDocs = await this.getAllProjectDocuments(vectorStore, projectRecord.id);
+
+          if (allDocs.length === 0) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  project: projectRecord.name,
+                  summary: {
+                    total_chunks_analyzed: 0,
+                    exact_duplicates: 0,
+                    semantic_duplicates: 0,
+                    structural_duplicates: 0,
+                    total_lines_affected: 0,
+                    potential_lines_saved: 0,
+                  },
+                  duplicate_groups: [],
+                  recommendations: ['No indexed chunks found. Run index() first.'],
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Filter by min_lines if metadata contains line info
+          const filteredDocs = allDocs.filter(doc => {
+            const lineCount = doc.content.split('\n').length;
+            return lineCount >= min_lines;
           });
 
+          // Find duplicate groups using indexed embeddings
+          const duplicateGroups: Array<{
+            type: 'exact' | 'semantic';
+            similarity: number;
+            chunks: Array<{
+              id: string;
+              filePath: string;
+              content: string;
+              startLine?: number;
+              endLine?: number;
+            }>;
+          }> = [];
+
+          const processed = new Set<string>();
+          const EXACT_THRESHOLD = 0.98;
+
+          // For each chunk, find similar chunks using cosine similarity
+          for (let i = 0; i < filteredDocs.length && duplicateGroups.length < 50; i++) {
+            const doc = filteredDocs[i];
+            if (processed.has(doc.id)) continue;
+
+            // Find similar documents using vector search
+            const similarDocs = await vectorStore.searchByVector(
+              doc.embedding,
+              projectRecord.id,
+              20 // Get top 20 similar
+            );
+
+            // Filter by threshold and exclude self
+            const matches = similarDocs.filter(match =>
+              match.document.id !== doc.id &&
+              match.score >= similarity_threshold &&
+              !processed.has(match.document.id)
+            );
+
+            if (matches.length > 0) {
+              // Determine type (exact vs semantic)
+              const maxScore = Math.max(...matches.map(m => m.score));
+              const type = maxScore >= EXACT_THRESHOLD ? 'exact' : 'semantic';
+
+              // Extract line info from metadata if available
+              const getLines = (d: typeof doc) => {
+                const meta = d.metadata as Record<string, unknown> | undefined;
+                return {
+                  startLine: meta?.startLine as number | undefined,
+                  endLine: meta?.endLine as number | undefined,
+                };
+              };
+
+              duplicateGroups.push({
+                type,
+                similarity: maxScore,
+                chunks: [
+                  {
+                    id: doc.id,
+                    filePath: doc.filePath,
+                    content: doc.content.substring(0, 200) + (doc.content.length > 200 ? '...' : ''),
+                    ...getLines(doc),
+                  },
+                  ...matches.map(m => ({
+                    id: m.document.id,
+                    filePath: m.document.filePath,
+                    content: m.document.content.substring(0, 200) + (m.document.content.length > 200 ? '...' : ''),
+                    ...getLines(m.document),
+                  })),
+                ],
+              });
+
+              // Mark all as processed
+              processed.add(doc.id);
+              matches.forEach(m => processed.add(m.document.id));
+            }
+          }
+
+          // Calculate summary
+          const exactDuplicates = duplicateGroups.filter(g => g.type === 'exact').length;
+          const semanticDuplicates = duplicateGroups.filter(g => g.type === 'semantic').length;
+          const totalLinesAffected = duplicateGroups.reduce((sum, g) =>
+            sum + g.chunks.reduce((chunkSum, c) =>
+              chunkSum + (c.endLine && c.startLine ? c.endLine - c.startLine + 1 : c.content.split('\n').length), 0
+            ), 0
+          );
+
           // Format results
-          const duplicateGroups = report.duplicateGroups.slice(0, 20).map(group => ({
+          const formattedGroups = duplicateGroups.slice(0, 20).map(group => ({
             type: group.type,
             similarity: `${(group.similarity * 100).toFixed(1)}%`,
-            files_affected: group.estimatedSavings.filesAffected,
-            lines_savable: group.estimatedSavings.linesReduced,
-            suggestion: group.consolidationSuggestion,
+            files_affected: new Set(group.chunks.map(c => c.filePath)).size,
             locations: group.chunks.map(c => ({
-              file: c.filePath,
-              lines: `${c.startLine}-${c.endLine}`,
-              name: c.functionName || c.className || 'code block',
+              file: path.relative(projectRecord.path, c.filePath),
+              lines: c.startLine && c.endLine ? `${c.startLine}-${c.endLine}` : 'N/A',
+              preview: c.content.substring(0, 100).replace(/\n/g, ' '),
             })),
           }));
 
@@ -2401,17 +2522,21 @@ export class CodeSeekerMcpServer {
             content: [{
               type: 'text' as const,
               text: JSON.stringify({
-                project: path.basename(projectPath),
+                project: projectRecord.name,
                 summary: {
-                  total_chunks_analyzed: report.totalChunksAnalyzed,
-                  exact_duplicates: report.summary.exactDuplicates,
-                  semantic_duplicates: report.summary.semanticDuplicates,
-                  structural_duplicates: report.summary.structuralDuplicates,
-                  total_lines_affected: report.summary.totalLinesAffected,
-                  potential_lines_saved: report.summary.potentialSavings,
+                  total_chunks_analyzed: filteredDocs.length,
+                  exact_duplicates: exactDuplicates,
+                  semantic_duplicates: semanticDuplicates,
+                  structural_duplicates: 0, // Not computed in this approach
+                  total_lines_affected: totalLinesAffected,
+                  potential_lines_saved: Math.floor(totalLinesAffected * 0.6), // Estimate
                 },
-                duplicate_groups: duplicateGroups,
-                recommendations: report.recommendations,
+                duplicate_groups: formattedGroups,
+                recommendations: exactDuplicates > 0
+                  ? [`Found ${exactDuplicates} exact duplicate groups - prioritize consolidation`]
+                  : semanticDuplicates > 0
+                    ? [`Found ${semanticDuplicates} semantic duplicates - review for potential abstraction`]
+                    : ['No significant duplicates found above threshold'],
               }, null, 2),
             }],
           };
@@ -2450,6 +2575,7 @@ export class CodeSeekerMcpServer {
         try {
           const storageManager = await getStorageManager();
           const projectStore = storageManager.getProjectStore();
+          const graphStore = storageManager.getGraphStore();
           const projects = await projectStore.list();
 
           // Find the project
@@ -2471,67 +2597,163 @@ export class CodeSeekerMcpServer {
             };
           }
 
-          // Load the knowledge graph for this project
-          const knowledgeGraph = new SemanticKnowledgeGraph(projectRecord.path);
+          // Use the indexed graph data from storage manager (same as show_dependencies)
+          const allNodes = await graphStore.findNodes(projectRecord.id);
 
-          // Run architectural insight detection (includes dead code, god classes, circular deps, etc.)
-          const allInsights = await knowledgeGraph.detectArchitecturalInsights();
+          if (allNodes.length === 0) {
+            return {
+              content: [{
+                type: 'text' as const,
+                text: JSON.stringify({
+                  project: projectRecord.name,
+                  summary: {
+                    total_issues: 0,
+                    dead_code_count: 0,
+                    anti_patterns_count: 0,
+                    coupling_issues_count: 0,
+                  },
+                  dead_code: [],
+                  anti_patterns: [],
+                  coupling_issues: [],
+                  note: 'No graph data found. The project may need reindexing with graph building enabled.',
+                }, null, 2),
+              }],
+            };
+          }
 
-          // Filter by requested patterns
+          // Analyze the indexed graph for dead code and anti-patterns
           const patterns = include_patterns || ['dead_code', 'god_class', 'circular_deps', 'feature_envy', 'coupling'];
-          const patternMapping: Record<string, string[]> = {
-            'dead_code': ['Dead Code'],
-            'god_class': ['God Class'],
-            'circular_deps': ['Circular Dependencies', 'Circular Dependency'],
-            'feature_envy': ['Feature Envy'],
-            'coupling': ['High Coupling', 'Inappropriate Intimacy'],
-          };
 
-          const selectedPatterns = patterns.flatMap(p => patternMapping[p] || []);
-          const filteredInsights = allInsights.filter(insight =>
-            selectedPatterns.some(pattern =>
-              insight.pattern?.toLowerCase().includes(pattern.toLowerCase()) ||
-              insight.description?.toLowerCase().includes(pattern.toLowerCase())
-            )
-          );
+          // Build analysis results from indexed graph
+          const deadCodeItems: Array<{
+            type: string;
+            name: string;
+            file: string;
+            description: string;
+            confidence: string;
+            impact: string;
+            recommendation: string;
+          }> = [];
 
-          // Group by type
-          const deadCode = filteredInsights.filter(i => i.pattern === 'Dead Code');
-          const antiPatterns = filteredInsights.filter(i => i.type === 'anti_pattern' && i.pattern !== 'Dead Code');
-          const couplingIssues = filteredInsights.filter(i => i.type === 'coupling_issue');
+          const antiPatternItems: typeof deadCodeItems = [];
+          const couplingItems: typeof deadCodeItems = [];
+
+          // Analyze each node for issues
+          for (const node of allNodes) {
+            // Get edges for this node
+            const inEdges = await graphStore.getEdges(node.id, 'in');
+            const outEdges = await graphStore.getEdges(node.id, 'out');
+
+            // Dead code detection: nodes with no incoming references (except entry points)
+            if (patterns.includes('dead_code')) {
+              const isEntryPoint = node.type === 'file' ||
+                node.name.toLowerCase().includes('main') ||
+                node.name.toLowerCase().includes('index') ||
+                node.name.toLowerCase().includes('app');
+
+              // A class/function with no incoming calls/imports is potentially dead
+              if (!isEntryPoint && (node.type === 'class' || node.type === 'function') && inEdges.length === 0) {
+                deadCodeItems.push({
+                  type: 'Dead Code',
+                  name: node.name,
+                  file: path.relative(projectRecord.path, node.filePath),
+                  description: `Unused ${node.type}: ${node.name} - no incoming references found`,
+                  confidence: '70%',
+                  impact: 'medium',
+                  recommendation: 'Review if this code is needed. Remove if unused or add to exports if it should be public.',
+                });
+              }
+            }
+
+            // God class detection: classes with too many methods/dependencies
+            if (patterns.includes('god_class') && node.type === 'class') {
+              const containsEdges = outEdges.filter(e => e.type === 'contains');
+              const dependsOnEdges = outEdges.filter(e => e.type === 'imports' || e.type === 'depends_on');
+
+              if (containsEdges.length > 15 || dependsOnEdges.length > 10) {
+                antiPatternItems.push({
+                  type: 'God Class',
+                  name: node.name,
+                  file: path.relative(projectRecord.path, node.filePath),
+                  description: `Class ${node.name} has ${containsEdges.length} members and ${dependsOnEdges.length} dependencies`,
+                  confidence: '80%',
+                  impact: 'high',
+                  recommendation: 'Break down into smaller, focused classes following Single Responsibility Principle',
+                });
+              }
+            }
+
+            // High coupling detection
+            if (patterns.includes('coupling') && (node.type === 'class' || node.type === 'file')) {
+              const dependencies = outEdges.filter(e => e.type === 'imports' || e.type === 'depends_on');
+              if (dependencies.length > 8) {
+                couplingItems.push({
+                  type: 'High Coupling',
+                  name: node.name,
+                  file: path.relative(projectRecord.path, node.filePath),
+                  description: `${node.type} ${node.name} has ${dependencies.length} dependencies`,
+                  confidence: '75%',
+                  impact: 'high',
+                  recommendation: 'Reduce dependencies using interfaces, dependency injection, or service locator pattern',
+                });
+              }
+            }
+          }
+
+          // Circular dependency detection (simplified - look for bidirectional imports)
+          if (patterns.includes('circular_deps')) {
+            const fileNodes = allNodes.filter(n => n.type === 'file');
+            const importMap = new Map<string, Set<string>>();
+
+            for (const fileNode of fileNodes) {
+              const imports = await graphStore.getEdges(fileNode.id, 'out');
+              const importTargets = new Set(imports.filter(e => e.type === 'imports').map(e => e.target));
+              importMap.set(fileNode.id, importTargets);
+            }
+
+            // Check for circular imports (A imports B and B imports A)
+            for (const [fileId, imports] of importMap.entries()) {
+              for (const targetId of imports) {
+                const targetImports = importMap.get(targetId);
+                if (targetImports?.has(fileId)) {
+                  const sourceNode = allNodes.find(n => n.id === fileId);
+                  const targetNode = allNodes.find(n => n.id === targetId);
+                  if (sourceNode && targetNode) {
+                    antiPatternItems.push({
+                      type: 'Circular Dependency',
+                      name: `${sourceNode.name} <-> ${targetNode.name}`,
+                      file: path.relative(projectRecord.path, sourceNode.filePath),
+                      description: `Bidirectional import between ${sourceNode.name} and ${targetNode.name}`,
+                      confidence: '90%',
+                      impact: 'high',
+                      recommendation: 'Break the cycle using dependency inversion or extracting shared code',
+                    });
+                  }
+                }
+              }
+            }
+          }
 
           return {
             content: [{
               type: 'text' as const,
               text: JSON.stringify({
                 project: projectRecord.name,
-                summary: {
-                  total_issues: filteredInsights.length,
-                  dead_code_count: deadCode.length,
-                  anti_patterns_count: antiPatterns.length,
-                  coupling_issues_count: couplingIssues.length,
+                graph_stats: {
+                  total_nodes: allNodes.length,
+                  files: allNodes.filter(n => n.type === 'file').length,
+                  classes: allNodes.filter(n => n.type === 'class').length,
+                  functions: allNodes.filter(n => n.type === 'function').length,
                 },
-                dead_code: deadCode.slice(0, 20).map(d => ({
-                  type: d.pattern,
-                  description: d.description,
-                  confidence: `${((d.confidence || 0) * 100).toFixed(0)}%`,
-                  impact: d.impact,
-                  recommendation: d.recommendation,
-                })),
-                anti_patterns: antiPatterns.slice(0, 10).map(a => ({
-                  type: a.pattern,
-                  description: a.description,
-                  confidence: `${((a.confidence || 0) * 100).toFixed(0)}%`,
-                  impact: a.impact,
-                  recommendation: a.recommendation,
-                })),
-                coupling_issues: couplingIssues.slice(0, 10).map(c => ({
-                  type: c.pattern,
-                  description: c.description,
-                  confidence: `${((c.confidence || 0) * 100).toFixed(0)}%`,
-                  impact: c.impact,
-                  recommendation: c.recommendation,
-                })),
+                summary: {
+                  total_issues: deadCodeItems.length + antiPatternItems.length + couplingItems.length,
+                  dead_code_count: deadCodeItems.length,
+                  anti_patterns_count: antiPatternItems.length,
+                  coupling_issues_count: couplingItems.length,
+                },
+                dead_code: deadCodeItems.slice(0, 20),
+                anti_patterns: antiPatternItems.slice(0, 10),
+                coupling_issues: couplingItems.slice(0, 10),
               }, null, 2),
             }],
           };

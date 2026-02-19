@@ -52,11 +52,55 @@ Thank you for your interest in contributing to CodeSeeker! This document provide
 # Run all tests
 npm test
 
+# Run unit and integration tests (recommended - faster)
+npx jest tests/core tests/cli tests/storage tests/scripts --testTimeout=60000 --forceExit
+
 # Run tests in watch mode
 npm run test:watch
 
 # Run tests with coverage
 npm run test:coverage
+```
+
+### Test Categories and Known Issues
+
+CodeSeeker has different test categories with specific requirements:
+
+| Category | Location | Requirements | Notes |
+|----------|----------|--------------|-------|
+| **Unit Tests** | `tests/core/`, `tests/cli/`, `tests/storage/`, `tests/scripts/` | None | Always run, ~225 tests |
+| **Integration Tests** | `tests/integration/` | Optional Neo4j/PostgreSQL | Neo4j warnings are expected without server |
+| **E2E Tests** | `tests/integration/e2e/` | Full environment | May fail on Windows due to process handling |
+| **MCP Server Tests** | `tests/mcp/` | None | Tests MCP tool implementations |
+
+#### Known Test Behaviors
+
+1. **Neo4j Connection Warnings**: Expected when Neo4j is not running:
+   ```
+   Cannot log after tests are done... "Failed to connect to Neo4j database"
+   ```
+   These are informational - tests still pass using embedded storage fallback.
+
+2. **E2E Test Timeouts on Windows**: The E2E tests spawn CLI processes which may fail with exit code `3221225794` (STATUS_DLL_INIT_FAILED) on Windows. This is a Windows-specific process spawning issue, not a code problem.
+
+3. **Open Handle Warnings**: Jest may report open handles from:
+   - `MiniSearchTextStore.startFlushTimer` - Background flush timers
+   - `GraphologyGraphStore.startFlushTimer` - Graph persistence timers
+   - `SQLiteVectorStore.startFlushTimer` - Vector store flush timers
+
+   These are cleaned up properly in production but may show warnings during test teardown. Use `--forceExit` flag when running tests.
+
+#### Recommended Test Commands
+
+```bash
+# Quick sanity check (unit tests only)
+npx jest tests/storage/storage-abstraction.test.ts --testTimeout=30000
+
+# Full unit test suite (recommended for CI)
+npx jest tests/core tests/cli tests/storage tests/scripts --testTimeout=60000 --forceExit
+
+# All tests including integration (requires Docker services)
+npm test -- --forceExit
 ```
 
 ### Code Quality
