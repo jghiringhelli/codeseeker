@@ -3,9 +3,17 @@ $ErrorActionPreference = 'Continue'
 $packageName = 'codeseeker'
 $toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
 
+# Ensure npm runs non-interactively (critical for Chocolatey automated testing)
+$env:CI = 'true'
+$env:npm_config_yes = 'true'
+$env:npm_config_progress = 'false'
+$env:npm_config_fund = 'false'
+$env:npm_config_audit = 'false'
+$env:npm_config_loglevel = 'error'
+
 # Install via npm (suppress npm warnings that aren't errors)
 Write-Host "Installing CodeSeeker via npm..."
-$npmOutput = & npm install -g codeseeker 2>&1
+$npmOutput = & npm install -g codeseeker --no-progress --no-fund --no-audit 2>&1
 $exitCode = $LASTEXITCODE
 
 # Only fail on actual errors (exit code != 0), not deprecation warnings

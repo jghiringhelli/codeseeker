@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>codeseeker</id>
-    <version>1.7.2</version>
+    <version>1.8.2</version>
     <packageSourceUrl>https://github.com/jghiringhelli/codeseeker</packageSourceUrl>
     <owners>CodeSeeker Team</owners>
     <title>CodeSeeker - Graph-Powered Code Intelligence</title>
