@@ -60,7 +60,9 @@ Full documentation: https://github.com/jghiringhelli/codeseeker#readme
     </description>
     <releaseNotes>https://github.com/jghiringhelli/codeseeker/releases</releaseNotes>
     <dependencies>
-      <dependency id="nodejs" version="18.0.0" />
+      <!-- nodejs dependency removed: the nodejs.install MSI hangs in Chocolatey's
+           automated test environment. We check for Node.js in chocolateyinstall.ps1
+           instead and install it via choco if missing. -->
     </dependencies>
   </metadata>
   <files>
