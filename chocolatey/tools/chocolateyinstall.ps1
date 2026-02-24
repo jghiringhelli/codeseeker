@@ -15,14 +15,7 @@ $env:npm_config_loglevel = 'error'
 # the nodejs.install MSI hangs in Chocolatey's automated test environment)
 $nodePath = Get-Command node -ErrorAction SilentlyContinue
 if (-not $nodePath) {
-  Write-Host "Node.js not found. Installing via Chocolatey..." -ForegroundColor Yellow
-  choco install nodejs-lts -y --no-progress 2>&1 | Out-Null
-  # Refresh PATH so npm is available in this session
-  $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-  $nodePath = Get-Command node -ErrorAction SilentlyContinue
-  if (-not $nodePath) {
-    throw "Failed to install Node.js. Please install Node.js 18+ manually: https://nodejs.org"
-  }
+  throw "Node.js 18+ is required but not found. Please install it first: choco install nodejs-lts -y"
 }
 
 $nodeVersion = & node --version
