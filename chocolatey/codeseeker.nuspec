@@ -60,9 +60,10 @@ Full documentation: https://github.com/jghiringhelli/codeseeker#readme
     </description>
     <releaseNotes>https://github.com/jghiringhelli/codeseeker/releases</releaseNotes>
     <dependencies>
-      <!-- nodejs dependency removed: the nodejs.install MSI hangs in Chocolatey's
-           automated test environment. We check for Node.js in chocolateyinstall.ps1
-           instead and install it via choco if missing. -->
+      <!-- Using nodejs-lts (not nodejs) because nodejs depends on nodejs.install
+           whose MSI hangs in Chocolatey's automated test environment.
+           nodejs-lts is a separate package that passes verification consistently. -->
+      <dependency id="nodejs-lts" />
     </dependencies>
   </metadata>
   <files>

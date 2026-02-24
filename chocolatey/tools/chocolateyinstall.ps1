@@ -11,12 +11,9 @@ $env:npm_config_fund = 'false'
 $env:npm_config_audit = 'false'
 $env:npm_config_loglevel = 'error'
 
-# Check if Node.js is available (we don't use a nuspec dependency because
-# the nodejs.install MSI hangs in Chocolatey's automated test environment)
-$nodePath = Get-Command node -ErrorAction SilentlyContinue
-if (-not $nodePath) {
-  throw "Node.js 18+ is required but not found. Please install it first: choco install nodejs-lts -y"
-}
+# Node.js is provided by the nodejs-lts nuspec dependency
+# Refresh PATH in case nodejs-lts was just installed in this session
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
 $nodeVersion = & node --version
 Write-Host "Using Node.js $nodeVersion"
