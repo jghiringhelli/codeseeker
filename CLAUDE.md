@@ -2,6 +2,10 @@
 
 This file provides comprehensive guidance to Claude Code when working with this project.
 
+## Shared Cross-Project Resources
+
+**Publishing Playbook**: `../PUBLISHING-PLAYBOOK.md` — Shared across CodeSeeker, ForgeCraft, Conclave, and future projects. Contains distribution channel reference, entry formats, Chocolatey gotchas, version bump checklists, and project status tracker. Consult this before any release or new channel submission.
+
 ## Project Overview
 
 **Project**: CodeSeeker
