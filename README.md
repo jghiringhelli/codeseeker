@@ -93,7 +93,7 @@ Or use our pre-configured devcontainer (already included in this repo).
 
 Ask your AI assistant: *"What CodeSeeker tools do you have?"*
 
-You should see: `search`, `search_and_read`, `show_dependencies`, `read_with_context`, `standards`, etc.
+You should see: `search`, `analyze`, `index` — CodeSeeker's three unified tools.
 
 ---
 
@@ -220,16 +220,19 @@ codeseeker -c "how does authentication work in this project?"
 
 Once configured, Claude has access to these MCP tools (used automatically):
 
-| Tool | What It Does |
-|------|--------------|
-| `search_code` | Hybrid search: vector + text + path with RRF fusion |
-| `find_and_read` | Search + Read in one step - returns file content directly |
-| `get_code_relationships` | Traverse the knowledge graph (imports, calls, extends) |
-| `get_file_context` | Read a file with its related code automatically included |
-| `get_coding_standards` | Your project's detected patterns (validation, error handling) |
-| `index_project` | Manually trigger indexing (rarely needed) |
-| `notify_file_changes` | Update index for specific files |
-| `manage_index` | Dynamically exclude/include files from the index |
+| Tool | Actions / Usage | What It Does |
+|------|-----------------|-------------|
+| `search` | `{query}` | Hybrid search: vector + text + path with RRF fusion |
+| `search` | `{query, read: true}` | Search + read file contents in one step |
+| `search` | `{filepath}` | Read a file with its related code automatically included |
+| `analyze` | `{action: "dependencies", filepath}` | Traverse the knowledge graph (imports, calls, extends) |
+| `analyze` | `{action: "standards"}` | Your project's detected patterns (validation, error handling) |
+| `analyze` | `{action: "duplicates"}` | Find duplicate/similar code blocks across your codebase |
+| `analyze` | `{action: "dead_code"}` | Detect unused exports, functions, and classes |
+| `index` | `{action: "init", path}` | Manually trigger indexing (rarely needed) |
+| `index` | `{action: "sync", changes}` | Update index for specific files |
+| `index` | `{action: "exclude", paths}` | Dynamically exclude/include files from the index |
+| `index` | `{action: "status"}` | List indexed projects with file/chunk counts |
 
 **You don't invoke these manually**—Claude uses them automatically when searching code or analyzing relationships.
 
@@ -242,7 +245,7 @@ User: "Find the authentication logic"
         │
         ▼
 ┌─────────────────────────────────────┐
-│ Claude calls search_code()          │
+│ Claude calls search({query: ...})  │
 │         │                           │
 │         ▼                           │
 │ Project indexed? ──No──► Index now  │
@@ -317,9 +320,9 @@ When Claude writes new code, it follows your existing conventions instead of inv
 
 If Claude notices files that shouldn't be indexed (like Unity's Library folder, build outputs, or generated files), it can dynamically exclude them:
 
-```typescript
+```
 // Exclude Unity Library folder and generated files
-manage_index({
+index({
   action: "exclude",
   project: "my-unity-game",
   paths: ["Library/**", "Temp/**", "*.generated.cs"],
@@ -328,6 +331,60 @@ manage_index({
 ```
 
 Exclusions are persisted in `.codeseeker/exclusions.json` and automatically respected during reindexing.
+
+## Code Cleanup Tools
+
+CodeSeeker helps you maintain a clean codebase by finding duplicate code and detecting dead code.
+
+### Finding Duplicate Code
+
+Ask Claude to find similar code blocks that could be consolidated:
+
+```
+"Find duplicate code in my project"
+"Are there any similar functions that could be merged?"
+"Show me copy-pasted code that should be refactored"
+```
+
+CodeSeeker uses vector similarity to find semantically similar code—not just exact matches. It detects:
+- Copy-pasted functions with minor variations
+- Similar validation logic across files
+- Repeated patterns that could be extracted into utilities
+
+### Finding Dead Code
+
+Ask Claude to identify unused code that can be safely removed:
+
+```
+"Find dead code in this project"
+"What functions are never called?"
+"Show me unused exports"
+```
+
+CodeSeeker analyzes the knowledge graph to find:
+- Exported functions/classes that are never imported
+- Internal functions with no callers
+- Orphaned files with no incoming dependencies
+
+**Example workflow:**
+```
+User: "Use CodeSeeker to clean up this project"
+
+Claude: I'll analyze your codebase for cleanup opportunities.
+
+Found 3 duplicate code blocks:
+- validateEmail() in auth.ts and user.ts (92% similar)
+- formatDate() appears in 4 files with minor variations
+- Error handling pattern repeated in api/*.ts
+
+Found 2 dead code files:
+- src/utils/legacy-helper.ts (0 imports)
+- src/services/unused-service.ts (exported but never imported)
+
+Would you like me to:
+1. Consolidate the duplicate validators into a shared utility?
+2. Remove the dead code files?
+```
 
 ## Language Support
 
@@ -358,7 +415,7 @@ The plugin installs **hooks** that automatically update the index:
 
 ### With MCP Server Only (Cursor, Claude Desktop)
 
-- **Claude-initiated changes**: Claude can call `notify_file_changes` tool
+- **Claude-initiated changes**: Claude can call `index({action: "sync"})` tool
 - **Manual changes**: Not automatically detected—ask Claude to reindex periodically
 
 ### Sync Summary

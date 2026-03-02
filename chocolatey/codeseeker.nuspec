@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>codeseeker</id>
-    <version>1.7.2</version>
+    <version>1.8.2</version>
     <packageSourceUrl>https://github.com/jghiringhelli/codeseeker</packageSourceUrl>
     <owners>CodeSeeker Team</owners>
     <title>CodeSeeker - Graph-Powered Code Intelligence</title>
@@ -60,7 +60,10 @@ Full documentation: https://github.com/jghiringhelli/codeseeker#readme
     </description>
     <releaseNotes>https://github.com/jghiringhelli/codeseeker/releases</releaseNotes>
     <dependencies>
-      <dependency id="nodejs" version="18.0.0" />
+      <!-- Using nodejs-lts (not nodejs) because nodejs depends on nodejs.install
+           whose MSI hangs in Chocolatey's automated test environment.
+           nodejs-lts is a separate package that passes verification consistently. -->
+      <dependency id="nodejs-lts" />
     </dependencies>
   </metadata>
   <files>

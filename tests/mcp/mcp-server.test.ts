@@ -161,7 +161,7 @@ describe('codeseeker MCP Server', () => {
     });
   });
 
-  describe('Tool: list_projects', () => {
+  describe('Tool: index (status action)', () => {
     it('should list indexed projects (initially empty or with existing projects)', async () => {
       const storageManager = await getStorageManager();
       const projectStore = storageManager.getProjectStore();
@@ -171,7 +171,7 @@ describe('codeseeker MCP Server', () => {
     });
   });
 
-  describe('Tool: index_project simulation', () => {
+  describe('Tool: index (init action) simulation', () => {
     it('should index test project files into storage', async () => {
       const storageManager = await getStorageManager();
       const projectStore = storageManager.getProjectStore();
@@ -213,7 +213,7 @@ describe('codeseeker MCP Server', () => {
     });
   });
 
-  describe('Tool: search_code simulation', () => {
+  describe('Tool: search simulation', () => {
     it('should find auth-related files when searching for "authentication"', async () => {
       const storageManager = await getStorageManager();
       const vectorStore = storageManager.getVectorStore();
@@ -257,7 +257,7 @@ describe('codeseeker MCP Server', () => {
     });
   });
 
-  describe('Tool: get_file_context simulation', () => {
+  describe('Tool: search (filepath mode) simulation', () => {
     it('should read file content from indexed path', async () => {
       const filePath = path.join(TEST_PROJECT_PATH, 'index.ts');
 
@@ -278,7 +278,7 @@ describe('codeseeker MCP Server', () => {
     });
   });
 
-  describe('Tool: get_code_relationships simulation', () => {
+  describe('Tool: analyze (dependencies action) simulation', () => {
     beforeAll(async () => {
       // Create graph nodes and edges (simulating what init would do)
       const storageManager = await getStorageManager();
@@ -408,7 +408,7 @@ describe('codeseeker MCP Server', () => {
     });
   });
 
-  describe('Tool: notify_file_changes simulation', () => {
+  describe('Tool: index (sync action) simulation', () => {
     it('should handle file deletion notification', async () => {
       const storageManager = await getStorageManager();
       const vectorStore = storageManager.getVectorStore();
@@ -453,17 +453,17 @@ describe('codeseeker MCP Server', () => {
   /**
    * Integration Tests: Index-then-Find Workflow
    *
-   * These tests verify the critical fix where indexSingleFile() (used by notify_file_changes)
+   * These tests verify the critical fix where indexSingleFile() (used by index sync)
    * now updates BOTH the vector store AND the knowledge graph.
    *
-   * Previously, only the vector store was updated, causing get_code_relationships
+   * Previously, only the vector store was updated, causing analyze (dependencies)
    * to fail to find files that were incrementally indexed.
    *
    * NOTE: Vector embedding tests use mock embeddings because the Xenova model
    * requires download and initialization. Graph tests use the real indexing service
    * since graph operations don't require embeddings.
    */
-  describe('Integration: Index-then-Find Workflow (notify_file_changes fix)', () => {
+  describe('Integration: Index-then-Find Workflow (sync fix)', () => {
     const NEW_FILE_PATH = 'services/order-service.ts';
     const NEW_FILE_CONTENT = `
 // Order service - handles order processing
@@ -577,7 +577,7 @@ export class OrderService {
       // the document is stored; real semantic search works with real embeddings.
     });
 
-    it('should find indexed file via get_code_relationships (graph store)', async () => {
+    it('should find indexed file via analyze dependencies (graph store)', async () => {
       const storageManager = await getStorageManager();
       const graphStore = storageManager.getGraphStore();
 
@@ -642,7 +642,7 @@ export class OrderService {
       const vectorCount = await vectorStore.count(testProjectId);
       expect(vectorCount).toBeGreaterThan(Object.keys(TEST_FILES).length); // Includes our test file
 
-      // Step 2: Simulate get_code_relationships finding the file
+      // Step 2: Simulate analyze dependencies finding the file
       const fileNodes = await graphStore.findNodes(testProjectId, 'file');
       const orderFile = fileNodes.find(n => n.filePath?.includes('order-service'));
       expect(orderFile).toBeDefined();
@@ -876,7 +876,7 @@ export class PaymentService {
     });
   });
 
-  describe('Tool: find_duplicates simulation', () => {
+  describe('Tool: analyze (duplicates action) simulation', () => {
     it('should detect duplicate code patterns', async () => {
       // Create duplicate code files for testing
       const duplicateFile1 = path.join(TEST_PROJECT_PATH, 'duplicate1.ts');
@@ -923,7 +923,7 @@ export function validateInput(input: string): boolean {
     });
   });
 
-  describe('Tool: find_dead_code simulation', () => {
+  describe('Tool: analyze (dead_code action) simulation', () => {
     it('should identify unused code through graph analysis', async () => {
       const storageManager = await getStorageManager();
       const graphStore = storageManager.getGraphStore();

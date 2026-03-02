@@ -5,6 +5,56 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-03-02
+
+### Changed
+
+- **MCP tool consolidation**: Reduced from 12 tools to 3 unified tools (`search`, `analyze`, `index`)
+  - Old tools (`search_code`, `find_and_read`, `get_code_relationships`, `get_file_context`,
+    `get_coding_standards`, `find_duplicates`, `find_dead_code`, `index_project`,
+    `notify_file_changes`, `manage_index`, `list_projects`) are replaced by action-dispatched tools
+  - **`search`** dispatches to query mode, read+search mode, or filepath mode via `query`/`filepath`/`read` params
+  - **`analyze`** dispatches via `action`: `dependencies`, `duplicates`, `dead_code`, `standards`
+  - **`index`** dispatches via `action`: `init`, `sync`, `status`, `parsers`, `exclude`
+  - Reduces tool-list cognitive load for AI assistants; each tool covers a complete functional area
+
+### Added
+
+- **Integration test suite** (`tests/mcp/mcp-tools-integration.test.ts`): 52 new tests covering all 12
+  private MCP handlers via mock-seeded SQLite+Graphology storage without downloading embeddings
+  - Full coverage of `search`, `analyze`, and `index` tool routing
+  - Error path tests (missing params, unknown projects, nonexistent files, security validation)
+  - Exclusion lifecycle tests (add → list → remove pattern)
+
+- **MCP smoke-test script** (`scripts/smoke-test-mcp.js`): 16-point end-to-end sanity check
+  against built `dist/` output; supports `--quick` flag to skip heavy indexing
+
+### Fixed
+
+- **`mcp-server.test.ts` describe labels**: Updated all describe blocks to use new tool/action
+  naming conventions (`index (status action)`, `search simulation`, etc.)
+- **`postinstall.test.ts` tool name references**: Aligned with consolidated 3-tool API
+  (e.g. `search({query})`, `analyze({action: "dependencies", filepath})`)
+
+## [1.8.2] - 2026-02-19
+
+### Fixed
+
+- **find_duplicates MCP tool**: Fixed undefined error when no duplicates found
+- **find_dead_code MCP tool**: Fixed undefined error when no dead code found
+- **Chocolatey automated testing**: Made npm install fully non-interactive
+  - Set `CI=true` and npm config environment variables
+  - Added `--no-progress --no-fund --no-audit` flags
+- **Dead code removal**: Removed unused analyzeDuplicateCode function
+
+## [1.8.1] - 2026-02-18
+
+### Fixed
+
+- **Chocolatey install hang**: Improved non-interactive detection in postinstall script
+  - Added additional Chocolatey environment variable checks
+  - Added stdout.isTTY check to prevent hangs during moderation tests
+
 ## [1.8.0] - 2026-02-16
 
 ### Added

@@ -401,11 +401,11 @@ export class InstallCommandHandler extends BaseCommandHandler {
       console.log(Theme.colors.muted('   1. Start a new Claude Code session (or restart current one)'));
       console.log(Theme.colors.muted('   2. Claude Code will prompt you to approve the MCP server'));
       console.log(Theme.colors.muted('   3. Index your project: npx codeseeker init'));
-      console.log(Theme.colors.muted('   4. Start using search_code("query") in your conversations'));
+      console.log(Theme.colors.muted('   4. Start using search({query: "your query"}) in your conversations'));
     } else if (ideConfig.name.includes('VS Code') || ideConfig.name.includes('Copilot')) {
       console.log(Theme.colors.muted('   1. Restart VS Code or reload the window (Ctrl+Shift+P → "Reload Window")'));
       console.log(Theme.colors.muted('   2. GitHub Copilot will automatically detect the MCP server'));
-      console.log(Theme.colors.muted('   3. Index your project: search_code("your query") will trigger indexing'));
+      console.log(Theme.colors.muted('   3. Index your project: search({query: "your query"}) will trigger indexing'));
     } else if (ideConfig.name === 'Cursor') {
       console.log(Theme.colors.muted('   1. Restart Cursor or reload the window'));
       console.log(Theme.colors.muted('   2. Cursor AI will automatically detect the MCP server'));
@@ -420,11 +420,10 @@ export class InstallCommandHandler extends BaseCommandHandler {
     }
 
     console.log(Theme.colors.info('\n🔍 Available MCP tools:'));
-    console.log(Theme.colors.muted('   • search_code("query")           - Semantic code search'));
-    console.log(Theme.colors.muted('   • find_and_read("query")         - Search + read in one call'));
-    console.log(Theme.colors.muted('   • get_code_relationships(file)   - Show imports/dependencies'));
-    console.log(Theme.colors.muted('   • get_coding_standards(project)  - Show detected patterns'));
-    console.log(Theme.colors.muted('   • index_project(path)            - Index a project'));
+    console.log(Theme.colors.muted('   • search({query})             - Semantic code search'));
+    console.log(Theme.colors.muted('   • search({query, read: true}) - Search + read in one call'));
+    console.log(Theme.colors.muted('   • analyze({action, ...})      - Dependencies, duplicates, dead code, standards'));
+    console.log(Theme.colors.muted('   • index({action, ...})        - Index, sync, status, parsers, exclude'));
   }
 
   /**
@@ -533,7 +532,7 @@ ${Theme.colors.success('After Installation:')}
   1. For Claude Code: Start a new session, approve the MCP server when prompted
   2. For VS Code: Restart or reload the window
   3. Index your project: npx codeseeker init
-  4. Try: "search_code('authentication logic')" in your AI chat
+  4. Try: "search({query: 'authentication logic'})" in your AI chat
 `;
 
     console.log(helpText);
