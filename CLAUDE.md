@@ -133,7 +133,7 @@ manage_index({
 
 1. **Exclusion**: Files matching patterns are immediately deleted from the vector store
 2. **Persistence**: Exclusions saved to `.codeseeker/exclusions.json`
-3. **Reindexing**: User exclusions are respected during `index_project` and `notify_file_changes(full_reindex: true)`
+3. **Reindexing**: User exclusions are respected during `index({action: "init"})` and `index({action: "sync", full_reindex: true})`
 4. **Glob Patterns**: Supports `**` (any path), `*` (any segment), `?` (any char)
 
 ### When to Use
@@ -154,7 +154,7 @@ CodeSeeker automatically detects and generates coding standards from your indexe
 1. **Pattern Detection**: During `codeseeker init`, CodeSeeker analyzes indexed code to identify common patterns
 2. **Standards File**: Auto-generates `.codeseeker/coding-standards.json` with detected patterns
 3. **Incremental Updates**: Standards update automatically when pattern-related files change
-4. **MCP Integration**: New `get_coding_standards` MCP tool exposes standards to Claude
+4. **MCP Integration**: `analyze({action: "standards"})` MCP tool exposes standards to Claude
 5. **CLI Integration**: Standards can be queried via natural language commands
 
 ### Pattern Categories
@@ -205,7 +205,8 @@ CodeSeeker detects patterns in four categories:
 
 ```typescript
 // Claude can call this tool via MCP
-get_coding_standards({
+analyze({
+  action: "standards",
   project: "my-app",
   category: "validation"  // or "all", "error-handling", "logging", "testing"
 })
@@ -964,9 +965,9 @@ After reorganization, import paths have been updated:
 ```typescript
 // ✅ CORRECT - Always pass project parameter
 search({query: "authentication", project: "/path/to/current/project"})
-search_and_read({query: "error handling", project: "/path/to/current/project"})
-find_duplicates({project: "/path/to/current/project"})
-find_dead_code({project: "/path/to/current/project"})
+search({query: "error handling", project: "/path/to/current/project", read: true})
+analyze({action: "duplicates", project: "/path/to/current/project"})
+analyze({action: "dead_code", project: "/path/to/current/project"})
 
 // ❌ WRONG - Omitting project parameter may search wrong index
 search({query: "authentication"})  // May search a different project!
@@ -977,8 +978,8 @@ search({query: "authentication"})  // May search a different project!
 ### Auto-Initialization Check
 
 **BEFORE any code search**, verify the project is indexed:
-1. Call `projects()` to see indexed projects
-2. If this project is NOT listed, call `index({path: "PROJECT_ROOT_PATH"})` first
+1. Call `index({action: "status"})` to see indexed projects
+2. If this project is NOT listed, call `index({action: "init", path: "PROJECT_ROOT_PATH"})` first
 3. If tools return "Not connected", the MCP server may need restart
 
 ### When to Use CodeSeeker (DEFAULT)
@@ -986,19 +987,19 @@ search({query: "authentication"})  // May search a different project!
 **ALWAYS use CodeSeeker for these queries** (remember to include `project` parameter!):
 - "Where is X handled?" → `search({query: "X handling logic", project: "..."})`
 - "Find the auth/login/validation code" → `search({query: "authentication", project: "..."})`
-- "How does Y work?" → `search_and_read({query: "Y implementation", project: "..."})`
-- "What calls/imports Z?" → `show_dependencies({filepath: "path/to/Z", project: "..."})`
-- "Show me the error handling" → `search_and_read({query: "error handling patterns", project: "..."})`
-- "Find duplicate code" → `find_duplicates({project: "..."})`
-- "Find unused/dead code" → `find_dead_code({project: "..."})`
+- "How does Y work?" → `search({query: "Y implementation", project: "...", read: true})`
+- "What calls/imports Z?" → `analyze({action: "dependencies", filepath: "path/to/Z", project: "..."})`
+- "Show me the error handling" → `search({query: "error handling patterns", project: "...", read: true})`
+- "Find duplicate code" → `analyze({action: "duplicates", project: "..."})`
+- "Find unused/dead code" → `analyze({action: "dead_code", project: "..."})`
 
 | Task | MUST Use | NOT This |
 |------|----------|----------|
-| Find code by meaning | `search_code("authentication logic")` | ❌ `grep -r "auth"` |
-| Search + read files | `find_and_read("error handling")` | ❌ `grep` then `cat` |
-| Show dependencies | `get_code_relationships({filepath})` | ❌ Manual file reading |
-| Find patterns | `get_coding_standards({project})` | ❌ Searching manually |
-| Understand a file | `get_file_context({filepath})` | ❌ Just Read alone |
+| Find code by meaning | `search({query: "authentication logic"})` | ❌ `grep -r "auth"` |
+| Search + read files | `search({query: "error handling", read: true})` | ❌ `grep` then `cat` |
+| Show dependencies | `analyze({action: "dependencies", filepath: "..."})` | ❌ Manual file reading |
+| Find patterns | `analyze({action: "standards"})` | ❌ Searching manually |
+| Understand a file | `search({filepath: "..."})` | ❌ Just Read alone |
 
 ### When to Use grep/glob (EXCEPTIONS ONLY)
 
@@ -1013,32 +1014,32 @@ Only fall back to grep/glob when:
 ❌ grep -r "error handling" src/
    → Only finds literal text "error handling"
 
-✅ search_code("how errors are handled")
+✅ search({query: "how errors are handled"})
    → Finds: try-catch blocks, .catch() callbacks, error responses,
      validation errors, custom Error classes - even if they don't
      contain the words "error handling"
 ```
 
-### Available MCP Tools
+### Available MCP Tools (3 Consolidated)
 
 | Tool | Purpose | When to Use |
 |------|---------|-------------|
 | `search({query, project})` | Semantic search | First choice for any "find X" query |
-| `search_and_read({query, project})` | Search + read combined | When you need file contents |
-| `read_with_context({filepath, project})` | File + related code | Reading a file for the first time |
-| `show_dependencies({filepath, project})` | Dependency graph | "What uses this?", "What does this depend on?" |
-| `standards({project, category})` | Project patterns | Before writing new code |
-| `index({path})` | Index a project | If project not indexed |
-| `sync({project, changes})` | Update index | After editing files |
-| `projects()` | Show indexed projects | Check if project is indexed |
-| `find_duplicates({project})` | Find duplicate code | Cleaning up codebase, reducing copy-paste |
-| `find_dead_code({project})` | Find unused code | Finding code to remove, improving architecture |
-| `exclude({project, action, paths})` | Manage exclusions | Exclude build artifacts, generated files |
-| `install_parsers({project})` | Install language parsers | Better code understanding for specific languages |
+| `search({query, project, read: true})` | Search + read combined | When you need file contents |
+| `search({filepath, project})` | File + related code | Reading a file with context |
+| `analyze({action: "dependencies", filepath, project})` | Dependency graph | "What uses this?", "What does this depend on?" |
+| `analyze({action: "standards", project})` | Project patterns | Before writing new code |
+| `analyze({action: "duplicates", project})` | Find duplicate code | Cleaning up codebase |
+| `analyze({action: "dead_code", project})` | Find unused code | Finding code to remove |
+| `index({action: "init", path})` | Index a project | If project not indexed |
+| `index({action: "sync", project, changes})` | Update index | After editing files |
+| `index({action: "status"})` | Show indexed projects | Check if project is indexed |
+| `index({action: "exclude", project, exclude_action, paths})` | Manage exclusions | Exclude build artifacts, generated files |
+| `index({action: "parsers", project})` | Install language parsers | Better code understanding |
 
 ### Keep Index Updated
 
 After using Edit/Write tools, call:
 ```
-notify_file_changes({changes: [{type: "modified", path: "path/to/file"}]})
+index({action: "sync", changes: [{type: "modified", path: "path/to/file"}]})
 ```

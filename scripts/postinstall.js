@@ -50,19 +50,19 @@ const CODESEEKER_MCP_GUIDANCE = `
 ### When to Use CodeSeeker (DEFAULT)
 
 **ALWAYS use CodeSeeker for these queries:**
-- "Where is X handled?" → \`search("X handling logic")\`
-- "Find the auth/login/validation code" → \`search("authentication")\`
-- "How does Y work?" → \`search_and_read("Y implementation")\`
-- "What calls/imports Z?" → \`show_dependencies({filepath: "path/to/Z"})\`
-- "Show me the error handling" → \`search_and_read("error handling patterns")\`
+- "Where is X handled?" → \`search({query: "X handling logic"})\`
+- "Find the auth/login/validation code" → \`search({query: "authentication"})\`
+- "How does Y work?" → \`search({query: "Y implementation", read: true})\`
+- "What calls/imports Z?" → \`analyze({action: "dependencies", filepath: "path/to/Z"})\`
+- "Show me the error handling" → \`search({query: "error handling patterns", read: true})\`
 
 | Task | MUST Use | NOT This |
 |------|----------|----------|
-| Find code by meaning | \`search("authentication logic")\` | ❌ \`grep -r "auth"\` |
-| Search + read files | \`search_and_read("error handling")\` | ❌ \`grep\` then \`cat\` |
-| Show dependencies | \`show_dependencies({filepath})\` | ❌ Manual file reading |
-| Find patterns | \`standards({project})\` | ❌ Searching manually |
-| Understand a file | \`read_with_context({filepath})\` | ❌ Just Read alone |
+| Find code by meaning | \`search({query: "authentication logic"})\` | ❌ \`grep -r "auth"\` |
+| Search + read files | \`search({query: "error handling", read: true})\` | ❌ \`grep\` then \`cat\` |
+| Show dependencies | \`analyze({action: "dependencies", filepath: "..."})\` | ❌ Manual file reading |
+| Find patterns | \`analyze({action: "standards"})\` | ❌ Searching manually |
+| Understand a file | \`search({filepath: "..."})\` | ❌ Just Read alone |
 
 ### When to Use grep/glob (EXCEPTIONS ONLY)
 
@@ -71,24 +71,24 @@ Only fall back to grep/glob when:
 - Using **regex patterns** that semantic search can't handle
 - You **already know the exact file path**
 
-### Available MCP Tools
+### Available MCP Tools (3 consolidated)
 
 | Tool | Purpose | When to Use |
 |------|---------|-------------|
-| \`search(query)\` | Semantic search | First choice for any "find X" query |
-| \`search_and_read(query)\` | Search + read combined | When you need file contents |
-| \`show_dependencies({filepath})\` | Dependency graph | "What uses this?", "What does this depend on?" |
-| \`read_with_context({filepath})\` | File + related code | Reading a file for the first time |
-| \`standards({project})\` | Project patterns | Before writing new code |
-| \`index({path})\` | Index a project | If project not indexed |
-| \`sync({changes})\` | Update index | After editing files |
-| \`projects()\` | Show indexed projects | Check if project is indexed |
+| \`search({query})\` | Semantic search | First choice for any "find X" query |
+| \`search({query, read: true})\` | Search + read combined | When you need file contents |
+| \`search({filepath})\` | File + related code | Reading a file for the first time |
+| \`analyze({action: "dependencies", filepath})\` | Dependency graph | "What uses this?" |
+| \`analyze({action: "standards"})\` | Project patterns | Before writing new code |
+| \`index({action: "init", path})\` | Index a project | If project not indexed |
+| \`index({action: "sync", changes})\` | Update index | After editing files |
+| \`index({action: "status"})\` | Show indexed projects | Check if project is indexed |
 
 ### Keep Index Updated
 
 After using Edit/Write tools, call:
 \`\`\`
-sync({changes: [{type: "modified", path: "path/to/file"}]})
+index({action: "sync", changes: [{type: "modified", path: "path/to/file"}]})
 \`\`\`
 
 ## Claude Code Best Practices (from 2000+ hours of expert usage)

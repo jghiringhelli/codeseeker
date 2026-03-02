@@ -153,8 +153,7 @@ describe('CODESEEKER_MCP_GUIDANCE Content', () => {
 
     it('should contain the usage comparison table', () => {
       expect(postinstallGuidance).toContain('| Task | MUST Use | NOT This |');
-      expect(postinstallGuidance).toContain('search("authentication logic")');
-      expect(postinstallGuidance).toContain('search_and_read("error handling")');
+      expect(postinstallGuidance).toContain('search({query: "authentication logic"})');
     });
 
     it('should contain grep/glob exceptions section', () => {
@@ -163,19 +162,18 @@ describe('CODESEEKER_MCP_GUIDANCE Content', () => {
 
     it('should contain available MCP tools table', () => {
       expect(postinstallGuidance).toContain('### Available MCP Tools');
-      expect(postinstallGuidance).toContain('search(query)');
-      expect(postinstallGuidance).toContain('search_and_read(query)');
-      expect(postinstallGuidance).toContain('show_dependencies({filepath})');
-      expect(postinstallGuidance).toContain('read_with_context({filepath})');
-      expect(postinstallGuidance).toContain('standards({project})');
-      expect(postinstallGuidance).toContain('index({path})');
-      expect(postinstallGuidance).toContain('sync({changes})');
-      expect(postinstallGuidance).toContain('projects()');
+      expect(postinstallGuidance).toContain('search({query})');
+      expect(postinstallGuidance).toContain('search({query, read: true})');
+      expect(postinstallGuidance).toContain('analyze({action: "dependencies", filepath})');
+      expect(postinstallGuidance).toContain('analyze({action: "standards"})');
+      expect(postinstallGuidance).toContain('index({action: "init", path})');
+      expect(postinstallGuidance).toContain('index({action: "sync", changes})');
+      expect(postinstallGuidance).toContain('index({action: "status"})');
     });
 
     it('should contain keep index updated section', () => {
       expect(postinstallGuidance).toContain('### Keep Index Updated');
-      expect(postinstallGuidance).toContain('sync({changes:');
+      expect(postinstallGuidance).toContain('index({action: "sync"');
     });
   });
 
@@ -241,14 +239,13 @@ describe('Setup Command Handler Guidance', () => {
     });
 
     it('should contain all MCP tools', () => {
-      expect(setupHandlerGuidance).toContain('search(query)');
-      expect(setupHandlerGuidance).toContain('search_and_read(query)');
-      expect(setupHandlerGuidance).toContain('show_dependencies({filepath})');
-      expect(setupHandlerGuidance).toContain('read_with_context({filepath})');
-      expect(setupHandlerGuidance).toContain('standards({project})');
-      expect(setupHandlerGuidance).toContain('index({path})');
-      expect(setupHandlerGuidance).toContain('sync({changes})');
-      expect(setupHandlerGuidance).toContain('projects()');
+      expect(setupHandlerGuidance).toContain('search({query})');
+      expect(setupHandlerGuidance).toContain('search({query, read: true})');
+      expect(setupHandlerGuidance).toContain('analyze({action: "dependencies", filepath})');
+      expect(setupHandlerGuidance).toContain('analyze({action: "standards"})');
+      expect(setupHandlerGuidance).toContain('index({action: "init", path})');
+      expect(setupHandlerGuidance).toContain('index({action: "sync", changes})');
+      expect(setupHandlerGuidance).toContain('index({action: "status"})');
     });
   });
 
@@ -304,14 +301,13 @@ describe('Guidance Consistency', () => {
 
   it('both sources should have the same MCP tool names', () => {
     const tools = [
-      'search(query)',
-      'search_and_read(query)',
-      'show_dependencies({filepath})',
-      'read_with_context({filepath})',
-      'standards({project})',
-      'index({path})',
-      'sync({changes})',
-      'projects()',
+      'search({query})',
+      'search({query, read: true})',
+      'analyze({action: "dependencies", filepath})',
+      'analyze({action: "standards"})',
+      'index({action: "init", path})',
+      'index({action: "sync", changes})',
+      'index({action: "status"})',
     ];
 
     for (const tool of tools) {

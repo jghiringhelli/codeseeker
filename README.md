@@ -93,7 +93,7 @@ Or use our pre-configured devcontainer (already included in this repo).
 
 Ask your AI assistant: *"What CodeSeeker tools do you have?"*
 
-You should see: `search`, `search_and_read`, `show_dependencies`, `read_with_context`, `standards`, etc.
+You should see: `search`, `analyze`, `index` — CodeSeeker's three unified tools.
 
 ---
 
@@ -220,18 +220,19 @@ codeseeker -c "how does authentication work in this project?"
 
 Once configured, Claude has access to these MCP tools (used automatically):
 
-| Tool | What It Does |
-|------|--------------|
-| `search_code` | Hybrid search: vector + text + path with RRF fusion |
-| `find_and_read` | Search + Read in one step - returns file content directly |
-| `get_code_relationships` | Traverse the knowledge graph (imports, calls, extends) |
-| `get_file_context` | Read a file with its related code automatically included |
-| `get_coding_standards` | Your project's detected patterns (validation, error handling) |
-| `find_duplicates` | Find duplicate/similar code blocks across your codebase |
-| `find_dead_code` | Detect unused exports, functions, and classes |
-| `index_project` | Manually trigger indexing (rarely needed) |
-| `notify_file_changes` | Update index for specific files |
-| `manage_index` | Dynamically exclude/include files from the index |
+| Tool | Actions / Usage | What It Does |
+|------|-----------------|-------------|
+| `search` | `{query}` | Hybrid search: vector + text + path with RRF fusion |
+| `search` | `{query, read: true}` | Search + read file contents in one step |
+| `search` | `{filepath}` | Read a file with its related code automatically included |
+| `analyze` | `{action: "dependencies", filepath}` | Traverse the knowledge graph (imports, calls, extends) |
+| `analyze` | `{action: "standards"}` | Your project's detected patterns (validation, error handling) |
+| `analyze` | `{action: "duplicates"}` | Find duplicate/similar code blocks across your codebase |
+| `analyze` | `{action: "dead_code"}` | Detect unused exports, functions, and classes |
+| `index` | `{action: "init", path}` | Manually trigger indexing (rarely needed) |
+| `index` | `{action: "sync", changes}` | Update index for specific files |
+| `index` | `{action: "exclude", paths}` | Dynamically exclude/include files from the index |
+| `index` | `{action: "status"}` | List indexed projects with file/chunk counts |
 
 **You don't invoke these manually**—Claude uses them automatically when searching code or analyzing relationships.
 
@@ -244,7 +245,7 @@ User: "Find the authentication logic"
         │
         ▼
 ┌─────────────────────────────────────┐
-│ Claude calls search_code()          │
+│ Claude calls search({query: ...})  │
 │         │                           │
 │         ▼                           │
 │ Project indexed? ──No──► Index now  │
@@ -319,9 +320,9 @@ When Claude writes new code, it follows your existing conventions instead of inv
 
 If Claude notices files that shouldn't be indexed (like Unity's Library folder, build outputs, or generated files), it can dynamically exclude them:
 
-```typescript
+```
 // Exclude Unity Library folder and generated files
-manage_index({
+index({
   action: "exclude",
   project: "my-unity-game",
   paths: ["Library/**", "Temp/**", "*.generated.cs"],
@@ -414,7 +415,7 @@ The plugin installs **hooks** that automatically update the index:
 
 ### With MCP Server Only (Cursor, Claude Desktop)
 
-- **Claude-initiated changes**: Claude can call `notify_file_changes` tool
+- **Claude-initiated changes**: Claude can call `index({action: "sync"})` tool
 - **Manual changes**: Not automatically detected—ask Claude to reindex periodically
 
 ### Sync Summary
