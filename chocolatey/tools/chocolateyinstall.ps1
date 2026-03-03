@@ -31,7 +31,9 @@ Write-Host "Using Node.js $nodeVersion"
 Write-Host "Installing CodeSeeker via npm..."
 
 $npmArgs = "install -g codeseeker --no-progress --no-fund --no-audit"
-$proc = Start-Process -FilePath "npm" -ArgumentList $npmArgs -NoNewWindow -PassThru -RedirectStandardOutput "$toolsDir\npm-stdout.txt" -RedirectStandardError "$toolsDir\npm-stderr.txt"
+# Use cmd.exe /c to invoke npm: on Windows, npm ships as npm.cmd (a batch file),
+# which Start-Process cannot run directly as a Win32 executable.
+$proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npm $npmArgs" -NoNewWindow -PassThru -RedirectStandardOutput "$toolsDir\npm-stdout.txt" -RedirectStandardError "$toolsDir\npm-stderr.txt"
 
 $timeoutSeconds = 300
 $completed = $proc.WaitForExit($timeoutSeconds * 1000)
