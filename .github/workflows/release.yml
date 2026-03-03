@@ -150,7 +150,12 @@ jobs:
       - name: Authenticate to MCP Registry
         run: ./mcp-publisher login github-oidc
       - name: Publish server to MCP Registry
-        run: ./mcp-publisher publish
+        run: |
+          output=$(./mcp-publisher publish 2>&1) && echo "$output" && exit 0
+          echo "$output"
+          # Treat "duplicate version" as success (already published)
+          echo "$output" | grep -q "cannot publish duplicate version" && echo "Already published — skipping." && exit 0
+          exit 1
 
   create-release:
     needs: [publish-homebrew, publish-chocolatey, publish-snap, publish-mcp-registry]
