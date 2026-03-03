@@ -309,25 +309,7 @@ interface BaselineEntry {
   mrr: number;
 }
 
-function loadBaseline(): BaselineEntry[] {
-  try {
-    return JSON.parse(fsSync.readFileSync(BASELINE_FILE, 'utf-8'));
-  } catch {
-    return [];
-  }
-}
-
-function saveBaseline(metrics: MetricRow[]): void {
-  const entries: BaselineEntry[] = metrics.map(m => ({
-    queryId:  m.queryId,
-    mode:     m.mode,
-    p3:       m.p3,
-    p5:       m.p5,
-    r5:       m.r5,
-    mrr:      m.mrr,
-  }));
-  fsSync.writeFileSync(BASELINE_FILE, JSON.stringify(entries, null, 2));
-}
+// loadBaselineFrom / saveBaselineTo defined near bottom of file (shared by both suites)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Setup helpers
@@ -418,11 +400,11 @@ describe('Search Accuracy Benchmark: precision/recall matrix across all search_t
 
   afterAll(async () => {
     // ── Print + persist benchmark report ──────────────────────────────────────
-    printReport(collectedMetrics);
+    printReport(collectedMetrics, 'ContractMaster fixture (8 JS files)');
 
-    const baseline = loadBaseline();
+    const baseline = loadBaselineFrom(BASELINE_FILE);
     if (baseline.length === 0) {
-      saveBaseline(collectedMetrics);
+      saveBaselineTo(BASELINE_FILE, collectedMetrics);
       console.log(`\n[Benchmark] First run — baseline written to ${BASELINE_FILE}`);
     } else {
       const regressions = detectRegressions(collectedMetrics, baseline);
@@ -683,7 +665,7 @@ describe('Search Accuracy Benchmark: precision/recall matrix across all search_t
   describe('Baseline regression: no metric should drop > threshold vs last run', () => {
 
     it('current metrics do not regress more than REGRESSION_THRESHOLD against baseline', () => {
-      const baseline = loadBaseline();
+      const baseline = loadBaselineFrom(BASELINE_FILE);
       if (baseline.length === 0) {
         // No baseline yet — this is the first run, skip comparison
         console.log('[Benchmark] No baseline file found — skipping regression check (will be created after this run)');
@@ -707,66 +689,7 @@ describe('Search Accuracy Benchmark: precision/recall matrix across all search_t
 // Helpers: report printing + regression detection
 // ─────────────────────────────────────────────────────────────────────────────
 
-function printReport(metrics: MetricRow[]): void {
-  const QWIDTH = 40;
-  const sep = '═'.repeat(88);
-  const thin = '─'.repeat(88);
-
-  console.log(`\n${sep}`);
-  console.log('SEARCH ACCURACY BENCHMARK  —  ContractMaster fixture (8 files)');
-  console.log(sep);
-  console.log(
-    'Query'.padEnd(QWIDTH) +
-    'Mode  '.padEnd(8) +
-    'P@3  P@5  R@5  MRR  N'
-  );
-  console.log(thin);
-
-  for (const m of metrics) {
-    const q = m.query.length > QWIDTH - 2
-      ? m.query.slice(0, QWIDTH - 3) + '…'
-      : m.query;
-    console.log(
-      q.padEnd(QWIDTH) +
-      m.mode.padEnd(8) +
-      String(m.p3).padStart(4) + ' ' +
-      String(m.p5).padStart(4) + ' ' +
-      String(m.r5).padStart(4) + ' ' +
-      String(m.mrr).padStart(4) + ' ' +
-      String(m.resultCount).padStart(3)
-    );
-  }
-
-  console.log(thin);
-  // Mean values across all cells
-  function mean(vals: number[]): string {
-    return vals.length === 0
-      ? 'n/a'
-      : round2(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
-  }
-  console.log(
-    'Mean (all queries × modes)'.padEnd(QWIDTH + 8) +
-    mean(metrics.map(m => m.p3)).padStart(4) + ' ' +
-    mean(metrics.map(m => m.p5)).padStart(4) + ' ' +
-    mean(metrics.map(m => m.r5)).padStart(4) + ' ' +
-    mean(metrics.map(m => m.mrr)).padStart(4)
-  );
-  console.log(sep);
-
-  // Per-mode summary
-  console.log('\nPer-mode averages:');
-  for (const mode of ALL_MODES) {
-    const modeRows = metrics.filter(m => m.mode === mode);
-    console.log(
-      `  ${mode.padEnd(8)}: ` +
-      `P@3=${mean(modeRows.map(r => r.p3))} ` +
-      `P@5=${mean(modeRows.map(r => r.p5))} ` +
-      `R@5=${mean(modeRows.map(r => r.r5))} ` +
-      `MRR=${mean(modeRows.map(r => r.mrr))} ` +
-      `(${modeRows.length} queries)`
-    );
-  }
-}
+// printReport(metrics, label) defined near bottom of file (shared by both suites)
 
 interface Regression {
   queryId: string;
@@ -812,3 +735,605 @@ function detectRegressions(
 // Jest type helper (fail is not in @types/jest by default)
 // ─────────────────────────────────────────────────────────────────────────────
 declare function fail(message: string): never;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SUITE 2: MultiLang fixture
+//
+// 8 files across TypeScript, Python, Go — each representing a different
+// architectural paradigm:
+//
+//   Language    File                   Paradigm
+//   ──────────  ─────────────────────  ────────────────────────────────────
+//   TypeScript  jwt-middleware.ts      OOP middleware, dependency injection
+//   TypeScript  user-repository.ts     Generic repository pattern, TypeORM
+//   TypeScript  event-bus.ts           Event-driven, Observer / pub-sub
+//   Python      auth_decorator.py      Functional decorator, Flask, JWT
+//   Python      async_repository.py    Async/await, SQLAlchemy 2.x, generics
+//   Python      user_schema.py         Declarative validation, Pydantic v2
+//   Go          http_handler.go        Interface composition, context propagation
+//   Go          worker_pool.go         Goroutines, channels, WaitGroup
+//
+// Graph edges (mirrors actual code relationships in each file):
+//   jwt-middleware.ts  → user-repository.ts  (middleware reads user repo)
+//   async_repository.py → user_schema.py     (repo produces schema objects)
+//   http_handler.go    → worker_pool.go      (handler delegates to pool)
+//
+// Ground truth queries are hand-crafted from EXACT TOKENS present in each
+// file so that FTS can achieve P@1 = 1.0 on language-specific queries.
+//
+// Two cross-language queries test whether hybrid/FTS retrieves the same
+// concept expressed in different languages (e.g., JWT auth in TS vs Python).
+// ═════════════════════════════════════════════════════════════════════════════
+
+const MULTILANG_FIXTURE_DIR = path.join(__dirname, '../fixtures/MultiLang');
+const MULTILANG_BASELINE_FILE = path.join(__dirname, 'multilang-baseline.json');
+
+// ── MultiLang fixture file registry ──────────────────────────────────────────
+
+const MULTILANG_FILES: FileEntry[] = [
+  {
+    relPath: 'typescript/jwt-middleware.ts',
+    themes: ['auth', 'middleware'],
+    description: 'Express JWT middleware: Bearer verify, requireRole, sign',
+  },
+  {
+    relPath: 'typescript/user-repository.ts',
+    themes: ['model', 'utility'],
+    description: 'TypeORM generic repository: findById findAll findByEmail',
+  },
+  {
+    relPath: 'typescript/event-bus.ts',
+    themes: ['utility'],
+    description: 'Typed EventBus: subscribe publish once wildcardListeners',
+  },
+  {
+    relPath: 'python/auth_decorator.py',
+    themes: ['auth', 'middleware'],
+    description: 'Flask @login_required decorator: functools wraps jwt decode',
+  },
+  {
+    relPath: 'python/async_repository.py',
+    themes: ['model'],
+    description: 'Async SQLAlchemy generic repo: scalar_one_or_none save_many',
+  },
+  {
+    relPath: 'python/user_schema.py',
+    themes: ['validation', 'model'],
+    description: 'Pydantic v2 schema: EmailStr field_validator model_validator',
+  },
+  {
+    relPath: 'go/http_handler.go',
+    themes: ['controller', 'middleware'],
+    description: 'Go HTTP handler: UserService interface context.Context PathValue',
+  },
+  {
+    relPath: 'go/worker_pool.go',
+    themes: ['utility'],
+    description: 'Go generic worker pool: goroutine WaitGroup channel TrySubmit',
+  },
+];
+
+const MULTILANG_EDGES = [
+  { from: 'typescript/jwt-middleware.ts',   to: 'typescript/user-repository.ts', type: 'imports' as const },
+  { from: 'python/async_repository.py',     to: 'python/user_schema.py',          type: 'imports' as const },
+  { from: 'go/http_handler.go',             to: 'go/worker_pool.go',              type: 'imports' as const },
+];
+
+// ── MultiLang ground truth ────────────────────────────────────────────────────
+//
+// Language-specific queries use exact tokens from the file — FTS should achieve
+// P@1 = 1.0.  Cross-language queries use conceptual vocabulary that appears in
+// both the TypeScript and Python implementations.
+
+const MULTILANG_GT: GroundTruth[] = [
+  // ── TypeScript ─────────────────────────────────────────────────────────────
+  {
+    id: 'ts-jwt',
+    query: 'Bearer jwt verify sign TokenExpiredError JwtMiddleware requireRole',
+    relevant: ['jwt-middleware.ts'],
+    description: 'TS: Express JWT middleware (exact class name + method names)',
+    graphExpected: ['user-repository.ts'],  // imports edge from jwt-middleware → user-repo
+  },
+  {
+    id: 'ts-repository',
+    query: 'TypeORM DataSource IRepository GenericRepository findByEmail getRepository',
+    relevant: ['user-repository.ts'],
+    description: 'TS: TypeORM generic repository (exact class + interface names)',
+  },
+  {
+    id: 'ts-eventbus',
+    query: 'EventBus subscribe publish once wildcardListeners unsubscribe listenerCount',
+    relevant: ['event-bus.ts'],
+    description: 'TS: Typed EventBus (exact class name + method names)',
+  },
+
+  // ── Python ─────────────────────────────────────────────────────────────────
+  {
+    id: 'py-decorator',
+    query: 'functools wraps login_required require_role Bearer jwt decode Flask',
+    relevant: ['auth_decorator.py'],
+    description: 'Python: @login_required decorator (exact function names)',
+  },
+  {
+    id: 'py-async-repo',
+    query: 'AsyncSession scalar_one_or_none save_many update_by_id AsyncRepository',
+    relevant: ['async_repository.py'],
+    description: 'Python: SQLAlchemy async repo (exact class + method names)',
+    graphExpected: ['user_schema.py'],  // imports edge: async_repo → schema
+  },
+  {
+    id: 'py-schema',
+    query: 'Pydantic BaseModel EmailStr field_validator model_validator ConfigDict ALLOWED_ROLES',
+    relevant: ['user_schema.py'],
+    description: 'Python: Pydantic v2 schema (exact class names + decorators)',
+  },
+
+  // ── Go ─────────────────────────────────────────────────────────────────────
+  {
+    id: 'go-handler',
+    query: 'UserService interface context.Context PathValue writeJSON ValidationError NewUserHandler',
+    relevant: ['http_handler.go'],
+    description: 'Go: HTTP handler with interface DI (exact type + func names)',
+    graphExpected: ['worker_pool.go'],  // imports edge: handler → pool
+  },
+  {
+    id: 'go-pool',
+    query: 'WorkerPool goroutine WaitGroup channel TrySubmit numWorkers Submit',
+    relevant: ['worker_pool.go'],
+    description: 'Go: Generic worker pool (exact struct + method names)',
+  },
+
+  // ── Cross-language: same concept, two implementations ──────────────────────
+  {
+    id: 'cross-jwt-auth',
+    query: 'JWT bearer token authenticate sign verify',
+    relevant: ['jwt-middleware.ts', 'auth_decorator.py'],
+    description: 'JWT auth concept spans TS middleware and Python decorator',
+  },
+  {
+    id: 'cross-repository',
+    query: 'generic repository find all save delete record',
+    relevant: ['user-repository.ts', 'async_repository.py'],
+    description: 'Repository pattern spans TS TypeORM and Python SQLAlchemy',
+  },
+];
+
+// Separate accumulator for MultiLang metrics
+const multiLangMetrics: MetricRow[] = [];
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Search Accuracy Benchmark (MultiLang): TypeScript / Python / Go – 8 paradigms', () => {
+  let storageManager: StorageManager;
+  let vectorStore: IVectorStore;
+  let projectStore: IProjectStore;
+  let graphStore: IGraphStore;
+  let mlProjectId: string;
+
+  function mlNodeId(relPath: string): string {
+    return `ml-${crypto.createHash('md5').update(relPath).digest('hex').slice(0, 8)}-${mlProjectId.slice(0, 8)}`;
+  }
+
+  // ── Setup: index all three stores ──────────────────────────────────────────
+
+  beforeAll(async () => {
+    const mlTestDir = path.join(os.tmpdir(), `codeseeker-ml-bm-${Date.now()}`);
+    await fs.mkdir(mlTestDir, { recursive: true });
+    await resetStorageManager();
+
+    process.env.CODESEEKER_DATA_DIR = path.join(mlTestDir, '.codeseeker-data');
+    process.env.CODESEEKER_STORAGE_MODE = 'embedded';
+
+    storageManager = await getStorageManager();
+    vectorStore = storageManager.getVectorStore();
+    projectStore = storageManager.getProjectStore();
+    graphStore = storageManager.getGraphStore();
+
+    mlProjectId = uuid();
+    await projectStore.upsert({
+      id:   mlProjectId,
+      name: 'multilang-benchmark',
+      path: MULTILANG_FIXTURE_DIR,
+    });
+
+    // ── 1. Vector + MiniSearch (single upsertMany) ────────────────────────────
+    const docs: Array<Omit<VectorDocument, 'createdAt' | 'updatedAt'>> = [];
+    for (const entry of MULTILANG_FILES) {
+      const absolutePath = path.join(MULTILANG_FIXTURE_DIR, entry.relPath);
+      let content: string;
+      try {
+        content = fsSync.readFileSync(absolutePath, 'utf-8');
+      } catch {
+        continue;
+      }
+      docs.push({
+        id:        crypto.createHash('md5').update(`ml:${mlProjectId}:${entry.relPath}`).digest('hex'),
+        projectId: mlProjectId,
+        filePath:  absolutePath,
+        content,
+        embedding: blendEmbeddings(entry.themes),
+        metadata:  { themes: entry.themes, description: entry.description },
+      });
+    }
+    if (docs.length > 0) {
+      await vectorStore.upsertMany(docs);
+    }
+
+    // ── 2. Graph nodes + edges ────────────────────────────────────────────────
+    for (const entry of MULTILANG_FILES) {
+      await graphStore.upsertNode({
+        id:        mlNodeId(entry.relPath),
+        type:      'file',
+        name:      path.basename(entry.relPath),
+        filePath:  path.join(MULTILANG_FIXTURE_DIR, entry.relPath),
+        projectId: mlProjectId,
+      });
+    }
+    for (const edge of MULTILANG_EDGES) {
+      await graphStore.upsertEdge({
+        id:     `ml-edge-${crypto.createHash('md5').update(`${edge.from}->${edge.to}`).digest('hex').slice(0, 8)}-${mlProjectId.slice(0, 8)}`,
+        source: mlNodeId(edge.from),
+        target: mlNodeId(edge.to),
+        type:   edge.type,
+      });
+    }
+  }, 90_000);
+
+  afterAll(async () => {
+    printReport(multiLangMetrics, 'MultiLang fixture (TS + Python + Go, 8 paradigms)');
+
+    const baseline = loadBaselineFrom(MULTILANG_BASELINE_FILE);
+    if (baseline.length === 0) {
+      saveBaselineTo(MULTILANG_BASELINE_FILE, multiLangMetrics);
+      console.log(`\n[MultiLang Benchmark] First run — baseline written to ${MULTILANG_BASELINE_FILE}`);
+    } else {
+      const regressions = detectRegressions(multiLangMetrics, baseline);
+      if (regressions.length > 0) {
+        console.warn('\n[MultiLang Benchmark] REGRESSIONS DETECTED:');
+        for (const r of regressions) {
+          console.warn(`  ${r.queryId} / ${r.mode}: ${r.metric} ${r.was} → ${r.now} (Δ=${r.delta.toFixed(2)})`);
+        }
+      } else {
+        console.log('\n[MultiLang Benchmark] ✅ No regressions vs baseline.');
+      }
+    }
+
+    try {
+      await vectorStore.deleteByProject(mlProjectId);
+      await projectStore.delete(mlProjectId);
+      await storageManager.closeAll();
+    } catch { /* ignore */ }
+  });
+
+  // ── Helper ────────────────────────────────────────────────────────────────
+
+  async function buildOrch(): Promise<SemanticSearchOrchestrator> {
+    const orch = new SemanticSearchOrchestrator();
+    orch.setProjectId(mlProjectId);
+    await (orch as any).initStorage();
+    return orch;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 1. Index coverage: all three stores received data for all three languages
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('Index coverage: all three stores – TS, Python, Go', () => {
+
+    it('vector store has all 8 fixture files', async () => {
+      const count = await vectorStore.count(mlProjectId);
+      expect(count).toBe(MULTILANG_FILES.length);
+    });
+
+    it('MiniSearch: TypeScript file retrieved by exact class name', async () => {
+      const results = await vectorStore.searchByText('JwtMiddleware', mlProjectId, 10);
+      expect(results.some(r => r.document.filePath.includes('jwt-middleware'))).toBe(true);
+    });
+
+    it('MiniSearch: Python file retrieved by exact decorator name', async () => {
+      const results = await vectorStore.searchByText('login_required', mlProjectId, 10);
+      expect(results.some(r => r.document.filePath.includes('auth_decorator'))).toBe(true);
+    });
+
+    it('MiniSearch: Go file retrieved by exact struct name', async () => {
+      const results = await vectorStore.searchByText('WorkerPool', mlProjectId, 10);
+      expect(results.some(r => r.document.filePath.includes('worker_pool'))).toBe(true);
+    });
+
+    it('graph store has nodes for all 8 files', async () => {
+      const nodes = await graphStore.findNodes(mlProjectId, 'file');
+      expect(nodes.length).toBe(MULTILANG_FILES.length);
+    });
+
+    it('graph store has all 3 cross-file edges', async () => {
+      for (const edge of MULTILANG_EDGES) {
+        const edges = await graphStore.getEdges(mlNodeId(edge.from));
+        expect(edges.some(e => e.target === mlNodeId(edge.to))).toBe(true);
+      }
+    });
+
+    it('jwt-middleware → user-repository neighbor works', async () => {
+      const neighbors = await graphStore.getNeighbors(mlNodeId('typescript/jwt-middleware.ts'));
+      expect(neighbors.some(n => n.name === 'user-repository.ts')).toBe(true);
+    });
+
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 2. Precision / Recall matrix
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('Precision/Recall matrix: 10 GT queries × 4 modes', () => {
+
+    for (const gt of MULTILANG_GT) {
+      for (const mode of ALL_MODES) {
+        it(`[${gt.id}] mode=${mode}`, async () => {
+          const orch = await buildOrch();
+          const results = await orch.performSemanticSearch(gt.query, MULTILANG_FIXTURE_DIR, mode);
+          const files = results.map(r => r.file);
+
+          const p3  = round2(precisionAtK(files, gt.relevant, 3));
+          const p5  = round2(precisionAtK(files, gt.relevant, 5));
+          const r5  = round2(recallAtK(files, gt.relevant, 5));
+          const mrr = round2(meanReciprocalRank(files, gt.relevant));
+
+          multiLangMetrics.push({ queryId: gt.id, query: gt.query, mode, p3, p5, r5, mrr, resultCount: files.length, topFiles: files.slice(0, 5) });
+
+          // Valid result structure for all modes
+          for (const r of results) {
+            expect(r.file).toBeTruthy();
+            expect(typeof r.similarity).toBe('number');
+            expect(r.similarity).toBeGreaterThanOrEqual(0);
+            expect(r.similarity).toBeLessThanOrEqual(1.0);
+          }
+
+          // Results must be sorted descending (fts/hybrid guarantee it; graph
+          // uses hop-expansion + blend scoring which can produce non-monotone sequences)
+          if (mode === 'fts' || mode === 'hybrid') {
+            for (let i = 1; i < results.length; i++) {
+              expect(results[i - 1].similarity).toBeGreaterThanOrEqual(results[i].similarity);
+            }
+          }
+
+          // Language-specific FTS queries: P@5 ≥ 0.20 and R@5 = 1.0 for single-relevant files
+          if (mode === 'fts' && !gt.id.startsWith('cross-')) {
+            expect(p5).toBeGreaterThanOrEqual(MIN_FTS_PRECISION_5);
+            if (gt.relevant.length === 1) {
+              expect(r5).toBeGreaterThanOrEqual(MIN_FTS_RECALL_5_SINGLE);
+            }
+          }
+
+          if (mode === 'vector') {
+            expect(Array.isArray(results)).toBe(true);
+          }
+        });
+      }
+    }
+
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 3. Cross-language: same concept in TypeScript and Python
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('Cross-language: conceptual queries find both TS and Python implementations', () => {
+
+    it('"JWT bearer token authenticate" retrieves BOTH jwt-middleware.ts and auth_decorator.py', async () => {
+      const orch = await buildOrch();
+      const results = await orch.performSemanticSearch(
+        'JWT bearer token authenticate sign verify',
+        MULTILANG_FIXTURE_DIR,
+        'fts'
+      );
+      const basenames = results.map(r => path.basename(r.file));
+      expect(basenames.some(f => f === 'jwt-middleware.ts')).toBe(true);
+      expect(basenames.some(f => f === 'auth_decorator.py')).toBe(true);
+    });
+
+    it('"generic repository find save delete" retrieves BOTH user-repository.ts and async_repository.py', async () => {
+      const orch = await buildOrch();
+      const results = await orch.performSemanticSearch(
+        'generic repository find all save delete record',
+        MULTILANG_FIXTURE_DIR,
+        'fts'
+      );
+      const basenames = results.map(r => path.basename(r.file));
+      expect(basenames.some(f => f === 'user-repository.ts')).toBe(true);
+      expect(basenames.some(f => f === 'async_repository.py')).toBe(true);
+    });
+
+    it('"validate email field required" finds schema files across TS and Python', async () => {
+      const orch = await buildOrch();
+      const results = await orch.performSemanticSearch(
+        'validate email field required schema',
+        MULTILANG_FIXTURE_DIR,
+        'fts'
+      );
+      const basenames = results.map(r => path.basename(r.file));
+      // user_schema.py has EmailStr + field_validator; jwt-middleware.ts also validates headers
+      const relevant = basenames.filter(f => f === 'user_schema.py' || f === 'jwt-middleware.ts');
+      expect(relevant.length).toBeGreaterThanOrEqual(1);
+    });
+
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 4. Graph expansion across languages
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('Graph expansion: cross-file edges surface connected files', () => {
+
+    it('jwt-middleware query (graph mode) also surfaces user-repository.ts via imports edge', async () => {
+      const orch = await buildOrch();
+      const hybrid = await orch.performSemanticSearch('Bearer jwt verify sign JwtMiddleware', MULTILANG_FIXTURE_DIR, 'hybrid');
+      const graph  = await orch.performSemanticSearch('Bearer jwt verify sign JwtMiddleware', MULTILANG_FIXTURE_DIR, 'graph');
+
+      const hybridFiles = new Set(hybrid.map(r => path.basename(r.file)));
+      const graphFiles  = new Set(graph.map(r => path.basename(r.file)));
+
+      // graph must have at least as many unique files as hybrid
+      expect(graphFiles.size).toBeGreaterThanOrEqual(hybridFiles.size);
+
+      if (hybridFiles.has('jwt-middleware.ts')) {
+        expect(graphFiles.has('user-repository.ts')).toBe(true);
+      }
+    });
+
+    it('http_handler query (graph mode) surfaces worker_pool.go via imports edge', async () => {
+      const orch = await buildOrch();
+      const hybrid = await orch.performSemanticSearch('UserService interface context.Context PathValue writeJSON NewUserHandler', MULTILANG_FIXTURE_DIR, 'hybrid');
+      const graph  = await orch.performSemanticSearch('UserService interface context.Context PathValue writeJSON NewUserHandler', MULTILANG_FIXTURE_DIR, 'graph');
+
+      const hybridFiles = new Set(hybrid.map(r => path.basename(r.file)));
+      const graphFiles  = new Set(graph.map(r => path.basename(r.file)));
+
+      if (hybridFiles.has('http_handler.go')) {
+        expect(graphFiles.has('worker_pool.go')).toBe(true);
+      }
+    });
+
+    it('graph-expanded files carry [Graph-related: content marker', async () => {
+      const orch = await buildOrch();
+      const hybrid = await orch.performSemanticSearch('Bearer jwt verify sign JwtMiddleware', MULTILANG_FIXTURE_DIR, 'hybrid');
+      const graph  = await orch.performSemanticSearch('Bearer jwt verify sign JwtMiddleware', MULTILANG_FIXTURE_DIR, 'graph');
+
+      const hybridBasenames = new Set(hybrid.map(r => path.basename(r.file)));
+      const expanded = graph.filter(r => !hybridBasenames.has(path.basename(r.file)));
+      for (const ef of expanded) {
+        expect(ef.content).toContain('[Graph-related:');
+      }
+    });
+
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 5. Hybrid never degrades FTS recall
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('Hybrid vs FTS: combining vector signals must not hurt recall', () => {
+
+    for (const gt of MULTILANG_GT) {
+      it(`[${gt.id}] hybrid R@5 ≥ fts R@5`, async () => {
+        const orch = await buildOrch();
+        const [ftsR, hybridR] = await Promise.all([
+          orch.performSemanticSearch(gt.query, MULTILANG_FIXTURE_DIR, 'fts'),
+          orch.performSemanticSearch(gt.query, MULTILANG_FIXTURE_DIR, 'hybrid'),
+        ]);
+        const ftsR5    = recallAtK(ftsR.map(r => r.file), gt.relevant, 5);
+        const hybridR5 = recallAtK(hybridR.map(r => r.file), gt.relevant, 5);
+        expect(hybridR5).toBeGreaterThanOrEqual(ftsR5 - 0.10);
+      });
+    }
+
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 6. Baseline regression guard (MultiLang)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('Baseline regression: MultiLang metrics must not drop vs previous run', () => {
+
+    it('no metric drops more than REGRESSION_THRESHOLD against multilang-baseline.json', () => {
+      const baseline = loadBaselineFrom(MULTILANG_BASELINE_FILE);
+      if (baseline.length === 0) {
+        console.log('[MultiLang Benchmark] No baseline yet — skipping (will be created after this run)');
+        return;
+      }
+      const regressions = detectRegressions(multiLangMetrics, baseline);
+      if (regressions.length > 0) {
+        const msg = regressions
+          .map(r => `  ${r.queryId}/${r.mode} ${r.metric}: ${r.was} → ${r.now} (Δ=${r.delta.toFixed(2)})`)
+          .join('\n');
+        fail(`MultiLang search quality regressions (threshold=${REGRESSION_THRESHOLD}):\n${msg}`);
+      }
+    });
+
+  });
+
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers: parameterised baseline load/save (used by both suites)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function loadBaselineFrom(filePath: string): BaselineEntry[] {
+  try {
+    return JSON.parse(fsSync.readFileSync(filePath, 'utf-8'));
+  } catch {
+    return [];
+  }
+}
+
+function saveBaselineTo(filePath: string, metrics: MetricRow[]): void {
+  const entries: BaselineEntry[] = metrics.map(m => ({
+    queryId: m.queryId,
+    mode:    m.mode,
+    p3:      m.p3,
+    p5:      m.p5,
+    r5:      m.r5,
+    mrr:     m.mrr,
+  }));
+  fsSync.writeFileSync(filePath, JSON.stringify(entries, null, 2));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Updated printReport: accepts a label parameter
+// ─────────────────────────────────────────────────────────────────────────────
+
+function printReport(metrics: MetricRow[], label: string): void {
+  const QWIDTH = 50;
+  const sep = '═'.repeat(94);
+  const thin = '─'.repeat(94);
+
+  console.log(`\n${sep}`);
+  console.log(`SEARCH ACCURACY BENCHMARK  —  ${label}`);
+  console.log(sep);
+  console.log(
+    'Query'.padEnd(QWIDTH) +
+    'Mode  '.padEnd(8) +
+    'P@3  P@5  R@5  MRR  N'
+  );
+  console.log(thin);
+
+  for (const m of metrics) {
+    const q = m.query.length > QWIDTH - 2
+      ? m.query.slice(0, QWIDTH - 3) + '…'
+      : m.query;
+    console.log(
+      q.padEnd(QWIDTH) +
+      m.mode.padEnd(8) +
+      String(m.p3).padStart(4) + ' ' +
+      String(m.p5).padStart(4) + ' ' +
+      String(m.r5).padStart(4) + ' ' +
+      String(m.mrr).padStart(4) + ' ' +
+      String(m.resultCount).padStart(3)
+    );
+  }
+
+  console.log(thin);
+  function mean(vals: number[]): string {
+    return vals.length === 0
+      ? 'n/a'
+      : round2(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
+  }
+  console.log(
+    'Mean'.padEnd(QWIDTH + 8) +
+    mean(metrics.map(m => m.p3)).padStart(4) + ' ' +
+    mean(metrics.map(m => m.p5)).padStart(4) + ' ' +
+    mean(metrics.map(m => m.r5)).padStart(4) + ' ' +
+    mean(metrics.map(m => m.mrr)).padStart(4)
+  );
+  console.log(sep);
+
+  for (const mode of ALL_MODES) {
+    const rows = metrics.filter(m => m.mode === mode);
+    console.log(
+      `  ${mode.padEnd(8)}: ` +
+      `P@3=${mean(rows.map(r => r.p3))} ` +
+      `P@5=${mean(rows.map(r => r.p5))} ` +
+      `R@5=${mean(rows.map(r => r.r5))} ` +
+      `MRR=${mean(rows.map(r => r.mrr))} ` +
+      `(${rows.length} queries)`
+    );
+  }
+}

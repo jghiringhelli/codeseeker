@@ -1,0 +1,322 @@
+[
+  {
+    "queryId": "ts-jwt",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "ts-jwt",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "ts-jwt",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "ts-jwt",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "ts-repository",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "ts-repository",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "ts-repository",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "ts-repository",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "ts-eventbus",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "ts-eventbus",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "ts-eventbus",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "ts-eventbus",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "py-decorator",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "py-decorator",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "py-decorator",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "py-decorator",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "py-async-repo",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "py-async-repo",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "py-async-repo",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "py-async-repo",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "py-schema",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "py-schema",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "py-schema",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "py-schema",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "go-handler",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "go-handler",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "go-handler",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "go-handler",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "go-pool",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "go-pool",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "go-pool",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "go-pool",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "cross-jwt-auth",
+    "mode": "fts",
+    "p3": 0.67,
+    "p5": 0.4,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "cross-jwt-auth",
+    "mode": "hybrid",
+    "p3": 0.67,
+    "p5": 0.4,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "cross-jwt-auth",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "cross-jwt-auth",
+    "mode": "graph",
+    "p3": 0.67,
+    "p5": 0.4,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "cross-repository",
+    "mode": "fts",
+    "p3": 0.67,
+    "p5": 0.4,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "cross-repository",
+    "mode": "hybrid",
+    "p3": 0.67,
+    "p5": 0.4,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "cross-repository",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "cross-repository",
+    "mode": "graph",
+    "p3": 0.67,
+    "p5": 0.4,
+    "r5": 1,
+    "mrr": 1
+  }
+]

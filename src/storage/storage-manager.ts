@@ -489,11 +489,16 @@ export async function getStorageManager(config?: StorageManagerConfig): Promise<
 }
 
 /**
- * Reset the storage manager (for testing)
+ * Reset the storage manager (for testing).
+ * Always nulls the singleton even if closeAll() throws (e.g. already-closed DB).
  */
 export async function resetStorageManager(): Promise<void> {
   if (storageManagerInstance) {
-    await storageManagerInstance.closeAll();
+    try {
+      await storageManagerInstance.closeAll();
+    } catch {
+      // Ignore errors from already-closed connections (common in sequential test suites)
+    }
     storageManagerInstance = null;
   }
 }
