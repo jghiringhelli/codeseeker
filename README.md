@@ -222,7 +222,10 @@ Once configured, Claude has access to these MCP tools (used automatically):
 
 | Tool | Actions / Usage | What It Does |
 |------|-----------------|-------------|
-| `search` | `{query}` | Hybrid search: vector + text with RRF fusion; RAPTOR directory/root summaries surface for abstract queries |
+| `search` | `{query}` | Hybrid search: vector + BM25 text + path-match, fused with RRF; RAPTOR directory summaries surface for abstract queries |
+| `search` | `{query, search_type: "graph"}` | Hybrid search **+ Graph RAG** — follows import/call/extends edges to surface structurally connected files |
+| `search` | `{query, search_type: "vector"}` | Pure embedding cosine-similarity search (no BM25 or path scoring) |
+| `search` | `{query, search_type: "fts"}` | Pure BM25 text search with CamelCase tokenisation and synonym expansion |
 | `search` | `{query, read: true}` | Search + read file contents in one step |
 | `search` | `{filepath}` | Read a file with its related code automatically included |
 | `analyze` | `{action: "dependencies", filepath}` | Traverse the knowledge graph (imports, calls, extends) |
@@ -288,6 +291,9 @@ CodeSeeker generates *directory summary nodes* by mean-pooling the embeddings of
 - Which files actually depend on which
 
 CodeSeeker combines all three: **graph traversal** for structure, **vector search** for meaning, **text search** for precision—fused with Reciprocal Rank Fusion (RRF) for optimal results.
+
+**Search quality guarantee:**
+Every release is gated by a precision/recall benchmark suite that runs 104 tests across hand-curated TypeScript, Python, and Go fixtures (JWT middleware, generic repositories, async ORMs, Pydantic schemas, goroutine workers, and more). FTS, hybrid, and graph modes must all achieve R@5 = 1.0 and MRR = 1.0 for language-specific queries; a regression of more than 0.15 on any (query × mode) cell blocks the release automatically.
 
 ## Auto-Detected Coding Standards
 

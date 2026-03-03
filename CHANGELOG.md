@@ -5,6 +5,29 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-03-03
+
+### Fixed
+
+- **`resetStorageManager()` double-close guard** (`src/storage/storage-manager.ts`):
+  The singleton reference is now always nulled inside a `try/finally` block, even when
+  `closeAll()` throws a "connection not open" error. This prevented the test runner
+  (and any sequential programmatic init/reset cycle) from obtaining a fresh instance
+  after the first suite had already torn down its SQLite connection.
+
+### Internal
+
+- **Multi-language search accuracy benchmark** — Suite 2 added to
+  `tests/benchmarks/search-accuracy.benchmark.ts` covering TypeScript (JWT middleware,
+  generic repository, EventBus), Python (async repository, Pydantic schema, auth decorator)
+  and Go (HTTP handler, goroutine worker pool). 10 curated ground-truth queries (8 language-
+  specific + 2 cross-language) lock in R@5 = 1.0 and MRR = 1.0 for FTS / hybrid / graph
+  across all paradigms. Combined benchmark: **104 tests**, baseline persisted in
+  `tests/benchmarks/multilang-baseline.json`. Any future change that drops recall by > 0.15
+  on any (query × mode) cell will fail the CI gate automatically.
+- Graph-mode sort-order assertion scoped to FTS / hybrid only; Graph RAG hop-expansion
+  produces non-monotone similarity sequences by design.
+
 ## [1.11.0] - 2026-03-03
 
 ### Added
