@@ -25,7 +25,7 @@ import * as path from 'path';
 import { Logger } from '../../../utils/logger';
 import { EmbeddingGeneratorAdapter } from '../../services/search/embedding-generator-adapter';
 import { getStorageManager, isUsingEmbeddedStorage, StorageManager } from '../../../storage';
-import type { IVectorStore, IProjectStore } from '../../../storage/interfaces';
+import type { IVectorStore, IProjectStore, IGraphStore, VectorSearchResult } from '../../../storage/interfaces';
 import { RaptorIndexingService, RAPTOR_FILE_PREFIX } from '../../services/search/raptor-indexing-service';
 
 export interface SemanticResult {
@@ -52,6 +52,7 @@ export class SemanticSearchOrchestrator {
   private useEmbedded: boolean = false;
   private vectorStore?: IVectorStore;
   private projectStore?: IProjectStore;
+  private graphStore?: IGraphStore;
 
   constructor() {
     this.embeddingGenerator = new EmbeddingGeneratorAdapter();
@@ -68,6 +69,7 @@ export class SemanticSearchOrchestrator {
       this.useEmbedded = isUsingEmbeddedStorage();
       this.vectorStore = this.storageManager.getVectorStore();
       this.projectStore = this.storageManager.getProjectStore();
+      try { this.graphStore = this.storageManager.getGraphStore(); } catch { /* graph store is optional */ }
       this.logger.debug(`Semantic search using ${this.useEmbedded ? 'embedded' : 'server'} storage`);
     } catch (error) {
       this.logger.debug(`Storage manager init failed: ${error}`);
@@ -117,7 +119,7 @@ export class SemanticSearchOrchestrator {
    * Combines vector similarity with keyword/synonym matching for better recall
    * Returns empty array if storage unavailable or no results - Claude handles file discovery natively
    */
-  async performSemanticSearch(query: string, projectPath: string): Promise<SemanticResult[]> {
+  async performSemanticSearch(query: string, projectPath: string, searchType: 'hybrid' | 'vector' | 'fts' | 'graph' = 'hybrid'): Promise<SemanticResult[]> {
     try {
       // Initialize storage mode detection
       await this.initStorage();
@@ -139,8 +141,20 @@ export class SemanticSearchOrchestrator {
         }
       }
 
-      // Perform HYBRID search using storage interface
-      return await this.performHybridSearchViaInterface(query, projectPath);
+      // Route to appropriate search method based on search_type
+      switch (searchType) {
+        case 'vector':
+          return await this.performVectorOnlySearch(query, projectPath);
+        case 'fts':
+          return await this.performTextOnlySearch(query, projectPath);
+        case 'graph': {
+          const base = await this.performHybridSearchViaInterface(query, projectPath);
+          return await this.expandWithGraphNeighbors(base, projectPath);
+        }
+        case 'hybrid':
+        default:
+          return await this.performHybridSearchViaInterface(query, projectPath);
+      }
 
     } catch (error) {
       // Log at debug level - Claude handles file discovery anyway
@@ -174,95 +188,191 @@ export class SemanticSearchOrchestrator {
       const results = await this.vectorStore.searchHybrid(query, queryEmbedding, this.projectId, 30);
 
       this.logger.debug(`Hybrid search found ${results.length} results (before dedup)`);
-
-      // Deduplicate by file path with multi-chunk boost
-      // If multiple chunks from the same file match, that file is more relevant
-      // We keep the best chunk's content but boost the score based on chunk count
-      const fileMap = new Map<string, { result: typeof results[0]; chunkCount: number; totalScore: number }>();
-
-      for (const r of results) {
-        const filePath = path.isAbsolute(r.document.filePath)
-          ? path.relative(projectPath, r.document.filePath)
-          : r.document.filePath;
-
-        // RAPTOR nodes are synthetic directory/root summaries; they carry their
-        // own score and must NOT be merged with or boosted by file chunks.
-        if (RaptorIndexingService.isRaptorPath(filePath)) {
-          if (!fileMap.has(filePath)) {
-            fileMap.set(filePath, { result: r, chunkCount: 1, totalScore: r.score });
-          }
-          continue;
-        }
-
-        const existing = fileMap.get(filePath);
-        if (existing) {
-          // File already seen - increment count and accumulate score
-          existing.chunkCount++;
-          existing.totalScore += r.score;
-          // Keep the highest scoring chunk's content
-          if (r.score > existing.result.score) {
-            existing.result = r;
-          }
-        } else {
-          fileMap.set(filePath, { result: r, chunkCount: 1, totalScore: r.score });
-        }
-      }
-
-      // Calculate boosted scores:
-      // - Base: best chunk score
-      // - Boost: +10% per additional matching chunk (capped at 50% boost)
-      // - Final score ALWAYS capped at 1.0 (100%)
-      const boostedResults = Array.from(fileMap.values()).map(entry => {
-        const chunkBoost = Math.min((entry.chunkCount - 1) * 0.10, 0.50);
-        const boostedScore = Math.min(1.0, entry.result.score * (1 + chunkBoost));
-        return {
-          ...entry.result,
-          score: boostedScore,
-          _chunkCount: entry.chunkCount // For debugging
-        };
-      });
-
-      // Sort by boosted score and limit to 15 unique files
-      const uniqueResults = boostedResults
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 15);
-
-      this.logger.debug(`Returning ${uniqueResults.length} unique files`);
-
-      return uniqueResults.map(r => {
-        // RAPTOR node: strip synthetic prefix, set descriptive type
-        const isRaptor = RaptorIndexingService.isRaptorPath(
-          path.isAbsolute(r.document.filePath)
-            ? path.relative(projectPath, r.document.filePath)
-            : r.document.filePath
-        );
-
-        const rawFilePath = path.isAbsolute(r.document.filePath)
-          ? path.relative(projectPath, r.document.filePath)
-          : r.document.filePath;
-
-        const displayPath = isRaptor ? RaptorIndexingService.realPath(rawFilePath) : rawFilePath;
-
-        const raptorLevel = isRaptor
-          ? (r.document.metadata as any)?.raptorLevel as number | undefined
-          : undefined;
-
-        return {
-          file: displayPath,
-          type: isRaptor
-            ? (raptorLevel === 3 ? 'root-summary' : 'directory-summary')
-            : this.determineFileType(r.document.filePath),
-          similarity: r.score,
-          content: this.formatContent(r.document.content, r.document.metadata),
-          lineStart: isRaptor ? undefined : 1,
-          lineEnd: isRaptor ? undefined : 20,
-          debug: r.debug
-        };
-      });
+      return this.processRawResults(results, projectPath);
 
     } catch (error) {
       this.logger.debug(`Hybrid search error: ${error instanceof Error ? error.message : error}`);
       return [];
+    }
+  }
+
+  /**
+   * Perform vector-only semantic search (pure embedding similarity, no BM25/path matching)
+   */
+  private async performVectorOnlySearch(query: string, projectPath: string): Promise<SemanticResult[]> {
+    if (!this.vectorStore || !this.projectId) return [];
+    try {
+      let queryEmbedding: number[] = [];
+      try {
+        queryEmbedding = await this.embeddingGenerator.generateQueryEmbedding(query);
+      } catch (e) {
+        this.logger.debug(`Vector embedding failed: ${e}`);
+        return [];
+      }
+      if (queryEmbedding.length === 0) return [];
+      const results = await this.vectorStore.searchByVector(queryEmbedding, this.projectId, 30);
+      this.logger.debug(`Vector-only search found ${results.length} results`);
+      return this.processRawResults(results, projectPath);
+    } catch (error) {
+      this.logger.debug(`Vector search error: ${error instanceof Error ? error.message : error}`);
+      return [];
+    }
+  }
+
+  /**
+   * Perform text/FTS-only search (BM25 + synonyms, no vector similarity)
+   */
+  private async performTextOnlySearch(query: string, projectPath: string): Promise<SemanticResult[]> {
+    if (!this.vectorStore || !this.projectId) return [];
+    try {
+      const results = await this.vectorStore.searchByText(query, this.projectId, 30);
+      this.logger.debug(`Text-only search found ${results.length} results`);
+      return this.processRawResults(results, projectPath);
+    } catch (error) {
+      this.logger.debug(`Text search error: ${error instanceof Error ? error.message : error}`);
+      return [];
+    }
+  }
+
+  /**
+   * Deduplicate raw VectorSearchResults by file path, apply multi-chunk boost, and map to SemanticResult[].
+   * Shared by all search modes (vector, fts, hybrid, graph) to ensure consistent scoring behaviour.
+   */
+  private processRawResults(results: VectorSearchResult[], projectPath: string): SemanticResult[] {
+    // Deduplicate by file path with multi-chunk boost
+    // If multiple chunks from the same file match, that file is more relevant.
+    // Keep the highest-scoring chunk's content and boost its score.
+    const fileMap = new Map<string, { result: VectorSearchResult; chunkCount: number }>();
+
+    for (const r of results) {
+      const filePath = path.isAbsolute(r.document.filePath)
+        ? path.relative(projectPath, r.document.filePath)
+        : r.document.filePath;
+
+      // RAPTOR nodes are synthetic summaries; don't merge or boost them.
+      if (RaptorIndexingService.isRaptorPath(filePath)) {
+        if (!fileMap.has(filePath)) {
+          fileMap.set(filePath, { result: r, chunkCount: 1 });
+        }
+        continue;
+      }
+
+      const existing = fileMap.get(filePath);
+      if (existing) {
+        existing.chunkCount++;
+        if (r.score > existing.result.score) {
+          existing.result = r;
+        }
+      } else {
+        fileMap.set(filePath, { result: r, chunkCount: 1 });
+      }
+    }
+
+    // Boost: +10% per additional matching chunk (capped at 50%), score capped at 1.0
+    const boostedResults = Array.from(fileMap.values()).map(entry => {
+      const chunkBoost = Math.min((entry.chunkCount - 1) * 0.10, 0.50);
+      const boostedScore = Math.min(1.0, entry.result.score * (1 + chunkBoost));
+      return { ...entry.result, score: boostedScore };
+    });
+
+    const uniqueResults = boostedResults.sort((a, b) => b.score - a.score).slice(0, 15);
+    this.logger.debug(`Returning ${uniqueResults.length} unique files after dedup`);
+
+    return uniqueResults.map(r => {
+      const rawFilePath = path.isAbsolute(r.document.filePath)
+        ? path.relative(projectPath, r.document.filePath)
+        : r.document.filePath;
+
+      const isRaptor = RaptorIndexingService.isRaptorPath(rawFilePath);
+      const displayPath = isRaptor ? RaptorIndexingService.realPath(rawFilePath) : rawFilePath;
+      const raptorLevel = isRaptor ? (r.document.metadata as any)?.raptorLevel as number | undefined : undefined;
+
+      return {
+        file: displayPath,
+        type: isRaptor
+          ? (raptorLevel === 3 ? 'root-summary' : 'directory-summary')
+          : this.determineFileType(r.document.filePath),
+        similarity: r.score,
+        content: this.formatContent(r.document.content, r.document.metadata),
+        lineStart: isRaptor ? undefined : 1,
+        lineEnd: isRaptor ? undefined : 20,
+        debug: r.debug,
+      };
+    });
+  }
+
+  /**
+   * Graph RAG: expand hybrid search results by following 1-hop code relationship edges.
+   * For each of the top-5 result files, lookup its graph node and collect neighbours
+   * (files connected via imports/calls/extends). Appends new files at a discounted score.
+   */
+  private async expandWithGraphNeighbors(results: SemanticResult[], projectPath: string): Promise<SemanticResult[]> {
+    if (!this.graphStore || !this.projectId || results.length === 0) return results;
+    try {
+      // Load all file nodes for this project once and build a filePath → nodeId map
+      const allFileNodes = await this.graphStore.findNodes(this.projectId, 'file');
+      if (allFileNodes.length === 0) return results;
+
+      const normalize = (p: string) => p.replace(/\\/g, '/');
+      const filePathToNodeId = new Map<string, string>();
+      for (const node of allFileNodes) {
+        // Index by both absolute and relative path to maximise matching
+        filePathToNodeId.set(normalize(node.filePath), node.id);
+        const rel = normalize(path.relative(projectPath, node.filePath));
+        if (rel && !rel.startsWith('..')) {
+          filePathToNodeId.set(rel, node.id);
+        }
+      }
+
+      const existingPaths = new Set(results.map(r => normalize(r.file)));
+
+      // Only expand the top-5 hits to avoid adding noise from lower-ranked files
+      const TOP_K = Math.min(5, results.length);
+      const neighborFilePaths = new Set<string>();
+
+      for (const result of results.slice(0, TOP_K)) {
+        const relNorm = normalize(result.file);
+        const absNorm = normalize(path.isAbsolute(result.file) ? result.file : path.join(projectPath, result.file));
+        const nodeId = filePathToNodeId.get(relNorm) || filePathToNodeId.get(absNorm);
+        if (!nodeId) continue;
+
+        const neighbors = await this.graphStore.getNeighbors(nodeId);
+        for (const neighbor of neighbors) {
+          if (neighbor.type !== 'file') continue;
+          const neighborRel = normalize(
+            path.isAbsolute(neighbor.filePath)
+              ? path.relative(projectPath, neighbor.filePath)
+              : neighbor.filePath
+          );
+          if (!existingPaths.has(neighborRel)) {
+            neighborFilePaths.add(neighborRel);
+          }
+        }
+      }
+
+      if (neighborFilePaths.size === 0) return results;
+
+      // Score neighbors 30% below the lowest vector result
+      const worstScore = results[results.length - 1]?.similarity ?? 0.1;
+      const expansionScore = parseFloat(Math.max(0.05, worstScore * 0.7).toFixed(4));
+
+      const expanded: SemanticResult[] = [...results];
+      for (const neighborPath of neighborFilePaths) {
+        expanded.push({
+          file: neighborPath,
+          type: this.determineFileType(neighborPath),
+          similarity: expansionScore,
+          content: '[Graph-related: connected via code relationships (imports/calls/extends)]',
+          lineStart: undefined,
+          lineEnd: undefined,
+        });
+      }
+
+      this.logger.debug(`Graph RAG: appended ${neighborFilePaths.size} related file(s)`);
+      return expanded;
+    } catch (error) {
+      this.logger.debug(`Graph expansion error: ${error instanceof Error ? error.message : error}`);
+      return results; // Graceful fallback — return hybrid results unchanged
     }
   }
 

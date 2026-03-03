@@ -5,6 +5,43 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-03-03
+
+### Added
+
+- **Real `search_type` routing** (`src/cli/commands/services/semantic-search-orchestrator.ts`):
+  The `search_type` parameter advertised by the MCP `search` tool now actually controls the search
+  algorithm instead of being silently ignored.
+  - `'vector'` → pure embedding cosine-similarity search via `searchByVector()`, no BM25 or path scoring
+  - `'fts'` → pure MiniSearch BM25 text search via `searchByText()`, no vector similarity
+  - `'hybrid'` → unchanged: vector + BM25 + path-match fused with RRF (default)
+  - `'graph'` → hybrid results followed by 1-hop Graph RAG expansion (see below)
+
+- **Graph RAG expansion** (`expandWithGraphNeighbors`):
+  When `search_type='graph'`, CodeSeeker now performs hybrid search and then follows code-relationship
+  edges in the knowledge graph to surface structurally connected files the vector index might miss.
+  - Loads all `file` nodes for the project, builds an in-memory `filePath → nodeId` map
+  - For each of the top-5 vector hits, calls `getNeighbors()` to find 1-hop related files via
+    `imports`, `calls`, `extends`, `implements`, and other graph edge types
+  - Neighbor files not already in the result set are appended at a discounted score
+    (30% below the lowest-ranked vector result, minimum 0.05)
+  - Fully graceful: if the graph store is empty or unavailable, returns the hybrid results unchanged
+
+- **Shared `processRawResults()` helper**: All three search paths (`vector`, `fts`, `hybrid`) now
+  use a single deduplication + multi-chunk-boost + SemanticResult mapping pipeline, eliminating
+  code duplication and ensuring consistent scoring behaviour across modes.
+
+- **Graph store wired into orchestrator**: `StorageManager.getGraphStore()` is now called during
+  `initStorage()` so the knowledge graph is available for search expansion without a separate
+  initialisation step.
+
+### Changed
+
+- `performSemanticSearch(query, projectPath)` → `performSemanticSearch(query, projectPath, searchType?)`;
+  `searchType` defaults to `'hybrid'` — fully backward-compatible.
+- `mcp-server.ts`: `search_type` parameter is now forwarded to `performSemanticSearch` instead of
+  being used only as a cache-key discriminator.
+
 ## [1.10.0] - 2026-03-02
 
 ### Added

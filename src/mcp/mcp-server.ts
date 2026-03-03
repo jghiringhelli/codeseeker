@@ -515,13 +515,13 @@ export class CodeSeekerMcpServer {
         results = cached.results;
         fromCache = true;
       } else {
-        results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
+        results = await this.searchOrchestrator.performSemanticSearch(query, projectPath, search_type as any);
         if (results.length > 0) {
           await this.queryCache.set(query, cacheProjectId, results, search_type);
         }
       }
     } else {
-      results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
+      results = await this.searchOrchestrator.performSemanticSearch(query, projectPath, search_type as any);
     }
 
     const limitedResults = results.slice(0, mode === 'exists' ? 5 : limit);
