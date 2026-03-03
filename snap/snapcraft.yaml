@@ -1,6 +1,6 @@
 name: codeseeker
 base: core22
-version: '1.10.0'
+version: '1.11.1'
 title: CodeSeeker
 license: MIT
 summary: Graph-powered code intelligence for Claude Code and AI assistants
