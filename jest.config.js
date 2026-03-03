@@ -4,7 +4,7 @@ module.exports = {
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: [
     '**/__tests__/**/*.ts',
-    '**/?(*.)+(spec|test).ts'
+    '**/?(*.)+(spec|test|benchmark).ts'
   ],
   // Ignore test fixtures to prevent haste module collisions
   modulePathIgnorePatterns: [

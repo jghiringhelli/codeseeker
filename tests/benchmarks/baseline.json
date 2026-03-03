@@ -1,0 +1,194 @@
+[
+  {
+    "queryId": "auth-bcrypt",
+    "mode": "fts",
+    "p3": 0.67,
+    "p5": 0.4,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "auth-bcrypt",
+    "mode": "hybrid",
+    "p3": 0.67,
+    "p5": 0.4,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "auth-bcrypt",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "auth-bcrypt",
+    "mode": "graph",
+    "p3": 0.67,
+    "p5": 0.4,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "contract-validate",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "contract-validate",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "contract-validate",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "contract-validate",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "user-crud",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "user-crud",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "user-crud",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "user-crud",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "jwt-token",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "jwt-token",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "jwt-token",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "jwt-token",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "factory-processor",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "factory-processor",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "factory-processor",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "factory-processor",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "interface-segregation",
+    "mode": "fts",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "interface-segregation",
+    "mode": "hybrid",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  },
+  {
+    "queryId": "interface-segregation",
+    "mode": "vector",
+    "p3": 0,
+    "p5": 0,
+    "r5": 0,
+    "mrr": 0
+  },
+  {
+    "queryId": "interface-segregation",
+    "mode": "graph",
+    "p3": 0.33,
+    "p5": 0.2,
+    "r5": 1,
+    "mrr": 1
+  }
+]
