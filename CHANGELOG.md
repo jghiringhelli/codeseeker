@@ -5,6 +5,16 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.2] - 2026-03-03
+
+### Fixed
+
+- **Chocolatey: pin `nodejs-lts` dependency to Node 22 LTS (`[22.0.0, 23.0.0)`)** to ensure prebuilt binaries for `better-sqlite3` and `tree-sitter` are available. Node 24, while now LTS, does not yet have prebuilt native addon binaries, causing `npm install` to time out during Chocolatey package verification.
+- **Chocolatey: increase `npm install` timeout** from 300 s to 600 s as a safety net for slow network conditions.
+- **GitHub Actions: fix plugin branch sync** — `git merge master` → `git merge origin/master` so the step works correctly in detached-HEAD (tag) checkout context.
+
+---
+
 ## [1.11.1] - 2026-03-03
 
 ### Fixed
