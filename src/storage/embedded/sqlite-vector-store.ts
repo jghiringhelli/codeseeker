@@ -299,9 +299,10 @@ export class SQLiteVectorStore implements IVectorStore {
     ]);
 
     // RRF (Reciprocal Rank Fusion) with weights for RANKING
+    // Path matching is already captured inside FTS (MiniSearch boost: {filePath: 2})
+    // so no separate PATH dimension is needed — and a flat bonus after RRF corrupts ranking.
     const VECTOR_WEIGHT = 0.50;
-    const FTS_WEIGHT = 0.35;
-    const PATH_WEIGHT = 0.15;
+    const FTS_WEIGHT = 0.50;
     const K = 60; // RRF constant
 
     // Build maps for quick lookup of original scores
@@ -361,16 +362,6 @@ export class SQLiteVectorStore implements IVectorStore {
       }
     });
 
-    // Add path matching bonus
-    const queryLower = query.toLowerCase();
-    for (const [, entry] of scoreMap) {
-      const pathLower = entry.doc.filePath.toLowerCase();
-      if (pathLower.includes(queryLower) || queryLower.split(/\s+/).some(w => pathLower.includes(w))) {
-        entry.rrfScore += PATH_WEIGHT;
-        entry.matchTypes.add('path');
-      }
-    }
-
     // Sort by RRF score for ranking, but use intuitive display score
     const sortedEntries = Array.from(scoreMap.values())
       .sort((a, b) => b.rrfScore - a.rrfScore)
@@ -403,12 +394,6 @@ export class SQLiteVectorStore implements IVectorStore {
         matchSource = 'text';
       }
 
-      // Add small boost for path match
-      if (entry.matchTypes.has('path')) {
-        displayScore += 0.05;
-        matchSource += '+path';
-      }
-
       // ALWAYS clamp score to valid range [0, 1.0]
       // Cosine similarity can be negative for anti-correlated embeddings
       displayScore = Math.max(0, Math.min(1.0, displayScore));
@@ -425,7 +410,7 @@ export class SQLiteVectorStore implements IVectorStore {
         debug: {
           vectorScore: entry.vectorScore,
           textScore: entry.ftsScore,
-          pathMatch: entry.matchTypes.has('path'),
+          pathMatch: false,
           matchSource
         }
       };
@@ -552,6 +537,79 @@ export class SQLiteVectorStore implements IVectorStore {
 
     return hashes;
   }
+
+  // ---- RAPTOR support methods ----
+
+  async getById(id: string): Promise<import('../interfaces').VectorDocument | null> {
+    const row = this.db.prepare(
+      'SELECT id, project_id, file_path, content, embedding, metadata, created_at, updated_at FROM documents WHERE id = ?'
+    ).get(id) as {
+      id: string; project_id: string; file_path: string; content: string;
+      embedding: Buffer; metadata: string | null; created_at: string; updated_at: string;
+    } | undefined;
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      filePath: row.file_path,
+      content: row.content,
+      embedding: this.deserializeEmbedding(row.embedding),
+      metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at)
+    };
+  }
+
+  async getFileEmbeddings(projectId: string, filePaths: string[]): Promise<Map<string, number[][]>> {
+    const result = new Map<string, number[][]>();
+    if (filePaths.length === 0) return result;
+
+    const BATCH_SIZE = 500; // Stay within SQLite variable limits
+    for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+      const batch = filePaths.slice(i, i + BATCH_SIZE);
+      const placeholders = batch.map(() => '?').join(',');
+      const rows = this.db.prepare(
+        `SELECT file_path, embedding FROM documents
+         WHERE project_id = ? AND file_path IN (${placeholders})
+         AND file_path NOT LIKE '__raptor__%'`
+      ).all(projectId, ...batch) as Array<{ file_path: string; embedding: Buffer }>;
+
+      for (const row of rows) {
+        const emb = this.deserializeEmbedding(row.embedding);
+        if (emb.length === 0) continue;
+        const list = result.get(row.file_path) ?? [];
+        list.push(emb);
+        result.set(row.file_path, list);
+      }
+    }
+
+    return result;
+  }
+
+  async getFilePathsForDir(projectId: string, dirPath: string): Promise<string[]> {
+    const norm = dirPath.replace(/\\/g, '/');
+    const rows = this.db.prepare(
+      `SELECT DISTINCT file_path FROM documents
+       WHERE project_id = ?
+       AND (file_path LIKE ? OR file_path LIKE ?)
+       AND file_path NOT LIKE '__raptor__%'`
+    ).all(projectId, norm + '/%', norm + '\\%') as Array<{ file_path: string }>;
+
+    return rows.map(r => r.file_path);
+  }
+
+  async deleteByFilePathPrefix(projectId: string, prefix: string): Promise<number> {
+    const rows = this.db.prepare(
+      `SELECT DISTINCT file_path FROM documents WHERE project_id = ? AND file_path LIKE ?`
+    ).all(projectId, prefix + '%') as Array<{ file_path: string }>;
+
+    if (rows.length === 0) return 0;
+    return this.deleteByFiles(projectId, rows.map(r => r.file_path));
+  }
+
+  // ---- End RAPTOR methods ----
 
   async flush(): Promise<void> {
     // SQLite with WAL mode auto-persists, but we can checkpoint

@@ -26,6 +26,7 @@ import { Logger } from '../../../utils/logger';
 import { EmbeddingGeneratorAdapter } from '../../services/search/embedding-generator-adapter';
 import { getStorageManager, isUsingEmbeddedStorage, StorageManager } from '../../../storage';
 import type { IVectorStore, IProjectStore } from '../../../storage/interfaces';
+import { RaptorIndexingService, RAPTOR_FILE_PREFIX } from '../../services/search/raptor-indexing-service';
 
 export interface SemanticResult {
   file: string;
@@ -184,6 +185,15 @@ export class SemanticSearchOrchestrator {
           ? path.relative(projectPath, r.document.filePath)
           : r.document.filePath;
 
+        // RAPTOR nodes are synthetic directory/root summaries; they carry their
+        // own score and must NOT be merged with or boosted by file chunks.
+        if (RaptorIndexingService.isRaptorPath(filePath)) {
+          if (!fileMap.has(filePath)) {
+            fileMap.set(filePath, { result: r, chunkCount: 1, totalScore: r.score });
+          }
+          continue;
+        }
+
         const existing = fileMap.get(filePath);
         if (existing) {
           // File already seen - increment count and accumulate score
@@ -219,18 +229,36 @@ export class SemanticSearchOrchestrator {
 
       this.logger.debug(`Returning ${uniqueResults.length} unique files`);
 
-      return uniqueResults.map(r => ({
-        file: path.isAbsolute(r.document.filePath)
+      return uniqueResults.map(r => {
+        // RAPTOR node: strip synthetic prefix, set descriptive type
+        const isRaptor = RaptorIndexingService.isRaptorPath(
+          path.isAbsolute(r.document.filePath)
+            ? path.relative(projectPath, r.document.filePath)
+            : r.document.filePath
+        );
+
+        const rawFilePath = path.isAbsolute(r.document.filePath)
           ? path.relative(projectPath, r.document.filePath)
-          : r.document.filePath,
-        type: this.determineFileType(r.document.filePath),
-        similarity: r.score,
-        content: this.formatContent(r.document.content, r.document.metadata),
-        lineStart: 1,
-        lineEnd: 20,
-        // Pass through debug info for verbose mode
-        debug: r.debug
-      }));
+          : r.document.filePath;
+
+        const displayPath = isRaptor ? RaptorIndexingService.realPath(rawFilePath) : rawFilePath;
+
+        const raptorLevel = isRaptor
+          ? (r.document.metadata as any)?.raptorLevel as number | undefined
+          : undefined;
+
+        return {
+          file: displayPath,
+          type: isRaptor
+            ? (raptorLevel === 3 ? 'root-summary' : 'directory-summary')
+            : this.determineFileType(r.document.filePath),
+          similarity: r.score,
+          content: this.formatContent(r.document.content, r.document.metadata),
+          lineStart: isRaptor ? undefined : 1,
+          lineEnd: isRaptor ? undefined : 20,
+          debug: r.debug
+        };
+      });
 
     } catch (error) {
       this.logger.debug(`Hybrid search error: ${error instanceof Error ? error.message : error}`);

@@ -22,9 +22,10 @@ import { GoParser } from '../cli/services/data/semantic-graph/parsers/go-parser'
 import { PythonParser } from '../cli/services/data/semantic-graph/parsers/python-parser';
 import { JavaParser } from '../cli/services/data/semantic-graph/parsers/java-parser';
 import type { ParsedCodeStructure } from '../cli/services/data/semantic-graph/parsers/ilanguage-parser';
+import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
 
 export interface IndexingProgress {
-  phase: 'scanning' | 'indexing' | 'graph' | 'complete';
+  phase: 'scanning' | 'indexing' | 'graph' | 'raptor' | 'complete';
   filesTotal: number;
   filesProcessed: number;
   chunksCreated: number;
@@ -368,6 +369,26 @@ export class IndexingService {
       progress.edgesCreated = graphResult.edgesCreated;
       onProgress?.(progress);
 
+      // Phase 3.5: Build RAPTOR hierarchical summary nodes
+      // Mean-pool embeddings per directory to create coarse-grained search nodes.
+      // These surface naturally for abstract queries without disrupting precise ones.
+      progress.phase = 'raptor';
+      onProgress?.(progress);
+
+      try {
+        const raptorService = new RaptorIndexingService();
+        const raptorResult = await raptorService.generateForProject(
+          projectPath, projectId, filesToIndex, vectorStore
+        );
+        this.logger.debug(
+          `RAPTOR: ${raptorResult.l2NodesCreated} directory nodes, ` +
+          `root=${raptorResult.l3Created}, ${raptorResult.durationMs}ms`
+        );
+      } catch (raptorError) {
+        // Non-fatal: RAPTOR enhances search but is not required for correctness
+        this.logger.debug(`RAPTOR generation skipped: ${raptorError}`);
+      }
+
       // Flush to persist
       await vectorStore.flush();
       await graphStore.flush();
@@ -481,6 +502,20 @@ export class IndexingService {
 
       await vectorStore.flush();
       await graphStore.flush();
+
+      // Incremental RAPTOR update — drift-checked, cheap in the common case
+      try {
+        const raptorService = new RaptorIndexingService();
+        await raptorService.updateForChanges(
+          projectPath,
+          projectId,
+          [relativePath],
+          [],           // not a deletion
+          vectorStore
+        );
+      } catch (raptorError) {
+        this.logger.debug(`RAPTOR incremental update skipped: ${raptorError}`);
+      }
 
       return { success: true, chunksCreated, nodesCreated, skipped: false };
     } catch (error) {

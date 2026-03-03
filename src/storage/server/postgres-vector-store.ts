@@ -265,6 +265,91 @@ export class PostgresVectorStore implements IVectorStore {
       }));
   }
 
+  // ---- RAPTOR support methods ----
+
+  async getById(id: string): Promise<VectorDocument | null> {
+    await this.initialize();
+
+    const result = await this.pool.query(
+      `SELECT id, project_id, file_path, content, embedding::text AS embedding_text,
+              metadata, created_at, updated_at
+       FROM vector_documents WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    const embedding = row.embedding_text
+      ? row.embedding_text.slice(1, -1).split(',').map(Number)
+      : [];
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      filePath: row.file_path,
+      content: row.content,
+      embedding,
+      metadata: row.metadata ?? {},
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at)
+    };
+  }
+
+  async getFileEmbeddings(projectId: string, filePaths: string[]): Promise<Map<string, number[][]>> {
+    await this.initialize();
+
+    const result = new Map<string, number[][]>();
+    if (filePaths.length === 0) return result;
+
+    const rows = await this.pool.query(
+      `SELECT file_path, embedding::text AS embedding_text
+       FROM vector_documents
+       WHERE project_id = $1 AND file_path = ANY($2)
+       AND embedding IS NOT NULL
+       AND file_path NOT LIKE '__raptor__%'`,
+      [projectId, filePaths]
+    );
+
+    for (const row of rows.rows) {
+      if (!row.embedding_text) continue;
+      const emb = row.embedding_text.slice(1, -1).split(',').map(Number);
+      if (emb.length === 0) continue;
+      const list = result.get(row.file_path) ?? [];
+      list.push(emb);
+      result.set(row.file_path, list);
+    }
+
+    return result;
+  }
+
+  async getFilePathsForDir(projectId: string, dirPath: string): Promise<string[]> {
+    await this.initialize();
+
+    const norm = dirPath.replace(/\\/g, '/');
+    const result = await this.pool.query(
+      `SELECT DISTINCT file_path FROM vector_documents
+       WHERE project_id = $1
+       AND (file_path LIKE $2 OR file_path LIKE $3)
+       AND file_path NOT LIKE '__raptor__%'`,
+      [projectId, norm + '/%', norm + '\\%']
+    );
+
+    return result.rows.map((r: { file_path: string }) => r.file_path);
+  }
+
+  async deleteByFilePathPrefix(projectId: string, prefix: string): Promise<number> {
+    await this.initialize();
+
+    const result = await this.pool.query(
+      `DELETE FROM vector_documents WHERE project_id = $1 AND file_path LIKE $2`,
+      [projectId, prefix + '%']
+    );
+    return result.rowCount ?? 0;
+  }
+
+  // ---- End RAPTOR methods ----
+
   async deleteByProject(projectId: string): Promise<number> {
     await this.initialize();
 

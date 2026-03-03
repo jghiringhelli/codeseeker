@@ -73,6 +73,31 @@ export interface IVectorStore {
   /** Get all file hashes for a project (for incremental indexing) */
   getFileHashes(projectId: string): Promise<Map<string, string>>;
 
+  // ---- RAPTOR support ----
+
+  /** Get a single document by its ID (used by RAPTOR drift detection) */
+  getById(id: string): Promise<VectorDocument | null>;
+
+  /**
+   * Get embeddings grouped by file path for a set of files.
+   * Returns a map of filePath → array of chunk embeddings (one per chunk).
+   * Used by RaptorIndexingService to mean-pool directory embeddings.
+   */
+  getFileEmbeddings(projectId: string, filePaths: string[]): Promise<Map<string, number[][]>>;
+
+  /**
+   * Get all unique file paths indexed under a directory prefix.
+   * Used by RAPTOR incremental update to discover current dir contents.
+   * Excludes RAPTOR synthetic paths (those starting with '__raptor__/').
+   */
+  getFilePathsForDir(projectId: string, dirPath: string): Promise<string[]>;
+
+  /**
+   * Delete all documents whose file_path starts with the given prefix.
+   * Used to purge RAPTOR nodes before a full reindex.
+   */
+  deleteByFilePathPrefix(projectId: string, prefix: string): Promise<number>;
+
   /** Persist to disk (for embedded mode) */
   flush(): Promise<void>;
 

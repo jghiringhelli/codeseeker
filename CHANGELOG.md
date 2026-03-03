@@ -5,7 +5,45 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.0] - 2026-03-02
+## [1.10.0] - 2026-03-02
+
+### Added
+
+- **RAPTOR hierarchical indexing** (`src/cli/services/search/raptor-indexing-service.ts`):
+  Exploits the natural class → file → directory → project hierarchy of source code to generate
+  *directory summary nodes* (L2) and a *project root node* (L3) embedded directly in the vector store.
+  - L2 nodes are created by mean-pooling all chunk embeddings within a directory — no extra LLM calls
+  - L3 node is the mean of all L2 embeddings, representing the entire project
+  - Both levels live in the same vector pool as file chunks and surface automatically:
+    abstract queries ("what does the auth package do?") find L2/L3 nodes; concrete queries
+    ("find JWT refresh logic") find precise chunks as before
+  - Incremental drift detection on every `sync`: **structural hash** pre-filter (O(n log n))
+    + **cosine distance** against pooled child-file embeddings skips regeneration when drift < 5%
+  - New `phase: 'raptor'` in `IndexingProgress` type; RAPTOR runs as a non-blocking phase after graph
+  - Results surface with `type: 'directory-summary'` or `type: 'root-summary'` for traceability
+
+- **RAPTOR smoke test** (`scripts/test-raptor.mjs`): 25 unit assertions covering IDs, mean pooling,
+  cosine similarity, drift threshold, structural hashing, directory grouping, and path helpers
+
+- **Storage interface additions** (`IVectorStore`):
+  - `getById(id)` — single document fetch for drift comparison
+  - `getFileEmbeddings(projectId, filePaths)` — batch chunk embedding fetch for mean-pooling
+  - `getFilePathsForDir(projectId, dirPath)` — directory-scoped file enumeration
+  - `deleteByFilePathPrefix(projectId, prefix)` — prefix purge for clean reindex
+  - Implemented in both `SQLiteVectorStore` and `PostgresVectorStore`
+
+### Changed
+
+- **Search RRF weights**: Removed `PATH_WEIGHT` as a separate dimension (was 15% flat bonus
+  added *after* RRF, which corrupted rankings). Path signal is properly captured inside
+  `MiniSearch` via `boost: { filePath: 2 }` — the right place. Weights are now 50% vector
+  / 50% text, eliminating the double-counting and rank corruption.
+
+- **RAPTOR-aware deduplication in search orchestrator**: RAPTOR nodes bypass the multi-chunk
+  score-boost logic (which is meaningless for synthetic nodes) and are rendered with a
+  descriptive type rather than a file-based type.
+
+## [1.9.0] - 2026-03-01
 
 ### Changed
 

@@ -222,7 +222,7 @@ Once configured, Claude has access to these MCP tools (used automatically):
 
 | Tool | Actions / Usage | What It Does |
 |------|-----------------|-------------|
-| `search` | `{query}` | Hybrid search: vector + text + path with RRF fusion |
+| `search` | `{query}` | Hybrid search: vector + text with RRF fusion; RAPTOR directory/root summaries surface for abstract queries |
 | `search` | `{query, read: true}` | Search + read file contents in one step |
 | `search` | `{filepath}` | Read a file with its related code automatically included |
 | `analyze` | `{action: "dependencies", filepath}` | Traverse the knowledge graph (imports, calls, extends) |
@@ -266,9 +266,15 @@ First search on a new project takes 30 seconds to several minutes (depending on 
 | **Grep/ripgrep** | Text pattern matching | Fast, universal | No semantic understanding |
 | **Vector search only** | Embedding similarity | Finds similar code | Misses structural relationships |
 | **LSP-based tools** | Language server protocol | Precise symbol definitions | No semantic search, no cross-file reasoning |
-| **CodeSeeker** | Knowledge graph + hybrid search | Semantic + structure + patterns | Requires initial indexing (30s-5min) |
+| **CodeSeeker** | Knowledge graph + hierarchical hybrid search | Semantic + structure + directory context + patterns | Requires initial indexing (30s-5min) |
 
 ### CodeSeeker's Unique Capabilities
+
+**Hierarchical search (RAPTOR):**
+CodeSeeker generates *directory summary nodes* by mean-pooling the embeddings of all files in each folder, plus a *project root node* for the whole codebase. These live in the same index as regular file chunks:
+- *Concrete queries* ("find JWT refresh logic") surface precise file chunks as usual
+- *Abstract queries* ("what does the auth package do?") naturally score higher against directory summaries → instant package-level answers without enumerating 20 files
+- *On sync*, a structural hash + cosine drift check skips regeneration for most edits — no extra cost for routine code changes
 
 **What LSP tools can't do:**
 - *"Find code that handles errors like this"* → Semantic search finds similar patterns

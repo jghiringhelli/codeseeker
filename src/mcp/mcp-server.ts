@@ -38,6 +38,7 @@ import { IndexingService } from './indexing-service';
 import { CodingStandardsGenerator } from '../cli/services/analysis/coding-standards-generator';
 import { LanguageSupportService } from '../cli/services/project/language-support-service';
 import { getQueryCacheService, QueryCacheService } from './query-cache-service';
+import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
 
 // Version from package.json
 const VERSION = '2.0.0';
@@ -1490,6 +1491,21 @@ export class CodeSeekerMcpServer {
       const changedPaths = changes.map(c => c.path);
       const generator = new CodingStandardsGenerator(vectorStore);
       await generator.updateStandards(found.id, found.path, changedPaths);
+    } catch { /* Non-fatal */ }
+
+    // Update RAPTOR hierarchical nodes (drift-checked, skips when semantics unchanged)
+    try {
+      const allRelative = changes.map(c =>
+        path.isAbsolute(c.path) ? path.relative(found.path, c.path) : c.path
+      );
+      const deletedRelative = changes
+        .filter(c => c.type === 'deleted')
+        .map(c => path.isAbsolute(c.path) ? path.relative(found.path, c.path) : c.path);
+
+      const raptorService = new RaptorIndexingService();
+      await raptorService.updateForChanges(
+        found.path, found.id, allRelative, deletedRelative, vectorStore
+      );
     } catch { /* Non-fatal */ }
 
     // Invalidate cache
