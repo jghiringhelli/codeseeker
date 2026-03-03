@@ -35,7 +35,7 @@ $npmArgs = "install -g codeseeker --no-progress --no-fund --no-audit"
 # which Start-Process cannot run directly as a Win32 executable.
 $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npm $npmArgs" -NoNewWindow -PassThru -RedirectStandardOutput "$toolsDir\npm-stdout.txt" -RedirectStandardError "$toolsDir\npm-stderr.txt"
 
-$timeoutSeconds = 300
+$timeoutSeconds = 600
 $completed = $proc.WaitForExit($timeoutSeconds * 1000)
 
 if (-not $completed) {

@@ -172,7 +172,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout plugin || git checkout -b plugin
-          git merge master --no-edit
+          git merge origin/master --no-edit
           git push origin plugin
 
   create-release:

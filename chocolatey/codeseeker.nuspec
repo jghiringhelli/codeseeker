@@ -63,7 +63,7 @@ Full documentation: https://github.com/jghiringhelli/codeseeker#readme
       <!-- Using nodejs-lts (not nodejs) because nodejs depends on nodejs.install
            whose MSI hangs in Chocolatey's automated test environment.
            nodejs-lts is a separate package that passes verification consistently. -->
-      <dependency id="nodejs-lts" />
+      <dependency id="nodejs-lts" version="[22.0.0, 23.0.0)" />
     </dependencies>
   </metadata>
   <files>
