@@ -8,13 +8,13 @@
     "url": "https://github.com/jghiringhelli/codeseeker",
     "source": "github"
   },
-  "version": "1.9.0",
+  "version": "1.10.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "codeseeker",
-      "version": "1.9.0",
+      "version": "1.10.0",
       "transport": {
         "type": "stdio"
       },

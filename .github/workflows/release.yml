@@ -120,6 +120,8 @@ jobs:
           sed -i "s|codeseeker-[0-9.]*\.tgz|codeseeker-${VERSION}.tgz|" snap/snapcraft.yaml
       - uses: snapcore/action-build@v1
         id: build
+        env:
+          SNAPCRAFT_BUILD_ENVIRONMENT: host
       - uses: snapcore/action-publish@v1
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
