@@ -23,6 +23,7 @@ import { PythonParser } from '../cli/services/data/semantic-graph/parsers/python
 import { JavaParser } from '../cli/services/data/semantic-graph/parsers/java-parser';
 import type { ParsedCodeStructure } from '../cli/services/data/semantic-graph/parsers/ilanguage-parser';
 import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
+import { AstChunker } from '../cli/services/search/ast-chunker';
 
 export interface IndexingProgress {
   phase: 'scanning' | 'indexing' | 'graph' | 'raptor' | 'complete';
@@ -886,8 +887,10 @@ export class IndexingService {
       return 0;
     }
 
-    // Chunk the file content
-    const chunks = this.chunkContent(content);
+    // Chunk the file content using AST-boundary aware chunker
+    const astChunker = new AstChunker();
+    const ext = path.extname(relativePath);
+    const chunks = astChunker.chunk(content, ext);
 
     // Generate embeddings for each chunk
     const fileHash = crypto.createHash('md5').update(content).digest('hex');
@@ -918,6 +921,8 @@ export class IndexingService {
             chunkIndex,
             lineStart: chunk.lineStart,
             lineEnd: chunk.lineEnd,
+            symbolName: chunk.symbolName,
+            symbolType: chunk.symbolType,
             fileHash,
             indexedAt: new Date().toISOString()
           }
@@ -930,33 +935,6 @@ export class IndexingService {
     }
 
     return chunksCreated;
-  }
-
-  /**
-   * Chunk file content into smaller pieces for better search granularity
-   */
-  private chunkContent(content: string): Array<{ content: string; lineStart: number; lineEnd: number }> {
-    const lines = content.split('\n');
-    const chunks: Array<{ content: string; lineStart: number; lineEnd: number }> = [];
-
-    const CHUNK_SIZE = 25; // lines per chunk
-    const OVERLAP = 5; // overlapping lines for context
-
-    for (let i = 0; i < lines.length; i += (CHUNK_SIZE - OVERLAP)) {
-      const chunkLines = lines.slice(i, i + CHUNK_SIZE);
-      const chunkContent = chunkLines.join('\n');
-
-      // Only include chunks with meaningful content
-      if (chunkContent.trim().length > 30) {
-        chunks.push({
-          content: chunkContent,
-          lineStart: i + 1,
-          lineEnd: Math.min(i + CHUNK_SIZE, lines.length)
-        });
-      }
-    }
-
-    return chunks;
   }
 
   /**

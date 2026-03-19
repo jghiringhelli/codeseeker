@@ -132,8 +132,9 @@ export class MiniSearchTextStore implements ITextStore {
       tokenize: this.tokenize.bind(this),
       searchOptions: {
         boost: { filePath: 2 }, // Boost file path matches
-        fuzzy: 0.2, // Allow some typo tolerance
-        prefix: true // Enable prefix matching
+        // No fuzzy: prefix matching already handles partial names; fuzzy causes
+        // false positives in code search (e.g. "rounds" matches Math.round).
+        prefix: true // Enable prefix matching for partial symbol names
       }
     });
   }

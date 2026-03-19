@@ -163,10 +163,23 @@ export class SemanticSearchOrchestrator {
     }
   }
 
+  // ── RAPTOR Cascade thresholds ─────────────────────────────────────────────
+  /** Minimum L2 RAPTOR node score to trust its directory hint */
+  private static readonly L2_THRESHOLD = 0.5;
+  /** Minimum number of results cascade must produce to skip fallback */
+  private static readonly CASCADE_MIN_RESULTS = 3;
+  /** Minimum top-result score cascade must produce to skip fallback */
+  private static readonly CASCADE_TOP_SCORE = 0.25;
+
   /**
-   * Perform hybrid search using the storage interface abstraction
-   * Works for both embedded (SQLite + MiniSearch) and server (PostgreSQL + pgvector) modes
-   * The IVectorStore implementation handles the specific search logic internally
+   * Perform hybrid search using the storage interface abstraction.
+   * Works for both embedded (SQLite + MiniSearch) and server (PostgreSQL + pgvector) modes.
+   *
+   * RAPTOR Cascade (post-processing):
+   *  1. Run wide searchHybrid (one call, always happens)
+   *  2. Extract RAPTOR L2 nodes from raw results
+   *  3. If a high-confidence L2 node exists, post-filter real files to its dir(s)
+   *  4. If the filtered set is thin or low-confidence, fall back to full wide results
    */
   private async performHybridSearchViaInterface(query: string, projectPath: string): Promise<SemanticResult[]> {
     if (!this.vectorStore || !this.projectId) return [];
@@ -182,18 +195,88 @@ export class SemanticSearchOrchestrator {
         this.logger.debug(`Query embedding generation failed, using text search only: ${error}`);
       }
 
-      // Use the storage interface's hybrid search
-      // The implementation handles vector similarity, text search (MiniSearch), and path matching internally
-      // Request more results to allow for deduplication by file path
-      const results = await this.vectorStore.searchHybrid(query, queryEmbedding, this.projectId, 30);
+      // One wide search call — feeds both cascade and fallback
+      const rawResults = await this.vectorStore.searchHybrid(query, queryEmbedding, this.projectId, 30);
+      this.logger.debug(`Hybrid search found ${rawResults.length} results (before dedup)`);
 
-      this.logger.debug(`Hybrid search found ${results.length} results (before dedup)`);
-      return this.processRawResults(results, projectPath);
+      // ── RAPTOR cascade ───────────────────────────────────────────────────
+      const cascadeResults = this.applyCascadeFilter(rawResults, projectPath);
+      if (cascadeResults !== null) {
+        this.logger.debug(`Cascade active: ${cascadeResults.length} results after directory filter`);
+        return cascadeResults;
+      }
+
+      // ── Fallback: full wide results ──────────────────────────────────────
+      return this.processRawResults(rawResults, projectPath);
 
     } catch (error) {
       this.logger.debug(`Hybrid search error: ${error instanceof Error ? error.message : error}`);
       return [];
     }
+  }
+
+  /**
+   * Apply RAPTOR cascade post-filter.
+   * Returns filtered SemanticResult[] when cascade is confident, null when falling back.
+   */
+  private applyCascadeFilter(
+    rawResults: VectorSearchResult[],
+    projectPath: string
+  ): SemanticResult[] | null {
+    // Extract L2 RAPTOR nodes (directory summaries)
+    const l2Nodes = rawResults.filter(r => {
+      if (!RaptorIndexingService.isRaptorPath(r.document.filePath)) return false;
+      const level = (r.document.metadata as any)?.raptorLevel as number | undefined;
+      return level === 2 || level === undefined; // L2 = per-directory summaries
+    });
+
+    if (l2Nodes.length === 0) return null;
+
+    // Check best L2 score
+    const topL2Score = Math.max(...l2Nodes.map(n => n.score));
+    if (topL2Score < SemanticSearchOrchestrator.L2_THRESHOLD) {
+      this.logger.debug(`Cascade skipped: top L2 score ${topL2Score.toFixed(3)} < ${SemanticSearchOrchestrator.L2_THRESHOLD}`);
+      return null;
+    }
+
+    // Collect candidate directories from qualifying L2 nodes
+    const candidateDirs = new Set<string>();
+    for (const node of l2Nodes) {
+      if (node.score >= SemanticSearchOrchestrator.L2_THRESHOLD) {
+        const raptorDir = (node.document.metadata as any)?.raptorDir as string | undefined;
+        if (raptorDir) candidateDirs.add(raptorDir);
+      }
+    }
+    if (candidateDirs.size === 0) return null;
+
+    this.logger.debug(`Cascade dirs: ${[...candidateDirs].join(', ')}`);
+
+    // Post-filter: keep only real files whose paths are within candidate dirs
+    // RAPTOR nodes themselves are excluded from the output
+    const filteredRaw = rawResults.filter(r => {
+      if (RaptorIndexingService.isRaptorPath(r.document.filePath)) return false;
+      const relPath = path.isAbsolute(r.document.filePath)
+        ? path.relative(projectPath, r.document.filePath)
+        : r.document.filePath;
+      // Normalise separators for cross-platform matching
+      const normPath = relPath.replace(/\\/g, '/');
+      return [...candidateDirs].some(dir => normPath.startsWith(dir + '/') || normPath.startsWith(dir + '\\'));
+    });
+
+    if (filteredRaw.length < SemanticSearchOrchestrator.CASCADE_MIN_RESULTS) {
+      this.logger.debug(`Cascade fallback: only ${filteredRaw.length} results in candidate dirs (min ${SemanticSearchOrchestrator.CASCADE_MIN_RESULTS})`);
+      return null;
+    }
+
+    const processed = this.processRawResults(filteredRaw, projectPath);
+    const topScore = processed[0]?.similarity ?? 0;
+
+    if (topScore < SemanticSearchOrchestrator.CASCADE_TOP_SCORE) {
+      this.logger.debug(`Cascade fallback: top score ${topScore.toFixed(3)} < ${SemanticSearchOrchestrator.CASCADE_TOP_SCORE}`);
+      return null;
+    }
+
+    return processed;
   }
 
   /**
@@ -284,7 +367,8 @@ export class SemanticSearchOrchestrator {
         : r.document.filePath;
 
       const isRaptor = RaptorIndexingService.isRaptorPath(rawFilePath);
-      const displayPath = isRaptor ? RaptorIndexingService.realPath(rawFilePath) : rawFilePath;
+      const displayPath = (isRaptor ? RaptorIndexingService.realPath(rawFilePath) : rawFilePath)
+        .replace(/\\/g, '/'); // Normalise path separators for cross-platform consistency
       const raptorLevel = isRaptor ? (r.document.metadata as any)?.raptorLevel as number | undefined : undefined;
 
       return {
