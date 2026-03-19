@@ -137,16 +137,21 @@ function blendEmbeddings(themes: Array<keyof typeof THEMES>): number[] {
 }
 
 const FIXTURE_DIR = path.join(__dirname, '../fixtures/ContractMaster-Test-Original/server');
-const FIXTURE_FILES = [
-  { relPath: 'controllers/MegaController.js',  themes: ['controller', 'auth', 'validation'] as const },
-  { relPath: 'controllers/UserController.js',  themes: ['controller', 'auth'] as const },
-  { relPath: 'controllers/BusinessLogic.js',   themes: ['controller', 'model'] as const },
-  { relPath: 'services/UserService.js',        themes: ['auth', 'model'] as const },
-  { relPath: 'services/user-service.js',       themes: ['auth'] as const },
-  { relPath: 'services/contract-validator.js', themes: ['validation', 'model'] as const },
-  { relPath: 'services/IServiceProvider.js',   themes: ['utility'] as const },
-  { relPath: 'services/ProcessorFactory.js',   themes: ['utility', 'model'] as const },
-  { relPath: 'utils/DatabaseHelper.js',        themes: ['model', 'utility'] as const },
+const FIXTURE_FILES: Array<{
+  relPath: string;
+  themes: ReadonlyArray<keyof typeof THEMES>;
+  symbolName: string;
+  functions: string[];
+}> = [
+  { relPath: 'controllers/MegaController.js',  themes: ['controller', 'auth', 'validation'] as const, symbolName: 'MegaController',     functions: ['registerUser', 'loginUser', 'validateInput'] },
+  { relPath: 'controllers/UserController.js',  themes: ['controller', 'auth'] as const,              symbolName: 'UserController',      functions: ['getUserById', 'updateUser', 'deleteUser'] },
+  { relPath: 'controllers/BusinessLogic.js',   themes: ['controller', 'model'] as const,             symbolName: 'BusinessLogic',       functions: ['processOrder', 'calculateTotal'] },
+  { relPath: 'services/UserService.js',        themes: ['auth', 'model'] as const,                   symbolName: 'UserService',         functions: ['hashPassword', 'signToken', 'authenticateUser', 'registerUser'] },
+  { relPath: 'services/user-service.js',       themes: ['auth'] as const,                            symbolName: 'userService',         functions: ['hashPassword', 'bcryptCompare', 'createJwt'] },
+  { relPath: 'services/contract-validator.js', themes: ['validation', 'model'] as const,             symbolName: 'ContractValidator',   functions: ['validateContract', 'checkRules'] },
+  { relPath: 'services/IServiceProvider.js',   themes: ['utility'] as const,                         symbolName: 'IServiceProvider',    functions: [] },
+  { relPath: 'services/ProcessorFactory.js',   themes: ['utility', 'model'] as const,                symbolName: 'ProcessorFactory',    functions: ['createProcessor', 'buildPipeline'] },
+  { relPath: 'utils/DatabaseHelper.js',        themes: ['model', 'utility'] as const,                symbolName: 'DatabaseHelper',      functions: ['findById', 'save', 'delete', 'query'] },
 ];
 const QUERY_THEME_MAP: Record<string, Array<keyof typeof THEMES>> = {
   'bcrypt password hashing':                        ['auth'],
@@ -263,7 +268,7 @@ describe('Relevance Metrics', () => {
         id: crypto.createHash('md5').update(`${cmProjectId}:${entry.relPath}`).digest('hex'),
         projectId: cmProjectId, filePath: abs, content,
         embedding: blendEmbeddings([...entry.themes]),
-        metadata: { themes: entry.themes },
+        metadata: { themes: entry.themes, symbolName: entry.symbolName, functions: entry.functions },
         createdAt: new Date(), updatedAt: new Date(),
       });
     }

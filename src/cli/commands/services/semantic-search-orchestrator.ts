@@ -54,6 +54,9 @@ export class SemanticSearchOrchestrator {
   private projectStore?: IProjectStore;
   private graphStore?: IGraphStore;
 
+  /** Current query — set at the start of performSemanticSearch, used for symbol-name boosting */
+  private currentQuery: string = '';
+
   constructor() {
     this.embeddingGenerator = new EmbeddingGeneratorAdapter();
   }
@@ -120,6 +123,7 @@ export class SemanticSearchOrchestrator {
    * Returns empty array if storage unavailable or no results - Claude handles file discovery natively
    */
   async performSemanticSearch(query: string, projectPath: string, searchType: 'hybrid' | 'vector' | 'fts' | 'graph' = 'hybrid'): Promise<SemanticResult[]> {
+    this.currentQuery = query;
     try {
       // Initialize storage mode detection
       await this.initStorage();
@@ -275,15 +279,19 @@ export class SemanticSearchOrchestrator {
       return null;
     }
 
-    const processed = this.processRawResults(filteredRaw, projectPath);
-    const topScore = processed[0]?.similarity ?? 0;
+    // Use raw (pre-boost) top score for cascade confidence check.
+    // The symbol-name boost inflates scores for keyword-matching files and must not
+    // cause a weak cascade to appear confident.
+    const topRawScore = filteredRaw.length > 0
+      ? Math.max(...filteredRaw.map(r => r.score))
+      : 0;
 
-    if (topScore < this.cascadeTopScore) {
-      this.logger.debug(`Cascade fallback: top score ${topScore.toFixed(3)} < ${this.cascadeTopScore}`);
+    if (topRawScore < this.cascadeTopScore) {
+      this.logger.debug(`Cascade fallback: top raw score ${topRawScore.toFixed(3)} < ${this.cascadeTopScore}`);
       return null;
     }
 
-    return processed;
+    return this.processRawResults(filteredRaw, projectPath);
   }
 
   /**
@@ -359,9 +367,29 @@ export class SemanticSearchOrchestrator {
     }
 
     // Boost: +10% per additional matching chunk (capped at 50%), score capped at 1.0
+    // Symbol-name boost: +20% when a query token matches the chunk's symbolName or class/function names.
+    // Helps exact symbol queries ("UserService", "registerUser") surface the right chunk over
+    // semantically similar but unrelated files.
+    const queryTokens = this.currentQuery
+      .toLowerCase()
+      .split(/\W+/)
+      .filter(t => t.length > 2);
+
     const boostedResults = Array.from(fileMap.values()).map(entry => {
       const chunkBoost = Math.min((entry.chunkCount - 1) * 0.10, 0.50);
-      const boostedScore = Math.min(1.0, entry.result.score * (1 + chunkBoost));
+
+      let symbolBoost = 0;
+      if (queryTokens.length > 0 && !RaptorIndexingService.isRaptorPath(entry.result.document.filePath)) {
+        const meta = entry.result.document.metadata as any;
+        const symbolName = (meta?.symbolName as string | undefined ?? '').toLowerCase();
+        const classes = ((meta?.classes as string[] | undefined) ?? []).join(' ').toLowerCase();
+        const functions = ((meta?.functions as string[] | undefined) ?? []).join(' ').toLowerCase();
+        const fileName = (meta?.fileName as string | undefined ?? path.basename(entry.result.document.filePath)).toLowerCase();
+        const symbolText = `${symbolName} ${classes} ${functions} ${fileName}`;
+        if (queryTokens.some(t => symbolText.includes(t))) symbolBoost = 0.20;
+      }
+
+      const boostedScore = Math.min(1.0, entry.result.score * (1 + chunkBoost) + symbolBoost);
       return { ...entry.result, score: boostedScore };
     });
 
