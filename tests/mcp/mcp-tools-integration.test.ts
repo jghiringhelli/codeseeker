@@ -411,7 +411,7 @@ describe('MCP 3-Tool Integration', () => {
         const d = json(r);
         expect(d).toHaveProperty('summary');
         expect(d.summary).toHaveProperty('total_issues');
-        expect(d.summary).toHaveProperty('dead_code_count');
+        expect(d.summary).toHaveProperty('unreferenced_symbols');
         expect(d.summary).toHaveProperty('anti_patterns_count');
       });
 

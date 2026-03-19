@@ -65,7 +65,7 @@ export class DuplicateCodeDetector {
   private defaultOptions: DeduplicationOptions = {
     exactSimilarityThreshold: 0.98,
     semanticSimilarityThreshold: 0.80,
-    structuralSimilarityThreshold: 0.70,
+    structuralSimilarityThreshold: 0.85, // Raised from 0.70 — control-flow token overlap at 0.70 is too loose
     minimumChunkSize: 5,
     excludePatterns: ['*.test.*', '*.spec.*', '**/node_modules/**', '**/dist/**'],
     includeTypes: ['function', 'class', 'method', 'block']

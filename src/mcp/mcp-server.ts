@@ -5,10 +5,9 @@
  * as an MCP (Model Context Protocol) server for use with Claude Desktop
  * and Claude Code.
  *
- * OPTIMIZED: 12 tools consolidated to 3 to minimize token usage:
- *   1. search  - Code discovery (search, search+read, read-with-context)
- *   2. analyze - Code analysis (dependencies, dead_code, duplicates, standards)
- *   3. index   - Index management (init, sync, status, parsers, exclude)
+ * Single sentinel tool: codeseeker
+ *   Routes to: search (q), symbol lookup (sym), graph traversal (graph),
+ *              analysis (analyze), index management (index)
  *
  * Usage:
  *   codeseeker serve --mcp
@@ -436,59 +435,138 @@ export class CodeSeekerMcpServer {
   // ============================================================
 
   private registerTools(): void {
-    this.registerSearchTool();
-    this.registerAnalyzeTool();
-    this.registerIndexTool();
+    this.registerSentinelTool();
   }
 
   // ============================================================
-  // TOOL 1: search
-  //   Combines: search, search_and_read, read_with_context
+  // SENTINEL TOOL: codeseeker
+  //   Hierarchical schema — each action carries its own nested params
   // ============================================================
 
-  private registerSearchTool(): void {
+  private registerSentinelTool(): void {
     this.server.registerTool(
-      'search',
+      'codeseeker',
       {
-        description: 'Semantic code search. Finds code by meaning, not just text. ' +
-          'Pass query to search, add read=true to include file contents, or pass filepath instead to read a file with related context.',
+        description: 'Code intelligence: search (q), symbol lookup (sym), graph traversal (graph), analysis (analyze), index management (index).',
         inputSchema: {
-          query: z.string().optional().describe('Natural language search query'),
-          filepath: z.string().optional().describe('File path to read with semantic context (alternative to query)'),
+          action: z.enum(['search', 'sym', 'graph', 'analyze', 'index'])
+            .describe('Routing key — fill only the matching nested param group'),
           project: z.string().optional().describe('Project path or name'),
-          read: z.boolean().optional().default(false).describe('Include file contents in results'),
-          limit: z.number().optional().default(10).describe('Max results'),
-          max_lines: z.number().optional().default(500).describe('Max lines per file when read=true'),
-          search_type: z.enum(['hybrid', 'fts', 'vector', 'graph']).optional().default('hybrid')
-            .describe('Search method'),
-          mode: z.enum(['full', 'exists']).optional().default('full')
-            .describe('"exists" returns quick yes/no'),
+
+          search: z.object({
+            q:      z.string().describe('Natural language query'),
+            exists: z.boolean().optional().default(false).describe('Quick yes/no — returns {found,count,top_file}'),
+            full:   z.boolean().optional().default(false).describe('Add snippet to each result (default: summary only)'),
+            limit:  z.number().optional().default(10),
+            type:   z.enum(['hybrid', 'fts', 'vector']).optional().default('hybrid'),
+          }).optional().describe('Params for action=search'),
+
+          sym: z.object({
+            name: z.string().describe('Symbol name (exact or partial)'),
+            full: z.boolean().optional().default(false).describe('Include resolved relationships'),
+          }).optional().describe('Params for action=sym'),
+
+          graph: z.object({
+            seed:  z.string().optional().describe('Seed file (relative path)'),
+            q:     z.string().optional().describe('Query to find seed files semantically'),
+            depth: z.number().optional().default(1).describe('Traversal depth 1-3'),
+            rel:   z.array(z.enum(['imports','exports','calls','extends','implements','contains','uses','depends_on'])).optional(),
+            dir:   z.enum(['in','out','both']).optional().default('both'),
+            max:   z.number().optional().default(50),
+          }).optional().describe('Params for action=graph'),
+
+          analyze: z.object({
+            kind:      z.enum(['duplicates','dead_code','standards']).describe('Analysis type'),
+            threshold: z.number().optional().default(0.80).describe('Similarity threshold for duplicates'),
+            min_lines: z.number().optional().default(5),
+            patterns:  z.array(z.enum(['dead_code','god_class','circular_deps','feature_envy','coupling'])).optional(),
+            category:  z.enum(['validation','error-handling','logging','testing','all']).optional().default('all'),
+          }).optional().describe('Params for action=analyze'),
+
+          index: z.object({
+            op:          z.enum(['init','sync','status','parsers','exclude']).describe('Operation'),
+            path:        z.string().optional().describe('Project dir (op=init)'),
+            name:        z.string().optional().describe('Project name (op=init)'),
+            changes:     z.array(z.object({ type: z.enum(['created','modified','deleted']), path: z.string() })).optional(),
+            full_reindex:z.boolean().optional().default(false),
+            languages:   z.array(z.string()).optional(),
+            list_available: z.boolean().optional().default(false),
+            exclude_op:  z.enum(['exclude','include','list']).optional(),
+            paths:       z.array(z.string()).optional(),
+            reason:      z.string().optional(),
+          }).optional().describe('Params for action=index'),
         },
       },
-      async ({ query, filepath, project, read = false, limit = 10, max_lines = 500, search_type = 'hybrid', mode = 'full' }) => {
+      async (params) => {
         try {
-          // Dispatch: filepath → read-with-context, read → search-and-read, else → search
-          if (filepath) {
-            return await this.handleReadWithContext(filepath, project, !read ? true : read);
+          switch (params.action) {
+            case 'search': {
+              const s = params.search;
+              if (!s) return { content: [{ type: 'text' as const, text: 'Provide search params.' }], isError: true };
+              return await this.handleSearch(s.q, params.project, s.limit ?? 10, s.type ?? 'hybrid', s.exists ?? false, s.full ?? false);
+            }
+            case 'sym': {
+              const s = params.sym;
+              if (!s) return { content: [{ type: 'text' as const, text: 'Provide sym params.' }], isError: true };
+              return await this.handleSymbolLookup(s.name, params.project, s.full ?? false);
+            }
+            case 'graph': {
+              const g = params.graph;
+              if (!g) return { content: [{ type: 'text' as const, text: 'Provide graph params.' }], isError: true };
+              const { projectPath, error } = await this.resolveProject(params.project);
+              if (error) return error;
+              return await this.handleShowDependencies({
+                project: projectPath,
+                filepath: g.seed,
+                query:    g.q,
+                depth:    g.depth,
+                relationship_types: g.rel,
+                direction: g.dir,
+                max_nodes: g.max,
+              });
+            }
+            case 'analyze': {
+              const a = params.analyze;
+              if (!a) return { content: [{ type: 'text' as const, text: 'Provide analyze params.' }], isError: true };
+              if (!params.project) return { content: [{ type: 'text' as const, text: 'project required for analyze.' }], isError: true };
+              switch (a.kind) {
+                case 'duplicates': return await this.handleFindDuplicates({ project: params.project, similarity_threshold: a.threshold, min_lines: a.min_lines });
+                case 'dead_code':  return await this.handleFindDeadCode({ project: params.project, include_patterns: a.patterns });
+                case 'standards':  return await this.handleStandards({ project: params.project, category: a.category });
+              }
+              break;
+            }
+            case 'index': {
+              const ix = params.index;
+              if (!ix) return { content: [{ type: 'text' as const, text: 'Provide index params.' }], isError: true };
+              switch (ix.op) {
+                case 'init':    return await this.handleIndexInit({ path: ix.path, name: ix.name || params.project });
+                case 'sync':    return await this.handleSync({ project: params.project, changes: ix.changes, full_reindex: ix.full_reindex });
+                case 'status':  return await this.handleProjects();
+                case 'parsers': return await this.handleInstallParsers({ project: params.project, languages: ix.languages, list_available: ix.list_available });
+                case 'exclude': return await this.handleExclude({ project: params.project!, exclude_action: ix.exclude_op!, paths: ix.paths, reason: ix.reason });
+              }
+              break;
+            }
           }
-          if (!query) {
-            return {
-              content: [{ type: 'text' as const, text: 'Provide either query or filepath parameter.' }],
-              isError: true,
-            };
-          }
-          if (read) {
-            return await this.handleSearchAndRead(query, project, Math.min(limit, 3), Math.min(max_lines, 1000));
-          }
-          return await this.handleSearch(query, project, limit, search_type, mode);
+          return { content: [{ type: 'text' as const, text: `Unknown action` }], isError: true };
         } catch (error) {
           return {
-            content: [{ type: 'text' as const, text: this.formatErrorMessage('Search', error instanceof Error ? error : String(error), { projectPath: project }) }],
+            content: [{ type: 'text' as const, text: this.formatErrorMessage('CodeSeeker', error instanceof Error ? error : String(error), { projectPath: params.project }) }],
             isError: true,
           };
         }
       }
     );
+  }
+
+  /** Extract the first meaningful declaration line from a code chunk */
+  private extractSignature(content: string): string {
+    const skip = /^\s*($|\/\/|\/\*|\*|#!|import |from |require\(|using |namespace )/;
+    for (const line of content.split('\n')) {
+      if (!skip.test(line)) return line.trim().substring(0, 120);
+    }
+    return content.split('\n')[0]?.trim().substring(0, 120) || '';
   }
 
   private async handleSearch(
@@ -496,7 +574,8 @@ export class CodeSeekerMcpServer {
     project: string | undefined,
     limit: number,
     search_type: string,
-    mode: string
+    exists: boolean,
+    full: boolean
   ) {
     const { projectPath, projectRecord, error } = await this.resolveProject(project);
     if (error) return error;
@@ -504,290 +583,68 @@ export class CodeSeekerMcpServer {
     const indexCheck = await this.verifyIndexed(projectPath, projectRecord as any);
     if (indexCheck.error) return indexCheck.error;
 
-    // Check cache (only for 'full' mode)
-    let results: any[];
-    let fromCache = false;
     const cacheProjectId = projectRecord?.id || this.generateProjectId(projectPath);
+    const cap = exists ? 5 : limit;
 
-    if (mode === 'full') {
-      const cached = await this.queryCache.get(query, cacheProjectId, search_type);
-      if (cached) {
-        results = cached.results;
-        fromCache = true;
-      } else {
-        results = await this.searchOrchestrator.performSemanticSearch(query, projectPath, search_type as any);
-        if (results.length > 0) {
-          await this.queryCache.set(query, cacheProjectId, results, search_type);
-        }
+    // exists mode: skip cache, quick check
+    if (exists) {
+      const results = await this.searchOrchestrator.performSemanticSearch(query, projectPath, search_type as any);
+      if (results.length === 0) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ found: false, query }) }] };
       }
-    } else {
-      results = await this.searchOrchestrator.performSemanticSearch(query, projectPath, search_type as any);
-    }
-
-    const limitedResults = results.slice(0, mode === 'exists' ? 5 : limit);
-
-    if (limitedResults.length === 0) {
-      if (mode === 'exists') {
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ exists: false, query, project: projectPath, message: 'No matching code found' }, null, 2) }],
-        };
-      }
-      return {
-        content: [{ type: 'text' as const, text: `No results for: "${query}". Try different terms or reindex.` }],
-      };
-    }
-
-    if (mode === 'exists') {
-      const topResult = limitedResults[0];
-      const absolutePath = path.isAbsolute(topResult.file) ? topResult.file : path.join(projectPath, topResult.file);
+      const top = results[0];
       return {
         content: [{ type: 'text' as const, text: JSON.stringify({
-          exists: true, query, project: projectPath,
-          total_matches: results.length, top_file: absolutePath,
-          top_score: Math.round(topResult.similarity * 100) / 100,
-        }, null, 2) }],
+          found: true, count: results.length,
+          top_file: path.relative(projectPath, path.isAbsolute(top.file) ? top.file : path.join(projectPath, top.file)),
+          score: Math.round(top.similarity * 100) / 100,
+        }) }],
       };
     }
 
-    const formattedResults = limitedResults.map((r: any, i: number) => {
-      const absolutePath = path.isAbsolute(r.file) ? r.file : path.join(projectPath, r.file);
-      return {
-        rank: i + 1,
-        file: absolutePath,
-        relative_path: r.file,
+    // full search — use cache
+    let results: any[];
+    let fromCache = false;
+    const cached = await this.queryCache.get(query, cacheProjectId, search_type);
+    if (cached) {
+      results = cached.results;
+      fromCache = true;
+    } else {
+      results = await this.searchOrchestrator.performSemanticSearch(query, projectPath, search_type as any);
+      if (results.length > 0) await this.queryCache.set(query, cacheProjectId, results, search_type);
+    }
+
+    if (results.length === 0) {
+      return { content: [{ type: 'text' as const, text: `No results for: "${query}". Try different terms or reindex.` }] };
+    }
+
+    const limited = results.slice(0, cap);
+    const formatted = limited.map((r: any, i: number) => {
+      const rel = path.isAbsolute(r.file) ? path.relative(projectPath, r.file) : r.file;
+      const node: Record<string, unknown> = {
+        rank:  i + 1,
+        file:  rel,
         score: Math.round(r.similarity * 100) / 100,
-        type: r.type,
-        match_source: r.debug?.matchSource || 'hybrid',
-        chunk: r.content.substring(0, 500) + (r.content.length > 500 ? '...' : ''),
         lines: r.lineStart && r.lineEnd ? `${r.lineStart}-${r.lineEnd}` : undefined,
+        sig:   this.extractSignature(r.content),
       };
+      if (full) node.snippet = r.content.substring(0, 300) + (r.content.length > 300 ? '…' : '');
+      return node;
     });
 
-    const wasLimited = results.length > limit;
-    const response: Record<string, unknown> = {
+    const resp: Record<string, unknown> = {
       query, project: projectPath,
-      total_results: limitedResults.length,
-      search_type, results: formattedResults,
+      count: limited.length, results: formatted,
     };
-    if (fromCache) response.cached = true;
-    if (wasLimited) {
-      response.truncated = true;
-      response.total_available = results.length;
-    }
+    if (fromCache) resp.cached = true;
+    if (results.length > cap) { resp.more = results.length - cap; }
 
-    return { content: [{ type: 'text' as const, text: JSON.stringify(response, null, 2) }] };
-  }
-
-  private async handleSearchAndRead(
-    query: string,
-    project: string | undefined,
-    max_files: number,
-    max_lines: number
-  ) {
-    const fileLimit = Math.min(max_files, 3);
-    const lineLimit = Math.min(max_lines, 1000);
-
-    const { projectPath, projectRecord, error } = await this.resolveProject(project);
-    if (error) return error;
-
-    const indexCheck = await this.verifyIndexed(projectPath, projectRecord as any);
-    if (indexCheck.error) return indexCheck.error;
-
-    const results = await this.searchOrchestrator.performSemanticSearch(query, projectPath);
-    if (results.length === 0) {
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify({ query, project: projectPath, found: false, message: 'No matching code found.' }, null, 2) }],
-      };
-    }
-
-    // Get unique files
-    const seenFiles = new Set<string>();
-    const uniqueResults: typeof results = [];
-    for (const r of results) {
-      const normalizedPath = r.file.replace(/\\/g, '/');
-      if (!seenFiles.has(normalizedPath)) {
-        seenFiles.add(normalizedPath);
-        uniqueResults.push(r);
-        if (uniqueResults.length >= fileLimit) break;
-      }
-    }
-
-    const files: Array<{
-      file: string; relative_path: string; score: number;
-      file_type: string; match_source: string; line_count: number;
-      content: string; truncated: boolean;
-    }> = [];
-
-    for (const result of uniqueResults) {
-      const absolutePath = path.isAbsolute(result.file) ? result.file : path.join(projectPath, result.file);
-      try {
-        if (!fs.existsSync(absolutePath)) continue;
-        const content = fs.readFileSync(absolutePath, 'utf-8');
-        const lines = content.split('\n');
-        const truncated = lines.length > lineLimit;
-        const displayLines = truncated ? lines.slice(0, lineLimit) : lines;
-        const numberedContent = displayLines.map((line, i) => `${String(i + 1).padStart(4)}│ ${line}`).join('\n');
-
-        files.push({
-          file: absolutePath,
-          relative_path: result.file,
-          score: Math.round(result.similarity * 100) / 100,
-          file_type: result.type,
-          match_source: result.debug?.matchSource || 'hybrid',
-          line_count: lines.length,
-          content: numberedContent + (truncated ? `\n... (truncated at ${lineLimit} lines)` : ''),
-          truncated,
-        });
-      } catch {
-        continue;
-      }
-    }
-
-    if (files.length === 0) {
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify({ query, project: projectPath, found: true, readable: false, message: 'Found matching files but could not read them.' }, null, 2) }],
-      };
-    }
-
-    return {
-      content: [{ type: 'text' as const, text: JSON.stringify({
-        query, project: projectPath,
-        files_found: results.length, files_returned: files.length,
-        results: files,
-      }, null, 2) }],
-    };
-  }
-
-  private async handleReadWithContext(
-    filepath: string,
-    project: string | undefined,
-    include_related: boolean
-  ) {
-    const storageManager = await getStorageManager();
-    const projectStore = storageManager.getProjectStore();
-
-    let projectPath: string;
-    if (project) {
-      const projects = await projectStore.list();
-      const found = projects.find(p =>
-        p.name === project || p.path === project || path.basename(p.path) === project
-      );
-      projectPath = found?.path || process.cwd();
-    } else {
-      projectPath = process.cwd();
-    }
-
-    const absolutePath = path.isAbsolute(filepath) ? filepath : path.join(projectPath, filepath);
-    if (!fs.existsSync(absolutePath)) {
-      return { content: [{ type: 'text' as const, text: `File not found: ${absolutePath}` }], isError: true };
-    }
-
-    const content = fs.readFileSync(absolutePath, 'utf-8');
-    let relatedChunks: Array<{ file: string; chunk: string; score: number }> = [];
-
-    if (include_related) {
-      const lines = content.split('\n');
-      const meaningfulLines: string[] = [];
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) continue;
-        if (trimmed.startsWith('import ') || trimmed.startsWith('from ') || trimmed.startsWith('require(')) continue;
-        if (trimmed.startsWith('#') && !trimmed.startsWith('##')) continue;
-        if (trimmed.startsWith('using ') || trimmed.startsWith('namespace ')) continue;
-        meaningfulLines.push(trimmed);
-        if (meaningfulLines.length >= 5) break;
-      }
-
-      const fileName = path.basename(filepath);
-      const fileNameQuery = fileName.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
-      const contentQuery = meaningfulLines.join(' ').substring(0, 200);
-      const searchQuery = `${fileNameQuery} ${contentQuery}`.trim();
-
-      const results = await this.searchOrchestrator.performSemanticSearch(
-        searchQuery || fileNameQuery,
-        projectPath
-      );
-
-      relatedChunks = results
-        .filter(r => !r.file.endsWith(path.basename(filepath)))
-        .slice(0, 5)
-        .map(r => ({
-          file: r.file,
-          chunk: r.content.substring(0, 300) + (r.content.length > 300 ? '...' : ''),
-          score: Math.round(r.similarity * 100) / 100,
-        }));
-    }
-
-    return {
-      content: [{ type: 'text' as const, text: JSON.stringify({
-        filepath: path.relative(projectPath, absolutePath),
-        content: content.length > 10000 ? content.substring(0, 10000) + '\n... (truncated)' : content,
-        line_count: content.split('\n').length,
-        related_chunks: include_related ? relatedChunks : undefined,
-      }, null, 2) }],
-    };
+    return { content: [{ type: 'text' as const, text: JSON.stringify(resp) }] };
   }
 
   // ============================================================
-  // TOOL 2: analyze
-  //   Combines: show_dependencies, find_duplicates, find_dead_code, standards
+  // HANDLERS: graph, duplicates, dead_code, standards
   // ============================================================
-
-  private registerAnalyzeTool(): void {
-    this.server.registerTool(
-      'analyze',
-      {
-        description: 'Code analysis. Actions: "dependencies" (imports/calls/extends graph), ' +
-          '"dead_code" (unused code, anti-patterns), "duplicates" (similar code), ' +
-          '"standards" (auto-detected coding patterns).',
-        inputSchema: {
-          action: z.enum(['dependencies', 'dead_code', 'duplicates', 'standards']).describe('Analysis type'),
-          project: z.string().describe('Project path or name'),
-          // dependencies params
-          filepath: z.string().optional().describe('File for dependency analysis'),
-          filepaths: z.array(z.string()).optional().describe('Multiple files for dependency analysis'),
-          query: z.string().optional().describe('Search query to find seed files for dependencies'),
-          depth: z.number().optional().default(1).describe('Relationship hops (1-3)'),
-          relationship_types: z.array(z.enum([
-            'imports', 'exports', 'calls', 'extends', 'implements', 'contains', 'uses', 'depends_on'
-          ])).optional().describe('Filter relationship types'),
-          direction: z.enum(['in', 'out', 'both']).optional().default('both').describe('Relationship direction'),
-          max_nodes: z.number().optional().default(50).describe('Max nodes'),
-          // duplicates params
-          similarity_threshold: z.number().optional().default(0.80).describe('Min similarity for duplicates (0-1)'),
-          min_lines: z.number().optional().default(5).describe('Min lines for duplicate analysis'),
-          // dead_code params
-          include_patterns: z.array(z.enum(['dead_code', 'god_class', 'circular_deps', 'feature_envy', 'coupling'])).optional()
-            .describe('Anti-patterns to detect'),
-          // standards params
-          category: z.enum(['validation', 'error-handling', 'logging', 'testing', 'all']).optional().default('all')
-            .describe('Standards category'),
-        },
-      },
-      async (params) => {
-        try {
-          switch (params.action) {
-            case 'dependencies':
-              return await this.handleShowDependencies(params);
-            case 'dead_code':
-              return await this.handleFindDeadCode(params);
-            case 'duplicates':
-              return await this.handleFindDuplicates(params);
-            case 'standards':
-              return await this.handleStandards(params);
-            default:
-              return { content: [{ type: 'text' as const, text: `Unknown action: ${params.action}` }], isError: true };
-          }
-        } catch (error) {
-          return {
-            content: [{ type: 'text' as const, text: this.formatErrorMessage('Analyze', error instanceof Error ? error : String(error), { projectPath: params.project }) }],
-            isError: true,
-          };
-        }
-      }
-    );
-  }
 
   private async handleShowDependencies(params: {
     project: string;
@@ -832,7 +689,7 @@ export class CodeSeekerMcpServer {
     }
 
     if (!projectId) {
-      return { content: [{ type: 'text' as const, text: 'Project not indexed. Use index({action: "init"}) first.' }], isError: true };
+      return { content: [{ type: 'text' as const, text: 'Project not indexed. Run codeseeker({action:"index",index:{op:"init",path:"..."}}) first.' }], isError: true };
     }
 
     // Determine seed file paths
@@ -1117,22 +974,50 @@ export class CodeSeekerMcpServer {
     const antiPatternItems: typeof deadCodeItems = [];
     const couplingItems: typeof deadCodeItems = [];
 
+    // Entry-point name fragments — files/symbols with these names are never flagged as dead.
+    // Covers common naming conventions across frameworks and languages.
+    const ENTRY_POINT_NAMES = ['main', 'index', 'app', 'server', 'cli', 'worker', 'bin', 'entry', 'bootstrap', 'start', 'init', 'run', 'launch'];
+
+    const isEntryPointName = (name: string): boolean => {
+      const lower = name.toLowerCase();
+      return ENTRY_POINT_NAMES.some(ep => lower === ep || lower.startsWith(ep + '.') || lower.endsWith('/' + ep));
+    };
+
     for (const node of allNodes) {
       const inEdges = await graphStore.getEdges(node.id, 'in');
       const outEdges = await graphStore.getEdges(node.id, 'out');
 
       if (patterns.includes('dead_code')) {
-        const isEntryPoint = node.type === 'file' ||
-          node.name.toLowerCase().includes('main') ||
-          node.name.toLowerCase().includes('index') ||
-          node.name.toLowerCase().includes('app');
-        if (!isEntryPoint && (node.type === 'class' || node.type === 'function') && inEdges.length === 0) {
+        // Files are handled separately in the orphaned-files pass below.
+        if (node.type === 'class' || node.type === 'function') {
+          if (isEntryPointName(node.name) || isEntryPointName(node.filePath)) continue;
+          if (inEdges.length > 0) continue;
+
+          // Read export and visibility metadata stored by the graph builder.
+          const props = node.properties as Record<string, unknown> | undefined;
+          const isExported = props?.isExported === true || props?.is_exported === true;
+          const visibility = (props?.visibility as string | undefined) ?? 'unknown';
+
+          // Exported symbols may be consumed by other packages — skip, don't guess.
+          if (isExported) continue;
+
+          // Tier confidence by how much we know about visibility.
+          // private/internal with no callers: strong signal.
+          // public/unknown unexported: moderate signal (dynamic dispatch, callbacks possible).
+          const isPrivate = visibility === 'private' || visibility === 'internal';
+          const confidence = isPrivate ? '85%' : '60%';
+          const caveat = isPrivate
+            ? 'Not exported and no detected callers.'
+            : 'Not exported and no detected static callers — dynamic dispatch or callbacks may still use this.';
+
           deadCodeItems.push({
-            type: 'Dead Code', name: node.name,
+            type: 'Unreferenced Symbol', name: node.name,
             file: path.relative(projectRecord.path, node.filePath),
-            description: `Unused ${node.type}: ${node.name} - no incoming references`,
-            confidence: '70%', impact: 'medium',
-            recommendation: 'Review if needed. Remove if unused or add to exports.',
+            description: `${node.type} "${node.name}" has no incoming static references. ${caveat}`,
+            confidence, impact: 'low',
+            recommendation: isPrivate
+              ? 'Safe to remove if no dynamic usage (reflection, eval, plugin system).'
+              : 'Verify no dynamic callers before removing. Consider exporting if used externally.',
           });
         }
       }
@@ -1160,6 +1045,37 @@ export class CodeSeekerMcpServer {
             description: `${node.type} ${node.name} has ${dependencies.length} dependencies`,
             confidence: '75%', impact: 'high',
             recommendation: 'Reduce via interfaces or dependency injection',
+          });
+        }
+      }
+    }
+
+    // Orphaned-file detection — uses import edges only (the most reliable graph signal).
+    // A file with no inbound imports from within the project and no entry-point name is
+    // a strong candidate for removal. Confidence is higher than symbol-level dead code
+    // because import edges are static and unambiguous.
+    const orphanedFiles: Array<{ file: string; description: string; confidence: string; recommendation: string }> = [];
+    if (patterns.includes('dead_code')) {
+      const fileNodes = allNodes.filter(n => n.type === 'file');
+      // Build inbound import count per file node
+      const inboundImportCount = new Map<string, number>(fileNodes.map(n => [n.id, 0]));
+      for (const fileNode of fileNodes) {
+        const outEdges = await graphStore.getEdges(fileNode.id, 'out');
+        for (const edge of outEdges) {
+          if (edge.type === 'imports' && inboundImportCount.has(edge.target)) {
+            inboundImportCount.set(edge.target, (inboundImportCount.get(edge.target) ?? 0) + 1);
+          }
+        }
+      }
+      for (const fileNode of fileNodes) {
+        if (isEntryPointName(fileNode.name) || isEntryPointName(fileNode.filePath)) continue;
+        if ((inboundImportCount.get(fileNode.id) ?? 0) === 0) {
+          const relPath = path.relative(projectRecord.path, fileNode.filePath);
+          orphanedFiles.push({
+            file: relPath,
+            description: `No other project file imports "${fileNode.name}". Could be an entry point, script, or dead file.`,
+            confidence: '80%',
+            recommendation: 'Verify this is not an entry point, CLI script, or plugin. Remove if truly unused.',
           });
         }
       }
@@ -1203,13 +1119,21 @@ export class CodeSeekerMcpServer {
           classes: allNodes.filter(n => n.type === 'class').length,
           functions: allNodes.filter(n => n.type === 'function').length,
         },
+        // Limitations of static graph analysis — AI should consider these before acting.
+        graph_limitations: [
+          'Call edges use regex heuristics — dynamic dispatch, callbacks, and event handlers are not detected.',
+          'Export status is only reliable for TypeScript/JS (Babel AST). Other languages use conventions.',
+          'Symbols consumed by external packages will appear unreferenced.',
+        ],
         summary: {
-          total_issues: deadCodeItems.length + antiPatternItems.length + couplingItems.length,
-          dead_code_count: deadCodeItems.length,
+          total_issues: deadCodeItems.length + orphanedFiles.length + antiPatternItems.length + couplingItems.length,
+          unreferenced_symbols: deadCodeItems.length,
+          orphaned_files: orphanedFiles.length,
           anti_patterns_count: antiPatternItems.length,
           coupling_issues_count: couplingItems.length,
         },
         dead_code: deadCodeItems.slice(0, 20),
+        orphaned_files: orphanedFiles.slice(0, 20),
         anti_patterns: antiPatternItems.slice(0, 10),
         coupling_issues: couplingItems.slice(0, 10),
       }, null, 2) }],
@@ -1266,61 +1190,8 @@ export class CodeSeekerMcpServer {
   }
 
   // ============================================================
-  // TOOL 3: index
-  //   Combines: index (init), sync, projects (status), install_parsers, exclude
+  // HANDLERS: index management
   // ============================================================
-
-  private registerIndexTool(): void {
-    this.server.registerTool(
-      'index',
-      {
-        description: 'Index management. Actions: "init" (index project), "sync" (update changed files), ' +
-          '"status" (list projects), "parsers" (install language parsers), "exclude" (manage exclusions).',
-        inputSchema: {
-          action: z.enum(['init', 'sync', 'status', 'parsers', 'exclude']).describe('Action'),
-          path: z.string().optional().describe('Project directory (for init)'),
-          project: z.string().optional().describe('Project name or path'),
-          name: z.string().optional().describe('Project name (for init)'),
-          // sync params
-          changes: z.array(z.object({
-            type: z.enum(['created', 'modified', 'deleted']),
-            path: z.string(),
-          })).optional().describe('File changes for sync'),
-          full_reindex: z.boolean().optional().default(false).describe('Full reindex'),
-          // parsers params
-          languages: z.array(z.string()).optional().describe('Languages to install parsers for'),
-          list_available: z.boolean().optional().default(false).describe('List available parsers'),
-          // exclude params
-          exclude_action: z.enum(['exclude', 'include', 'list']).optional().describe('Exclusion sub-action'),
-          paths: z.array(z.string()).optional().describe('Paths/patterns to exclude/include'),
-          reason: z.string().optional().describe('Exclusion reason'),
-        },
-      },
-      async (params) => {
-        try {
-          switch (params.action) {
-            case 'init':
-              return await this.handleIndexInit(params);
-            case 'sync':
-              return await this.handleSync(params);
-            case 'status':
-              return await this.handleProjects();
-            case 'parsers':
-              return await this.handleInstallParsers(params);
-            case 'exclude':
-              return await this.handleExclude(params);
-            default:
-              return { content: [{ type: 'text' as const, text: `Unknown action: ${params.action}` }], isError: true };
-          }
-        } catch (error) {
-          return {
-            content: [{ type: 'text' as const, text: this.formatErrorMessage('Index', error instanceof Error ? error : String(error), { projectPath: params.path || params.project }) }],
-            isError: true,
-          };
-        }
-      }
-    );
-  }
 
   private async handleIndexInit(params: {
     path?: string;
@@ -1744,6 +1615,88 @@ export class CodeSeekerMcpServer {
     }
 
     return { content: [{ type: 'text' as const, text: `Unknown exclude_action: ${exclude_action}` }], isError: true };
+  }
+
+  private async handleSymbolLookup(
+    sym: string,
+    project: string | undefined,
+    full: boolean
+  ) {
+    const storageManager = await getStorageManager();
+    const projectStore = storageManager.getProjectStore();
+    const graphStore = storageManager.getGraphStore();
+
+    let projectId: string | undefined;
+    let projectPath: string;
+
+    if (project) {
+      const projects = await projectStore.list();
+      const found = projects.find(p =>
+        p.name === project || p.path === project || path.basename(p.path) === project
+      );
+      if (found) { projectId = found.id; projectPath = found.path; }
+      else projectPath = process.cwd();
+    } else {
+      projectPath = process.cwd();
+      const projects = await projectStore.list();
+      const found = projects.find(p => p.path === projectPath || path.basename(p.path) === path.basename(projectPath));
+      if (found) { projectId = found.id; projectPath = found.path; }
+    }
+
+    if (!projectId) {
+      return { content: [{ type: 'text' as const, text: 'Project not indexed. Run codeseeker({action:"index",index:{op:"init",path:"..."}}) first.' }], isError: true };
+    }
+
+    const allNodes = await graphStore.findNodes(projectId);
+    const symLower = sym.toLowerCase();
+
+    // Exact matches first, then partial — exclude file nodes (they add noise)
+    const exact   = allNodes.filter(n => n.type !== 'file' && n.name.toLowerCase() === symLower);
+    const partial = allNodes.filter(n => n.type !== 'file' && n.name.toLowerCase() !== symLower && n.name.toLowerCase().includes(symLower));
+    const matches = [...exact, ...partial].slice(0, 20);
+
+    if (matches.length === 0) {
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ found: false, sym }) }] };
+    }
+
+    // Build a node-ID → {name,type,file} map for peer resolution (only load what we need)
+    const nodeCache = new Map<string, { name: string; type: string; file: string }>();
+    const resolveNode = async (id: string) => {
+      if (nodeCache.has(id)) return nodeCache.get(id)!;
+      const n = await graphStore.getNode(id);
+      if (!n) return null;
+      const rel = (n.properties as { relativePath?: string })?.relativePath || path.relative(projectPath, n.filePath);
+      const entry = { name: n.name, type: n.type, file: rel };
+      nodeCache.set(id, entry);
+      return entry;
+    };
+
+    const symbols = await Promise.all(matches.map(async (n) => {
+      const rel = (n.properties as { relativePath?: string })?.relativePath || path.relative(projectPath, n.filePath);
+      const edges = await graphStore.getEdges(n.id, 'both');
+      const entry: Record<string, unknown> = {
+        name: n.name,
+        type: n.type,
+        file: rel,
+        in:  edges.filter(e => e.target === n.id).length,
+        out: edges.filter(e => e.source === n.id).length,
+      };
+      if (full) {
+        const resolved = await Promise.all(edges.slice(0, 15).map(async e => {
+          const peerId = e.source === n.id ? e.target : e.source;
+          const peer = await resolveNode(peerId);
+          return peer ? { rel: e.type, dir: e.source === n.id ? 'out' : 'in', ...peer } : null;
+        }));
+        entry.edges = resolved.filter(Boolean);
+      }
+      return entry;
+    }));
+
+    return {
+      content: [{ type: 'text' as const, text: JSON.stringify({
+        sym, count: matches.length, symbols,
+      }) }],
+    };
   }
 
   // ============================================================
