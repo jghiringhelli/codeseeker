@@ -633,7 +633,7 @@ export class CodeSeekerMcpServer {
     });
 
     const resp: Record<string, unknown> = {
-      query, project: projectPath,
+      query, project: path.basename(projectPath),
       count: limited.length, results: formatted,
     };
     if (fromCache) resp.cached = true;
@@ -815,7 +815,7 @@ export class CodeSeekerMcpServer {
       };
     }
 
-    return { content: [{ type: 'text' as const, text: JSON.stringify(summary, null, 2) }] };
+    return { content: [{ type: 'text' as const, text: JSON.stringify(summary) }] };
   }
 
   private async handleFindDuplicates(params: {
@@ -1186,7 +1186,7 @@ export class CodeSeekerMcpServer {
       result = { ...standards, standards: { [category]: standards.standards[category] || {} } };
     }
 
-    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
   }
 
   // ============================================================
@@ -1682,7 +1682,7 @@ export class CodeSeekerMcpServer {
         out: edges.filter(e => e.source === n.id).length,
       };
       if (full) {
-        const resolved = await Promise.all(edges.slice(0, 15).map(async e => {
+        const resolved = await Promise.all(edges.slice(0, 5).map(async e => {
           const peerId = e.source === n.id ? e.target : e.source;
           const peer = await resolveNode(peerId);
           return peer ? { rel: e.type, dir: e.source === n.id ? 'out' : 'in', ...peer } : null;

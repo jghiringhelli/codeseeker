@@ -102,38 +102,26 @@ try {
 
 **Status**: Fully implemented (2025-12-31)
 
-When Claude discovers files that shouldn't be indexed (like Unity's Library folder, build outputs, or generated files), use the `manage_index` MCP tool to dynamically exclude them:
+When Claude discovers files that shouldn't be indexed (like Unity's Library folder, build outputs, or generated files), use `codeseeker` with `action:"index"` to dynamically exclude them:
 
 ### Usage Examples
 
 ```typescript
 // Exclude files/patterns - removes from index immediately
-manage_index({
-  action: "exclude",
-  project: "my-project",
-  paths: ["Library/**", "Temp/**", "*.generated.cs"],
-  reason: "Build artifacts and generated files"
-})
+codeseeker({action:"index", project:"my-project", index:{op:"exclude", exclude_op:"exclude", paths:["Library/**","Temp/**","*.generated.cs"], reason:"Build artifacts"}})
 
 // List current exclusions
-manage_index({
-  action: "list",
-  project: "my-project"
-})
+codeseeker({action:"index", project:"my-project", index:{op:"exclude", exclude_op:"list"}})
 
 // Re-include previously excluded files (requires reindex to take effect)
-manage_index({
-  action: "include",
-  project: "my-project",
-  paths: ["Library/**"]
-})
+codeseeker({action:"index", project:"my-project", index:{op:"exclude", exclude_op:"include", paths:["Library/**"]}})
 ```
 
 ### How It Works
 
 1. **Exclusion**: Files matching patterns are immediately deleted from the vector store
 2. **Persistence**: Exclusions saved to `.codeseeker/exclusions.json`
-3. **Reindexing**: User exclusions are respected during `index({action: "init"})` and `index({action: "sync", full_reindex: true})`
+3. **Reindexing**: User exclusions are respected during `codeseeker({action:"index",index:{op:"init",...}})` and `codeseeker({action:"index",index:{op:"sync",full_reindex:true}})`
 4. **Glob Patterns**: Supports `**` (any path), `*` (any segment), `?` (any char)
 
 ### When to Use
@@ -964,13 +952,12 @@ After reorganization, import paths have been updated:
 
 ```typescript
 // ✅ CORRECT - Always pass project parameter
-search({query: "authentication", project: "/path/to/current/project"})
-search({query: "error handling", project: "/path/to/current/project", read: true})
-analyze({action: "duplicates", project: "/path/to/current/project"})
-analyze({action: "dead_code", project: "/path/to/current/project"})
+codeseeker({action:"search", search:{q:"authentication"}, project:"/path/to/current/project"})
+codeseeker({action:"sym", sym:{name:"UserService"}, project:"/path/to/current/project"})
+codeseeker({action:"analyze", analyze:{kind:"duplicates"}, project:"/path/to/current/project"})
 
 // ❌ WRONG - Omitting project parameter may search wrong index
-search({query: "authentication"})  // May search a different project!
+codeseeker({action:"search", search:{q:"authentication"}})  // May search a different project!
 ```
 
 **Why this matters**: When multiple projects are indexed, CodeSeeker cannot automatically determine which project you're working in. Without the `project` parameter, searches may return results from the wrong codebase.
@@ -978,28 +965,26 @@ search({query: "authentication"})  // May search a different project!
 ### Auto-Initialization Check
 
 **BEFORE any code search**, verify the project is indexed:
-1. Call `index({action: "status"})` to see indexed projects
-2. If this project is NOT listed, call `index({action: "init", path: "PROJECT_ROOT_PATH"})` first
+1. Call `codeseeker({action:"index", index:{op:"status"}})` to see indexed projects
+2. If this project is NOT listed, call `codeseeker({action:"index", index:{op:"init", path:"PROJECT_ROOT_PATH"}})` first
 3. If tools return "Not connected", the MCP server may need restart
 
 ### When to Use CodeSeeker (DEFAULT)
 
 **ALWAYS use CodeSeeker for these queries** (remember to include `project` parameter!):
-- "Where is X handled?" → `search({query: "X handling logic", project: "..."})`
-- "Find the auth/login/validation code" → `search({query: "authentication", project: "..."})`
-- "How does Y work?" → `search({query: "Y implementation", project: "...", read: true})`
-- "What calls/imports Z?" → `analyze({action: "dependencies", filepath: "path/to/Z", project: "..."})`
-- "Show me the error handling" → `search({query: "error handling patterns", project: "...", read: true})`
-- "Find duplicate code" → `analyze({action: "duplicates", project: "..."})`
-- "Find unused/dead code" → `analyze({action: "dead_code", project: "..."})`
+- "Where is X handled?" → `codeseeker({action:"search", search:{q:"X handling logic"}, project:"..."})`
+- "Find the auth/login/validation code" → `codeseeker({action:"search", search:{q:"authentication"}, project:"..."})`
+- "What is class/function Y?" → `codeseeker({action:"sym", sym:{name:"Y"}, project:"..."})`
+- "What calls/imports Z?" → `codeseeker({action:"graph", graph:{q:"path/to/Z"}, project:"..."})`
+- "Find duplicate code" → `codeseeker({action:"analyze", analyze:{kind:"duplicates"}, project:"..."})`
+- "Find unused/dead code" → `codeseeker({action:"analyze", analyze:{kind:"dead_code"}, project:"..."})`
 
 | Task | MUST Use | NOT This |
 |------|----------|----------|
-| Find code by meaning | `search({query: "authentication logic"})` | ❌ `grep -r "auth"` |
-| Search + read files | `search({query: "error handling", read: true})` | ❌ `grep` then `cat` |
-| Show dependencies | `analyze({action: "dependencies", filepath: "..."})` | ❌ Manual file reading |
-| Find patterns | `analyze({action: "standards"})` | ❌ Searching manually |
-| Understand a file | `search({filepath: "..."})` | ❌ Just Read alone |
+| Find code by meaning | `codeseeker({action:"search", search:{q:"authentication logic"}})` | ❌ `grep -r "auth"` |
+| Look up a symbol | `codeseeker({action:"sym", sym:{name:"UserService"}})` | ❌ `grep` then read |
+| Show dependencies | `codeseeker({action:"graph", graph:{seed:"src/auth.ts"}})` | ❌ Manual file reading |
+| Find patterns | `codeseeker({action:"analyze", analyze:{kind:"standards"}})` | ❌ Searching manually |
 
 ### When to Use grep/glob (EXCEPTIONS ONLY)
 
@@ -1014,32 +999,30 @@ Only fall back to grep/glob when:
 ❌ grep -r "error handling" src/
    → Only finds literal text "error handling"
 
-✅ search({query: "how errors are handled"})
+✅ codeseeker({action: "search", q: "how errors are handled"})
    → Finds: try-catch blocks, .catch() callbacks, error responses,
      validation errors, custom Error classes - even if they don't
      contain the words "error handling"
 ```
 
-### Available MCP Tools (3 Consolidated)
+### Available MCP Tool (1 Sentinel, hierarchical schema)
 
-| Tool | Purpose | When to Use |
-|------|---------|-------------|
-| `search({query, project})` | Semantic search | First choice for any "find X" query |
-| `search({query, project, read: true})` | Search + read combined | When you need file contents |
-| `search({filepath, project})` | File + related code | Reading a file with context |
-| `analyze({action: "dependencies", filepath, project})` | Dependency graph | "What uses this?", "What does this depend on?" |
-| `analyze({action: "standards", project})` | Project patterns | Before writing new code |
-| `analyze({action: "duplicates", project})` | Find duplicate code | Cleaning up codebase |
-| `analyze({action: "dead_code", project})` | Find unused code | Finding code to remove |
-| `index({action: "init", path})` | Index a project | If project not indexed |
-| `index({action: "sync", project, changes})` | Update index | After editing files |
-| `index({action: "status"})` | Show indexed projects | Check if project is indexed |
-| `index({action: "exclude", project, exclude_action, paths})` | Manage exclusions | Exclude build artifacts, generated files |
-| `index({action: "parsers", project})` | Install language parsers | Better code understanding |
+Single entry point: `codeseeker({action, project, <action-group>})`  
+Fill only the nested param group that matches your action — the rest is ignored.
+
+| action | Nested group | Key params | Purpose |
+|--------|-------------|-----------|---------|
+| `search` | `search:{q,...}` | `q`, `exists?`, `full?`, `limit?`, `type?` | Semantic search — summaries by default; `exists:true` for quick yes/no; `full:true` for snippets |
+| `sym`    | `sym:{name,...}` | `name`, `full?` | Symbol lookup by name — exact matches first, then partial; `full:true` resolves edges to `{name,type,file}` |
+| `graph`  | `graph:{seed,...}` | `seed`\|`q`, `depth?`, `rel?`, `dir?`, `max?` | Dependency/relationship traversal from a seed file or query |
+| `analyze`| `analyze:{kind,...}` | `kind` (duplicates/dead_code/standards), `threshold?`, `category?` | Code quality analysis |
+| `index`  | `index:{op,...}` | `op` (init/sync/status/parsers/exclude) | Index management |
+
+**All result paths are relative to project root** — pass directly to your Read/View tool.
 
 ### Keep Index Updated
 
 After using Edit/Write tools, call:
 ```
-index({action: "sync", changes: [{type: "modified", path: "path/to/file"}]})
+codeseeker({action:"index", project:"...", index:{op:"sync", changes:[{type:"modified", path:"src/foo.ts"}]}})
 ```
