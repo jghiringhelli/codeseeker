@@ -165,11 +165,18 @@ export class SemanticSearchOrchestrator {
 
   // ── RAPTOR Cascade thresholds ─────────────────────────────────────────────
   /** Minimum L2 RAPTOR node score to trust its directory hint */
-  private static readonly L2_THRESHOLD = 0.5;
+  private l2Threshold = 0.5;
   /** Minimum number of results cascade must produce to skip fallback */
-  private static readonly CASCADE_MIN_RESULTS = 3;
+  private cascadeMinResults = 3;
   /** Minimum top-result score cascade must produce to skip fallback */
-  private static readonly CASCADE_TOP_SCORE = 0.25;
+  private cascadeTopScore = 0.25;
+
+  /** Override RAPTOR cascade thresholds — useful for tuning experiments. */
+  setRaptorConfig(config: { l2Threshold?: number; cascadeMinResults?: number; cascadeTopScore?: number }): void {
+    if (config.l2Threshold       !== undefined) this.l2Threshold       = config.l2Threshold;
+    if (config.cascadeMinResults !== undefined) this.cascadeMinResults = config.cascadeMinResults;
+    if (config.cascadeTopScore   !== undefined) this.cascadeTopScore   = config.cascadeTopScore;
+  }
 
   /**
    * Perform hybrid search using the storage interface abstraction.
@@ -234,15 +241,15 @@ export class SemanticSearchOrchestrator {
 
     // Check best L2 score
     const topL2Score = Math.max(...l2Nodes.map(n => n.score));
-    if (topL2Score < SemanticSearchOrchestrator.L2_THRESHOLD) {
-      this.logger.debug(`Cascade skipped: top L2 score ${topL2Score.toFixed(3)} < ${SemanticSearchOrchestrator.L2_THRESHOLD}`);
+    if (topL2Score < this.l2Threshold) {
+      this.logger.debug(`Cascade skipped: top L2 score ${topL2Score.toFixed(3)} < ${this.l2Threshold}`);
       return null;
     }
 
     // Collect candidate directories from qualifying L2 nodes
     const candidateDirs = new Set<string>();
     for (const node of l2Nodes) {
-      if (node.score >= SemanticSearchOrchestrator.L2_THRESHOLD) {
+      if (node.score >= this.l2Threshold) {
         const raptorDir = (node.document.metadata as any)?.raptorDir as string | undefined;
         if (raptorDir) candidateDirs.add(raptorDir);
       }
@@ -263,16 +270,16 @@ export class SemanticSearchOrchestrator {
       return [...candidateDirs].some(dir => normPath.startsWith(dir + '/') || normPath.startsWith(dir + '\\'));
     });
 
-    if (filteredRaw.length < SemanticSearchOrchestrator.CASCADE_MIN_RESULTS) {
-      this.logger.debug(`Cascade fallback: only ${filteredRaw.length} results in candidate dirs (min ${SemanticSearchOrchestrator.CASCADE_MIN_RESULTS})`);
+    if (filteredRaw.length < this.cascadeMinResults) {
+      this.logger.debug(`Cascade fallback: only ${filteredRaw.length} results in candidate dirs (min ${this.cascadeMinResults}`);
       return null;
     }
 
     const processed = this.processRawResults(filteredRaw, projectPath);
     const topScore = processed[0]?.similarity ?? 0;
 
-    if (topScore < SemanticSearchOrchestrator.CASCADE_TOP_SCORE) {
-      this.logger.debug(`Cascade fallback: top score ${topScore.toFixed(3)} < ${SemanticSearchOrchestrator.CASCADE_TOP_SCORE}`);
+    if (topScore < this.cascadeTopScore) {
+      this.logger.debug(`Cascade fallback: top score ${topScore.toFixed(3)} < ${this.cascadeTopScore}`);
       return null;
     }
 
