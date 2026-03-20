@@ -8,7 +8,7 @@
   },
   "scripts": {
     "postinstall": "node scripts/postinstall.js",
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').copyFileSync('src/cli/services/monitoring/file-scanning/file-scanner-config.json','dist/cli/services/monitoring/file-scanning/file-scanner-config.json')\"",
     "dev": "tsx src/index.ts",
     "start": "node dist/cli/codeseeker-cli.js",
     "test": "jest",

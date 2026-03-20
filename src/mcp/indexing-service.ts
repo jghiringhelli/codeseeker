@@ -87,7 +87,7 @@ export class IndexingService {
   // Directories to ignore (must match file-scanner-config.json)
   private readonly IGNORE_DIRS = [
     // Package managers / dependencies
-    'node_modules', 'vendor', 'packages', 'venv', 'virtualenv', '.venv',
+    'node_modules', 'vendor', 'venv', 'virtualenv', '.venv',
     // Version control
     '.git', '.svn', '.hg',
     // Build outputs

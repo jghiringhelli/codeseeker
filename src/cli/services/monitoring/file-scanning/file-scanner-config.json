@@ -8,7 +8,6 @@
     "directories": [
       "node_modules",
       "vendor",
-      "packages",
       ".git",
       ".svn",
       ".hg",

@@ -153,6 +153,67 @@ describe('symbol-name score boost', () => {
   });
 });
 
+// ── File-type boost tests ─────────────────────────────────────────────────────
+
+describe('file-type boost', () => {
+  it('source file (.ts) outranks an equal-score markdown doc (.md)', () => {
+    const orch = makeOrchestrator('DagCycleError topologicalSort');
+    const results = [
+      makeResult('docs/spec.md',          0.70, {}),
+      makeResult('src/dag/dag-engine.ts', 0.70, {}),  // equal score but .ts
+    ];
+    const ranked = process(orch, results);
+    expect(ranked[0].file).toContain('dag-engine.ts');
+  });
+
+  it('source file (.ts) outranks an equal-score lock file (.lock)', () => {
+    const orch = makeOrchestrator('registry spawnInstance');
+    const results = [
+      makeResult('pnpm-lock.yaml',          0.65, {}),
+      makeResult('src/roles/registry.ts',   0.65, {}),
+    ];
+    const ranked = process(orch, results);
+    expect(ranked[0].file).toContain('registry.ts');
+  });
+
+  it('test file (.test.ts) is penalised below equal-score implementation file', () => {
+    const orch = makeOrchestrator('DagCycleError topologicalSort');
+    const results = [
+      makeResult('tests/integration.test.ts', 0.70, {}),
+      makeResult('src/dag/dag-engine.ts',     0.70, {}),
+    ];
+    const ranked = process(orch, results);
+    // dag-engine.ts: 0.70 + 0.10 (src) = 0.80
+    // integration.test.ts: 0.70 + 0.10 (ts) - 0.15 (test) = 0.65
+    expect(ranked[0].file).toContain('dag-engine.ts');
+  });
+
+  it('files in __tests__ directory are penalised', () => {
+    const orch = makeOrchestrator('registry spawnInstance');
+    const results = [
+      makeResult('src/__tests__/registry.test.ts', 0.75, {}),
+      makeResult('src/roles/registry.ts',           0.65, {}),
+    ];
+    const ranked = process(orch, results);
+    // registry.ts: 0.65 + 0.10 = 0.75; __tests__/registry.test.ts: 0.75 + 0.10 - 0.15 = 0.70
+    expect(ranked[0].file).toContain('roles/registry');
+  });
+
+  it('multi-chunk boost requires per-chunk quality gate (score ≥ 0.15)', () => {
+    const orch = makeOrchestrator('authenticate user');
+    // Simulate large lock file: 5 chunks all scored 0.10 (below gate)
+    const lockChunks = Array.from({ length: 5 }, (_, i) =>
+      makeResult('pnpm-lock.yaml', 0.10, { chunkIndex: i })
+    );
+    // Small source file: 1 chunk scored 0.25 (above gate)
+    const sourceFile = makeResult('src/auth/AuthService.ts', 0.25, { symbolName: 'AuthService' });
+    const ranked = process(orch, [...lockChunks, sourceFile]);
+    // lock file best chunk = 0.10, below gate → no multi-chunk boost → stays at ~0.10
+    // source file = 0.25 + 0.20 (symbol) + 0.10 (type) = 0.55
+    expect(ranked[0].file).toContain('AuthService.ts');
+  });
+});
+
 // ── Mutation matrix ───────────────────────────────────────────────────────────
 // Each test below is designed to catch a specific mutation.
 

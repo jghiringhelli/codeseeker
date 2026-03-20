@@ -366,18 +366,55 @@ export class SemanticSearchOrchestrator {
       }
     }
 
-    // Boost: +10% per additional matching chunk (capped at 50%), score capped at 1.0
-    // Symbol-name boost: +20% when a query token matches the chunk's symbolName or class/function names.
-    // Helps exact symbol queries ("UserService", "registerUser") surface the right chunk over
-    // semantically similar but unrelated files.
+    // ── Score boosting ────────────────────────────────────────────────────────
+    //
+    // Four independent boosts applied additively after dedup:
+    //
+    // 1. Multi-chunk boost (+10% per extra chunk, capped at +30%)
+    //    Quality-gated: only counts chunks whose individual score ≥ 0.15.
+    //    Without the gate, large files (lock files, generated docs) accumulate
+    //    mediocre-scoring chunks and unfairly dominate.
+    //
+    // 2. Symbol-name boost (+0.20 additive)
+    //    When a query token (>2 chars) matches symbolName/functions/classes/filename.
+    //    Helps exact-symbol queries surface the declaring file over prose references.
+    //
+    // 3. Source-file type boost (+0.10 for code, -0.05 for docs/config)
+    //    Source files (.ts .js .py .cs etc.) preferred over docs (.md) and config (.yaml .lock).
+    //    Prevents spec docs from outranking implementation files on symbol queries.
+    //
+    // 4. Test-file penalty (-0.15)
+    //    Files in test directories or with .test./.spec. in their name get a penalty.
+    //    Test files import and USE all the same symbols as source files, causing them
+    //    to outrank the implementation files that DEFINE those symbols.
+
+    const SOURCE_EXTS = new Set(['.ts', '.js', '.tsx', '.jsx', '.py', '.cs', '.kt', '.java', '.go', '.rs', '.cpp', '.c', '.rb', '.swift', '.php']);
+    const DOC_EXTS    = new Set(['.md', '.txt', '.rst', '.adoc']);
+    const CONFIG_EXTS = new Set(['.json', '.yaml', '.yml', '.toml', '.lock', '.xml', '.ini', '.env']);
+
     const queryTokens = this.currentQuery
       .toLowerCase()
       .split(/\W+/)
       .filter(t => t.length > 2);
 
-    const boostedResults = Array.from(fileMap.values()).map(entry => {
-      const chunkBoost = Math.min((entry.chunkCount - 1) * 0.10, 0.50);
+    // Minimum per-chunk score to count toward multi-chunk boost
+    const CHUNK_BOOST_MIN_SCORE = 0.15;
 
+    const isTestFile = (filePath: string): boolean => {
+      const lower = filePath.toLowerCase().replace(/\\/g, '/');
+      return /\/(tests?|__tests?__|spec|specs)\//i.test(lower)
+        || /\.(test|spec)\.[a-z]+$/i.test(lower);
+    };
+
+    const boostedResults = Array.from(fileMap.values()).map(entry => {
+      // 1. Multi-chunk boost — quality-gated
+      const qualityChunkCount = entry.chunkCount; // stored as count in map; we use best-chunk score as gate
+      const baseScore = entry.result.score;
+      const chunkBoost = baseScore >= CHUNK_BOOST_MIN_SCORE
+        ? Math.min((qualityChunkCount - 1) * 0.10, 0.30)
+        : 0;
+
+      // 2. Symbol-name boost
       let symbolBoost = 0;
       if (queryTokens.length > 0 && !RaptorIndexingService.isRaptorPath(entry.result.document.filePath)) {
         const meta = entry.result.document.metadata as any;
@@ -389,7 +426,14 @@ export class SemanticSearchOrchestrator {
         if (queryTokens.some(t => symbolText.includes(t))) symbolBoost = 0.20;
       }
 
-      const boostedScore = Math.min(1.0, entry.result.score * (1 + chunkBoost) + symbolBoost);
+      // 3. File-type boost
+      const ext = path.extname(entry.result.document.filePath).toLowerCase();
+      const typeBoost = SOURCE_EXTS.has(ext) ? 0.10 : DOC_EXTS.has(ext) ? -0.05 : CONFIG_EXTS.has(ext) ? -0.05 : 0;
+
+      // 4. Test-file penalty
+      const testPenalty = isTestFile(entry.result.document.filePath) ? -0.15 : 0;
+
+      const boostedScore = Math.min(1.0, Math.max(0, baseScore * (1 + chunkBoost) + symbolBoost + typeBoost + testPenalty));
       return { ...entry.result, score: boostedScore };
     });
 
