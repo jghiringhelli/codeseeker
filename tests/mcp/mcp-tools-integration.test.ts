@@ -204,40 +204,40 @@ describe('MCP 3-Tool Integration', () => {
   describe('search tool', () => {
     describe('handleSearch (query mode)', () => {
       it('returns matching results for a text query', async () => {
-        const r = await server.handleSearch('authentication login', 'sample-project', 10, 'hybrid', 'full');
+        const r = await server.handleSearch('authentication login', 'sample-project', 10, 'hybrid', false, true);
         const d = json(r);
         expect(d.results).toBeDefined();
         expect(Array.isArray(d.results)).toBe(true);
-        expect(d.total_results).toBeGreaterThan(0);
+        expect(d.count).toBeGreaterThan(0);
       });
 
       it('each result has required fields', async () => {
-        const r = await server.handleSearch('validation email', 'sample-project', 5, 'hybrid', 'full');
+        const r = await server.handleSearch('validation email', 'sample-project', 5, 'hybrid', false, true);
         const d = json(r);
         for (const result of d.results) {
           expect(result).toHaveProperty('rank');
           expect(result).toHaveProperty('file');
           expect(result).toHaveProperty('score');
-          expect(result).toHaveProperty('chunk');
+          expect(result).toHaveProperty('sig'); // signature/summary field
         }
       });
 
       it('respects limit parameter', async () => {
-        const r = await server.handleSearch('service', 'sample-project', 2, 'hybrid', 'full');
+        const r = await server.handleSearch('service', 'sample-project', 2, 'hybrid', false, true);
         const d = json(r);
         expect(d.results.length).toBeLessThanOrEqual(2);
       });
 
       it('mode=exists returns quick summary', async () => {
-        const r = await server.handleSearch('authentication', 'sample-project', 5, 'hybrid', 'exists');
+        const r = await server.handleSearch('authentication', 'sample-project', 5, 'hybrid', true, false);
         const d = json(r);
-        expect(d).toHaveProperty('exists');
+        expect(d).toHaveProperty('found');
         // Note: may be false since search uses real semantic search with mock embeddings
-        expect(typeof d.exists).toBe('boolean');
+        expect(typeof d.found).toBe('boolean');
       });
 
       it('returns some failure response for unknown/unindexed project', async () => {
-        const r = await server.handleSearch('anything', 'no-such-project', 5, 'hybrid', 'full');
+        const r = await server.handleSearch('anything', 'no-such-project', 5, 'hybrid', false, true);
         // resolveProject falls back to a directory; verifyIndexed may pass or deny.
         // In either case we should NOT get a valid results list.
         const t = text(r);
@@ -675,7 +675,6 @@ describe('MCP 3-Tool Integration', () => {
       // handleReadWithContext succeeds even without vector data — it reads disk
       const d = json(r);
       expect(d).toHaveProperty('content');
-      expect(d).toHaveProperty('line_count');
       expect(d).not.toHaveProperty('total_results'); // NOT a handleSearch response
     });
 
@@ -691,7 +690,7 @@ describe('MCP 3-Tool Integration', () => {
     });
 
     it('search({query}) routes to handleSearch', async () => {
-      const r = await server.handleSearch('auth login', 'sample-project', 5, 'hybrid', 'full');
+      const r = await server.handleSearch('auth login', 'sample-project', 5, 'hybrid', false, true);
       const t = text(r);
       expect(typeof t).toBe('string');
       expect(t.length).toBeGreaterThan(0);

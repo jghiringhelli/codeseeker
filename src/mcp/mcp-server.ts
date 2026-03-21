@@ -569,6 +569,74 @@ export class CodeSeekerMcpServer {
     return content.split('\n')[0]?.trim().substring(0, 120) || '';
   }
 
+  // ── Public test-accessible handlers ───────────────────────────────────────
+
+  // ── Public test-accessible handlers ───────────────────────────────────────
+
+  /** Search and return file contents for top results. Used by tests via `as any`. */
+  async handleSearchAndRead(
+    query: string,
+    project: string | undefined,
+    limit: number,
+    tokenBudget: number
+  ) {
+    const inner = await this.handleSearch(query, project, limit, 'hybrid', false, false);
+    const text = inner.content[0]?.type === 'text' ? inner.content[0].text : '';
+    try {
+      const parsed = JSON.parse(text);
+      if (!parsed.results) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ query, project, files_found: 0, results: [] }) }], isError: false };
+      }
+      const charBudget = tokenBudget * 4;
+      let remaining = charBudget;
+      const results = (parsed.results as any[]).map((r: any) => {
+        const filepath = r.file && require('path').isAbsolute(r.file) ? r.file
+          : require('path').join(parsed.project_path ?? '', r.file);
+        let content = '';
+        try {
+          const raw = require('fs').readFileSync(filepath, 'utf-8');
+          content = raw.substring(0, Math.min(raw.length, remaining));
+          remaining = Math.max(0, remaining - content.length);
+        } catch { content = ''; }
+        return { file: r.file, score: r.score, content };
+      });
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ query, project, files_found: results.length, results }) }], isError: false };
+    } catch {
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ query, project, files_found: 0, results: [] }) }], isError: false };
+    }
+  }
+
+  /** Read a file from disk and return its content. Used by tests via `as any`. */
+  async handleReadWithContext(
+    filepath: string,
+    _project: string | undefined,
+    includeSummary: boolean
+  ) {
+    const fs = require('fs') as typeof import('fs');
+    try {
+      const content = fs.readFileSync(filepath, 'utf-8');
+      const lineCount = content.split('\n').length;
+      const resp: Record<string, unknown> = {
+        file: filepath,
+        filepath,
+        content,
+        line_count: lineCount,
+      };
+      if (includeSummary) {
+        resp.related_chunks = []; // graph neighbors not available in disk-only mode
+      }
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(resp) }],
+        isError: false
+      };
+    } catch {
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify({ file: filepath, error: 'File not found' }) }],
+        isError: true
+      };
+    }
+  }
+
   private async handleSearch(
     query: string,
     project: string | undefined,

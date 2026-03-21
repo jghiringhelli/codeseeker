@@ -403,6 +403,12 @@ export class SQLiteVectorStore implements IVectorStore {
         console.log(`[Search] ${entry.doc.filePath}: ${matchSource} semantic=${entry.vectorScore.toFixed(3)} text=${entry.ftsScore.toFixed(3)} -> display=${displayScore.toFixed(3)}`);
       }
 
+      // pathMatch: true if any query token (>2 chars) appears in the file path
+      const queryTokens = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+      const normalizedPath = entry.doc.filePath.toLowerCase();
+      const pathMatch = queryTokens.some(t => normalizedPath.includes(t));
+      if (pathMatch) matchSource = matchSource ? `${matchSource}+path` : 'path';
+
       return {
         document: entry.doc,
         score: displayScore,
@@ -410,7 +416,7 @@ export class SQLiteVectorStore implements IVectorStore {
         debug: {
           vectorScore: entry.vectorScore,
           textScore: entry.ftsScore,
-          pathMatch: false,
+          pathMatch,
           matchSource
         }
       };

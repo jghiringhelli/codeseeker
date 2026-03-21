@@ -532,7 +532,8 @@ export class SemanticSearchOrchestrator {
       }
 
       this.logger.debug(`Graph RAG: appended ${neighborFilePaths.size} related file(s)`);
-      return expanded;
+      // Re-sort so graph neighbors (fixed score) don't violate the descending order invariant
+      return expanded.sort((a, b) => b.similarity - a.similarity);
     } catch (error) {
       this.logger.debug(`Graph expansion error: ${error instanceof Error ? error.message : error}`);
       return results; // Graceful fallback — return hybrid results unchanged
