@@ -268,8 +268,9 @@ First search on a new project takes 30 seconds to several minutes (depending on 
 |----------|--------------|-----------|-------------|
 | **Grep/ripgrep** | Text pattern matching | Fast, universal | No semantic understanding |
 | **Vector search only** | Embedding similarity | Finds similar code | Misses structural relationships |
-| **LSP-based tools** | Language server protocol | Precise symbol definitions | No semantic search, no cross-file reasoning |
-| **CodeSeeker** | Knowledge graph + hierarchical hybrid search | Semantic + structure + directory context + patterns | Requires initial indexing (30s-5min) |
+| **Serena** | LSP-based symbol navigation via MCP | Precise symbol definitions, 30+ languages | No semantic search, no cross-file reasoning, no workflow layer |
+| **Codanna** | Semantic search + call graph via MCP (Rust) | Fast symbol lookup, 15 languages, great call graphs | Semantic search requires JSDoc/docstrings — undocumented JS/TS gets 0 embeddings; no BM25 fusion, no RAPTOR, no workflow layer, Windows experimental |
+| **CodeSeeker** | Knowledge graph + hierarchical hybrid search + workflow orchestration | Semantic + BM25 fusion + RAPTOR + Graph RAG + coding standards | Requires initial indexing (30s-5min) |
 
 ### CodeSeeker's Unique Capabilities
 
@@ -294,6 +295,71 @@ CodeSeeker combines all three: **graph traversal** for structure, **vector searc
 
 **Search quality guarantee:**
 Every release is gated by a precision/recall benchmark suite that runs 104 tests across hand-curated TypeScript, Python, and Go fixtures (JWT middleware, generic repositories, async ORMs, Pydantic schemas, goroutine workers, and more). FTS, hybrid, and graph modes must all achieve R@5 = 1.0 and MRR = 1.0 for language-specific queries; a regression of more than 0.15 on any (query × mode) cell blocks the release automatically.
+
+---
+
+## Search Quality Research
+
+<details>
+<summary><b>📊 Component ablation study (v1.12.0)</b> — measured impact of each retrieval layer</summary>
+
+### Setup
+
+18 hand-labelled queries across two real-world codebases:
+
+| Corpus | Language | Files | Queries | Query types |
+|--------|----------|-------|---------|-------------|
+| [Conclave](https://github.com/jghiringhelli/conclave) | TypeScript (pnpm monorepo) | 201 | 10 | Symbol lookup, cross-file chains, out-of-scope |
+| [ImperialCommander2](https://github.com/jonwill8/ImperialCommander2) | C# / Unity | 199 | 8 | Class lookup, controller wiring, file I/O |
+
+Each query has one or more `mustFind` targets (exact file basenames) and optional `mustNotFind` targets (scope leak check). Queries were run on a real index built from source — real Xenova embeddings, real graph, real RAPTOR L2 nodes — to reflect production conditions.
+
+Metrics: **MRR** (Mean Reciprocal Rank), **P@1** (Precision at 1), **R@5** (Recall at 5), **F1@3**.
+
+### Ablation results
+
+| Configuration | MRR | P@1 | P@3 | R@5 | F1@3 | Notes |
+|--------------|-----|-----|-----|-----|------|-------|
+| **Hybrid baseline** (BM25 + embed + RAPTOR, no graph) | **75.2%** | 61.1% | 29.6% | 91.7% | 44.4% | Production default |
+| + graph 1-hop | 74.9% | 61.1% | 29.6% | 91.7% | 44.4% | ±0% ranking, adds structural neighbors |
+| + graph 2-hop | 74.9% | 61.1% | 29.6% | 91.7% | 44.4% | Scope leaks on unrelated queries |
+| No RAPTOR (graph 1-hop) | 74.9% | 61.1% | 29.6% | 91.7% | 44.4% | RAPTOR contributes +0.3% |
+
+### What each layer actually does
+
+**BM25 + embedding fusion (RRF)**  
+The workhorse. Handles ~94% of ranking quality on its own. BM25 catches exact symbol names and camelCase tokens; vector embeddings catch semantic similarity when names differ. Fused with Reciprocal Rank Fusion to combine both signals without manual weight tuning.
+
+**RAPTOR (hierarchical directory summaries)**  
+Generates per-directory embedding nodes by mean-pooling all file embeddings in a folder. Acts as a post-filter: when a directory summary scores ≥ 0.5 against the query, results are narrowed to that directory's files. Measured contribution: **+0.3% MRR** on symbol queries. Fires conservatively — only when the directory is an obvious match. Its real value is on _abstract queries_ ("what does the payments module do?") which don't appear in this benchmark; for those queries it prevents broad scattering across the entire codebase.
+
+**Knowledge graph (import/dependency edges)**  
+Average connectivity: 20.8 file→file edges per node across both TS and C# codebases. Measured ranking impact: **±0% MRR** for 1-hop expansion. The graph doesn't move MRR because the semantic layer already finds the right files — the graph's neighbors are usually already in the top-15. Its value is structural: the `analyze dependencies` action and explicit `graph` search type give Claude traversable import chains, inheritance hierarchies, and dependency paths that embeddings alone cannot provide.
+
+**Type boost / penalty scoring**  
+Source files get +0.10 score boost; test files get −0.15 penalty; lock files and docs get −0.05 penalty. Without this, `integration.test.ts` would rank above `dag-engine.ts` for exact symbol queries because test files import and exercise every symbol in the source. The penalty corrects this without eliminating test files from results.
+
+**Monorepo directory exclusion fix**  
+The single highest-impact change in v1.12.0: removing `packages/` from the default exclusion list. For pnpm/yarn/lerna monorepos where all source lives under `packages/`, this exclusion was silently dropping all source files. Effect: **10% → 72% MRR** on the Conclave monorepo benchmark.
+
+### Known limitations
+
+| Query | Target | Issue | Root cause |
+|-------|--------|-------|-----------|
+| `cv-prompts` | `orchestrator.ts` | rank 97+ even with 2-hop graph | `prompt-builder.test.ts` outscores `prompt-builder.ts` semantically; source file never enters top-10, so we can't graph-walk from it to `orchestrator.ts`. Test-file dominance on cross-file queries. |
+| `cv-exec-mode` | `types.ts` | rank 11–12 | `types.ts` is a pure type-export file; low keyword density. Found within R@5 (rank ≤ 15). |
+
+### Benchmark script
+
+Reproduce with:
+```bash
+npm run build
+node scripts/real-bench.js
+```
+
+Requires `C:\workspace\claude\conclave` and `C:\workspace\ImperialCommander2` to be present locally (or update paths in `scripts/real-bench.js`).
+
+</details>
 
 ## Auto-Detected Coding Standards
 

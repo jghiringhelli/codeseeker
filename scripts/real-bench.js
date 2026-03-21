@@ -145,28 +145,24 @@ async function runIndex(projectPath, projectId) {
   return result;
 }
 
-async function searchProject(projectId, projectPath, query, graphDepth = 1) {
+async function searchProject(projectId, projectPath, query, graphDepth = 1, raptorOff = false) {
   const orch = new SemanticSearchOrchestrator();
   orch.setProjectId(projectId);
   orch.setGraphExpansionDepth(graphDepth);
+  if (raptorOff) orch.setRaptorConfig({ l2Threshold: 999 });
   const results = await orch.performSemanticSearch(query, projectPath);
   return results.map(r => path.basename(r.file));
 }
 
 // ── Benchmark runner ──────────────────────────────────────────────────────────
 
-/**
- * Run queries against an already-indexed project with the given graphDepth.
- * depth=0 → no graph expansion (hybrid-only baseline)
- * depth=1 → 1-hop graph expansion
- * depth=2 → 2-hop graph expansion
- */
-async function runQueries(label, projectId, projectPath, corpus, graphDepth, sm) {
-  report(`\n  ── ${label} (graph-depth=${graphDepth}) ──`);
+async function runQueries(label, projectId, projectPath, corpus, graphDepth, raptorOff) {
+  const tag = raptorOff ? `(graph-depth=${graphDepth},no-raptor)` : `(graph-depth=${graphDepth})`;
+  report(`\n  ── ${label} ${tag} ──`);
   const results = [];
 
   for (const c of corpus) {
-    const files = await searchProject(projectId, projectPath, c.query, graphDepth);
+    const files = await searchProject(projectId, projectPath, c.query, graphDepth, raptorOff);
     if (c.mustFind.length > 0) {
       const res = collect(c.id, c.query, label, c.mustFind, files);
       results.push(res);
@@ -206,36 +202,33 @@ async function runBench(label, projectPath, projectName, corpus) {
     report(`  Index errors: ${indexResult.errors.slice(0, 3).join('; ')}`);
   }
 
-  // Graph debug: check actual file→file connectivity
+  // Graph connectivity check
   try {
     const graphStore = sm.getGraphStore ? sm.getGraphStore() : null;
     if (graphStore) {
       const fileNodes = await graphStore.findNodes(projectId, 'file');
       report(`  Graph file nodes: ${fileNodes.length}`);
       if (fileNodes.length > 0) {
-        // Sample the first 3 file nodes and check their neighbors
-        let fileFileEdges = 0;
-        let totalFileNeighbors = 0;
-        const sampleSize = Math.min(10, fileNodes.length);
-        for (const fn of fileNodes.slice(0, sampleSize)) {
+        let fileFileEdges = 0, totalNeighbors = 0;
+        const N = Math.min(10, fileNodes.length);
+        for (const fn of fileNodes.slice(0, N)) {
           const neighbors = await graphStore.getNeighbors(fn.id);
-          const fileNeighbors = neighbors.filter(n => n.type === 'file');
-          fileFileEdges += fileNeighbors.length;
-          totalFileNeighbors += neighbors.length;
+          fileFileEdges  += neighbors.filter(n => n.type === 'file').length;
+          totalNeighbors += neighbors.length;
         }
-        report(`  Graph (sample ${sampleSize} files): avg ${(totalFileNeighbors/sampleSize).toFixed(1)} neighbors, ` +
-               `${(fileFileEdges/sampleSize).toFixed(1)} file→file edges per node`);
+        report(`  Graph (sample ${N}): avg ${(totalNeighbors/N).toFixed(1)} neighbors, ${(fileFileEdges/N).toFixed(1)} file→file`);
       }
     }
   } catch (e) { report(`  Graph debug error: ${e.message}`); }
 
-  // Ablation: run same queries with 3 graph expansion depths
-  const r0 = await runQueries(`${label} [no-graph]`,    projectId, projectPath, corpus, 0, sm);
-  const r1 = await runQueries(`${label} [graph-1hop]`,  projectId, projectPath, corpus, 1, sm);
-  const r2 = await runQueries(`${label} [graph-2hop]`,  projectId, projectPath, corpus, 2, sm);
+  // Ablation: 3 graph depths + RAPTOR disabled control
+  const r0  = await runQueries(`${label} [no-graph]`,   projectId, projectPath, corpus, 0, false);
+  const r1  = await runQueries(`${label} [graph-1hop]`, projectId, projectPath, corpus, 1, false);
+  const r2  = await runQueries(`${label} [graph-2hop]`, projectId, projectPath, corpus, 2, false);
+  const rNR = await runQueries(`${label} [no-raptor]`,  projectId, projectPath, corpus, 1, true);
 
   await sm.closeAll().catch(() => {});
-  return { r0, r1, r2 };
+  return { r0, r1, r2, rNR };
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -246,29 +239,24 @@ async function main() {
   report(`Date: ${new Date().toISOString()}`);
   report(`Index dir: ${process.env.CODESEEKER_DATA_DIR}`);
 
-  // Collect results per ablation mode across all projects
-  const agg = { r0: [], r1: [], r2: [] };
+  const agg = { r0: [], r1: [], r2: [], rNR: [] };
 
-  // 1. Conclave -- ground truth
   const cv = await runBench('Conclave (TypeScript)', CONCLAVE_ROOT, 'conclave', CONCLAVE_CORPUS);
-  if (cv) { agg.r0.push(...cv.r0); agg.r1.push(...cv.r1); agg.r2.push(...cv.r2); }
+  if (cv) { agg.r0.push(...cv.r0); agg.r1.push(...cv.r1); agg.r2.push(...cv.r2); agg.rNR.push(...cv.rNR); }
 
-  // 2. ImperialCommander2 -- C#/Unity, language-agnostic
   const ic2 = await runBench('ImperialCommander2 (C#/Unity)', IC2_ROOT, 'ic2', IC2_CORPUS);
-  if (ic2) { agg.r0.push(...ic2.r0); agg.r1.push(...ic2.r1); agg.r2.push(...ic2.r2); }
+  if (ic2) { agg.r0.push(...ic2.r0); agg.r1.push(...ic2.r1); agg.r2.push(...ic2.r2); agg.rNR.push(...ic2.rNR); }
 
-  // Ablation summary
   report('\n' + '='.repeat(72));
-  report('  ABLATION SUMMARY (aggregate across all projects)');
+  report('  ABLATION SUMMARY (aggregate, n=18 queries, 2 codebases)');
   report('='.repeat(72));
-  if (agg.r0.length > 0) table('no-graph (baseline)',  metrics(agg.r0));
-  if (agg.r1.length > 0) table('graph-1hop',           metrics(agg.r1));
-  if (agg.r2.length > 0) table('graph-2hop',           metrics(agg.r2));
+  if (agg.r0.length  > 0) table('no-graph (hybrid baseline)', metrics(agg.r0));
+  if (agg.r1.length  > 0) table('+ graph-1hop',               metrics(agg.r1));
+  if (agg.r2.length  > 0) table('+ graph-2hop',               metrics(agg.r2));
+  if (agg.rNR.length > 0) table('no-raptor (graph-1hop)',      metrics(agg.rNR));
   report('='.repeat(72));
 
-  // Cleanup temp dir
   try { fs.rmSync(BENCH_DIR, { recursive: true, force: true }); } catch {}
-
   flushReport();
   report(`\nReport saved to: ${REPORT_PATH}`);
 }
@@ -277,4 +265,3 @@ main().catch(err => {
   console.error('Benchmark failed:', err);
   process.exit(1);
 });
-
