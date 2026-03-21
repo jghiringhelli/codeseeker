@@ -152,12 +152,18 @@ export class SemanticSearchOrchestrator {
         case 'fts':
           return await this.performTextOnlySearch(query, projectPath);
         case 'graph': {
+          // Explicit graph mode: always expand regardless of graphExpansionDepth setting
           const base = await this.performHybridSearchViaInterface(query, projectPath);
-          return await this.expandWithGraphNeighbors(base, projectPath);
+          return await this.expandWithGraphNeighbors(base, projectPath, Math.max(1, this.graphExpansionDepth));
         }
         case 'hybrid':
-        default:
-          return await this.performHybridSearchViaInterface(query, projectPath);
+        default: {
+          const base = await this.performHybridSearchViaInterface(query, projectPath);
+          // Apply graph expansion unless explicitly disabled (depth=0)
+          return this.graphExpansionDepth > 0
+            ? await this.expandWithGraphNeighbors(base, projectPath, this.graphExpansionDepth)
+            : base;
+        }
       }
 
     } catch (error) {
@@ -180,6 +186,18 @@ export class SemanticSearchOrchestrator {
     if (config.l2Threshold       !== undefined) this.l2Threshold       = config.l2Threshold;
     if (config.cascadeMinResults !== undefined) this.cascadeMinResults = config.cascadeMinResults;
     if (config.cascadeTopScore   !== undefined) this.cascadeTopScore   = config.cascadeTopScore;
+  }
+
+  // ── Graph expansion configuration ────────────────────────────────────────────
+  /**
+   * Depth of graph neighbor expansion after hybrid search.
+   * 0 = disabled, 1 = 1-hop (default), 2 = 2-hop (cross-file chains)
+   */
+  private graphExpansionDepth = 1;
+
+  /** Configure graph expansion depth. 0 disables expansion entirely. */
+  setGraphExpansionDepth(depth: number): void {
+    this.graphExpansionDepth = Math.max(0, Math.min(2, depth));
   }
 
   /**
@@ -465,11 +483,12 @@ export class SemanticSearchOrchestrator {
   }
 
   /**
-   * Graph RAG: expand hybrid search results by following 1-hop code relationship edges.
+   * Graph RAG: expand hybrid search results by following code relationship edges.
    * For each of the top-5 result files, lookup its graph node and collect neighbours
    * (files connected via imports/calls/extends). Appends new files at a discounted score.
+   * @param depth  1 = 1-hop, 2 = 2-hop (follows neighbors of neighbors for cross-file chains)
    */
-  private async expandWithGraphNeighbors(results: SemanticResult[], projectPath: string): Promise<SemanticResult[]> {
+  private async expandWithGraphNeighbors(results: SemanticResult[], projectPath: string, depth = 1): Promise<SemanticResult[]> {
     if (!this.graphStore || !this.projectId || results.length === 0) return results;
     try {
       // Load all file nodes for this project once and build a filePath → nodeId map
@@ -479,7 +498,6 @@ export class SemanticSearchOrchestrator {
       const normalize = (p: string) => p.replace(/\\/g, '/');
       const filePathToNodeId = new Map<string, string>();
       for (const node of allFileNodes) {
-        // Index by both absolute and relative path to maximise matching
         filePathToNodeId.set(normalize(node.filePath), node.id);
         const rel = normalize(path.relative(projectPath, node.filePath));
         if (rel && !rel.startsWith('..')) {
@@ -487,52 +505,87 @@ export class SemanticSearchOrchestrator {
         }
       }
 
+      const resolveNodeId = (filePath: string): string | undefined => {
+        const relNorm = normalize(filePath);
+        const absNorm = normalize(path.isAbsolute(filePath) ? filePath : path.join(projectPath, filePath));
+        return filePathToNodeId.get(relNorm) || filePathToNodeId.get(absNorm);
+      };
+
+      const toRelNorm = (fp: string): string =>
+        normalize(path.isAbsolute(fp) ? path.relative(projectPath, fp) : fp);
+
       const existingPaths = new Set(results.map(r => normalize(r.file)));
 
-      // Only expand the top-5 hits to avoid adding noise from lower-ranked files
-      const TOP_K = Math.min(5, results.length);
-      const neighborFilePaths = new Set<string>();
+      // ── 1-hop: neighbors of top-10 results, scored per-source ────────────
+      // Expanding from top-10 (not top-5) ensures files like role-executor at rank 7
+      // contribute their neighbors even when not in the top 5.
+      const HOP1_DECAY = 0.7;
+      const TOP_K = Math.min(10, results.length);
+      // Track max source-score for each neighbor (per-source scoring)
+      const hop1BestScore = new Map<string, number>();
 
       for (const result of results.slice(0, TOP_K)) {
-        const relNorm = normalize(result.file);
-        const absNorm = normalize(path.isAbsolute(result.file) ? result.file : path.join(projectPath, result.file));
-        const nodeId = filePathToNodeId.get(relNorm) || filePathToNodeId.get(absNorm);
+        const nodeId = resolveNodeId(result.file);
         if (!nodeId) continue;
 
         const neighbors = await this.graphStore.getNeighbors(nodeId);
+        const sourceScore = result.similarity;
         for (const neighbor of neighbors) {
           if (neighbor.type !== 'file') continue;
-          const neighborRel = normalize(
-            path.isAbsolute(neighbor.filePath)
-              ? path.relative(projectPath, neighbor.filePath)
-              : neighbor.filePath
-          );
-          if (!existingPaths.has(neighborRel)) {
-            neighborFilePaths.add(neighborRel);
+          const rel = toRelNorm(neighbor.filePath);
+          if (!existingPaths.has(rel)) {
+            const derived = sourceScore * HOP1_DECAY;
+            hop1BestScore.set(rel, Math.max(hop1BestScore.get(rel) ?? 0, derived));
           }
         }
       }
 
-      if (neighborFilePaths.size === 0) return results;
+      // ── 2-hop: neighbors of 1-hop neighbors (cross-file chains) ──────────
+      const HOP2_DECAY = 0.7;
+      const hop2BestScore = new Map<string, number>();
+      if (depth >= 2 && hop1BestScore.size > 0) {
+        for (const [hop1Path, hop1Score] of hop1BestScore) {
+          const nodeId = resolveNodeId(hop1Path);
+          if (!nodeId) continue;
 
-      // Score neighbors 30% below the lowest vector result
-      const worstScore = results[results.length - 1]?.similarity ?? 0.1;
-      const expansionScore = parseFloat(Math.max(0.05, worstScore * 0.7).toFixed(4));
+          const neighbors = await this.graphStore.getNeighbors(nodeId);
+          for (const neighbor of neighbors) {
+            if (neighbor.type !== 'file') continue;
+            const rel = toRelNorm(neighbor.filePath);
+            if (!existingPaths.has(rel) && !hop1BestScore.has(rel)) {
+              const derived = hop1Score * HOP2_DECAY;
+              hop2BestScore.set(rel, Math.max(hop2BestScore.get(rel) ?? 0, derived));
+            }
+          }
+        }
+      }
+
+      if (hop1BestScore.size === 0 && hop2BestScore.size === 0) return results;
 
       const expanded: SemanticResult[] = [...results];
-      for (const neighborPath of neighborFilePaths) {
+      for (const [p1, score] of hop1BestScore) {
         expanded.push({
-          file: neighborPath,
-          type: this.determineFileType(neighborPath),
-          similarity: expansionScore,
+          file: p1,
+          type: this.determineFileType(p1),
+          similarity: parseFloat(Math.max(0.05, score).toFixed(4)),
           content: '[Graph-related: connected via code relationships (imports/calls/extends)]',
           lineStart: undefined,
           lineEnd: undefined,
         });
       }
+      for (const [p2, score] of hop2BestScore) {
+        expanded.push({
+          file: p2,
+          type: this.determineFileType(p2),
+          similarity: parseFloat(Math.max(0.04, score).toFixed(4)),
+          content: '[Graph-related: 2-hop code relationship chain]',
+          lineStart: undefined,
+          lineEnd: undefined,
+        });
+      }
 
-      this.logger.debug(`Graph RAG: appended ${neighborFilePaths.size} related file(s)`);
-      // Re-sort so graph neighbors (fixed score) don't violate the descending order invariant
+      this.logger.debug(`Graph RAG: appended ${hop1BestScore.size} 1-hop + ${hop2BestScore.size} 2-hop related files`);
+      // Re-sort so graph neighbors don't violate the descending order invariant
       return expanded.sort((a, b) => b.similarity - a.similarity);
     } catch (error) {
       this.logger.debug(`Graph expansion error: ${error instanceof Error ? error.message : error}`);

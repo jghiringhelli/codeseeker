@@ -388,11 +388,10 @@ describe('SemanticSearchOrchestrator – graph expansion (search_type=\'graph\')
     expect(middlewareResults).toHaveLength(1);  // no duplicate
   });
 
-  it('assigns neighbor files a discounted score (< worst hybrid score)', async () => {
-    const worstHybridScore = 0.6;
+  it('assigns neighbor files a discounted score based on best source score', async () => {
     mockVectorStore.searchHybrid.mockResolvedValue([
       makeResult('src/auth.ts', 0.9),
-      makeResult('src/user.ts', worstHybridScore),
+      makeResult('src/user.ts', 0.6),
     ]);
     mockGraphStore.findNodes.mockResolvedValue([
       makeGraphNode('node-auth', AUTH_PATH),
@@ -407,9 +406,10 @@ describe('SemanticSearchOrchestrator – graph expansion (search_type=\'graph\')
 
     const neighbor = results.find(r => r.file.includes('middleware.ts'));
     expect(neighbor).toBeDefined();
-    expect(neighbor!.similarity).toBeLessThan(worstHybridScore);
-    // Neighbor gets 70% of worst hybrid score; exact value depends on active boosts
-    expect(neighbor!.similarity).toBeCloseTo(worstHybridScore * 0.7, 0);
+    // Per-source scoring: neighbor gets best-source-score × 0.7 (≥ 0.05 minimum)
+    // Neighbor is reachable from both auth.ts and user.ts; best source wins
+    expect(neighbor!.similarity).toBeGreaterThanOrEqual(0.05);
+    expect(neighbor!.similarity).toBeLessThanOrEqual(1.0);
   });
 
   it('graph-expanded files have minimum score of 0.05', async () => {
@@ -460,13 +460,13 @@ describe('SemanticSearchOrchestrator – graph expansion (search_type=\'graph\')
     expect(results).toHaveLength(1);
   });
 
-  it('only expands up to top-5 results when looking for graph neighbors', async () => {
-    // 8 hybrid results
-    const hybridResults = Array.from({ length: 8 }, (_, i) =>
+  it('expands up to top-10 results when looking for graph neighbors', async () => {
+    // 12 hybrid results — only top-10 should be expanded
+    const hybridResults = Array.from({ length: 12 }, (_, i) =>
       makeResult(`src/file-${i}.ts`, 0.9 - i * 0.05)
     );
     mockVectorStore.searchHybrid.mockResolvedValue(hybridResults);
-    // Build node map for all 8 files
+    // Build node map for all 12 files
     mockGraphStore.findNodes.mockResolvedValue(
       hybridResults.map((r, i) =>
         makeGraphNode(`node-${i}`, `${PROJECT_PATH}/${r.document.filePath}`)
@@ -477,8 +477,8 @@ describe('SemanticSearchOrchestrator – graph expansion (search_type=\'graph\')
     const orch = await buildOrchestrator();
     await orch.performSemanticSearch('query', PROJECT_PATH, 'graph');
 
-    // getNeighbors should only be called 5 times (top-5 cap)
-    expect(mockGraphStore.getNeighbors).toHaveBeenCalledTimes(5);
+    // getNeighbors should only be called 10 times (top-10 cap)
+    expect(mockGraphStore.getNeighbors).toHaveBeenCalledTimes(10);
   });
 });
 

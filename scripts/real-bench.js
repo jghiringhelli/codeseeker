@@ -145,14 +145,47 @@ async function runIndex(projectPath, projectId) {
   return result;
 }
 
-async function searchProject(projectId, projectPath, query) {
+async function searchProject(projectId, projectPath, query, graphDepth = 1) {
   const orch = new SemanticSearchOrchestrator();
   orch.setProjectId(projectId);
+  orch.setGraphExpansionDepth(graphDepth);
   const results = await orch.performSemanticSearch(query, projectPath);
   return results.map(r => path.basename(r.file));
 }
 
 // ── Benchmark runner ──────────────────────────────────────────────────────────
+
+/**
+ * Run queries against an already-indexed project with the given graphDepth.
+ * depth=0 → no graph expansion (hybrid-only baseline)
+ * depth=1 → 1-hop graph expansion
+ * depth=2 → 2-hop graph expansion
+ */
+async function runQueries(label, projectId, projectPath, corpus, graphDepth, sm) {
+  report(`\n  ── ${label} (graph-depth=${graphDepth}) ──`);
+  const results = [];
+
+  for (const c of corpus) {
+    const files = await searchProject(projectId, projectPath, c.query, graphDepth);
+    if (c.mustFind.length > 0) {
+      const res = collect(c.id, c.query, label, c.mustFind, files);
+      results.push(res);
+      const hit = res.ranks.every(r => r > 0)
+        ? `✓ ranks ${res.ranks.join(',')}`
+        : `✗ miss  (${res.ranks.join(',')})`;
+      report(`  [${c.id.padEnd(14)}] ${hit.padEnd(18)} → ${files.slice(0, 4).join(', ')}`);
+    } else {
+      const bad = c.mustNotFind.length > 0
+        ? files.filter(f => c.mustNotFind.some(m => f.includes(m)))
+        : [];
+      const scope = bad.length > 0 ? `✗ LEAK: ${bad.join(',')}` : `✓ scope ok (${files.length} results)`;
+      report(`  [${c.id.padEnd(14)}] ${scope}`);
+    }
+  }
+
+  if (results.length > 0) table(label, metrics(results));
+  return results;
+}
 
 async function runBench(label, projectPath, projectName, corpus) {
   if (!fs.existsSync(projectPath)) {
@@ -173,75 +206,65 @@ async function runBench(label, projectPath, projectName, corpus) {
     report(`  Index errors: ${indexResult.errors.slice(0, 3).join('; ')}`);
   }
 
-  // Debug: show which files were indexed
+  // Graph debug: check actual file→file connectivity
   try {
-    const store = sm.getEmbeddingStore ? sm.getEmbeddingStore() : null;
-    if (store && store.getAllByProject) {
-      const allDocs = await store.getAllByProject(projectId);
-      const uniqueFiles = [...new Set(allDocs.map(d => d.filePath))].sort();
-      report(`  Indexed files (${uniqueFiles.length}):`);
-      uniqueFiles.forEach(f => report(`    ${path.relative(projectPath, f)}`));
+    const graphStore = sm.getGraphStore ? sm.getGraphStore() : null;
+    if (graphStore) {
+      const fileNodes = await graphStore.findNodes(projectId, 'file');
+      report(`  Graph file nodes: ${fileNodes.length}`);
+      if (fileNodes.length > 0) {
+        // Sample the first 3 file nodes and check their neighbors
+        let fileFileEdges = 0;
+        let totalFileNeighbors = 0;
+        const sampleSize = Math.min(10, fileNodes.length);
+        for (const fn of fileNodes.slice(0, sampleSize)) {
+          const neighbors = await graphStore.getNeighbors(fn.id);
+          const fileNeighbors = neighbors.filter(n => n.type === 'file');
+          fileFileEdges += fileNeighbors.length;
+          totalFileNeighbors += neighbors.length;
+        }
+        report(`  Graph (sample ${sampleSize} files): avg ${(totalFileNeighbors/sampleSize).toFixed(1)} neighbors, ` +
+               `${(fileFileEdges/sampleSize).toFixed(1)} file→file edges per node`);
+      }
     }
-  } catch (_e) { /* storage API may differ */ }
+  } catch (e) { report(`  Graph debug error: ${e.message}`); }
 
-  report('\n  Queries:');
-  const results = [];
-
-  for (const c of corpus) {
-    const files = await searchProject(projectId, projectPath, c.query);
-    if (c.mustFind.length > 0) {
-      const res = collect(c.id, c.query, label, c.mustFind, files);
-      results.push(res);
-      const hit = res.ranks.every(r => r > 0)
-        ? `✓ ranks ${res.ranks.join(',')}`
-        : `✗ miss  (${res.ranks.join(',')})`;
-      report(`  [${c.id.padEnd(14)}] ${hit.padEnd(18)} → ${files.slice(0, 3).join(', ')}`);
-    } else {
-      // out-of-scope
-      const bad = c.mustNotFind.length > 0
-        ? files.filter(f => c.mustNotFind.some(m => f.includes(m)))
-        : [];
-      const scope = bad.length > 0 ? `✗ LEAK: ${bad.join(',')}` : `✓ scope ok (${files.length} results)`;
-      report(`  [${c.id.padEnd(14)}] ${scope}`);
-    }
-  }
-
-  report('');
-  if (results.length > 0) table(label, metrics(results));
+  // Ablation: run same queries with 3 graph expansion depths
+  const r0 = await runQueries(`${label} [no-graph]`,    projectId, projectPath, corpus, 0, sm);
+  const r1 = await runQueries(`${label} [graph-1hop]`,  projectId, projectPath, corpus, 1, sm);
+  const r2 = await runQueries(`${label} [graph-2hop]`,  projectId, projectPath, corpus, 2, sm);
 
   await sm.closeAll().catch(() => {});
-  return results;
+  return { r0, r1, r2 };
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  report('CODESEEKER REAL-INDEX BENCHMARK');
+  report('CODESEEKER REAL-INDEX BENCHMARK -- ABLATION');
   report(`Version: ${require('../package.json').version}`);
   report(`Date: ${new Date().toISOString()}`);
   report(`Index dir: ${process.env.CODESEEKER_DATA_DIR}`);
 
-  const allResults = [];
+  // Collect results per ablation mode across all projects
+  const agg = { r0: [], r1: [], r2: [] };
 
-  // 1. Conclave — ground truth
-  const cvResults = await runBench('Conclave (TypeScript)', CONCLAVE_ROOT, 'conclave', CONCLAVE_CORPUS);
-  if (cvResults) allResults.push(...cvResults);
+  // 1. Conclave -- ground truth
+  const cv = await runBench('Conclave (TypeScript)', CONCLAVE_ROOT, 'conclave', CONCLAVE_CORPUS);
+  if (cv) { agg.r0.push(...cv.r0); agg.r1.push(...cv.r1); agg.r2.push(...cv.r2); }
 
-  // 2. ImperialCommander2 — C#/Unity, language-agnostic
-  const ic2Results = await runBench('ImperialCommander2 (C#/Unity)', IC2_ROOT, 'ic2', IC2_CORPUS);
-  if (ic2Results) allResults.push(...ic2Results);
+  // 2. ImperialCommander2 -- C#/Unity, language-agnostic
+  const ic2 = await runBench('ImperialCommander2 (C#/Unity)', IC2_ROOT, 'ic2', IC2_CORPUS);
+  if (ic2) { agg.r0.push(...ic2.r0); agg.r1.push(...ic2.r1); agg.r2.push(...ic2.r2); }
 
-  // 3. Generative Spec — skip for this run (exploratory, no mustFind)
-  // const gsResults = await runBench('generative-specification (Markdown)', GENSPEC_ROOT, 'genspec', GENSPEC_CORPUS);
-  // if (gsResults) allResults.push(...gsResults);
-
-  // Aggregate
-  if (allResults.length > 0) {
-    report('\n' + '═'.repeat(72));
-    report('  AGGREGATE (all projects with mustFind)');
-    table('TOTAL', metrics(allResults));
-    report('═'.repeat(72));
-  }
+  // Ablation summary
+  report('\n' + '='.repeat(72));
+  report('  ABLATION SUMMARY (aggregate across all projects)');
+  report('='.repeat(72));
+  if (agg.r0.length > 0) table('no-graph (baseline)',  metrics(agg.r0));
+  if (agg.r1.length > 0) table('graph-1hop',           metrics(agg.r1));
+  if (agg.r2.length > 0) table('graph-2hop',           metrics(agg.r2));
+  report('='.repeat(72));
 
   // Cleanup temp dir
   try { fs.rmSync(BENCH_DIR, { recursive: true, force: true }); } catch {}
@@ -254,3 +277,4 @@ main().catch(err => {
   console.error('Benchmark failed:', err);
   process.exit(1);
 });
+
