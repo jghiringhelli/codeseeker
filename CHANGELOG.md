@@ -5,6 +5,50 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-21
+
+### Summary
+
+Major release fixing a critical monorepo indexing bug (MRR 10% → 72% on pnpm workspaces), adding measured scoring improvements, enabling graph expansion in default hybrid mode, and shipping a real-index ablation benchmark. All 711 unit/integration tests passing.
+
+### Fixed
+
+- **Monorepo support: remove `packages/` from default excluded directories** — For pnpm/yarn/lerna monorepos where all source lives under `packages/`, the directory was silently excluded by both `file-scanner-config.json` and a hardcode in `indexing-service.ts`. Effect: MRR 10% → 72% on the Conclave TS monorepo benchmark. This is the single highest-impact fix in this release.
+- **`pathMatch` hardcoded `false`** in `sqlite-vector-store.ts` — path-match boost was never firing. Now correctly detects query tokens in file paths.
+- **Sort invariant in `expandWithGraphResults`** — graph neighbors were appended without re-sorting, violating descending similarity order when neighbor score exceeded the lowest result.
+- **MCP tools API drift** — `mcp-tools-integration.test.ts` was testing a 5-arg `handleSearch` signature against the current 6-arg API; updated all calls plus missing `handleSearchAndRead`/`handleReadWithContext` shims. 52/52 passing.
+- **e2e fixture EPERM** — removed binary `.fastembed_cache` directory from ContractMaster test fixture that locked on Windows.
+
+### Changed
+
+- **Graph expansion now runs in default hybrid mode** — previously only fired for explicit `search_type='graph'`. Default `graphExpansionDepth=1`; set to 0 to disable, 2 for 2-hop cross-file chains (disabled by default due to scope leaks).
+- **Per-source graph scoring** — graph neighbors now inherit `max(source_score) × 0.7` rather than `worstResult × 0.7`. A neighbor of a high-scoring file gets a proportional score; multiple pointing sources take the max.
+- **Graph expansion from top-10** (was top-5) — captures neighbors of rank-6 through rank-10 files.
+- **`setGraphExpansionDepth(depth)`** public method for tuning/ablation experiments.
+- **Multi-chunk boost quality gate** — chunks must score ≥ 0.15 to count toward the multi-chunk boost (cap 0.30). Prevents lock files and generated files from accumulating large boosts via many low-score chunks.
+
+### Added
+
+- **Source-file type boost (+0.10)** for `.ts`, `.js`, `.py`, `.cs`, `.go`, etc.
+- **Test-file penalty (−0.15)** for files matching `*.test.*`, `*.spec.*`, `__tests__/`.
+- **Doc/config penalty (−0.05)** for `.md`, `.yaml`, `.lock`, `.json` config files.
+- **Real-index benchmark harness** (`scripts/real-bench.js`) — runs full production indexing pipeline on real codebases (Conclave TS, ImperialCommander2 C#) and measures MRR/P@1/P@3/R@5/F1@3 per ablation mode. Reproduces in ~10 minutes: `npm run build && node scripts/real-bench.js`.
+- **`file-scanner-config.json` copy step** in `npm run build` — JSON config is no longer silently dropped by `tsc`.
+- **ADR-009** (type boost/penalty rationale), **ADR-010** (packages dir removal), **ADR-011** (graph expansion ablation methodology).
+- **Search quality research section** in README — 4-mode ablation table, per-layer analysis, pipeline diagram, known limitations.
+
+### Benchmark results (v2.0.0, n=18 queries, 2 real codebases)
+
+| Configuration | MRR | P@1 | R@5 |
+|---|---|---|---|
+| BM25 + embed + RAPTOR (no graph) | **75.2%** | 61.1% | 91.7% |
+| + graph 1-hop | 74.9% | 61.1% | 91.7% |
+| No RAPTOR control | 74.9% | 61.1% | 91.7% |
+
+RAPTOR contributes +0.3% MRR on symbol queries; its primary value is on abstract/package-level queries not represented in this benchmark. Graph is neutral on ranking but essential for dependency analysis.
+
+---
+
 ## [1.11.2] - 2026-03-03
 
 ### Fixed
