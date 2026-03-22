@@ -17,7 +17,7 @@ This directory contains detailed documentation for CodeSeeker. For a quick overv
 | Document | Description |
 |----------|-------------|
 | [Core Cycle Technical Guide](technical/core_cycle.md) | Code-level implementation details for the 11-step workflow |
-| [Architecture Summary](technical/architecture.md) | Three-layer architecture and SOLID principles |
+| [Architecture & Technical Manual](technical/architecture.md) | Complete v2.0 technical reference: pipeline, scoring, MCP tool schema, graph edges, RAPTOR, storage |
 | [Database Schema](db/schema.md) | PostgreSQL, Neo4j, and Redis schema reference |
 
 ## Extensions & Deployment

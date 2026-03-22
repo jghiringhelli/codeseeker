@@ -592,6 +592,8 @@ All data stored locally in `.codeseeker/`. No external services required.
 
 For large teams (100K+ files, shared indexes), server mode supports PostgreSQL + Neo4j. See [Storage Documentation](docs/technical/storage.md).
 
+For the complete technical internals — exact scoring formulas, MCP tool schema, graph edge types, RAPTOR threshold logic, pipeline stages, analysis confidence tiers — see the **[Technical Architecture Manual](docs/technical/architecture.md)**.
+
 ## Troubleshooting
 
 ### "I can't find CodeSeeker in the VS Code marketplace"
