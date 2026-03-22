@@ -1,18 +1,93 @@
 # CodeSeeker
 
-**Graph-powered code intelligence for Claude Code.** CodeSeeker builds a knowledge graph of your codebase—not just embeddings—so Claude understands how your code actually connects.
+**Four-layer hybrid search and knowledge graph for AI coding assistants.**  
+BM25 + vector embeddings + RAPTOR directory summaries + graph expansion — fused into a single MCP tool that gives Claude, Copilot, and Cursor a real understanding of your codebase.
 
 [![npm version](https://img.shields.io/npm/v/codeseeker.svg)](https://www.npmjs.com/package/codeseeker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
 
-> **What is CodeSeeker?** An MCP server that gives AI assistants semantic code search and knowledge graph traversal. Works with **Claude Code**, **GitHub Copilot**, **Cursor**, and **Claude Desktop**.
+Works with **Claude Code**, **GitHub Copilot** (VS Code 1.99+), **Cursor**, **Windsurf**, and **Claude Desktop**.  
+Zero configuration — indexes on first use, stays in sync automatically.
 
-> **⚠️ NOT A VS CODE EXTENSION:** CodeSeeker is installed via `npm`, not the VS Code marketplace. It's an MCP server that enhances AI assistants, not a standalone extension.
+## The Problem
+
+AI assistants are powerful editors, but they navigate code like a tourist:
+- **Grep finds text** — not meaning. `"find authentication logic"` returns every file containing the word "auth"
+- **File reads are isolated** — Claude sees a file but not its dependencies, callers, or the patterns your team established
+- **No memory of your project** — every session starts from scratch
+
+CodeSeeker fixes this. It indexes your codebase once and gives AI assistants a queryable knowledge graph they can use on every turn.
+
+## How It Works
+
+A 4-stage pipeline runs on every query:
+
+```
+Query: "find JWT refresh token logic"
+        │
+        ▼  Stage 1 — Hybrid retrieval
+   ┌─────────────────────────────────────────────────────┐
+   │ BM25 (exact symbols, camelCase tokenized)           │
+   │   +                                                 │
+   │ Vector search (384-dim Xenova embeddings)           │
+   │   ↓                                                 │
+   │ Reciprocal Rank Fusion: score = Σ 1/(60 + rank_i)  │
+   │ Top-30 results, including RAPTOR directory nodes    │
+   └─────────────────────────────────────────────────────┘
+        │
+        ▼  Stage 2 — RAPTOR cascade (conditional)
+   ┌─────────────────────────────────────────────────────┐
+   │ IF best directory-summary score ≥ 0.5:              │
+   │   → narrow results to that directory automatically  │
+   │ ELSE: all 30 results pass through unchanged         │
+   │ Effect: "what does auth/ do?" scopes to auth/       │
+   │         "jwt.ts decode function" bypasses this      │
+   └─────────────────────────────────────────────────────┘
+        │
+        ▼  Stage 3 — Scoring and deduplication
+   ┌─────────────────────────────────────────────────────┐
+   │ Dedup: keep highest-score chunk per file            │
+   │ Source files:  +0.10  (definition sites matter)     │
+   │ Test files:    −0.15  (prevent test dominance)      │
+   │ Symbol boost:  +0.20  (query token in filename)     │
+   │ Multi-chunk:   up to +0.30  (file has many hits)    │
+   └─────────────────────────────────────────────────────┘
+        │
+        ▼  Stage 4 — Graph expansion
+   ┌─────────────────────────────────────────────────────┐
+   │ Top-10 results → follow IMPORTS/CALLS/EXTENDS edges │
+   │ Structural neighbors scored at source × 0.7        │
+   │ Avg graph connectivity: 20.8 edges/node             │
+   └─────────────────────────────────────────────────────┘
+        │
+        ▼
+   auth/jwt.ts (0.94), auth/refresh.ts (0.89), ...
+```
+
+The knowledge graph is built from AST-parsed imports at index time. It's what powers `analyze dependencies`, dead-code detection, and graph expansion in every search.
+
+## What Makes It Different
+
+| Approach | Strengths | Limitations |
+|----------|-----------|-------------|
+| **Grep / ripgrep** | Fast, universal | No semantic understanding |
+| **Vector search only** | Finds similar code | Misses structural relationships |
+| **Serena** | Precise LSP symbol navigation, 30+ languages | No semantic search, no cross-file reasoning |
+| **Codanna** | Fast symbol lookup, good call graphs | Semantic search needs JSDoc — undocumented code gets no embeddings; no BM25, no RAPTOR, Windows experimental |
+| **CodeSeeker** | BM25 + embedding fusion + RAPTOR + graph + coding standards + multi-language AST | Requires initial indexing (30s–5min) |
+
+**What LSP tools can't do:**
+- *"Find code that handles errors like this"* → semantic pattern search
+- *"What validation approach does this project use?"* → auto-detected coding standards
+- *"Show me everything related to authentication"* → graph traversal across indirect dependencies
+
+**What vector-only search misses:**
+- Direct import/export chains
+- Class inheritance hierarchies
+- Which files actually depend on which
 
 ## Installation
-
-> **🚨 Important:** CodeSeeker is **NOT a VS Code extension**. It's an **MCP server** (Model Context Protocol) that works WITH AI assistants like Claude Code and GitHub Copilot. Don't look for it in the VS Code marketplace—install via the methods below.
 
 ### ⚡ One-Line Install (Easiest)
 
@@ -94,41 +169,6 @@ Or use our pre-configured devcontainer (already included in this repo).
 Ask your AI assistant: *"What CodeSeeker tools do you have?"*
 
 You should see: `search`, `analyze`, `index` — CodeSeeker's three unified tools.
-
----
-
-## The Problem
-
-Claude Code is powerful, but it navigates your codebase like a tourist with a phrasebook:
-- **Grep searches** find text matches, not semantic meaning
-- **File reads** show code in isolation, missing the bigger picture
-- **No memory** of your project's patterns—every session starts fresh
-
-The result? Claude asks you to explain code relationships it should already know. It writes validation logic that doesn't match your existing patterns. It misses dependencies and breaks things.
-
-## How CodeSeeker Fixes This
-
-CodeSeeker builds a **knowledge graph** of your codebase:
-
-```
-┌─────────────┐     imports      ┌─────────────┐
-│  auth.ts    │ ───────────────▶ │  user.ts    │
-└─────────────┘                  └─────────────┘
-       │                                │
-       │ calls                          │ extends
-       ▼                                ▼
-┌─────────────┐     implements   ┌─────────────┐
-│ session.ts  │ ◀─────────────── │ BaseUser.ts │
-└─────────────┘                  └─────────────┘
-```
-
-When you ask "add password reset to authentication", Claude doesn't just find files containing "auth"—it traverses the graph to find:
-- What `auth.ts` imports and exports
-- Which services call authentication functions
-- What patterns exist in related code
-- How your project handles similar flows
-
-This is **Graph RAG** (Retrieval-Augmented Generation), not just vector search.
 
 ## Advanced Installation Options
 
@@ -261,92 +301,6 @@ User: "Find the authentication logic"
 ```
 
 First search on a new project takes 30 seconds to several minutes (depending on size). Subsequent searches are instant.
-
-## What Makes It Different
-
-| Approach | How It Works | Strengths | Limitations |
-|----------|--------------|-----------|-------------|
-| **Grep/ripgrep** | Text pattern matching | Fast, universal | No semantic understanding |
-| **Vector search only** | Embedding similarity | Finds similar code | Misses structural relationships |
-| **Serena** | LSP-based symbol navigation via MCP | Precise symbol definitions, 30+ languages | No semantic search, no cross-file reasoning, no workflow layer |
-| **Codanna** | Semantic search + call graph via MCP (Rust) | Fast symbol lookup, 15 languages, great call graphs | Semantic search requires JSDoc/docstrings — undocumented JS/TS gets 0 embeddings; no BM25 fusion, no RAPTOR, no workflow layer, Windows experimental |
-| **CodeSeeker** | Knowledge graph + hierarchical hybrid search + workflow orchestration | Semantic + BM25 fusion + RAPTOR + Graph RAG + coding standards | Requires initial indexing (30s-5min) |
-
-### CodeSeeker's Unique Capabilities
-
-**The 4-stage search pipeline:**
-
-```
-Query: "find JWT refresh token logic"
-        │
-        ▼  Stage 1 — Chunking & Indexing (done once at init)
-   ┌─────────────────────────────────────────────────────┐
-   │ AST chunker splits files into semantic units:       │
-   │  • TypeScript/JS → Babel AST (functions, classes)  │
-   │  • Python/Java   → Tree-sitter                     │
-   │  • C#/Go/Rust    → Regex-based extraction          │
-   │ Each chunk → Xenova embedding (384-dim) + BM25 doc  │
-   │ Graph builder: FILE→FILE edges from import/require  │
-   │ RAPTOR: per-dir summary = mean-pool all file embeds │
-   └─────────────────────────────────────────────────────┘
-        │
-        ▼  Stage 2 — Hybrid retrieval (every query)
-   ┌─────────────────────────────────────────────────────┐
-   │ Vector search (cosine similarity on embeddings)     │
-   │   +                                                 │
-   │ BM25 text search (MiniSearch, CamelCase tokenized)  │
-   │   ↓                                                 │
-   │ RRF fusion: combined_score = Σ 1/(k + rank_i)      │
-   │ Top-30 raw results (includes RAPTOR summary nodes)  │
-   └─────────────────────────────────────────────────────┘
-        │
-        ▼  Stage 3 — RAPTOR cascade filter (conditional)
-   ┌─────────────────────────────────────────────────────┐
-   │ IF best RAPTOR directory-summary score ≥ 0.5:       │
-   │   → narrow results to that directory's files only   │
-   │   → fallback if < 3 results or top score < 0.25    │
-   │ ELSE: pass all 30 results through unchanged         │
-   │ Effect: abstract queries ("what does auth/ do?")    │
-   │ get scoped to the right package automatically       │
-   └─────────────────────────────────────────────────────┘
-        │
-        ▼  Stage 4 — Scoring, dedup, graph expansion
-   ┌─────────────────────────────────────────────────────┐
-   │ Dedup by file (keep highest-score chunk per file)   │
-   │ Type scoring: source +0.10, test −0.15, docs −0.05 │
-   │ Symbol boost: +0.20 if query token in file name     │
-   │ Multi-chunk boost: up to +0.30 for files with       │
-   │   multiple high-scoring (≥0.15) chunks              │
-   │ Graph expansion: top-10 files → follow import edges │
-   │   neighbors scored at source_score × 0.7 (1-hop)   │
-   │ Sort, return top-15 files to Claude                 │
-   └─────────────────────────────────────────────────────┘
-        │
-        ▼
-   auth/jwt.ts (0.94), auth/refresh.ts (0.89), ...
-```
-
-**RAPTOR (hierarchical directory summaries):**
-Per-directory embedding nodes generated by mean-pooling all file embeddings in a folder. They live in the same vector index as regular file chunks. On abstract queries ("what does the payments module do?") they score high and narrow results to the right directory. On concrete symbol queries they score low and are bypassed. Cost: one mean-pool per directory at index time; zero extra queries at search time.
-
-**Knowledge graph (import/dependency edges):**
-Built from AST-parsed imports during indexing. Each file node connects to the files it imports (`IMPORTS`, `DEPENDS_ON` edges). Average connectivity: 20.8 file→file edges per node (measured across TS and C# codebases). Used for: `analyze dependencies` traversal, `analyze dead_code` (disconnected nodes), and graph-expansion in hybrid search (neighbors of top-10 results appended at discounted score).
-
-**BM25 + embedding RRF fusion:**
-Both searches run simultaneously on the same SQLite database. BM25 (MiniSearch) handles exact symbol names, camelCase tokenisation, and typo-tolerant prefix matching. Embedding search (Xenova `all-MiniLM-L6-v2`, 384 dimensions) handles semantic similarity when names differ. Reciprocal Rank Fusion combines both without manual weight tuning: `score = Σ 1/(60 + rank_i)` across both ranked lists.
-
-**What LSP tools can't do:**
-- *"Find code that handles errors like this"* → Semantic search finds similar patterns
-- *"What validation approach does this project use?"* → Auto-detected coding standards
-- *"Show me everything related to authentication"* → Graph traversal across indirect dependencies
-
-**What vector-only search misses:**
-- Direct import/export relationships
-- Class inheritance chains
-- Which files actually depend on which
-
-**Search quality guarantee:**
-Every release is gated by a precision/recall benchmark suite that runs 104 tests across hand-curated TypeScript, Python, and Go fixtures (JWT middleware, generic repositories, async ORMs, Pydantic schemas, goroutine workers, and more). FTS, hybrid, and graph modes must all achieve R@5 = 1.0 and MRR = 1.0 for language-specific queries; a regression of more than 0.15 on any (query × mode) cell blocks the release automatically.
 
 ---
 
@@ -595,13 +549,6 @@ For large teams (100K+ files, shared indexes), server mode supports PostgreSQL +
 For the complete technical internals — exact scoring formulas, MCP tool schema, graph edge types, RAPTOR threshold logic, pipeline stages, analysis confidence tiers — see the **[Technical Architecture Manual](docs/technical/architecture.md)**.
 
 ## Troubleshooting
-
-### "I can't find CodeSeeker in the VS Code marketplace"
-
-**CodeSeeker is NOT a VS Code extension.** It's an MCP server that works WITH AI assistants.
-
-✅ **Correct:** Install via npm: `npm install -g codeseeker`
-❌ **Wrong:** Looking for it in VS Code Extensions marketplace
 
 ### MCP server not connecting
 
