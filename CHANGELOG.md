@@ -5,9 +5,15 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2026-03-21
+## [2.0.1] - 2026-03-23
 
-### Summary
+### Fixed
+- **Test-bridged 2-hop graph expansion**: cross-file chains like `prompt-builder.test.ts → prompt-builder.ts → orchestrator.ts` are now recovered. When a test file ranks in the top-10 and its 1-hop graph neighbor is a non-test source file, that source file is expanded one further hop. Targeted fix — avoids the scope leaks that occur with unrestricted depth=2 expansion.
+
+### Changed
+- Extracted `isTestFile` logic into a reusable private class method (previously a local closure in `processRawResults`; now shared with `expandWithGraphNeighbors`)
+
+
 
 Major release fixing a critical monorepo indexing bug (MRR 10% → 72% on pnpm workspaces), adding measured scoring improvements, enabling graph expansion in default hybrid mode, and shipping a real-index ablation benchmark. All 711 unit/integration tests passing.
 
@@ -533,6 +539,7 @@ RAPTOR contributes +0.3% MRR on symbol queries; its primary value is on abstract
 
 ---
 
-[2.1.0]: https://github.com/jghiringhelli/codeseeker/compare/v2.0.0...v2.1.0
+[2.1.0]: https://github.com/jghiringhelli/codeseeker/compare/v2.0.1...v2.1.0
+[2.0.1]: https://github.com/jghiringhelli/codeseeker/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/jghiringhelli/codeseeker/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/jghiringhelli/codeseeker/releases/tag/v1.0.0

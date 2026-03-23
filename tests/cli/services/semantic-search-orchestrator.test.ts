@@ -480,6 +480,40 @@ describe('SemanticSearchOrchestrator – graph expansion (search_type=\'graph\')
     // getNeighbors should only be called 10 times (top-10 cap)
     expect(mockGraphStore.getNeighbors).toHaveBeenCalledTimes(10);
   });
+
+  it('test-bridged 2-hop: expands source files discovered via test-file seeds', async () => {
+    // Scenario: prompt-builder.test.ts (high score) → prompt-builder.ts (hop1) → orchestrator.ts (hop2)
+    const TEST_FILE  = `${PROJECT_PATH}/tests/prompt-builder.test.ts`;
+    const SOURCE_FILE = `${PROJECT_PATH}/src/prompt-builder.ts`;
+    const TARGET_FILE = `${PROJECT_PATH}/src/orchestrator.ts`;
+
+    // Only the test file appears in hybrid results (source file never makes top-10)
+    mockVectorStore.searchHybrid.mockResolvedValue([
+      makeResult('tests/prompt-builder.test.ts', 0.85),
+    ]);
+    mockGraphStore.findNodes.mockResolvedValue([
+      makeGraphNode('node-test',   TEST_FILE),
+      makeGraphNode('node-source', SOURCE_FILE),
+      makeGraphNode('node-target', TARGET_FILE),
+    ]);
+    // hop1: test file → source file; hop2: source file → orchestrator
+    mockGraphStore.getNeighbors.mockImplementation(async (nodeId: string) => {
+      if (nodeId === 'node-test')   return [makeGraphNode('node-source', SOURCE_FILE)];
+      if (nodeId === 'node-source') return [makeGraphNode('node-target', TARGET_FILE)];
+      return [];
+    });
+
+    const orch = await buildOrchestrator();
+    const results = await orch.performSemanticSearch('prompts', PROJECT_PATH, 'graph');
+
+    // orchestrator.ts must appear via test-bridged 2-hop
+    const target = results.find(r => r.file.includes('orchestrator.ts'));
+    expect(target).toBeDefined();
+    // Score path: raw(0.85) → processRawResults applies +0.10 typeBoost −0.15 testPenalty → 0.80
+    // hop1: 0.80 × 0.7 = 0.56; hop2: 0.56 × 0.7 ≈ 0.392
+    const expectedHop1Score = (0.85 + 0.10 - 0.15) * 0.7; // 0.56
+    expect(target!.similarity).toBeCloseTo(expectedHop1Score * 0.7, 2);
+  });
 });
 
 // ── 4. initStorage – graphStore absence doesn't crash ────────────────────────

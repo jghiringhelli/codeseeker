@@ -418,13 +418,9 @@ export class SemanticSearchOrchestrator {
     // Minimum per-chunk score to count toward multi-chunk boost
     const CHUNK_BOOST_MIN_SCORE = 0.15;
 
-    const isTestFile = (filePath: string): boolean => {
-      const lower = filePath.toLowerCase().replace(/\\/g, '/');
-      return /\/(tests?|__tests?__|spec|specs)\//i.test(lower)
-        || /\.(test|spec)\.[a-z]+$/i.test(lower);
-    };
+    const isTestFile = (fp: string) => this.isTestFile(fp);
 
-    const boostedResults = Array.from(fileMap.values()).map(entry => {
+    const boostedResults= Array.from(fileMap.values()).map(entry => {
       // 1. Multi-chunk boost — quality-gated
       const qualityChunkCount = entry.chunkCount; // stored as count in map; we use best-chunk score as gate
       const baseScore = entry.result.score;
@@ -523,6 +519,8 @@ export class SemanticSearchOrchestrator {
       const TOP_K = Math.min(10, results.length);
       // Track max source-score for each neighbor (per-source scoring)
       const hop1BestScore = new Map<string, number>();
+      // Track hop1 source files discovered via test file seeds (for test-bridged 2-hop)
+      const hop1FromTestSeed = new Set<string>();
 
       for (const result of results.slice(0, TOP_K)) {
         const nodeId = resolveNodeId(result.file);
@@ -530,21 +528,43 @@ export class SemanticSearchOrchestrator {
 
         const neighbors = await this.graphStore.getNeighbors(nodeId);
         const sourceScore = result.similarity;
+        const seedIsTest = this.isTestFile(result.file);
         for (const neighbor of neighbors) {
           if (neighbor.type !== 'file') continue;
           const rel = toRelNorm(neighbor.filePath);
           if (!existingPaths.has(rel)) {
             const derived = sourceScore * HOP1_DECAY;
             hop1BestScore.set(rel, Math.max(hop1BestScore.get(rel) ?? 0, derived));
+            // Track non-test source files reached from test seeds for test-bridged 2-hop
+            if (seedIsTest && !this.isTestFile(rel)) hop1FromTestSeed.add(rel);
           }
         }
       }
 
-      // ── 2-hop: neighbors of 1-hop neighbors (cross-file chains) ──────────
+      // ── Test-bridged 2-hop ────────────────────────────────────────────────
+      // When a test file is in the top-10 and connects to a source file at hop1,
+      // expand that source file one more hop. Recovers cross-file chains like:
+      //   prompt-builder.test.ts → prompt-builder.ts → orchestrator.ts
+      // Targeted: only fires for test→source paths, avoids the scope leaks
+      // that occur with unrestricted depth=2 expansion.
       const HOP2_DECAY = 0.7;
       const hop2BestScore = new Map<string, number>();
-      if (depth >= 2 && hop1BestScore.size > 0) {
-        for (const [hop1Path, hop1Score] of hop1BestScore) {
+
+      const hop2Seeds = depth >= 2
+        ? hop1BestScore  // explicit depth=2: expand all hop1 (e.g. graph search type)
+        : hop1FromTestSeed.size > 0
+          ? ((): Map<string, number> => {
+              const m = new Map<string, number>();
+              for (const p of hop1FromTestSeed) {
+                const s = hop1BestScore.get(p);
+                if (s !== undefined) m.set(p, s);
+              }
+              return m;
+            })()
+          : new Map<string, number>();
+
+      if (hop2Seeds.size > 0) {
+        for (const [hop1Path, hop1Score] of hop2Seeds) {
           const nodeId = resolveNodeId(hop1Path);
           if (!nodeId) continue;
 
@@ -584,7 +604,7 @@ export class SemanticSearchOrchestrator {
         });
       }
 
-      this.logger.debug(`Graph RAG: appended ${hop1BestScore.size} 1-hop + ${hop2BestScore.size} 2-hop related files`);
+      this.logger.debug(`Graph RAG: appended ${hop1BestScore.size} 1-hop + ${hop2BestScore.size} 2-hop (${hop1FromTestSeed.size} test-bridged) related files`);
       // Re-sort so graph neighbors don't violate the descending order invariant
       return expanded.sort((a, b) => b.similarity - a.similarity);
     } catch (error) {
@@ -628,6 +648,16 @@ export class SemanticSearchOrchestrator {
     }
 
     return formatted;
+  }
+
+  /**
+   * Returns true if the file path looks like a test/spec file.
+   * Used in both processRawResults (penalty) and expandWithGraphNeighbors (test-bridged 2-hop).
+   */
+  private isTestFile(filePath: string): boolean {
+    const lower = filePath.toLowerCase().replace(/\\/g, '/');
+    return /\/(tests?|__tests?__|spec|specs)\//i.test(lower)
+      || /\.(test|spec)\.[a-z]+$/i.test(lower);
   }
 
   /**
