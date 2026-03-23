@@ -1,6 +1,35 @@
-# Package Manager Setup Guide
+# Release Guide
 
-This guide explains how to publish CodeSeeker to Snap, Homebrew, and Chocolatey package managers.
+CodeSeeker publishes to **npm** and the **MCP Registry**. One `git push --tags` triggers everything via GitHub Actions.
+
+## One-time setup
+
+### 1. npm token
+
+1. Log in to [npmjs.com](https://www.npmjs.com/) and go to **Access Tokens**
+2. Generate a **Granular Access Token** scoped to the `codeseeker` package with `read and write` permission
+3. Add it as `NPM_TOKEN` in your GitHub repo → **Settings → Secrets → Actions**
+
+### 2. MCP Registry (OIDC — no token needed)
+
+The MCP Registry job uses GitHub OIDC (`id-token: write` permission). No secret required — just ensure the repo is registered in the MCP Registry dashboard.
+
+## Publishing a release
+
+```bash
+# 1. Bump version
+npm version patch   # or minor / major
+
+# 2. Push tag — CI handles the rest
+git push origin master --tags
+```
+
+The workflow will:
+1. `npm publish` to the npm registry
+2. Update `server.json` and publish to the MCP Registry
+3. Sync the `plugin` branch for Claude Code plugin users
+4. Create a GitHub Release with install instructions
+
 
 ## Snap (Linux - All Distributions)
 

@@ -89,70 +89,41 @@ The knowledge graph is built from AST-parsed imports at index time. It's what po
 
 ## Installation
 
-### ⚡ One-Line Install (Easiest)
+### Recommended: npx (no install needed)
 
-Copy/paste ONE command - auto-detects your system and configures everything:
+The standard way to configure any MCP server — no global install required:
 
-**macOS/Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/jghiringhelli/codeseeker/master/scripts/install.sh | sh
+```json
+{
+  "mcpServers": {
+    "codeseeker": {
+      "command": "npx",
+      "args": ["-y", "codeseeker", "serve", "--mcp"]
+    }
+  }
+}
 ```
 
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/jghiringhelli/codeseeker/master/scripts/install.ps1 | iex
-```
+Add this to your MCP config file ([see below](#advanced-installation-options) for per-client locations) and restart your editor.
 
-Restart your IDE and you're done!
+### npm global install
 
-### 📦 Package Managers (Advanced)
-
-**Linux (Snap) - All Distributions:**
-```bash
-sudo snap install codeseeker
-codeseeker install --vscode      # or --cursor, --windsurf
-```
-> ⚠️ **Snap limitation:** Due to strict confinement, the snap can only access projects in your home directory (`~/`). For projects outside `~/`, use npm or Homebrew instead.
-
-**macOS/Linux (Homebrew):**
-```bash
-brew install jghiringhelli/codeseeker/codeseeker
-codeseeker install --vscode      # or --cursor, --windsurf
-```
-
-**Windows (Chocolatey):**
-```powershell
-choco install codeseeker
-codeseeker install --vscode      # or --cursor, --windsurf
-```
-
-**Cross-platform (npm):**
 ```bash
 npm install -g codeseeker
 codeseeker install --vscode      # or --cursor, --windsurf
 ```
 
-### 🚀 No Install Required (npx)
-
-Run without installing:
-```bash
-npx codeseeker init
-npx codeseeker -c "how does authentication work?"
-```
-
 ### 🔌 Claude Code Plugin
 
-If you use Claude Code CLI, you can install as a plugin:
+For Claude Code CLI users — adds auto-sync hooks and slash commands:
 
 ```bash
 /plugin install codeseeker@github:jghiringhelli/codeseeker#plugin
 ```
 
-This gives you auto-sync hooks and slash commands (`/codeseeker:init`, `/codeseeker:reindex`).
+Slash commands: `/codeseeker:init`, `/codeseeker:reindex`
 
-### ☁️ Devcontainer / GitHub Codespaces
-
-CodeSeeker auto-installs in devcontainers! Just add `.devcontainer/devcontainer.json`:
+### ☁️ Devcontainers / GitHub Codespaces
 
 ```json
 {
@@ -162,84 +133,35 @@ CodeSeeker auto-installs in devcontainers! Just add `.devcontainer/devcontainer.
 }
 ```
 
-Or use our pre-configured devcontainer (already included in this repo).
-
-### ✅ Verify Installation
+### ✅ Verify
 
 Ask your AI assistant: *"What CodeSeeker tools do you have?"*
 
-You should see: `search`, `analyze`, `index` — CodeSeeker's three unified tools.
+You should see: `search`, `analyze`, `index` — CodeSeeker's three tools.
 
 ## Advanced Installation Options
 
 <details>
-<summary><b>📋 Manual MCP Configuration</b> (if auto-install doesn't work)</summary>
+<summary><b>📋 MCP Configuration by client</b></summary>
 
-### VS Code (Claude Code & GitHub Copilot)
+The MCP config JSON is the same for all clients — only the file location differs:
 
-Add to `.vscode/mcp.json` in your project:
-
-```json
-{
-  "mcpServers": {
-    "codeseeker": {
-      "command": "npx",
-      "args": ["-y", "codeseeker", "serve", "--mcp"],
-      "env": {
-        "CODESEEKER_STORAGE_MODE": "embedded"
-      }
-    }
-  }
-}
-```
-
-### Cursor
-
-Add to `.cursor/mcp.json` in your project:
+| Client | Config file |
+|--------|------------|
+| **VS Code** (Claude Code / Copilot) | `.vscode/mcp.json` in your project, or `~/.vscode/mcp.json` globally |
+| **Cursor** | `.cursor/mcp.json` in your project |
+| **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows) |
+| **Windsurf** | `.windsurf/mcp.json` in your project |
 
 ```json
 {
   "mcpServers": {
     "codeseeker": {
       "command": "npx",
-      "args": ["-y", "codeseeker", "serve", "--mcp"],
-      "env": {
-        "CODESEEKER_STORAGE_MODE": "embedded"
-      }
+      "args": ["-y", "codeseeker", "serve", "--mcp"]
     }
   }
 }
-```
-
-### Claude Desktop
-
-Add to your `claude_desktop_config.json`:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "codeseeker": {
-      "command": "npx",
-      "args": ["-y", "codeseeker", "serve", "--mcp"],
-      "env": {
-        "CODESEEKER_STORAGE_MODE": "embedded"
-      }
-    }
-  }
-}
-```
-
-### Global vs Project-Level Configuration
-
-```bash
-# Apply to all projects (user-level)
-codeseeker install --vscode --global
-
-# Apply to current project only
-codeseeker install --vscode
 ```
 
 </details>
@@ -580,16 +502,16 @@ Open an issue: [GitHub Issues](https://github.com/jghiringhelli/codeseeker/issue
 
 ## Supported Platforms
 
-| Platform | MCP Support | Install Command |
-|----------|-------------|-----------------|
-| **Claude Code** (VS Code) | Yes | `codeseeker install --vscode` or plugin |
-| **GitHub Copilot** (VS Code) | Yes (VS Code 1.99+) | `codeseeker install --vscode` |
-| **Cursor** | Yes | `codeseeker install --cursor` |
-| **Claude Desktop** | Yes | Manual config |
-| **Windsurf** | Yes | `codeseeker install --windsurf` |
-| **Visual Studio** | Yes | `codeseeker install --vs` |
+| Client | MCP Support | Config |
+|--------|-------------|--------|
+| **Claude Code** (VS Code) | ✅ | `.vscode/mcp.json` or plugin |
+| **GitHub Copilot** (VS Code 1.99+) | ✅ | `.vscode/mcp.json` |
+| **Cursor** | ✅ | `.cursor/mcp.json` |
+| **Windsurf** | ✅ | `.windsurf/mcp.json` |
+| **Claude Desktop** | ✅ | `claude_desktop_config.json` |
+| **Visual Studio** | ✅ | `codeseeker install --vs` |
 
-> **Note:** Claude Code and GitHub Copilot both run in VS Code and share the same MCP configuration (`.vscode/mcp.json`). The flags `--vscode`, `--claude-code`, and `--copilot` are interchangeable.
+> Claude Code and GitHub Copilot share the same `.vscode/mcp.json` — configure once, works for both.
 
 ## Support
 

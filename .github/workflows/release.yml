@@ -7,19 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g., 1.8.0)'
+        description: 'Version to publish (e.g., 2.0.0)'
         required: true
         type: string
-      skip_homebrew:
-        description: 'Skip Homebrew publish'
-        type: boolean
-        default: false
-      skip_chocolatey:
-        description: 'Skip Chocolatey publish'
-        type: boolean
-        default: false
-      skip_snap:
-        description: 'Skip Snap publish'
+      skip_npm:
+        description: 'Skip npm publish'
         type: boolean
         default: false
       skip_mcp:
@@ -27,113 +19,30 @@ on:
         type: boolean
         default: false
 
-# Note: npm publishing is done manually due to 2FA requirements
-# Run: npm login && npm publish --access public
-
 env:
-  # Use input version for workflow_dispatch, or extract from tag for push
   VERSION: ${{ inputs.version || github.ref_name }}
 
 jobs:
-  publish-homebrew:
-    if: ${{ !inputs.skip_homebrew }}
+  publish-npm:
+    if: ${{ !inputs.skip_npm }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Update Homebrew formula
-        env:
-          HOMEBREW_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          RELEASE_VERSION: ${{ env.VERSION }}
-        run: |
-          VERSION=${RELEASE_VERSION#v}
-          SHA256=$(curl -sL "https://registry.npmjs.org/codeseeker/-/codeseeker-${VERSION}.tgz" | sha256sum | cut -d' ' -f1)
-
-          git clone https://x-access-token:${HOMEBREW_GITHUB_TOKEN}@github.com/jghiringhelli/homebrew-codeseeker.git
-          cd homebrew-codeseeker
-
-          cat > Formula/codeseeker.rb << EOF
-          class Codeseeker < Formula
-            desc "Graph-powered code intelligence for Claude Code"
-            homepage "https://github.com/jghiringhelli/codeseeker"
-            url "https://registry.npmjs.org/codeseeker/-/codeseeker-${VERSION}.tgz"
-            sha256 "${SHA256}"
-            license "MIT"
-            depends_on "node@22"
-
-            def install
-              system "npm", "install", *std_npm_args
-              bin.install_symlink Dir["\#{libexec}/bin/*"]
-            end
-
-            test do
-              system "\#{bin}/codeseeker", "--version"
-            end
-          end
-          EOF
-
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add Formula/codeseeker.rb
-          git commit -m "Update codeseeker to ${VERSION}"
-          git push
-
-  publish-chocolatey:
-    if: ${{ !inputs.skip_chocolatey }}
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Update and push Chocolatey package
-        env:
-          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
-        shell: pwsh
-        run: |
-          $version = "${{ env.VERSION }}".TrimStart('v')
-
-          # Update nuspec version
-          $nuspec = Get-Content chocolatey/codeseeker.nuspec
-          $nuspec = $nuspec -replace '<version>.*</version>', "<version>$version</version>"
-          $nuspec | Set-Content chocolatey/codeseeker.nuspec
-
-          # Update install script version
-          $install = Get-Content chocolatey/tools/chocolateyinstall.ps1
-          $install = $install -replace "codeseeker@[\d.]+", "codeseeker@$version"
-          $install | Set-Content chocolatey/tools/chocolateyinstall.ps1
-
-          # Pack and push
-          cd chocolatey
-          choco pack
-          choco push codeseeker.$version.nupkg --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
-
-  publish-snap:
-    if: ${{ !inputs.skip_snap }}
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Update snapcraft.yaml version
-        env:
-          RELEASE_VERSION: ${{ env.VERSION }}
-        run: |
-          VERSION=${RELEASE_VERSION#v}
-          # Only update the package version line (line 3), not npm-node-version
-          sed -i "s/^version: .*/version: '${VERSION}'/" snap/snapcraft.yaml
-          # Update the npm tarball URL
-          sed -i "s|codeseeker-[0-9.]*\.tgz|codeseeker-${VERSION}.tgz|" snap/snapcraft.yaml
-      - uses: snapcore/action-build@v1
-        id: build
-        env:
-          SNAPCRAFT_BUILD_ENVIRONMENT: host
-      - uses: snapcore/action-publish@v1
-        env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
+      - uses: actions/setup-node@v4
         with:
-          snap: ${{ steps.build.outputs.snap }}
-          release: stable
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm run build
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-mcp-registry:
     if: ${{ !inputs.skip_mcp }}
     runs-on: ubuntu-latest
     permissions:
-      id-token: write  # Required for OIDC authentication
+      id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
@@ -142,23 +51,20 @@ jobs:
           RELEASE_VERSION: ${{ env.VERSION }}
         run: |
           VERSION=${RELEASE_VERSION#v}
-          # Update both version fields in server.json
           jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
       - name: Install mcp-publisher
         run: |
           curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
       - name: Authenticate to MCP Registry
         run: ./mcp-publisher login github-oidc
-      - name: Publish server to MCP Registry
+      - name: Publish to MCP Registry
         run: |
           output=$(./mcp-publisher publish 2>&1) && echo "$output" && exit 0
           echo "$output"
-          # Treat "duplicate version" as success (already published)
           echo "$output" | grep -q "cannot publish duplicate version" && echo "Already published — skipping." && exit 0
           exit 1
 
   update-plugin-branch:
-    # Sync master → plugin branch so plugin users get the latest code
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -176,8 +82,7 @@ jobs:
           git push origin plugin
 
   create-release:
-    needs: [publish-homebrew, publish-chocolatey, publish-snap, publish-mcp-registry]
-    # Only create release on tag push, not workflow_dispatch (release already exists)
+    needs: [publish-npm, publish-mcp-registry]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -192,15 +97,23 @@ jobs:
             ## Installation
 
             ```bash
-            # npm (recommended)
+            # npm global install
             npm install -g codeseeker
 
-            # Homebrew
-            brew install jghiringhelli/codeseeker/codeseeker
-
-            # Chocolatey
-            choco install codeseeker
-
-            # Snap
-            sudo snap install codeseeker
+            # or run directly with npx (no install needed)
+            npx codeseeker serve --mcp
             ```
+
+            Add to your MCP config (`.vscode/mcp.json`, `.cursor/mcp.json`, etc.):
+
+            ```json
+            {
+              "mcpServers": {
+                "codeseeker": {
+                  "command": "npx",
+                  "args": ["-y", "codeseeker", "serve", "--mcp"]
+                }
+              }
+            }
+            ```
+
