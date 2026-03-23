@@ -26,6 +26,7 @@ jobs:
   publish-npm:
     if: ${{ !inputs.skip_npm }}
     runs-on: ubuntu-latest
+    continue-on-error: true  # manual publish via npm login is the fallback
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -73,16 +74,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Sync plugin branch from master
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout plugin || git checkout -b plugin
-          git merge origin/master --no-edit
-          git push origin plugin
+      - name: Force-sync plugin branch to master
+        run: git push origin HEAD:plugin --force
 
   create-release:
-    needs: [publish-npm, publish-mcp-registry]
+    needs: [publish-mcp-registry]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
