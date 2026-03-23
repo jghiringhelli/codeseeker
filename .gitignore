@@ -1,5 +1,5 @@
 # =============================================================================
-# CodeMind .gitignore
+# CodeSeeker .gitignore
 # =============================================================================
 # IMPORTANT: If files are already tracked by git, adding them here won't help.
 # Use `git rm -r --cached <folder>` to untrack, then commit.
@@ -99,6 +99,11 @@ desktop.ini
 *.temp
 *.bak
 *.backup
+tmpclaude-*
+AUDIT_*.txt
+AUDIT_*.md
+SESSION_HANDOFF.md
+forgecraft.yaml
 
 # -----------------------------------------------------------------------------
 # TEST ARTIFACTS - Generated during testing
@@ -107,6 +112,7 @@ coverage/
 .nyc_output/
 tests/fixtures/ContractMaster-Test-Original/
 tests/fixtures/.temp/
+tests/benchmarks/codanna-comparison.mjs
 
 # -----------------------------------------------------------------------------
 # CLAUDE CODE - Local settings (user-specific)
@@ -114,12 +120,7 @@ tests/fixtures/.temp/
 .claude/settings.local.json
 
 # -----------------------------------------------------------------------------
-# PACKAGE MANAGER CREDENTIALS - NEVER commit these!
+# BUILD CREDENTIALS - never commit
 # -----------------------------------------------------------------------------
-# Snapcraft credentials
 snapcraft-credentials.txt
 .snapcraft/
-*.snap
-
-# Chocolatey packages (built locally)
-*.nupkg
