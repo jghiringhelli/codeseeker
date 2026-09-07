@@ -1,27 +1,43 @@
 # Architecture Decision Records
 
-| # | Decision | Status |
-|---|---|---|
-| 001 | CLI-only integration (no Claude API calls) | Active |
-| 002 | Single sentinel MCP tool with action routing | Active |
-| 003 | Summaries by default, full content on explicit request | Active |
-| 004 | Additive +0.20 symbol-name boost (not multiplicative) | Active |
-| 005 | RAPTOR as post-filter cascade (not a 3rd RRF weight) | Active |
-| 006 | CNT wayfinder pattern for CLAUDE.md | Active |
-| 007 | Dead-code analysis: export + entry-point exemption | Active |
-| 008 | Graph edges: import (reliable) + call (approximate) | Active |
-| 009 | Source-file type boost (+0.10) + test-file penalty (-0.15) | Active |
-| 010 | Remove 'packages' from default excluded directories (monorepo support) | Active |
-| 011 | Graph expansion: depth=1 default, per-source scoring, top-10 expansion | Active |
+Full records live in `docs/adrs/` — one file per decision, with context, decision and
+consequences. This node is the router: read it to find the decision you need, then read
+that file. Do not edit an accepted ADR to match new code; supersede it with a new one.
 
-**ADR-004 (additive boost):** Multiplicative ×1.2 fails rank-reversal when gap > 0.2 (e.g. 0.65×1.2=0.78 < competitor 0.80). Additive +0.20 guarantees: boosted score = raw + 0.20 > any competitor with raw ≤ base+0.19. Cascade gate uses pre-boost raw score to prevent weak boosted files from triggering directory cascade.
+| # | Decision | Status | File |
+|---|---|---|---|
+| 0001 | CLI-only integration, no Claude API calls | Accepted | [`0001`](../../docs/adrs/0001-cli-only-integration-no-claude-api-calls.md) |
+| 0002 | A single sentinel MCP tool with action routing | Accepted | [`0002`](../../docs/adrs/0002-a-single-sentinel-mcp-tool-with-action-routing.md) |
+| 0003 | Summaries by default, full content only on request | Accepted | [`0003`](../../docs/adrs/0003-summaries-by-default-full-content-only-on-request.md) |
+| 0004 | Additive symbol-name boost, not multiplicative | Accepted | [`0004`](../../docs/adrs/0004-additive-symbol-name-boost-not-multiplicative.md) |
+| 0005 | RAPTOR as a post-filter cascade, not a third RRF weight | Accepted | [`0005`](../../docs/adrs/0005-raptor-as-a-post-filter-cascade-not-a-third-rrf-weight.md) |
+| 0006 | A canonical navigational tree for the constitution | Accepted | [`0006`](../../docs/adrs/0006-a-canonical-navigational-tree-for-the-architectural-constitu.md) |
+| 0007 | Dead-code analysis exempts exports and entry points | Accepted | [`0007`](../../docs/adrs/0007-dead-code-analysis-exempts-exports-and-entry-points.md) |
+| 0008 | Graph edges: imports reliable, calls approximate | Accepted | [`0008`](../../docs/adrs/0008-graph-edges-imports-are-reliable-calls-are-approximate.md) |
+| 0009 | Source-file boost and test-file penalty in ranking | Accepted | [`0009`](../../docs/adrs/0009-source-file-boost-and-test-file-penalty-in-ranking.md) |
+| 0010 | Do not exclude `packages/` from indexing | Accepted | [`0010`](../../docs/adrs/0010-do-not-exclude-packages-from-indexing.md) |
+| 0011 | Graph expansion: depth 1, per-source scoring, top 10 | Accepted | [`0011`](../../docs/adrs/0011-graph-expansion-depth-1-per-source-scoring-from-the-top-10.md) |
+| 0012 | The document cascade governs public-surface changes | **Proposed** | [`0012`](../../docs/adrs/0012-the-document-cascade-governs-changes-to-the-public-surface.md) |
 
-**ADR-005 (RAPTOR post-filter):** RAPTOR L2 nodes = directory summaries. Used as a confidence gate after initial hybrid search, not as a parallel search track. Reason: adding RAPTOR as a 3rd RRF weight would downweight its signal — using it as a filter preserves recall while sharpening precision.
+## Read these before
 
-**ADR-006 (CNT):** CLAUDE.md monolith was 10,600 tokens loaded every session. CNT loads ~100 lines on average (3-line CLAUDE.md + index.md + core.md + 1 domain node). O(log N) context load.
+| If you are about to… | Read |
+|---|---|
+| Add an MCP tool, or change the tool schema | 0002, 0012 |
+| Change search scoring or ranking | 0004, 0005, 0009, 0011 |
+| Change what gets indexed or excluded | 0010 |
+| Change dead-code or dependency analysis | 0007, 0008 |
+| Change how the CLI talks to an LLM | 0001 |
+| Restructure `.claude/` or CLAUDE.md | 0006 |
+| Change exported types, CLI flags, or the tool schema | 0012 |
 
-**ADR-009 (type boost/penalty):** Source files (+0.10) and test files (-0.15) need differential scoring because test/doc files contain all the same symbols as implementation files (imported and exercised) but are not the authoritative location. Without penalty, `integration.test.ts` would rank above `dag-engine.ts` for exact symbol queries.
+## Writing a new one
 
-**ADR-010 (packages dir):** `packages/` is the conventional source root for pnpm/yarn/lerna monorepos. Excluding it by default (as a "vendor" equivalent) silently indexed 0 source files in monorepo projects. Removed from both `file-scanner-config.json` and `IGNORE_DIRS` hardcode in indexing-service.ts.
+Copy the shape of an existing file: Status, Date, Context, Decision, Consequences.
 
-**ADR-011 (graph expansion scoring):** Ablation across 18 queries (Conclave TS + IC2 C#) showed graph expansion is neutral to slightly positive (+/−0.3% MRR). Key findings: (1) graph IS well-connected (avg 20.8 file→file edges/node) so expansion works structurally; (2) flat "worst-score × 0.7" gave rank-100 placements — fixed to per-source scoring (each neighbor inherits its pointing file's score × 0.7, take max if pointed by multiple); (3) expand from top-10 not top-5 to capture neighbors of rank-7/8 files; (4) 2-hop disabled by default (introduces scope leaks on out-of-scope queries); (5) cv-prompts orchestrator miss is a test-file-dominance problem (prompt-builder.test.ts outscores prompt-builder.ts), not a graph problem — needs a stronger test penalty or a definition-vs-usage AST signal. Graph expansion value is primarily navigation (dependencies, imports) not semantic re-ranking.
+Context states the forces, including the option that looks obvious and why it fails.
+Consequences names the negative ones too — an ADR that only lists benefits is a
+advertisement, not a record. Where a decision was measured, give the number.
+
+Add the row here. Never renumber. To reverse a decision, write a new ADR that supersedes
+the old one and set the old one's status to `Superseded by NNNN`.
