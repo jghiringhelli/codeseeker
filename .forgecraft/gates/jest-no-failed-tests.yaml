@@ -1,0 +1,16 @@
+id: jest-no-failed-tests
+name: All tests pass
+description: >
+  jest --json exits with numFailedTests === 0. A test failure is not a code quality warning —
+  it is a specification violation. The test suite encodes the behavioral contracts; a failing
+  test means the implementation diverges from those contracts. No further implementation work
+  proceeds until the test suite is green. This is the primary evidence artifact for the
+  Executable property.
+property: Executable
+tags: [javascript, typescript, jest]
+phase: development
+trigger: commit
+blocking: true
+check:
+  type: test
+  command: "jest --json --outputFile=evidence/jest-output.json"

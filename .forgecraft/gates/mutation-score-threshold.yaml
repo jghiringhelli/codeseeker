@@ -1,0 +1,20 @@
+﻿id: mutation-score-threshold
+name: Mutation score (MSI) at or above 65%
+description: >
+  The Stryker mutation testing score (Mutation Score Indicator) is at or above 65% for
+  the full project, and at or above 70% for changed files on a pull request. Line coverage
+  measures whether tests run through code; mutation score measures whether tests verify
+  behavior. An 80% covered codebase can have a 40% mutation score — tests execute the
+  code but assert nothing meaningful about it. Surviving mutants are missing assertions:
+  the code was changed (operator flipped, boundary shifted, branch inverted) and no test
+  failed. This gate is the definitive check for test quality, not just test quantity.
+  65% is the minimum viable threshold; critical paths (auth, financial logic, data pipelines)
+  must be enforced separately at 90%+ via per-module stryker configuration.
+property: Verifiable
+tags: [javascript, typescript, stryker, mutation-testing]
+phase: development
+trigger: pr
+blocking: true
+check:
+  type: script
+  command: "npx stryker run"

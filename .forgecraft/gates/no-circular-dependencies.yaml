@@ -1,0 +1,17 @@
+id: no-circular-dependencies
+name: No circular module dependencies
+description: >
+  The module dependency graph is acyclic. Circular dependencies mean module A's behavior
+  depends on module B, which depends on module A — neither can be understood without the
+  other. A stateless reader cannot correctly derive the behavior of either module from
+  either alone. This is a direct violation of the Composable property: modules must have
+  clean boundaries and be independently derivable. In TypeScript projects, tsc --noEmit
+  catches circular imports. For other languages, use madge (Node) or equivalents.
+property: Composable
+tags: [any]
+phase: development
+trigger: commit
+blocking: true
+check:
+  type: script
+  command: "npx madge --circular --extensions ts src/ && exit 0 || exit 1"

@@ -1,0 +1,17 @@
+id: conventional-commits
+name: Conventional commit format
+description: >
+  Commit messages follow the conventional commit format: type(scope): description.
+  Valid types: feat, fix, refactor, docs, test, chore, perf, ci. Conventional commits
+  are not a style preference — they are an auditable trail. A commit log that mixes
+  "wip", "fix stuff", and "more changes" is unreadable to a stateless agent and provides
+  no evidence of what changed and why. The Auditable property requires that every commit
+  is interpretable without external context.
+property: Auditable
+tags: [any]
+phase: development
+trigger: commit
+blocking: false
+check:
+  type: script
+  command: "echo \"$1\" | grep -Eq '^(feat|fix|refactor|docs|test|chore|perf|ci)(\\(.+\\))?: .{1,72}$' || exit 1"

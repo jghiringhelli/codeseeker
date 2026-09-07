@@ -1,0 +1,19 @@
+id: env-vars-documented
+name: All environment variables documented
+description: >
+  Every environment variable consumed by the application must appear in a committed
+  documentation file (e.g., .env.example, docs/configuration.md, or a table in the
+  README). Undocumented environment variables are hidden configuration: they cannot
+  be audited, rotated, or reproduced across environments. A stateless reader deploying
+  this application to a new environment must be able to derive the complete configuration
+  surface from the repository alone. Gate passes when a env-doc check script finds no
+  variable references in source code that are absent from the documented file. Applies
+  to all environment types: development, staging, and production.
+property: Self-describing
+tags: [any]
+phase: development
+trigger: pr
+blocking: true
+check:
+  type: script
+  command: "./scripts/check-env-docs.sh"

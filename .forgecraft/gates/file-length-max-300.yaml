@@ -1,0 +1,19 @@
+id: file-length-max-300
+name: Source file length does not exceed 300 lines
+description: >
+  No TypeScript or JavaScript source file exceeds 300 lines. File length is a proxy for
+  single-responsibility compliance: a 500-line file almost certainly contains multiple
+  conceptual concerns. At 300 lines, a human reader can hold the entire file in working
+  memory without paging — above that, the cognitive overhead of understanding the module
+  increases non-linearly. The 300-line limit applies to production source only; test files
+  are excluded since comprehensive test suites are legitimately verbose. Files that approach
+  the limit are a signal to split by responsibility: model from service, handler from
+  controller, pure functions from side-effecting orchestration.
+property: Bounded
+tags: [javascript, typescript, any]
+phase: development
+trigger: commit
+blocking: true
+check:
+  type: script
+  command: "node -e \"const fs=require('fs'),path=require('path');function walk(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(dir,e.name)):[path.join(dir,e.name)])}const files=walk('src').filter(f=>/\\.(ts|js|tsx|jsx)$/.test(f)&&!/\\.(test|spec)\\.(ts|js|tsx|jsx)$/.test(f));let fail=false;files.forEach(f=>{const lines=fs.readFileSync(f,'utf8').split('\\n').length;if(lines>300){console.error(f+': '+lines+' lines (max 300)');fail=true;}});process.exit(fail?1:0)\""

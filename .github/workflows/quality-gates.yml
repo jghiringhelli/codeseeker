@@ -1,0 +1,94 @@
+name: Quality Gates
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# Gate severity follows the brownfield ramp: a gate is blocking once the baseline is
+# clean, and advisory-with-a-recorded-baseline until then. An advisory gate is not
+# decoration — it prints the current number so a regression is visible in the diff.
+# Promote a gate to blocking by deleting its `continue-on-error`.
+# Baselines and promotion criteria live in .forgecraft/project-gates.yaml.
+
+jobs:
+  blocking:
+    name: Blocking gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+
+      # gate: tsc-no-emit-exits-zero
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # gate: jest-no-failed-tests
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # gate: conventional-commits — validates every commit the PR adds
+      - name: Conventional commits
+        if: github.event_name == 'pull_request'
+        run: npx commitlint --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}" --verbose
+
+  advisory:
+    name: Advisory gates (baseline recorded, not yet blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+
+      # gate: coverage-threshold-80 — baseline 11.16% statements
+      - name: Coverage
+        continue-on-error: true
+        run: npx jest --coverage --testPathIgnorePatterns "/node_modules/" "tests/integration/e2e" --coverageReporters=text-summary
+
+      # gate: mutation-score-threshold — scoped to the retrieval core, see stryker.config.json
+      - name: Mutation score
+        continue-on-error: true
+        run: npm run test:mutation
+
+      # gate: npm-audit-no-high-cve — baseline 22 high / 3 critical
+      - name: Dependency audit
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+      # gate: file-length-max-300 — baseline 144 of 338 files over the limit
+      - name: File length
+        continue-on-error: true
+        run: |
+          OVER=$(find src -name '*.ts' | xargs wc -l | grep -v ' total$' | awk '$1>300' | wc -l)
+          TOTAL=$(find src -name '*.ts' | wc -l)
+          echo "Files over 300 lines: $OVER of $TOTAL (baseline: 144)"
+          find src -name '*.ts' | xargs wc -l | grep -v ' total$' | awk '$1>300' | sort -rn | head -20
+          test "$OVER" -le 144
+
+  e2e:
+    name: End-to-end (nightly / on demand)
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    # The e2e suite performs real indexing with ONNX embeddings and runs for well over
+    # ten minutes under maxWorkers:1. It is not a per-push gate.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:e2e

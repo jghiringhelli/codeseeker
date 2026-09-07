@@ -1,0 +1,16 @@
+id: tsc-no-emit-exits-zero
+name: TypeScript type-check passes
+description: >
+  tsc --noEmit exits 0 on every commit. Type errors are not warnings — they are architectural
+  failures visible to a stateless reader. A codebase with type errors cannot be correctly
+  derived from its specification because the derivation has already produced something the
+  type system rejects. This gate enforces that the derivation is valid before any further
+  work proceeds.
+property: Executable
+tags: [typescript]
+phase: development
+trigger: commit
+blocking: true
+check:
+  type: lint
+  command: "tsc --noEmit"

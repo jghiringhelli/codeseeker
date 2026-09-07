@@ -1,0 +1,16 @@
+id: npm-audit-no-high-cve
+name: No high-severity CVEs
+description: >
+  npm audit --audit-level=high exits 0. A high-severity CVE in a dependency is a security
+  boundary violation that exists regardless of whether it has been exploited. The Defended
+  property requires that security gates are present and passing — not advisory. This gate
+  blocks the commit until the vulnerability is resolved or explicitly overridden with
+  documented justification.
+property: Defended
+tags: [node, npm, javascript, typescript]
+phase: development
+trigger: commit
+blocking: true
+check:
+  type: audit
+  command: "npm audit --audit-level=high"

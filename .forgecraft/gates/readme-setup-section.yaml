@@ -1,0 +1,15 @@
+﻿id: readme-setup-section
+name: README contains a Setup section with runnable commands
+description: >
+  The repository README includes a Setup or Getting Started section containing
+  at least one fenced code block with runnable commands sufficient to get the
+  project running locally. A README without setup instructions is an undeclared
+  dependency on tribal knowledge.
+property: Self-describing
+tags: [any]
+phase: development
+trigger: pr
+blocking: false
+check:
+  type: script
+  command: "grep -qi 'setup\\|getting started\\|installation' README.md"

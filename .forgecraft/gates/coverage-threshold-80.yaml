@@ -1,0 +1,17 @@
+id: coverage-threshold-80
+name: Line coverage ≥ 80%
+description: >
+  Test line coverage is at or above 80% for the entire project. Coverage is not a quality
+  metric — it is a derivability metric. Code that has no tests cannot be verified; behavior
+  that cannot be verified cannot be specified; a specification with unverifiable behavior
+  is incomplete. 80% is the minimum threshold at which the Verifiable property can be
+  claimed. Critical paths (auth, financial calculations, data pipelines) require 95%+
+  coverage enforced separately. This gate blocks merge when the overall threshold is not met.
+property: Verifiable
+tags: [javascript, typescript, jest]
+phase: development
+trigger: pr
+blocking: true
+check:
+  type: test
+  command: "jest --coverage --coverageThreshold '{\"global\":{\"lines\":80}}'"

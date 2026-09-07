@@ -1,0 +1,139 @@
+version: "1"
+
+# CodeSeeker quality gates.
+#
+# Gate severity follows the brownfield ramp described in the GS Compendium: a gate is
+# advisory-with-a-recorded-baseline while the project is out of compliance, and becomes
+# blocking once the baseline is clean. An advisory gate is not decoration — it prints the
+# current number and fails if the number gets worse. That is the ratchet: the obligation
+# is not to reach the target today, it is never to regress from where we are.
+#
+# Promote a gate by deleting its `continue-on-error` in .github/workflows/quality-gates.yml
+# and moving it from `advisory` to `blocking` here.
+#
+# Baselines measured 2026-09-07 at commit 2a3e04a.
+
+blocking:
+  - id: tsc-no-emit-exits-zero
+    enforced_at: [pre-commit, ci]
+    note: Passing since before the ramp. Blocking from day one.
+
+  - id: jest-no-failed-tests
+    enforced_at: [pre-push, ci]
+    baseline: 712 passing, 0 failing, ~11s
+    note: >
+      Scoped to unit + integration. The e2e suite performs real indexing with ONNX
+      embeddings and runs for over fifteen minutes; it runs nightly or on demand, not
+      as a per-push gate.
+
+  - id: conventional-commits
+    enforced_at: [commit-msg, ci]
+    note: >
+      Already satisfied by existing history. The commit type is the parsing surface the
+      document cascade reads to decide which upper layer a change must amend — this gate
+      is a prerequisite for the cascade gate, not merely style.
+
+advisory:
+  - id: coverage-threshold-80
+    baseline:
+      statements: 11.16   # 3745/33529
+      branches: 8.65      # 1418/16375
+      functions: 10.14    # 587/5784
+      lines: 11.25        # 3570/31732
+    target: 80
+    note: >
+      jest.config.js has carried `coverageThreshold: 80` since before this ramp, but
+      nothing ever ran it, so it never failed. The threshold existed; the gate did not.
+      712 tests is not a small suite — it is a narrow one, concentrated on a slice of
+      the codebase. Not Test Theater (assertions are real); simply unreached code.
+    promotion_criteria: >
+      Raise per-module rather than globally. The retrieval core is first:
+      ast-chunker, raptor-indexing-service, semantic-search-orchestrator,
+      sqlite-vector-store, mcp-server. Promote to blocking when the global figure is
+      within reach of 80, ratcheting the floor upward as it climbs.
+
+  - id: mutation-score-threshold
+    baseline: pending   # first measured run in progress; scope is ast-chunker.ts
+    target: 65          # 70 on changed files
+    note: >
+      Scoped to the retrieval core, widening as coverage grows. Mutating all 338 source
+      files would take hours and produce nothing actionable while coverage sits at 11%.
+      Mutation score is only meaningful where tests exist to detect the mutants.
+
+  - id: npm-audit-no-high-cve
+    baseline:
+      critical: 0
+      high: 2
+      moderate: 5
+      total: 7
+    previous:
+      critical: 3
+      high: 22
+      moderate: 8
+      total: 37
+    note: >
+      Cleared in three moves: dropped `sqlite3` (an unused dependency — the embedded
+      store uses better-sqlite3; the only references were in test fixtures — which was
+      dragging in the critical node-tar path-traversal advisory); bumped
+      @modelcontextprotocol/sdk past GHSA-345p-7cg4-v4c7, a cross-client data leak that
+      matters more than usual for a server indexing third-party private code; and
+      overrode protobufjs and brace-expansion.
+    remaining: >
+      The last 2 high (onnxruntime-web, sharp) come from @xenova/transformers, which is
+      frozen at 2.17.2 and will not be patched — the package was renamed to
+      @huggingface/transformers. Neither vulnerable package is imported: CodeSeeker uses
+      onnxruntime-node for text feature extraction and never touches the web or image
+      pipelines. Clearing them requires migrating to the successor package, which must be
+      benchmarked before and after to confirm retrieval quality is unchanged.
+    promotion_criteria: Blocking once the transformers migration lands.
+
+  - id: file-length-max-300
+    baseline: 144   # of 338 source files over the limit
+    worst:
+      - src/cli/commands/services/user-interaction-service.ts: 2264
+      - src/mcp/mcp-server.ts: 1886
+      - src/mcp/indexing-service.ts: 1405
+      - src/cli/commands/handlers/setup-command-handler.ts: 1311
+    note: >
+      Enforced as a ratchet — CI fails if the count exceeds 144. Bounded is one of the
+      two properties that carry disproportionate weight, and a 2264-line file is a
+      change surface nobody can predict.
+    promotion_criteria: Split files opportunistically as they are touched; promote when the count nears zero.
+
+  - id: typescript-strict-mode
+    baseline: "strict: false"
+    note: >
+      Turning strict on across 338 files at once would produce hundreds of errors and
+      one unreviewable commit. Enabling per-file as modules are touched.
+    promotion_criteria: Promote when tsconfig strict can be enabled with a clean build.
+
+  - id: adr-files-emitted
+    baseline: "11 ADRs, but as a table in .claude/adr/index.md rather than individual files"
+    note: >
+      The decisions and their rationale are recorded and genuinely good — ADR-004
+      carries the arithmetic for why the symbol boost is additive rather than
+      multiplicative. What is missing is the file-per-decision shape the gate checks,
+      and which makes an ADR supersedable rather than editable.
+    promotion_criteria: Emit docs/adrs/NNNN-*.md with context/decision/consequences; keep the index as the router.
+
+# Project-specific gates discovered while working here. Each should carry the incident
+# that motivated it — the gate corpus is a ledger of paid-for failures, not opinion.
+gates:
+  - id: no-divergent-project-resolution
+    property: Composable
+    provenance: >
+      GitHub issue #2. `sym` and `graph` each carried a private copy of project
+      resolution that fell back to process.cwd(); `search` used the shared resolver.
+      An MCP server's cwd is its launcher's, so both actions reported "Project not
+      indexed" for a project search resolved fine. The duplication was the defect.
+    check: MCP action handlers must resolve projects through resolveProject/resolveIndexedProject, never inline.
+    status: proposed
+
+  - id: no-silent-truncation-in-diagnostics
+    property: Self-describing
+    provenance: >
+      GitHub issue #3. An error listed `available_files` sliced to 15 entries with no
+      total and no indication of truncation, so a complete 500-file index looked like it
+      was missing files. The reporter spent effort on a defect that did not exist.
+    check: Any truncated list in a tool response must report the full count and label itself as a sample.
+    status: proposed

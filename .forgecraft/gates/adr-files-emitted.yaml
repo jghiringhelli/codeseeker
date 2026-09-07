@@ -1,0 +1,15 @@
+id: adr-files-emitted
+name: ADRs exist as committed files
+description: >
+  Every Architecture Decision Record referenced in the specification or README must exist
+  as a committed file with substantive content — context, options considered, decision, and
+  consequences. An ADR that is referenced in prose ("see ADR-0001") but does not exist as a
+  file fails the Auditable gate. An ADR that exists as an empty stub or contains only a title
+  also fails. The decision trail must be readable by a stateless agent with no prior context.
+property: Auditable
+tags: [any]
+phase: development
+trigger: pr
+blocking: true
+check:
+  type: manual

@@ -1,0 +1,19 @@
+id: typescript-strict-mode
+name: TypeScript strict mode enabled
+description: >
+  The project's tsconfig.json has compilerOptions.strict set to true. Strict mode enables
+  a family of compiler checks — noImplicitAny, strictNullChecks, strictFunctionTypes,
+  strictBindCallApply, strictPropertyInitialization, noImplicitThis, and alwaysStrict —
+  that collectively eliminate the most common sources of runtime type errors. A TypeScript
+  codebase without strict mode enabled is structurally equivalent to a JavaScript codebase
+  with optional type hints. The Executable property requires that the artifact compiles
+  under the strongest type constraints the toolchain offers. Turning off strict mode to
+  silence errors defers type unsafety to runtime.
+property: Executable
+tags: [typescript]
+phase: development
+trigger: commit
+blocking: true
+check:
+  type: script
+  command: "node -e \"const c=JSON.parse(require('fs').readFileSync('./tsconfig.json','utf8')); if(!c.compilerOptions || c.compilerOptions.strict !== true){console.error('tsconfig.json must have compilerOptions.strict: true');process.exit(1)}\""
