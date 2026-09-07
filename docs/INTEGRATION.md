@@ -67,13 +67,18 @@ codeseeker serve --mcp
 
 Exposes CodeSeeker tools to AI assistants via Model Context Protocol.
 
-**Tools provided:**
-- `search_code` - Semantic search across codebase
-- `get_file_context` - File with related context
-- `get_code_relationships` - Dependency exploration
-- `get_coding_standards` - Auto-detected patterns
-- `index_project` - Project indexing
-- `notify_file_changes` - Incremental updates
+**Tool provided:** exactly one, named `codeseeker`, routed by an `action` key (ADR-002 —
+one tool keeps the per-request description cost low):
+
+| action | What it does |
+|---|---|
+| `search` | Hybrid BM25 + vector search across the codebase |
+| `sym` | Symbol lookup in the knowledge graph |
+| `graph` | Dependency traversal (imports, calls, extends) |
+| `analyze` | `duplicates`, `dead_code`, `standards` |
+| `index` | `init`, `sync`, `status`, `parsers`, `exclude` |
+
+Full parameter reference: [`docs/install/mcp-server.md`](install/mcp-server.md).
 
 **Auto-configured:** The Claude Code Plugin includes MCP configuration.
 
@@ -129,7 +134,7 @@ Watches for manual file edits and syncs the index.
 **What it does:**
 - Monitors file system for creates/edits/deletes
 - Batches changes (2-second debounce)
-- Calls MCP `notify_file_changes` automatically
+- Calls MCP `codeseeker({action:"index", index:{op:"sync"}})` automatically
 
 **Installation:** Install from VSCode marketplace or build from `extensions/vscode-codeseeker/`.
 

@@ -1,5 +1,12 @@
 # CodeSeeker Auto-Detected Coding Standards - Three-Way Comparison
 
+> **Historical record — kept verbatim.** This report documents a validation run as it was
+> performed on 2025-12-28, against the multi-tool MCP surface of the time. The tool names
+> below (`get_coding_standards` and friends) no longer exist: since v2.0 CodeSeeker exposes
+> a single `codeseeker` tool, and this capability is now
+> `codeseeker({action:"analyze", analyze:{kind:"standards"}})`. The findings still stand;
+> only the call shape changed. See `docs/install/mcp-server.md` for the current surface.
+
 **Date**: 2025-12-28
 **Feature**: Auto-detected coding standards with `.codeseeker/coding-standards.json` and `get_coding_standards` MCP tool
 **Status**: ✅ **FULLY VALIDATED - ALL THREE MODES TESTED**

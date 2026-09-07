@@ -202,7 +202,7 @@ claude mcp list
 ```
 You: Index my project at /tmp/ContractMaster-Test
 
-Claude: [Uses index_project tool]
+Claude: [Calls codeseeker({action:"index", index:{op:"init", path:"/abs/root"}})]
 
 I've indexed your ContractMaster-Test project:
 - Files indexed: 17
@@ -217,7 +217,7 @@ The project is now ready for semantic search.
 ```
 You: Search for authentication code in ContractMaster-Test
 
-Claude: [Uses search_code tool]
+Claude: [Calls codeseeker({action:"search", project:"/abs/root", search:{q:"..."}})]
 
 I found 4 relevant files related to authentication:
 
@@ -239,7 +239,7 @@ I found 4 relevant files related to authentication:
 ```
 You: Show me the MegaController with related code
 
-Claude: [Uses get_file_context tool]
+Claude: [Calls codeseeker({action:"graph", project:"/abs/root", graph:{seed:"..."}}) then reads the file]
 
 **MegaController.js** (server/controllers/MegaController.js)
 
@@ -265,7 +265,7 @@ SOLID Violations detected:
 ```
 You: What files depend on UserService?
 
-Claude: [Uses get_code_relationships tool]
+Claude: [Calls codeseeker({action:"graph", project:"/abs/root", graph:{seed:"...", dir:"both"}})]
 
 UserService has the following relationships:
 
@@ -287,7 +287,7 @@ and depends on 2 core libraries.
 ```
 You: I just did a big git pull, refresh the entire index
 
-Claude: [Uses notify_file_changes with full_reindex: true]
+Claude: [Calls codeseeker({action:"index", project:"/abs/root", index:{op:"sync", full_reindex:true}})]
 
 I've triggered a complete reindex:
 - Mode: full_reindex

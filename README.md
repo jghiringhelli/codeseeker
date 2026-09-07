@@ -8,7 +8,7 @@ BM25 + vector embeddings + RAPTOR directory summaries + graph expansion — fuse
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
 
 Works with **Claude Code**, **GitHub Copilot** (VS Code 1.99+), **Cursor**, **Windsurf**, and **Claude Desktop**.  
-Zero configuration — indexes on first use, stays in sync automatically.
+One command to index; the Claude Code plugin keeps it in sync from there.
 
 ## The Problem
 
@@ -65,7 +65,7 @@ Query: "find JWT refresh token logic"
    auth/jwt.ts (0.94), auth/refresh.ts (0.89), ...
 ```
 
-The knowledge graph is built from AST-parsed imports at index time. It's what powers `analyze dependencies`, dead-code detection, and graph expansion in every search.
+The knowledge graph is built from AST-parsed imports at index time. It's what powers the `graph` action, dead-code detection, and graph expansion in every search.
 
 ## What Makes It Different
 
@@ -137,7 +137,9 @@ Slash commands: `/codeseeker:init`, `/codeseeker:reindex`
 
 Ask your AI assistant: *"What CodeSeeker tools do you have?"*
 
-You should see: `search`, `analyze`, `index` — CodeSeeker's three tools.
+You should see a single tool named `codeseeker`. That is intentional: one tool with an
+`action` routing key keeps per-request token overhead low (ADR-002). The actions are
+`search`, `sym`, `graph`, `analyze` and `index`.
 
 ## Advanced Installation Options
 
@@ -180,49 +182,74 @@ codeseeker -c "how does authentication work in this project?"
 
 ## What You Get
 
-Once configured, Claude has access to these MCP tools (used automatically):
+CodeSeeker exposes **one** MCP tool, `codeseeker`. You pick behaviour with `action` and
+fill only the matching nested parameter group:
 
-| Tool | Actions / Usage | What It Does |
-|------|-----------------|-------------|
-| `search` | `{query}` | Hybrid search: vector + BM25 text + path-match, fused with RRF; RAPTOR directory summaries surface for abstract queries |
-| `search` | `{query, search_type: "graph"}` | Hybrid search **+ Graph RAG** — follows import/call/extends edges to surface structurally connected files |
-| `search` | `{query, search_type: "vector"}` | Pure embedding cosine-similarity search (no BM25 or path scoring) |
-| `search` | `{query, search_type: "fts"}` | Pure BM25 text search with CamelCase tokenisation and synonym expansion |
-| `search` | `{query, read: true}` | Search + read file contents in one step |
-| `search` | `{filepath}` | Read a file with its related code automatically included |
-| `analyze` | `{action: "dependencies", filepath}` | Traverse the knowledge graph (imports, calls, extends) |
-| `analyze` | `{action: "standards"}` | Your project's detected patterns (validation, error handling) |
-| `analyze` | `{action: "duplicates"}` | Find duplicate/similar code blocks across your codebase |
-| `analyze` | `{action: "dead_code"}` | Detect unused exports, functions, and classes |
-| `index` | `{action: "init", path}` | Manually trigger indexing (rarely needed) |
-| `index` | `{action: "sync", changes}` | Update index for specific files |
-| `index` | `{action: "exclude", paths}` | Dynamically exclude/include files from the index |
-| `index` | `{action: "status"}` | List indexed projects with file/chunk counts |
+```js
+codeseeker({ action, project, search?|sym?|graph?|analyze?|index? })
+```
+
+Always pass `project` (the absolute project root) — an MCP server cannot detect your
+working directory.
+
+| action | Parameters | What It Does |
+|---|---|---|
+| `search` | `search:{q}` | Hybrid search: BM25 + vector embeddings fused with RRF, then graph expansion; RAPTOR directory summaries surface for abstract queries |
+| `search` | `search:{q, type:"vector"}` | Pure embedding cosine-similarity search |
+| `search` | `search:{q, type:"fts"}` | Pure BM25 text search with CamelCase tokenisation |
+| `search` | `search:{q, full:true}` | Include a code snippet with each result (default: summaries only) |
+| `search` | `search:{q, exists:true}` | Quick yes/no — returns `{found, count, top_file}` |
+| `sym` | `sym:{name}` | Look up a class/function by name and show its graph neighbours |
+| `graph` | `graph:{seed, depth, rel, dir}` | Traverse the knowledge graph from a file (imports, calls, extends) |
+| `graph` | `graph:{q}` | Same, but find the seed files semantically first |
+| `analyze` | `analyze:{kind:"standards"}` | Your project's detected patterns (validation, error handling) |
+| `analyze` | `analyze:{kind:"duplicates"}` | Find duplicate/similar code blocks |
+| `analyze` | `analyze:{kind:"dead_code"}` | Detect unused exports, orphaned files, coupling issues |
+| `index` | `index:{op:"init", path}` | Build the index for a project (required once — see below) |
+| `index` | `index:{op:"sync", changes}` | Update the index for specific files |
+| `index` | `index:{op:"exclude", paths}` | Exclude/include paths from the index |
+| `index` | `index:{op:"status"}` | List indexed projects with file/chunk counts |
+| `index` | `index:{op:"parsers"}` | List/install Tree-sitter parsers |
 
 **You don't invoke these manually**—Claude uses them automatically when searching code or analyzing relationships.
 
 ## How Indexing Works
 
-**You don't need to manually index.** When Claude uses any CodeSeeker tool, the tool automatically checks if the project is indexed. If not, it indexes on first use.
+**A project must be indexed once before search works.** CodeSeeker does not index on
+first query — if the project is unknown it returns an error telling you to initialise it.
+This is deliberate: silently indexing a large repository inside a tool call would block
+the assistant for minutes with no way to cancel.
 
 ```
 User: "Find the authentication logic"
         │
         ▼
-┌─────────────────────────────────────┐
-│ Claude calls search({query: ...})  │
-│         │                           │
-│         ▼                           │
-│ Project indexed? ──No──► Index now  │
-│         │                  (auto)   │
-│        Yes                   │      │
-│         │◀───────────────────┘      │
-│         ▼                           │
-│ Return search results               │
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│ Claude calls codeseeker({action:"search"})   │
+│         │                                    │
+│         ▼                                    │
+│ Project indexed? ──No──► error: run          │
+│         │                index op:"init"     │
+│        Yes                                   │
+│         ▼                                    │
+│ Return ranked results                        │
+└──────────────────────────────────────────────┘
 ```
 
-First search on a new project takes 30 seconds to several minutes (depending on size). Subsequent searches are instant.
+Index once, either way:
+
+```js
+codeseeker({ action: "index", index: { op: "init", path: "/abs/path/to/project" } })
+```
+```bash
+codeseeker init          # or, from the CLI
+```
+
+Indexing runs in the background and takes 30 seconds to several minutes depending on
+project size. Poll it with `index({op:"status"})`. Subsequent searches are instant.
+
+If you use the Claude Code plugin, `/codeseeker:init` does this for you and hooks keep
+the index current afterwards.
 
 ---
 
@@ -326,13 +353,17 @@ When Claude writes new code, it follows your existing conventions instead of inv
 
 If Claude notices files that shouldn't be indexed (like Unity's Library folder, build outputs, or generated files), it can dynamically exclude them:
 
-```
+```js
 // Exclude Unity Library folder and generated files
-index({
-  action: "exclude",
-  project: "my-unity-game",
-  paths: ["Library/**", "Temp/**", "*.generated.cs"],
-  reason: "Unity build artifacts"
+codeseeker({
+  action: "index",
+  project: "/abs/path/to/my-unity-game",
+  index: {
+    op: "exclude",
+    exclude_op: "exclude",
+    paths: ["Library/**", "Temp/**", "*.generated.cs"],
+    reason: "Unity build artifacts"
+  }
 })
 ```
 
@@ -421,7 +452,7 @@ The plugin installs **hooks** that automatically update the index:
 
 ### With MCP Server Only (Cursor, Claude Desktop)
 
-- **Claude-initiated changes**: Claude can call `index({action: "sync"})` tool
+- **Claude-initiated changes**: Claude can call `codeseeker({action:"index", index:{op:"sync"}})`
 - **Manual changes**: Not automatically detected—ask Claude to reindex periodically
 
 ### Sync Summary

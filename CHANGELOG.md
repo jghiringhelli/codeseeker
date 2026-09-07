@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Extracted `isTestFile` logic into a reusable private class method (previously a local closure in `processRawResults`; now shared with `expandWithGraphNeighbors`)
 
-
+## [2.0.0] - 2026-03-23
 
 Major release fixing a critical monorepo indexing bug (MRR 10% → 72% on pnpm workspaces), adding measured scoring improvements, enabling graph expansion in default hybrid mode, and shipping a real-index ablation benchmark. All 711 unit/integration tests passing.
 
@@ -331,6 +331,13 @@ RAPTOR contributes +0.3% MRR on symbol queries; its primary value is on abstract
 2. Install new package: `npm install -g codeseeker-cli`
 3. Update MCP configs to use `codeseeker` instead of `codemind`
 4. Re-run init in your projects: `codeseeker init`
+
+---
+
+> **Note on the entries below.** Everything from here down belongs to the pre-rename
+> `codemind` history and an older numbering scheme (2025 dates, including a separate
+> `[2.1.0]` and `[2.0.0]`). It is kept verbatim for provenance and does not continue the
+> version series above. Released CodeSeeker versions are the 2026-dated entries.
 
 ## [Unreleased]
 

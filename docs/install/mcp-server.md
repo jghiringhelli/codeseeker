@@ -90,202 +90,121 @@ claude mcp list
 
 ## Available Tools
 
-### `search_code`
+CodeSeeker exposes **exactly one** MCP tool — `codeseeker` — with an `action` routing key.
+A single tool keeps the per-request description cost low; see ADR-002 in
+`.claude/adr/index.md` for the rationale.
 
-Search for code across indexed projects using semantic search.
-
-**Parameters:**
-- `query` (required): Natural language query or code snippet
-- `limit` (optional): Maximum results (default: 10)
-- `project` (optional): Filter to specific project
-- `search_type` (optional): `hybrid` | `fts` | `vector` | `graph`
-
-**Example:**
-```
-Search for "authentication middleware" in CodeSeeker
+```js
+codeseeker({ action, project, search?|sym?|graph?|analyze?|index? })
 ```
 
-### `get_file_context`
+Fill only the nested group matching `action`. **Always pass `project`** with the absolute
+project root — an MCP server cannot detect your editor's working directory, and without it
+a query may resolve against a different index.
 
-Get a file's content with semantically related code chunks.
+### `action: "search"`
 
-**Parameters:**
-- `filepath` (required): Path to the file
-- `include_related` (optional): Include related chunks (default: true)
-- `project` (optional): Project name or path
+Hybrid retrieval: BM25 + vector embeddings fused with Reciprocal Rank Fusion, a RAPTOR
+directory-summary cascade, then graph expansion.
 
-**Example:**
-```
-Get the context for src/auth/middleware.ts
-```
+| Param | Type | Default | Meaning |
+|---|---|---|---|
+| `q` | string | required | Natural-language query |
+| `type` | `hybrid` \| `fts` \| `vector` | `hybrid` | Retrieval mode |
+| `limit` | number | 10 | Max results |
+| `full` | boolean | false | Include a snippet per result |
+| `exists` | boolean | false | Quick yes/no — returns `{found,count,top_file}` |
 
-### `get_code_relationships`
-
-Explore code relationships in the knowledge graph. Traverses imports, exports, function calls, class inheritance, and other code dependencies.
-
-**Parameters:**
-- `filepath` (required): Path to the file or entity to start traversal from
-- `depth` (optional): How many relationship hops to traverse (default: 2, max: 5)
-- `relationship_types` (optional): Filter by relationship types. Options: `imports`, `exports`, `calls`, `extends`, `implements`, `contains`, `uses`, `depends_on`
-- `direction` (optional): Traversal direction - `in` (incoming), `out` (outgoing), or `both` (default: `both`)
-- `project` (optional): Project name or path
-
-**Example:**
-```
-What does src/auth/middleware.ts depend on?
-Show me all files that import the UserService class
+```js
+codeseeker({ action: "search", project: "/abs/root", search: { q: "jwt refresh token" } })
 ```
 
-**Response includes:**
-- `nodes`: Array of code entities (files, classes, functions) with their types and metadata
-- `relationships`: Array of connections between nodes with relationship types
-- `summary`: Human-readable description of the graph structure
+Results are summaries by default (path, score, line range, signature). Read the file with
+your editor's Read tool rather than asking for `full: true`, unless you only need a peek.
 
-### `list_projects`
+### `action: "sym"`
 
-List all indexed projects with their status.
+Look up a class, function or method by name in the knowledge graph and show its neighbours.
 
-**Example:**
-```
-What projects are indexed in CodeSeeker?
-```
+| Param | Type | Default | Meaning |
+|---|---|---|---|
+| `name` | string | required | Symbol name, exact or partial |
+| `full` | boolean | false | Include resolved relationships |
 
-### `index_project`
-
-Index a project directory for semantic search.
-
-**Parameters:**
-- `path` (required): Absolute path to project directory
-- `name` (optional): Project name
-
-**Example:**
-```
-Index my project at /home/user/my-app
+```js
+codeseeker({ action: "sym", project: "/abs/root", sym: { name: "UserService" } })
 ```
 
-### `notify_file_changes`
+### `action: "graph"`
 
-Update the index after file changes. Supports two modes:
+Traverse the knowledge graph built from AST-parsed imports.
 
-1. **Incremental** (default): Pass specific file changes for fast updates
-2. **Full reindex**: Use `full_reindex: true` after large operations like git pull
+| Param | Type | Default | Meaning |
+|---|---|---|---|
+| `seed` | string | — | Seed file (project-relative) |
+| `q` | string | — | Or: find seed files semantically |
+| `depth` | number | 1 | Traversal depth, 1–3 |
+| `rel` | string[] | all | `imports`, `exports`, `calls`, `extends`, `implements`, `contains`, `uses`, `depends_on` |
+| `dir` | `in` \| `out` \| `both` | `both` | Edge direction |
+| `max` | number | 50 | Max nodes returned |
 
-**Parameters:**
-- `project` (required): Project name or path
-- `changes` (optional): Array of `{type: "created"|"modified"|"deleted", path: string}`
-- `full_reindex` (optional): Set to `true` for complete project re-index
-
-**Examples:**
-```
-# Incremental update after modifying a file
-I just modified src/api/routes.ts - update the index
-
-# Full reindex after git pull
-I just did a big git pull, please refresh the entire index
+```js
+codeseeker({ action: "graph", project: "/abs/root",
+             graph: { seed: "src/auth/jwt.ts", dir: "in" } })   // who depends on this?
 ```
 
-**Response includes:**
-- `mode`: 'incremental' or 'full_reindex'
-- `files_indexed` or `chunks_added/removed`: Count of changes
-- `duration_ms`: Processing time
+**Accuracy note:** import edges come from AST parsing and are reliable. Call edges use
+regex heuristics, so dynamic dispatch, callbacks and event handlers are not detected.
 
-### `get_coding_standards`
+### `action: "analyze"`
 
-Get auto-detected coding patterns and standards for a project. Returns validation patterns, error handling patterns, logging patterns, and testing patterns discovered from the codebase.
+| `kind` | Extra params | What it returns |
+|---|---|---|
+| `standards` | `category` | Detected patterns per category, with usage counts and confidence |
+| `duplicates` | `threshold`, `min_lines` | Semantically similar code blocks |
+| `dead_code` | `patterns` | Unused exports, orphaned files, coupling issues |
 
-**Parameters:**
-- `project` (required): Project name or path
-- `category` (optional): Filter to specific category: `validation`, `error-handling`, `logging`, `testing`, or `all` (default: `all`)
+`project` is **required** for every `analyze` call.
 
-**Example:**
-```
-What validation patterns does this project use?
-Get the coding standards for error handling
+```js
+codeseeker({ action: "analyze", project: "/abs/root", analyze: { kind: "dead_code" } })
 ```
 
-**Response includes:**
-- `generated_at`: Timestamp when standards were generated
-- `project_id`: Project identifier
-- `project_path`: Absolute path to project
-- `standards`: Object with category-based patterns:
-  - **validation**: Email, phone, URL validation patterns
-  - **error-handling**: Try-catch, error response patterns
-  - **logging**: Console, structured logging patterns
-  - **testing**: Test setup, assertion patterns
+### `action: "index"`
 
-**Example response:**
-```json
-{
-  "standards": {
-    "validation": {
-      "validator-isemail": {
-        "preferred": "validator.isEmail()",
-        "import": "const validator = require('validator');",
-        "usage_count": 5,
-        "files": ["src/auth.ts", "src/user.ts"],
-        "confidence": "high",
-        "rationale": "Project standard - uses validator library in 5 files...",
-        "alternatives": [...]
-      }
-    }
-  }
-}
+| `op` | Extra params | What it does |
+|---|---|---|
+| `init` | `path`, `name` | Build the index (required once per project) |
+| `sync` | `changes[]`, `full_reindex` | Incremental update, or full rebuild |
+| `status` | — | List indexed projects with file/chunk counts and job progress |
+| `parsers` | `languages`, `list_available` | List or install Tree-sitter parsers |
+| `exclude` | `exclude_op`, `paths`, `reason` | Exclude/include paths; persists to `.codeseeker/exclusions.json` |
+
+```js
+codeseeker({ action: "index", index: { op: "init", path: "/abs/root" } })
+codeseeker({ action: "index", index: { op: "status" } })
 ```
 
-**Use cases:**
-- Learn project-specific coding patterns before making changes
-- Ensure consistency with existing code style
-- Discover which libraries are used for common tasks (validation, logging, etc.)
-- Get recommendations on which pattern to use when multiple exist
+Indexing runs in the background — `init` returns immediately, so poll `op: "status"` until
+`indexing_status` is `completed`.
 
-**Note:** Standards are auto-generated during `codeseeker init` and updated incrementally when pattern-related files change. If not yet generated, the tool will create them on first call.
+### Language support
 
-### `install_language_support`
+Relationship extraction quality by language, as actually implemented:
 
-Analyze project languages and install Tree-sitter parsers for better code understanding. Enhanced parsers provide more accurate AST extraction for imports, classes, functions, and relationships.
-
-**Parameters:**
-- `project` (optional): Project path to analyze (auto-detects needed parsers)
-- `languages` (optional): Array of language names to install (e.g., `["python", "java", "csharp"]`)
-- `list_available` (optional): Set to `true` to list all available parsers and their status
-
-**Examples:**
-```
-# Analyze project and see which parsers are needed
-Analyze my project at /path/to/project for language support
-
-# Install specific parsers
-Install Python and Java parsers for CodeSeeker
-
-# List available parsers
-List all available CodeSeeker language parsers
-```
-
-**Supported Languages:**
-| Language | Parser | Quality |
-|----------|--------|---------|
-| TypeScript/JavaScript | Babel (bundled) | Excellent |
+| Language | Parser in use | Relationship extraction |
+|----------|---------------|------------------------|
+| TypeScript / JavaScript | Babel AST (bundled) | Excellent |
 | Python | Tree-sitter | Excellent |
 | Java | Tree-sitter | Excellent |
-| C# | Tree-sitter/Regex | Excellent/Good |
-| Go | Tree-sitter/Regex | Excellent/Good |
-| Rust | Tree-sitter | Excellent |
-| C/C++ | Tree-sitter | Excellent |
-| Ruby | Tree-sitter | Excellent |
-| PHP | Tree-sitter | Good |
-| Swift | Tree-sitter | Good |
-| Kotlin | Tree-sitter | Good |
+| C# | Regex | Good |
+| Go | Regex | Good |
+| Rust, C/C++, Ruby, PHP | Regex | Basic |
 
-**Response includes:**
-- `installed_parsers`: Languages with parsers already available
-- `available_parsers`: Languages that can be installed
-- `detected_languages`: (when analyzing project) Languages found with file counts
-- `recommendations`: Installation suggestions
+`index({op:"parsers"})` lists further Tree-sitter packages, but only TypeScript,
+JavaScript, Python and Java are currently wired into the graph builder — installing a
+parser for another language does not yet change extraction quality for it.
 
-**Use cases:**
-- Improve code understanding for non-JavaScript/TypeScript projects
-- Enable better relationship detection for Python, Java, C#, Go, etc.
-- Reduce index size by having proper AST parsing instead of regex fallback
 
 ## Architecture
 
@@ -445,7 +364,7 @@ claude mcp add codeseeker --scope user -- codeseeker serve --mcp
 ```
 You: Search for how authentication is implemented in my project
 
-Claude: [Uses search_code tool with query "authentication implementation"]
+Claude: [Calls codeseeker({action:"search", project:"/abs/root", search:{q:"authentication implementation"}})]
 
 I found 5 relevant files:
 1. src/auth/jwt-handler.ts (score: 0.92) - JWT token validation and generation
@@ -460,7 +379,7 @@ Would you like me to explain any of these in detail?
 ```
 You: What files depend on the UserService class?
 
-Claude: [Uses get_code_relationships tool with filepath "src/services/user-service.ts", direction "in"]
+Claude: [Calls codeseeker({action:"graph", project:"/abs/root", graph:{seed:"src/services/user-service.ts", dir:"in"}})]
 
 I found 8 files that depend on UserService:
 
@@ -479,7 +398,7 @@ user management APIs, and has comprehensive test coverage.
 ```
 You: I just did a big git pull, can you refresh the entire CodeSeeker index?
 
-Claude: [Uses notify_file_changes tool with full_reindex: true]
+Claude: [Calls codeseeker({action:"index", project:"/abs/root", index:{op:"sync", full_reindex:true}})]
 
 I've triggered a full reindex of your project. This clears the existing
 index and rebuilds it from scratch.
@@ -505,7 +424,7 @@ code --install-extension vscode-codeseeker-0.1.0.vsix
 
 ### How It Works
 
-The VSCode extension watches for file changes and automatically calls the MCP server's `notify_file_changes` tool:
+The VSCode extension watches for file changes and automatically calls the MCP server with `{action:"index", index:{op:"sync", changes:[...]}}`:
 
 ```
 ┌──────────────────┐     File Events     ┌──────────────────┐

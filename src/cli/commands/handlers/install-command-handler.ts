@@ -419,11 +419,12 @@ export class InstallCommandHandler extends BaseCommandHandler {
       console.log(Theme.colors.muted('\n💡 Tip: Use --global to install for all projects'));
     }
 
-    console.log(Theme.colors.info('\n🔍 Available MCP tools:'));
-    console.log(Theme.colors.muted('   • search({query})             - Semantic code search'));
-    console.log(Theme.colors.muted('   • search({query, read: true}) - Search + read in one call'));
-    console.log(Theme.colors.muted('   • analyze({action, ...})      - Dependencies, duplicates, dead code, standards'));
-    console.log(Theme.colors.muted('   • index({action, ...})        - Index, sync, status, parsers, exclude'));
+    console.log(Theme.colors.info('\n🔍 MCP tool surface — one tool, `codeseeker`, routed by `action`:'));
+    console.log(Theme.colors.muted('   • action:"search"  search:{q}     - Hybrid semantic + BM25 search'));
+    console.log(Theme.colors.muted('   • action:"sym"     sym:{name}     - Look up a class or function'));
+    console.log(Theme.colors.muted('   • action:"graph"   graph:{seed}   - Traverse imports, calls, extends'));
+    console.log(Theme.colors.muted('   • action:"analyze" analyze:{kind} - duplicates, dead_code, standards'));
+    console.log(Theme.colors.muted('   • action:"index"   index:{op}     - init, sync, status, parsers, exclude'));
   }
 
   /**
