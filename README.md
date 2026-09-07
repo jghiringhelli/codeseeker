@@ -75,15 +75,18 @@ These commands are run **in Claude Code chat** (not in terminal):
 
 ### MCP Tools (Used Automatically)
 
-The plugin provides these MCP tools that Claude uses behind the scenes:
+The plugin exposes a **single** MCP tool, `codeseeker`, routed by an `action` key
+(one tool keeps the per-request token cost low — see ADR-002):
 
-- `search_code` - Semantic code search
-- `get_file_context` - File with related context
-- `get_code_relationships` - Dependency exploration
-- `get_coding_standards` - Auto-detected patterns
-- `index_project` - Project indexing
-- `notify_file_changes` - Incremental updates
-- `install_language_support` - Install Tree-sitter parsers for better code understanding
+| action | Nested group | What it does |
+|---|---|---|
+| `search` | `search:{q,type?,limit?,full?,exists?}` | Hybrid BM25 + vector search with RRF fusion |
+| `sym` | `sym:{name,full?}` | Look up a class or function by name in the graph |
+| `graph` | `graph:{seed\|q,depth?,rel?,dir?,max?}` | Traverse imports, calls, extends |
+| `analyze` | `analyze:{kind,...}` | `duplicates`, `dead_code`, `standards` |
+| `index` | `index:{op,...}` | `init`, `sync`, `status`, `parsers`, `exclude` |
+
+Always pass `project` with the absolute project root — the MCP server cannot detect cwd.
 
 ## Index Synchronization
 

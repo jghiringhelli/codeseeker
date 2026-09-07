@@ -1,28 +1,42 @@
 # Get File Context
 
-Read a file with its semantically related code context.
+Read a file together with the code that is semantically and structurally related to it.
 
 ## Arguments:
 - `$ARGUMENTS` - File path to get context for
 
 ## What this does:
-1. Reads the specified file
-2. Finds semantically similar code in other files
-3. Shows related dependencies and usages
-4. Provides comprehensive context for understanding the file
+1. Reads the file itself
+2. Finds semantically similar code elsewhere in the project
+3. Shows what the file imports and what imports it
 
 ## Instructions for Claude:
 
-Use the CodeSeeker MCP tool to get file context:
+CodeSeeker has no single "read file with context" action — compose it from two calls
+plus a normal Read. That is deliberate: the file content comes from Read, so it is never
+duplicated into the tool response.
 
-1. Call `get_file_context` MCP tool with:
-   - filepath: "$ARGUMENTS"
-   - include_related: true
+1. Read the file directly with the Read tool: `$ARGUMENTS`
 
-2. This returns:
-   - The file content
-   - Similar code chunks from other files
-   - Import/export relationships
-   - Usage examples
+2. Find structurally related files via the knowledge graph:
+   ```json
+   {
+     "action": "graph",
+     "project": "<absolute path of the project root>",
+     "graph": { "seed": "$ARGUMENTS", "depth": 1, "dir": "both" }
+   }
+   ```
 
-Use this context to better understand how a file fits into the larger codebase before making changes.
+3. Find semantically similar code, using the file's purpose as the query:
+   ```json
+   {
+     "action": "search",
+     "project": "<absolute path of the project root>",
+     "search": { "q": "<what the file does, in a few words>", "limit": 5 }
+   }
+   ```
+
+4. Summarise: what the file is, what it depends on, what depends on it, and which other
+   files solve a similar problem.
+
+Use this before making a non-trivial change, so the edit accounts for callers.
