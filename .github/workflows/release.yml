@@ -74,8 +74,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Force-sync plugin branch to master
-        run: git push origin HEAD:plugin --force
+      # `/plugin install …#plugin` expects the plugin manifest at the branch ROOT
+      # (.claude-plugin/plugin.json plus commands/, hooks/, skills/). Pushing master
+      # wholesale published a branch with no root manifest at all. Split the subtree so
+      # plugins/codeseeker/ becomes the branch root, which is exactly the shape required.
+      - name: Verify plugin manifest exists
+        run: test -f plugins/codeseeker/.claude-plugin/plugin.json
+      - name: Publish plugins/codeseeker as the plugin branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          SPLIT_SHA=$(git subtree split --prefix=plugins/codeseeker)
+          git push origin "$SPLIT_SHA:refs/heads/plugin" --force
 
   create-release:
     needs: [publish-mcp-registry]
