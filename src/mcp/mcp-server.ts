@@ -39,8 +39,17 @@ import { LanguageSupportService } from '../cli/services/project/language-support
 import { getQueryCacheService, QueryCacheService } from './query-cache-service';
 import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
 
-// Version from package.json
-const VERSION = '2.0.0';
+/**
+ * Server version, read from package.json so it cannot drift from the published package.
+ * `dist/mcp/mcp-server.js` and `src/mcp/mcp-server.ts` sit at the same depth, so one path works for both.
+ */
+const VERSION: string = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf-8')).version as string;
+  } catch {
+    return '0.0.0';
+  }
+})();
 
 /**
  * A graph node that stands for a source file.
@@ -88,12 +97,14 @@ interface IndexingJob {
 }
 
 /**
- * MCP Server for CodeSeeker - Consolidated 3-tool architecture
+ * MCP Server for CodeSeeker — single sentinel tool.
  *
- * Tools:
- *   1. search  - Semantic code search with optional file reading
- *   2. analyze - Code analysis (dependencies, dead_code, duplicates, standards)
- *   3. index   - Index management (init, sync, status, parsers, exclude)
+ * Exposes exactly one tool, `codeseeker`, routed by `action` (ADR-002):
+ *   search  - hybrid / fts / vector code search
+ *   sym     - symbol lookup in the knowledge graph
+ *   graph   - dependency traversal (imports, calls, extends, …)
+ *   analyze - duplicates, dead_code, standards
+ *   index   - init, sync, status, parsers, exclude
  */
 export class CodeSeekerMcpServer {
   private server: McpServer;
