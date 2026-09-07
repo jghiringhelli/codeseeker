@@ -43,6 +43,25 @@ import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-se
 const VERSION = '2.0.0';
 
 /**
+ * A graph node that stands for a source file.
+ *
+ * The project-root node is stored with `type: 'file'` but carries `isProjectRoot` and no
+ * `relativePath`; without this guard it surfaces in file listings as an empty string
+ * (see GitHub issue #3, where it appeared as the first entry of `available_files`).
+ */
+function isFileNode(n: { type: string; properties?: Record<string, unknown> | unknown }): boolean {
+  if (n.type !== 'file') return false;
+  return !(n.properties as { isProjectRoot?: boolean } | undefined)?.isProjectRoot;
+}
+
+/** Project-relative, forward-slashed path for a graph node. */
+function nodeRelPath(n: { filePath?: string; properties?: unknown }, projectPath: string): string {
+  const rel = (n.properties as { relativePath?: string } | undefined)?.relativePath;
+  const value = rel || (n.filePath ? path.relative(projectPath, n.filePath) : '');
+  return value.replace(/\\/g, '/');
+}
+
+/**
  * Background indexing job status
  */
 interface IndexingJob {
@@ -779,14 +798,14 @@ export class CodeSeekerMcpServer {
     const allNodes = await graphStore.findNodes(projectId!);
     const graphStats = {
       total_nodes: allNodes.length,
-      file_nodes: allNodes.filter(n => n.type === 'file').length,
+      file_nodes: allNodes.filter(n => isFileNode(n)).length,
       class_nodes: allNodes.filter(n => n.type === 'class').length,
       function_nodes: allNodes.filter(n => n.type === 'function' || n.type === 'method').length,
     };
 
     // Find starting nodes using flexible path matching
     const startNodes = allNodes.filter(n => {
-      const normalizedNodePath = n.filePath.replace(/\\/g, '/');
+      const normalizedNodePath = (n.filePath ?? '').replace(/\\/g, '/');
       const nodeRelativePath = (n.properties as { relativePath?: string })?.relativePath?.replace(/\\/g, '/');
       return seedFilePaths.some(seedPath => {
         const normalizedSeedPath = seedPath.replace(/\\/g, '/');
@@ -802,15 +821,37 @@ export class CodeSeekerMcpServer {
     });
 
     if (startNodes.length === 0) {
-      const fileNodes = allNodes.filter(n => n.type === 'file').slice(0, 15);
-      const availableFiles = fileNodes.map(n => {
-        const relPath = (n.properties as { relativePath?: string })?.relativePath;
-        return relPath || path.relative(projectPath, n.filePath);
-      });
+      // Report the *closest* files, not an arbitrary head of the node list. A blind
+      // `.slice(0, 15)` made a complete graph look like it was missing files (issue #3):
+      // the caller cannot tell a truncated sample from the full set unless we say so.
+      const allFiles = allNodes.filter(n => isFileNode(n)).map(n => nodeRelPath(n, projectPath)).filter(Boolean);
+      const seedBases = seedFilePaths.map(s => path.basename(s).toLowerCase());
+      const scored = allFiles
+        .map(f => {
+          const base = path.basename(f).toLowerCase();
+          let score = 0;
+          for (const seed of seedFilePaths) {
+            const s = seed.toLowerCase();
+            if (f.toLowerCase().endsWith(s)) score = Math.max(score, 3);
+            else if (seedBases.includes(base)) score = Math.max(score, 2);
+            else if (path.dirname(f).toLowerCase() === path.dirname(s)) score = Math.max(score, 1);
+          }
+          return { f, score };
+        })
+        .sort((a, b) => b.score - a.score || a.f.localeCompare(b.f));
+
+      const SAMPLE = 25;
+      const suggestions = scored.filter(x => x.score > 0).slice(0, 10).map(x => x.f);
       return {
         content: [{ type: 'text' as const, text: JSON.stringify({
           error: `No graph nodes found for: ${seedFilePaths.join(', ')}`,
-          available_files: availableFiles,
+          indexed_file_count: allFiles.length,
+          did_you_mean: suggestions.length ? suggestions : undefined,
+          available_files_sample: scored.slice(0, SAMPLE).map(x => x.f),
+          sample_note: allFiles.length > SAMPLE
+            ? `Showing ${SAMPLE} of ${allFiles.length} indexed files. This is a sample, not the full set — a file absent here may still be indexed.`
+            : undefined,
+          hint: 'Paths are project-relative. If the file was recently added or deleted, run index({op:"sync"}) or a full index({op:"init"}).',
         }, null, 2) }],
         isError: true,
       };
@@ -1124,7 +1165,7 @@ export class CodeSeekerMcpServer {
     // because import edges are static and unambiguous.
     const orphanedFiles: Array<{ file: string; description: string; confidence: string; recommendation: string }> = [];
     if (patterns.includes('dead_code')) {
-      const fileNodes = allNodes.filter(n => n.type === 'file');
+      const fileNodes = allNodes.filter(n => isFileNode(n));
       // Build inbound import count per file node
       const inboundImportCount = new Map<string, number>(fileNodes.map(n => [n.id, 0]));
       for (const fileNode of fileNodes) {
@@ -1138,7 +1179,7 @@ export class CodeSeekerMcpServer {
       for (const fileNode of fileNodes) {
         if (isEntryPointName(fileNode.name) || isEntryPointName(fileNode.filePath)) continue;
         if ((inboundImportCount.get(fileNode.id) ?? 0) === 0) {
-          const relPath = path.relative(projectRecord.path, fileNode.filePath);
+          const relPath = nodeRelPath(fileNode, projectRecord.path);
           orphanedFiles.push({
             file: relPath,
             description: `No other project file imports "${fileNode.name}". Could be an entry point, script, or dead file.`,
@@ -1151,7 +1192,7 @@ export class CodeSeekerMcpServer {
 
     // Circular dependency detection
     if (patterns.includes('circular_deps')) {
-      const fileNodes = allNodes.filter(n => n.type === 'file');
+      const fileNodes = allNodes.filter(n => isFileNode(n));
       const importMap = new Map<string, Set<string>>();
       for (const fileNode of fileNodes) {
         const imports = await graphStore.getEdges(fileNode.id, 'out');
@@ -1183,7 +1224,7 @@ export class CodeSeekerMcpServer {
         project: projectRecord.name,
         graph_stats: {
           total_nodes: allNodes.length,
-          files: allNodes.filter(n => n.type === 'file').length,
+          files: allNodes.filter(n => isFileNode(n)).length,
           classes: allNodes.filter(n => n.type === 'class').length,
           functions: allNodes.filter(n => n.type === 'function').length,
         },
