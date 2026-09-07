@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing gate. Line coverage proves tests EXECUTE code; mutation score proves they DETECT changes to it. A surviving mutant is a missing assertion. Scope is the retrieval core with dedicated unit tests — mutating all 338 source files would take hours and say nothing actionable. Widen as coverage grows.",
+  "packageManager": "npm",
+  "testRunner": "jest",
+  "jest": {
+    "projectType": "custom",
+    "configFile": "jest.config.js",
+    "enableFindRelatedTests": true
+  },
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress",
+    "json"
+  ],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/cli/services/search/ast-chunker.ts"
+  ],
+  "thresholds": {
+    "high": 80,
+    "low": 65,
+    "break": null
+  },
+  "timeoutMS": 60000,
+  "concurrency": 1,
+  "tempDirName": ".stryker-tmp",
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "disableTypeChecks": true,
+  "ignoreStatic": true,
+  "_comment_static": "ignoreStatic: static mutants (code evaluated at module load) force a full process restart each — Stryker measured 140 of them, 49% of mutants consuming 85% of runtime, which exhausted memory on a 15GB machine. They are excluded from the score; the reported MSI covers runtime mutants only. Revisit if the excluded set grows."
+}

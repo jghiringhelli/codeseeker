@@ -124,3 +124,7 @@ tests/benchmarks/codanna-comparison.mjs
 # -----------------------------------------------------------------------------
 snapcraft-credentials.txt
 .snapcraft/
+
+# Mutation testing output
+reports/
+.stryker-tmp/
