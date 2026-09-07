@@ -4,7 +4,7 @@
 BM25 + vector embeddings + RAPTOR directory summaries + graph expansion — fused into a single MCP tool that gives Claude, Copilot, and Cursor a real understanding of your codebase.
 
 [![npm version](https://img.shields.io/npm/v/codeseeker.svg)](https://www.npmjs.com/package/codeseeker)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
 
 Works with **Claude Code**, **GitHub Copilot** (VS Code 1.99+), **Cursor**, **Windsurf**, and **Claude Desktop**.  
@@ -550,7 +550,23 @@ If CodeSeeker is useful to you, consider [sponsoring the project](https://github
 
 ## License
 
-MIT License. See [LICENSE](LICENSE).
+**Apache License 2.0.** See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Free for any use, commercial included — no company-size or revenue limits. Apache-2.0
+adds an explicit patent grant over MIT, which is why it is the choice here.
+
+### Running CodeSeeker across a team
+
+Everything above is the local, single-developer setup: the index lives in `.codeseeker/`
+on your machine and never leaves it.
+
+There is a centralized deployment for teams — one shared index over your organisation's
+repositories (PostgreSQL + pgvector, Neo4j), so engineers aren't each paying to reindex
+the same code, and so the graph spans service boundaries instead of stopping at one repo.
+It also surfaces what the local tool structurally cannot: how code understanding is
+actually distributed across a codebase and where the knowledge gaps sit.
+
+If that's useful to your team, get in touch: **https://pragmaworks.dev**
 
 ---
 
@@ -561,7 +577,7 @@ MIT License. See [LICENSE](LICENSE).
 
 ## Part of Generative Specification
 
-A free tool behind **Generative Specification (GS)** — the discipline for building software with AI that doesn't drift: you author a specification precise enough that a stateless AI derives correct code from it, and a harness verifies it against a live system.
+An Apache-2.0 tool behind **Generative Specification (GS)** — the discipline for building software with AI that doesn't drift: you author a specification precise enough that a stateless AI derives correct code from it, and a harness verifies it against a live system.
 
 - 📄 **White paper** (open access): https://doi.org/10.5281/zenodo.21726017
 - 🧭 **Start here** — method, tools, testimonials: https://pragmaworks.dev

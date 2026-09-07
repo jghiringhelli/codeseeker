@@ -68,7 +68,7 @@
     "typescript"
   ],
   "author": "CodeSeeker Team",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "dependencies": {
     "@babel/parser": "^7.28.5",
     "@babel/traverse": "^7.28.5",
@@ -148,7 +148,8 @@
     "dist/",
     "scripts/postinstall.js",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "repository": {
     "type": "git",

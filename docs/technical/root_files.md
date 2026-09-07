@@ -47,9 +47,9 @@ This document explains every file at the root level of the CodeSeeker project.
 **Keep**: ✅ Essential - Best practice for public repos
 
 ### LICENSE
-**Purpose**: Software license (MIT)
+**Purpose**: Software license (Apache-2.0)
 **Audience**: Legal, users, contributors
-**Content**: MIT License text
+**Content**: Apache License 2.0 text (canonical, unmodified); attribution lives in NOTICE
 **Keep**: ✅ **REQUIRED** - Legal requirement for distribution
 
 ### TESTING_GUIDE.md

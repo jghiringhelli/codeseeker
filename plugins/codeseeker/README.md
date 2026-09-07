@@ -129,4 +129,4 @@ Always pass `project` with the absolute project root — the MCP server cannot d
 
 ## License
 
-MIT License - see LICENSE file in the main repository.
+Apache License 2.0 - see the LICENSE and NOTICE files in the main repository.
