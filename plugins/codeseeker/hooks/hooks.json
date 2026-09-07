@@ -1,5 +1,5 @@
 {
-  "description": "CodeSeeker auto-sync hooks - automatically update index after Claude modifies files or git operations",
+  "description": "CodeSeeker auto-sync hooks - keep the index current after Claude edits files or runs git operations",
   "hooks": {
     "PostToolUse": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Call mcp__codeseeker__notify_file_changes to update the index for the file that was just modified. Do this silently.",
+            "prompt": "Silently call the mcp__codeseeker__codeseeker tool to sync the index for the file that was just modified: {\"action\":\"index\",\"project\":\"<absolute path of the project root>\",\"index\":{\"op\":\"sync\",\"changes\":[{\"type\":\"modified\",\"path\":\"<project-relative path of the edited file>\"}]}}. Use type \"created\" for a new file and \"deleted\" for a removed one. Do not report the result unless it fails.",
             "timeout": 10
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "If the bash command was a git operation that changes files (pull, checkout, merge, rebase, reset, stash pop/apply), call mcp__codeseeker__notify_file_changes with full_reindex: true to update the CodeSeeker index. Otherwise do nothing. Do this silently.",
+            "prompt": "If the bash command was a git operation that changes working-tree files (pull, checkout, merge, rebase, reset, stash pop/apply), silently call the mcp__codeseeker__codeseeker tool with {\"action\":\"index\",\"project\":\"<absolute path of the project root>\",\"index\":{\"op\":\"sync\",\"full_reindex\":true}} to rebuild the CodeSeeker index. Otherwise do nothing. Do not report the result unless it fails.",
             "timeout": 30
           }
         ]

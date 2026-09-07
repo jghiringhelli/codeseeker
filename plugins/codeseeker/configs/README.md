@@ -41,7 +41,7 @@ CodeSeeker provides semantic code search and understanding via the Model Context
 2. **Index your project:**
    ```bash
    codeseeker serve --mcp
-   # Then use index_project tool to index your codebase
+   # Then index your codebase with codeseeker({action:"index", index:{op:"init", path:"."}})
    ```
 
 ---
@@ -86,7 +86,7 @@ Create `.vscode/mcp.json` in your project root:
 
 1. Open VS Code
 2. Open Copilot Chat
-3. Type: "Use search_code to find authentication logic"
+3. Type: "Use CodeSeeker to find authentication logic"
 4. Copilot should use CodeSeeker's semantic search
 
 ---
@@ -127,7 +127,7 @@ Create `~/.cursor/mcp.json`:
 
 1. Open Cursor
 2. Open the AI chat
-3. Ask: "Use search_code to find validation logic"
+3. Ask: "Use CodeSeeker to find validation logic"
 
 ---
 
@@ -175,27 +175,31 @@ Same configuration as Cursor. Create `.windsurf/mcp.json` or use the global conf
 
 Once configured, these tools become available to your AI assistant:
 
-| Tool | Description |
-|------|-------------|
-| `search_code` | Semantic code search - finds code by meaning |
-| `find_and_read` | Search + read file in one step |
-| `get_file_context` | Read file with related code context |
-| `get_code_relationships` | Explore imports, calls, dependencies |
-| `list_projects` | Show indexed projects |
-| `index_project` | Index a new project |
+The plugin exposes a **single** MCP tool, `codeseeker`, routed by an `action` key
+(one tool keeps the per-request token cost low — see ADR-002):
+
+| action | Nested group | What it does |
+|---|---|---|
+| `search` | `search:{q,type?,limit?,full?,exists?}` | Hybrid BM25 + vector search with RRF fusion |
+| `sym` | `sym:{name,full?}` | Look up a class or function by name in the graph |
+| `graph` | `graph:{seed\|q,depth?,rel?,dir?,max?}` | Traverse imports, calls, extends |
+| `analyze` | `analyze:{kind,...}` | `duplicates`, `dead_code`, `standards` |
+| `index` | `index:{op,...}` | `init`, `sync`, `status`, `parsers`, `exclude` |
+
+Always pass `project` with the absolute project root — the MCP server cannot detect cwd.
 
 ## First-Time Setup
 
 1. Install CodeSeeker
 2. Add MCP configuration to your IDE
 3. Restart your IDE
-4. In AI chat, run: `index_project({path: "/path/to/your/project"})`
+4. In AI chat, run: `codeseeker({action:"index", index:{op:"init", path:"/path/to/your/project"}})`
 5. Start using semantic search!
 
 ## Troubleshooting
 
 ### "No indexed projects found"
-Run `index_project` to index your codebase first.
+Run `codeseeker({action:"index", index:{op:"init", path:"..."}})` to index your codebase first.
 
 ### MCP server not starting
 - Check that `codeseeker` is in your PATH: `which codeseeker` or `where codeseeker`

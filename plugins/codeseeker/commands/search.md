@@ -6,24 +6,35 @@ Search the codebase using semantic understanding to find relevant code.
 - `$ARGUMENTS` - The search query (natural language or code snippet)
 
 ## What this does:
-1. Uses hybrid search (vector + text + path matching)
-2. Returns semantically relevant files and code snippets
-3. Shows relationships between found code
+1. Hybrid retrieval: BM25 + vector embeddings fused with Reciprocal Rank Fusion
+2. RAPTOR directory summaries surface for abstract queries
+3. Graph expansion adds structurally connected files
 
 ## Instructions for Claude:
 
-Use the CodeSeeker MCP tools to search:
+CodeSeeker exposes a **single** MCP tool, `mcp__codeseeker__codeseeker`, routed by `action`.
 
-1. First, ensure the project is indexed by checking if `.codeseeker/` exists
-2. Use the `search_code` MCP tool with the query: "$ARGUMENTS"
-3. Present the results showing:
-   - File paths with relevance scores
-   - Code snippets from matching files
-   - Related files and dependencies
+1. Call it with:
+   ```json
+   {
+     "action": "search",
+     "project": "<absolute path of the project root>",
+     "search": { "q": "$ARGUMENTS", "limit": 10 }
+   }
+   ```
+   Always pass `project` — the MCP server cannot detect the working directory.
 
-If MCP tools are not available, fall back to CLI:
+2. Optional refinements:
+   - `search.type`: `"hybrid"` (default), `"fts"` (pure BM25), `"vector"` (pure embeddings)
+   - `search.full: true` to include a snippet per result (default returns summaries only)
+   - `search.exists: true` for a quick yes/no check
+
+3. If the response says the project is not indexed, run `/codeseeker:init` first.
+
+4. Present results as file paths with scores. Paths are project-relative — pass them
+   straight to Read.
+
+If MCP tools are not available, fall back to the CLI:
 ```bash
-codeseeker search "$ARGUMENTS"
+codeseeker -c "$ARGUMENTS"
 ```
-
-Present the search results in a clear, organized format.
