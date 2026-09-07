@@ -40,6 +40,18 @@ export class ClaudeCodeExecutor {
     prompt: string,
     options: ClaudeCodeExecutionOptions = {}
   ): Promise<ClaudeCodeExecutionResult> {
+    // Test escape hatch. The e2e suite already sets CODESEEKER_MOCK_CLAUDE, but nothing
+    // read it, so every e2e query spawned the real `claude` binary and blocked on it —
+    // the reason `npm test` hung indefinitely. This is the single choke point for CLI
+    // execution (see .claude/core.md), so honouring the flag here covers every caller.
+    if (process.env.CODESEEKER_MOCK_CLAUDE === 'true') {
+      return {
+        success: true,
+        data: `[mock-claude] Response for prompt (${prompt.length} chars). Set CODESEEKER_MOCK_CLAUDE=false for a real call.`,
+        tokensUsed: 0,
+      };
+    }
+
     try {
       console.log(`🤖 Processing with Claude Code...`);
 

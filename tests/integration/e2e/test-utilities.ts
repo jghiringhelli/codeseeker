@@ -331,7 +331,25 @@ export interface CLIExecutionOptions {
   config?: TestConfig;
 }
 
-export async function executecodeseeker(args: string, options: CLIExecutionOptions = {}): Promise<CLIExecutionResult> {
+/**
+ * Kill a spawned process and everything it started.
+ *
+ * `child.kill()` only signals the direct child. The CLI spawns further processes, and on
+ * Windows a `shell: true` spawn interposes a `cmd.exe` wrapper, so a plain kill left the
+ * real `node` grandchild alive holding the stdio pipes open — jest then never exited.
+ */
+function killTree(pid: number | undefined): void {
+  if (!pid) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const treeKill = require('tree-kill') as (p: number, s?: string, cb?: (e?: Error) => void) => void;
+    treeKill(pid, 'SIGKILL', () => { /* best effort */ });
+  } catch {
+    try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ }
+  }
+}
+
+export async function executecodeseeker(args: string | string[], options: CLIExecutionOptions = {}): Promise<CLIExecutionResult> {
   const startTime = Date.now();
   const timeout = options.timeout || 120000;
   const config = options.config || DEFAULT_CONFIG;
@@ -348,14 +366,19 @@ export async function executecodeseeker(args: string, options: CLIExecutionOptio
 
   return new Promise((resolve) => {
     const binPath = path.join(__dirname, '../../..', 'bin/codeseeker.js');
-    const child = spawn('node', [binPath, ...args.split(' ').filter(a => a)], {
+    // Pass argv as an array and do NOT use `shell: true`. The previous form relied on the
+    // shell to re-parse quoted arguments, which on Windows inserted a cmd.exe wrapper that
+    // survived kill() and orphaned the real process.
+    const argv = Array.isArray(args) ? args : args.split(' ').filter(a => a);
+    const child = spawn(process.execPath, [binPath, ...argv], {
       cwd,
       env,
-      shell: true
+      shell: false
     });
 
     let stdout = '';
     let stderr = '';
+    let settled = false;
     let timeoutHandle: NodeJS.Timeout;
 
     child.stdout?.on('data', (data) => { stdout += data.toString(); });
@@ -370,33 +393,31 @@ export async function executecodeseeker(args: string, options: CLIExecutionOptio
       }, 1000);
     }
 
-    child.on('close', (code) => {
+    const settle = (result: CLIExecutionResult) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timeoutHandle);
-      // Ensure child process is fully terminated
-      if (!child.killed) {
-        child.kill('SIGKILL');
-      }
-      resolve({ stdout, stderr, exitCode: code || 0, duration: Date.now() - startTime });
+      killTree(child.pid);
+      resolve(result);
+    };
+
+    child.on('close', (code) => {
+      settle({ stdout, stderr, exitCode: code ?? 0, duration: Date.now() - startTime });
     });
 
     child.on('error', (error) => {
-      clearTimeout(timeoutHandle);
-      // Ensure child process is fully terminated
-      if (!child.killed) {
-        child.kill('SIGKILL');
-      }
-      resolve({ stdout, stderr: stderr + '\n' + error.message, exitCode: 1, duration: Date.now() - startTime });
+      settle({ stdout, stderr: stderr + '\n' + error.message, exitCode: 1, duration: Date.now() - startTime });
     });
 
     timeoutHandle = setTimeout(() => {
-      child.kill('SIGKILL'); // Use SIGKILL for immediate termination
-      resolve({ stdout, stderr: stderr + '\nProcess timed out', exitCode: 124, duration: Date.now() - startTime });
+      settle({ stdout, stderr: stderr + '\nProcess timed out', exitCode: 124, duration: Date.now() - startTime });
     }, timeout);
   });
 }
 
 export async function executeQuery(query: string, options: CLIExecutionOptions = {}): Promise<CLIExecutionResult> {
-  return executecodeseeker(`-c "${query.replace(/"/g, '\\"')}"`, options);
+  // Array argv — no shell quoting, so a query containing spaces or quotes stays one argument.
+  return executecodeseeker(['-c', query], options);
 }
 
 // ============================================================================
