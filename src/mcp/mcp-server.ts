@@ -401,6 +401,34 @@ export class CodeSeekerMcpServer {
   }
 
   /**
+   * Resolve a project to an *indexed record*, for actions backed by the graph store.
+   *
+   * `resolveProject` may return a bare path for a project it has never indexed, which is
+   * fine for path-only callers. Graph-backed actions (`sym`, `graph`) need a projectId, so
+   * here an unindexed project is an error rather than a silent fall-through to `process.cwd()`.
+   * Sharing this with `search` is what keeps index detection consistent across actions.
+   */
+  private async resolveIndexedProject(project?: string): Promise<{
+    projectId?: string;
+    projectPath: string;
+    error?: { content: Array<{ type: 'text'; text: string }>; isError: true };
+  }> {
+    const { projectPath, projectRecord, error } = await this.resolveProject(project);
+    if (error) return { projectPath: '', error };
+    if (!projectRecord) {
+      const hint = projectPath || project || '/path/to/project';
+      return {
+        projectPath,
+        error: {
+          content: [{ type: 'text' as const, text: `Project "${project ?? path.basename(hint)}" is not indexed. Run codeseeker({action:"index",index:{op:"init",path:"${hint}"}}) first.` }],
+          isError: true,
+        },
+      };
+    }
+    return { projectId: projectRecord.id, projectPath: projectRecord.path };
+  }
+
+  /**
    * Verify project has embeddings (is actually indexed).
    */
   private async verifyIndexed(projectPath: string, projectRecord?: { id: string; name: string; path: string }): Promise<{
@@ -727,38 +755,10 @@ export class CodeSeekerMcpServer {
     const { filepath, filepaths, query, depth = 1, relationship_types, direction = 'both', max_nodes = 50, project } = params;
 
     const storageManager = await getStorageManager();
-    const projectStore = storageManager.getProjectStore();
     const graphStore = storageManager.getGraphStore();
 
-    let projectId: string | undefined;
-    let projectPath: string;
-
-    if (project) {
-      const projects = await projectStore.list();
-      const found = projects.find(p =>
-        p.name === project || p.path === project || path.basename(p.path) === project
-      );
-      if (found) {
-        projectId = found.id;
-        projectPath = found.path;
-      } else {
-        projectPath = process.cwd();
-      }
-    } else {
-      projectPath = process.cwd();
-      const projects = await projectStore.list();
-      const found = projects.find(p =>
-        p.path === projectPath || path.basename(p.path) === path.basename(projectPath)
-      );
-      if (found) {
-        projectId = found.id;
-        projectPath = found.path;
-      }
-    }
-
-    if (!projectId) {
-      return { content: [{ type: 'text' as const, text: 'Project not indexed. Run codeseeker({action:"index",index:{op:"init",path:"..."}}) first.' }], isError: true };
-    }
+    const { projectId, projectPath, error: resolveError } = await this.resolveIndexedProject(project);
+    if (resolveError) return resolveError;
 
     // Determine seed file paths
     let seedFilePaths: string[] = [];
@@ -776,7 +776,7 @@ export class CodeSeekerMcpServer {
       };
     }
 
-    const allNodes = await graphStore.findNodes(projectId);
+    const allNodes = await graphStore.findNodes(projectId!);
     const graphStats = {
       total_nodes: allNodes.length,
       file_nodes: allNodes.filter(n => n.type === 'file').length,
@@ -1691,31 +1691,12 @@ export class CodeSeekerMcpServer {
     full: boolean
   ) {
     const storageManager = await getStorageManager();
-    const projectStore = storageManager.getProjectStore();
     const graphStore = storageManager.getGraphStore();
 
-    let projectId: string | undefined;
-    let projectPath: string;
+    const { projectId, projectPath, error } = await this.resolveIndexedProject(project);
+    if (error) return error;
 
-    if (project) {
-      const projects = await projectStore.list();
-      const found = projects.find(p =>
-        p.name === project || p.path === project || path.basename(p.path) === project
-      );
-      if (found) { projectId = found.id; projectPath = found.path; }
-      else projectPath = process.cwd();
-    } else {
-      projectPath = process.cwd();
-      const projects = await projectStore.list();
-      const found = projects.find(p => p.path === projectPath || path.basename(p.path) === path.basename(projectPath));
-      if (found) { projectId = found.id; projectPath = found.path; }
-    }
-
-    if (!projectId) {
-      return { content: [{ type: 'text' as const, text: 'Project not indexed. Run codeseeker({action:"index",index:{op:"init",path:"..."}}) first.' }], isError: true };
-    }
-
-    const allNodes = await graphStore.findNodes(projectId);
+    const allNodes = await graphStore.findNodes(projectId!);
     const symLower = sym.toLowerCase();
 
     // Exact matches first, then partial — exclude file nodes (they add noise)
