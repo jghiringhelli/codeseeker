@@ -488,11 +488,20 @@ export class CodeSeekerMcpServer {
     const storageManager = await getStorageManager();
     const vectorStore = storageManager.getVectorStore();
     try {
-      const testResults = await vectorStore.searchByText('test', projectRecord.id, 1);
-      if (!testResults || testResults.length === 0) {
+      // Ask how many chunks the project has, rather than searching for a magic word.
+      //
+      // This previously probed with searchByText('test', …) and treated zero hits as
+      // "not indexed". That is a content check masquerading as an existence check: a
+      // fully indexed project whose code happens not to contain the token "test" was
+      // declared unindexed, and every search against it failed. Reproduced on the
+      // RealWorld Django corpus — 156 embedded chunks, searchByText('test') → 0 hits,
+      // every query rejected. Any corpus can fail this way; Python simply made it
+      // visible first.
+      const chunkCount = await vectorStore.count(projectRecord.id);
+      if (!chunkCount) {
         return {
           error: {
-            content: [{ type: 'text' as const, text: `Project "${path.basename(projectPath)}" not indexed. Run index({action: "init", path: "${projectPath}"}) first.` }],
+            content: [{ type: 'text' as const, text: `Project "${path.basename(projectPath)}" is registered but holds no indexed chunks. Run index({action: "init", path: "${projectPath}"}) first.` }],
             isError: true,
           },
         };
