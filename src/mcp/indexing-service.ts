@@ -75,11 +75,27 @@ export class IndexingService {
     '.java': 'java'
   };
 
-  // Supported file extensions for indexing
-  private readonly SUPPORTED_EXTENSIONS = [
-    '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
+  /**
+   * Extensions that carry code, and therefore earn a node in the knowledge graph.
+   *
+   * Kept as one constant because it used to be three: this class's SUPPORTED_EXTENSIONS,
+   * the `sourceExtensions` block of file-scanner-config.json, and a third list written
+   * inline inside buildKnowledgeGraph. They disagreed. `.mjs` and `.cjs` were in the
+   * first two and absent from the third, so ES-module and CommonJS files were indexed
+   * and searchable but never became graph nodes — present in `search`, invisible to
+   * `graph`. Measured across seven corpora: 3 files in CodeSeeker, 1 in pragmaworks,
+   * 14 in forge. See spec R14.
+   */
+  private readonly CODE_EXTENSIONS = [
+    '.ts', '.tsx', '.mts', '.cts',
+    '.js', '.jsx', '.mjs', '.cjs',
     '.py', '.java', '.go', '.rs', '.rb', '.php',
     '.c', '.cpp', '.h', '.hpp', '.cs',
+  ];
+
+  /** Extensions worth indexing at all — code plus the documents that describe it. */
+  private readonly SUPPORTED_EXTENSIONS = [
+    ...this.CODE_EXTENSIONS,
     '.json', '.yaml', '.yml', '.toml',
     '.md', '.txt', '.rst',
   ];
@@ -966,7 +982,7 @@ export class IndexingService {
     const sourceFiles = files.filter(f => sourcePatterns.some(p => f.startsWith(p)));
     const otherCodeFiles = files.filter(f =>
       !sourcePatterns.some(p => f.startsWith(p)) &&
-      ['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.cs', '.rs', '.rb', '.php', '.c', '.cpp'].some(ext => f.endsWith(ext))
+      this.CODE_EXTENSIONS.some(ext => f.endsWith(ext))
     );
     const configFiles = files.filter(f =>
       !sourcePatterns.some(p => f.startsWith(p)) &&
