@@ -357,13 +357,19 @@ describe('Search Accuracy Benchmark: precision/recall matrix across all search_t
 
     // ── 1. Vector store + MiniSearch (single upsertMany call) ────────────────
     const docs: Array<Omit<VectorDocument, 'createdAt' | 'updatedAt'>> = [];
+    const missingFixtures: string[] = [];
     for (const entry of FIXTURE_FILES) {
       const absolutePath = path.join(FIXTURE_DIR, entry.relPath);
       let content: string;
       try {
         content = fsSync.readFileSync(absolutePath, 'utf-8');
       } catch {
-        continue;  // Skip file if not present in checkout
+        // Do not skip silently. A missing corpus previously surfaced as
+        // "expected 8, received 0" from an assertion three hundred lines away, which
+        // says nothing about the cause. The corpus is committed; if it is absent, the
+        // checkout is wrong and the run must say so.
+        missingFixtures.push(entry.relPath);
+        continue;
       }
       docs.push({
         id:        crypto.createHash('md5').update(`bm:${projectId}:${entry.relPath}`).digest('hex'),
@@ -373,6 +379,15 @@ describe('Search Accuracy Benchmark: precision/recall matrix across all search_t
         embedding: blendEmbeddings(entry.themes),
         metadata:  { themes: entry.themes, description: entry.description },
       });
+    }
+    if (missingFixtures.length > 0) {
+      throw new Error(
+        `Benchmark corpus incomplete: ${missingFixtures.length} of ${FIXTURE_FILES.length} fixture files ` +
+        `are missing from ${FIXTURE_DIR}.\n` +
+        missingFixtures.map(f => `  - ${f}`).join('\n') +
+        `\nThese files are committed under tests/fixtures/ContractMaster-Test-Original/server/. ` +
+        `If they are absent the working tree is incomplete — check .gitignore and the checkout.`
+      );
     }
     if (docs.length > 0) {
       await vectorStore.upsertMany(docs);

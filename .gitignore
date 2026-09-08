@@ -110,7 +110,15 @@ forgecraft.yaml
 # -----------------------------------------------------------------------------
 coverage/
 .nyc_output/
-tests/fixtures/ContractMaster-Test-Original/
+# Benchmark corpus. The server/ subtree is the fixture the search-accuracy benchmark
+# measures against, so it is committed — a benchmark whose corpus is not in the
+# repository cannot be reproduced, and CI cannot run it at all. The rest of the
+# ContractMaster tree (node_modules, client build, generated data) stays out.
+tests/fixtures/ContractMaster-Test-Original/*
+!tests/fixtures/ContractMaster-Test-Original/server/
+tests/fixtures/ContractMaster-Test-Original/server/*
+!tests/fixtures/ContractMaster-Test-Original/server/controllers/
+!tests/fixtures/ContractMaster-Test-Original/server/services/
 tests/fixtures/.temp/
 tests/benchmarks/codanna-comparison.mjs
 
