@@ -94,6 +94,12 @@ Each requirement is stated so that a test can exist for it. Where a test already
 it is named; where none does, the requirement carries `NO TEST` and that is a debt
 recorded in `.forgecraft/project-gates.yaml`, not a decoration.
 
+**Numbering is append-only.** A requirement number is a durable key — ADR-0012 enforces
+the cascade by citing them, so a citation must keep meaning. New requirements take the
+next free number and are placed with their topic; they are never renumbered, reused, or
+interleaved to sit beside a related one. A retired requirement is marked withdrawn and
+keeps its number.
+
 ### 3.1 Tool surface
 
 **R1.** The MCP server MUST expose exactly one tool, named `codeseeker`, routed by an
@@ -109,6 +115,65 @@ the wrong group MUST receive an error naming the expected group, not a silent de
 No action may implement its own resolution, and none may fall back to `process.cwd()` —
 an MCP server's working directory belongs to its launcher, not to the user's project.
 *(gate `no-divergent-project-resolution`; regression for issue #2)*
+
+#### The parameter groups
+
+`project` is shared across every action and carries the absolute project root. Each
+action then fills exactly one nested group. This table is normative: adding, removing or
+renaming a field here is a specification change under R21.
+
+**`search`**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `q` | string | required | Natural-language query |
+| `type` | `hybrid` \| `fts` \| `vector` | `hybrid` | Retrieval mode |
+| `limit` | number | 10 | Maximum results returned |
+| `full` | boolean | false | Attach a bounded snippet to each result |
+| `exists` | boolean | false | Quick check — returns `{found, count, top_file}` and skips the cache |
+
+**`sym`**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `name` | string | required | Symbol name, exact or partial |
+| `full` | boolean | false | Include resolved relationships |
+
+**`graph`**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `seed` | string | — | Seed file, project-relative |
+| `q` | string | — | Alternative to `seed`: locate seeds semantically |
+| `depth` | number | 1 | Traversal depth, 1–3 |
+| `rel` | string[] | all | `imports`, `exports`, `calls`, `extends`, `implements`, `contains`, `uses`, `depends_on` |
+| `dir` | `in` \| `out` \| `both` | `both` | Edge direction |
+| `max` | number | 50 | Maximum nodes returned |
+
+**`analyze`** — `project` is required for this action.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `kind` | `duplicates` \| `dead_code` \| `standards` | required | Analysis type |
+| `threshold` | number | 0.80 | Similarity threshold, `duplicates` only |
+| `min_lines` | number | 5 | Minimum block size, `duplicates` only |
+| `patterns` | string[] | all | `dead_code`, `god_class`, `circular_deps`, `feature_envy`, `coupling` |
+| `category` | `validation` \| `error-handling` \| `logging` \| `testing` \| `all` | `all` | `standards` only |
+
+**`index`**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `op` | `init` \| `sync` \| `status` \| `parsers` \| `exclude` | required | Operation |
+| `path` | string | — | Project directory, `init` only |
+| `name` | string | — | Project name, `init` only |
+| `changes` | `{type, path}[]` | — | `created` \| `modified` \| `deleted`, `sync` only |
+| `full_reindex` | boolean | false | Rebuild rather than apply `changes` |
+| `languages` | string[] | — | Parsers to install, `parsers` only |
+| `list_available` | boolean | false | List parsers instead of installing |
+| `exclude_op` | `exclude` \| `include` \| `list` | — | `exclude` only |
+| `paths` | string[] | — | Globs, `exclude` only |
+| `reason` | string | — | Why, recorded with the exclusion |
 
 ### 3.2 Retrieval
 
@@ -156,7 +221,7 @@ code file that `search` can return MUST be reachable as a graph node. Documents 
 configuration are indexed but intentionally have no graph node — the graph models code
 relationships. *(verified: scripts/corpus-bench.js across 7 corpora)*
 
-**R15b.** An index MUST record which embedder built it, and a search against an index
+**R22.** An index MUST record which embedder built it, and a search against an index
 built by a different embedder MUST be refused with an error naming both identities.
 Vectors from two embedders share shape and range, so a mismatch degrades ranking without
 failing — the failure mode this forbids is silence, not error.
@@ -273,8 +338,11 @@ contract against a spawned server process, not in-process handlers. Current: 17 
 tests over stdio, run by `npm run test:contract`.
 
 **A7 — Documentation derives.** A reader given only this specification, `domain.md`,
-`architecture.md` and the ADRs can state what the tool surface is, what each action
-does, and why the surface is one tool — without reading the implementation.
+`architecture.md` and the ADRs can state what the tool surface is, what each action does
+**and accepts**, and why the surface is one tool — without reading the implementation.
+*(Tested 2026-09-08. The reader derived the architecture and every hard constraint, but
+could not state what any action accepted, because no parameter group was written down.
+The parameter tables in §3.1 exist because A7 failed on its own terms.)*
 
 ---
 
@@ -296,6 +364,43 @@ debt.
 - **Executable** — a contract suite now runs against a live server over stdio, covering
   the tool surface, the refusals and the error contracts. It does not yet cover the
   retrieval contracts (R4-R8), which need an indexed fixture.
+
+### Found by the derivability test
+
+A reader given only this specification, `domain.md`, `architecture.md` and the ADR router
+— no source access — was asked to describe the system and implement a bounded feature.
+It derived the architecture and every hard constraint correctly, and produced an
+implementation that respected all of them. What it could not derive is recorded here.
+
+- **No requirement class covers query modifiers.** Twenty-two requirements govern
+  fusion, boosts, cascade thresholds, expansion arithmetic and analysis honesty. None
+  governs *restricting* a result set. A reader adding a filter finds nothing to comply
+  with — only things to avoid colliding with. The gap is a category, not a detail.
+- **Where a filter acts in the pipeline is undetermined**, and it is a correctness
+  question: filtering after fusion starves a narrow query of results because `limit`
+  bound the whole corpus. The specification never says whether `limit` binds the
+  candidate set or the returned set.
+- **Two directory-narrowing mechanisms would stack undefined.** R7's RAPTOR cascade
+  already narrows to a directory. Nothing says what a caller-supplied scope does to it.
+- **Graph expansion crosses module boundaries by construction** — an import edge points
+  out of the module — so any boundary-restricting feature collides with R8, and ADR-0011
+  discusses depth, scoring and fan-out without ever mentioning filtering.
+- **The `__raptor__/` prefix is a trap.** A predicate written over stored paths silently
+  excludes every directory summary. Which fields carry synthetic prefixes, and how
+  consumers must handle them, is stated only in passing.
+- **Path-matching semantics for *input* are unstated.** R10 governs paths in responses.
+  Nothing states the canonical stored form or whether comparison is case-sensitive — on
+  Windows that is the difference between a working filter and one that matches nothing
+  while reporting success, which is ADR-0010's failure mode exactly.
+- **The shared error types are named as a category and never enumerated**, and no
+  document shows an error response, so a new validation path cannot be written to match.
+- **The CLI is a governed public surface with no documented content.** ADR-0012 makes CLI
+  flags require an amendment; not one flag appears anywhere in the specification set.
+- **ADR-0012 is `Proposed`,** and it is the rule the whole document system leans on.
+  Nothing says how a reader should treat a proposed ADR — binding, advisory, or draft.
+
+The full report is in the session record. These are omissions, not errors: everything the
+specification does state, it stated well enough to derive from.
 
 ---
 

@@ -10,10 +10,11 @@ No `fetch()` to Claude API. No HTTP requests. Direct `child_process.exec()` of t
 Fallback: when CLI fails → transparent passthrough mode.
 
 ## Layer Map
+Summary only. `docs/specs/architecture.md` owns the authoritative layer map and the dependency rules.
 ```
 src/mcp/          ← MCP server (sentinel tool, indexing, analysis handlers)
 src/cli/commands/ ← Search orchestration, workflow, task decomposition
-src/cli/services/ ← data/ analysis/ search/ monitoring/ integration/
+src/cli/services/ ← data/ analysis/ search/ monitoring/ project/ integration/ claude/ llm/ setup/
 src/storage/      ← embedded (SQLite+MiniSearch) | server (Postgres+pgvector)
 ```
 
