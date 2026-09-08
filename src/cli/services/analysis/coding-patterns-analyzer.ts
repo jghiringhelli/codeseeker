@@ -28,8 +28,55 @@ interface PatternInfo {
   examples: string[];
 }
 
+/**
+ * Extensions a detected coding standard may be derived from.
+ *
+ * A "standard" is what the project's own source does habitually. Code quoted inside
+ * documentation is an illustration, not a convention, and code inside a test fixture is
+ * often deliberately bad — the fixtures in this repository exist precisely to be
+ * analysed as poor code. Counting either produced standards citing CHANGELOG.md and a
+ * fixture's ValidatorService as evidence of a project convention (spec R18).
+ */
+const SOURCE_EXTENSIONS = new Set([
+  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
+  '.py', '.java', '.cs', '.go', '.rs',
+  '.rb', '.php', '.swift', '.kt', '.scala',
+  '.c', '.h', '.cpp', '.hpp', '.cc',
+]);
+
+/** Path segments whose contents are never a source of project convention. */
+const NON_SOURCE_SEGMENTS = [
+  'node_modules', 'dist', 'build', 'coverage', 'vendor',
+  'tests/fixtures', 'test/fixtures', '__fixtures__', '__mocks__',
+  'archive', '.codeseeker',
+];
+
+function isStandardsSource(filePath: string): boolean {
+  const normalized = (filePath || '').replace(/\\/g, '/').toLowerCase();
+  if (!normalized) return false;
+  if (NON_SOURCE_SEGMENTS.some(seg => normalized.includes(`/${seg}/`) || normalized.startsWith(`${seg}/`))) {
+    return false;
+  }
+  const dot = normalized.lastIndexOf('.');
+  if (dot < 0) return false;
+  return SOURCE_EXTENSIONS.has(normalized.slice(dot));
+}
+
 export class CodingPatternsAnalyzer {
   constructor(private vectorStore: IVectorStore) {}
+
+  /**
+   * Search the index for pattern candidates, restricted to files that can legitimately
+   * establish a project convention.
+   *
+   * Every detector goes through here rather than calling the vector store directly, so
+   * the source filter cannot be forgotten in one detector and applied in the other six.
+   * Over-fetches before filtering so the post-filter result set stays useful.
+   */
+  private async searchSource(query: string, projectId: string, limit: number) {
+    const raw = await this.vectorStore.searchByText(query, projectId, limit * 3);
+    return raw.filter(r => isStandardsSource(r.document.filePath || '')).slice(0, limit);
+  }
 
   /**
    * Analyze all coding patterns in the project
@@ -59,7 +106,7 @@ export class CodingPatternsAnalyzer {
    */
   private async detectValidationPatterns(projectId: string): Promise<CodingPattern[]> {
     // Search for both traditional validation AND modern schema validation (Zod, Yup)
-    const results = await this.vectorStore.searchByText(
+    const results = await this.searchSource(
       'validation validate email phone url number input check zod schema zodResolver useForm',
       projectId,
       100 // Get many results to analyze patterns thoroughly
@@ -159,7 +206,7 @@ export class CodingPatternsAnalyzer {
    * Detect error handling patterns
    */
   private async detectErrorHandlingPatterns(projectId: string): Promise<CodingPattern[]> {
-    const results = await this.vectorStore.searchByText(
+    const results = await this.searchSource(
       'error exception throw catch try finally handling',
       projectId,
       100
@@ -194,7 +241,7 @@ export class CodingPatternsAnalyzer {
    * Detect logging patterns
    */
   private async detectLoggingPatterns(projectId: string): Promise<CodingPattern[]> {
-    const results = await this.vectorStore.searchByText(
+    const results = await this.searchSource(
       'log logging logger console debug info warn error',
       projectId,
       100
@@ -224,7 +271,7 @@ export class CodingPatternsAnalyzer {
    * Detect testing patterns
    */
   private async detectTestingPatterns(projectId: string): Promise<CodingPattern[]> {
-    const results = await this.vectorStore.searchByText(
+    const results = await this.searchSource(
       'test spec describe it expect jest mocha beforeEach',
       projectId,
       100
@@ -254,7 +301,7 @@ export class CodingPatternsAnalyzer {
    * Detect React patterns (hooks, components, optimization)
    */
   private async detectReactPatterns(projectId: string): Promise<CodingPattern[]> {
-    const results = await this.vectorStore.searchByText(
+    const results = await this.searchSource(
       'React useState useEffect useCallback useMemo useRef forwardRef memo component hook',
       projectId,
       100
@@ -324,7 +371,7 @@ export class CodingPatternsAnalyzer {
    * Detect state management patterns (Redux, Zustand, Context, etc.)
    */
   private async detectStateManagementPatterns(projectId: string): Promise<CodingPattern[]> {
-    const results = await this.vectorStore.searchByText(
+    const results = await this.searchSource(
       'redux store dispatch action reducer slice zustand create context provider useSelector',
       projectId,
       100
@@ -394,7 +441,7 @@ export class CodingPatternsAnalyzer {
    * Detect API and data fetching patterns
    */
   private async detectApiPatterns(projectId: string): Promise<CodingPattern[]> {
-    const results = await this.vectorStore.searchByText(
+    const results = await this.searchSource(
       'fetch axios api endpoint route handler middleware express next server action',
       projectId,
       100

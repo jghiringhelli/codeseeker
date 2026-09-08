@@ -16,6 +16,16 @@ export interface LanguageParserInfo {
   installed: boolean;
   quality: 'excellent' | 'good' | 'basic';
   description: string;
+  /**
+   * Whether the graph builder actually consumes this parser.
+   *
+   * `tree-sitter-semantic-builder` maps only typescript, javascript, python and java.
+   * For every other language the registry was advertising a Tree-sitter parser whose
+   * installation changed nothing — relationship extraction still fell through to the
+   * regex parsers. Offering a capability that does not exist is what spec R20 forbids;
+   * this flag is how the offer stays honest.
+   */
+  wired: boolean;
 }
 
 export interface ProjectLanguageAnalysis {
@@ -49,7 +59,8 @@ export class LanguageSupportService {
       npmPackage: '@babel/parser', // Already bundled, uses Babel
       installed: true, // Always available
       quality: 'excellent',
-      description: 'Babel AST parser (bundled)'
+      description: 'Babel AST parser (bundled)',
+      wired: true,
     },
     {
       language: 'JavaScript',
@@ -57,7 +68,8 @@ export class LanguageSupportService {
       npmPackage: '@babel/parser', // Already bundled
       installed: true,
       quality: 'excellent',
-      description: 'Babel AST parser (bundled)'
+      description: 'Babel AST parser (bundled)',
+      wired: true,
     },
     {
       language: 'Python',
@@ -65,7 +77,8 @@ export class LanguageSupportService {
       npmPackage: 'tree-sitter-python',
       installed: false,
       quality: 'excellent',
-      description: 'Tree-sitter AST (classes, functions, decorators)'
+      description: 'Tree-sitter AST (classes, functions, decorators)',
+      wired: true,
     },
     {
       language: 'Java',
@@ -73,79 +86,89 @@ export class LanguageSupportService {
       npmPackage: 'tree-sitter-java',
       installed: false,
       quality: 'excellent',
-      description: 'Tree-sitter AST (packages, annotations, generics)'
+      description: 'Tree-sitter AST (packages, annotations, generics)',
+      wired: true,
     },
     {
       language: 'C#',
       extensions: ['cs'],
       npmPackage: 'tree-sitter-c-sharp',
       installed: false,
-      quality: 'excellent',
-      description: 'Tree-sitter AST (namespaces, LINQ, async/await)'
+      quality: 'basic',
+      description: 'Regex parser (namespaces, classes, methods) — Tree-sitter not wired',
+      wired: false,
     },
     {
       language: 'Go',
       extensions: ['go'],
       npmPackage: 'tree-sitter-go',
       installed: false,
-      quality: 'excellent',
-      description: 'Tree-sitter AST (packages, interfaces, goroutines)'
+      quality: 'basic',
+      description: 'Regex parser (packages, funcs, structs) — Tree-sitter not wired',
+      wired: false,
     },
     {
       language: 'Rust',
       extensions: ['rs'],
       npmPackage: 'tree-sitter-rust',
       installed: false,
-      quality: 'excellent',
-      description: 'Tree-sitter AST (traits, macros, ownership)'
+      quality: 'basic',
+      description: 'NOT WIRED — installing this parser changes nothing today',
+      wired: false,
     },
     {
       language: 'C',
       extensions: ['c', 'h'],
       npmPackage: 'tree-sitter-c',
       installed: false,
-      quality: 'excellent',
-      description: 'Tree-sitter AST (headers, functions, structs)'
+      quality: 'basic',
+      description: 'NOT WIRED — installing this parser changes nothing today',
+      wired: false,
     },
     {
       language: 'C++',
       extensions: ['cpp', 'cc', 'cxx', 'hpp'],
       npmPackage: 'tree-sitter-cpp',
       installed: false,
-      quality: 'excellent',
-      description: 'Tree-sitter AST (classes, templates, namespaces)'
+      quality: 'basic',
+      description: 'NOT WIRED — installing this parser changes nothing today',
+      wired: false,
     },
     {
       language: 'Ruby',
       extensions: ['rb'],
       npmPackage: 'tree-sitter-ruby',
       installed: false,
-      quality: 'excellent',
-      description: 'Tree-sitter AST (classes, modules, blocks)'
+      quality: 'basic',
+      description: 'NOT WIRED — installing this parser changes nothing today',
+      wired: false,
     },
     {
       language: 'PHP',
       extensions: ['php'],
       npmPackage: 'tree-sitter-php',
       installed: false,
-      quality: 'good',
-      description: 'Tree-sitter AST (classes, namespaces, traits)'
+      quality: 'basic',
+      description: 'NOT WIRED — installing this parser changes nothing today',
+      wired: false,
     },
     {
       language: 'Swift',
       extensions: ['swift'],
       npmPackage: 'tree-sitter-swift',
       installed: false,
-      quality: 'good',
-      description: 'Tree-sitter AST (protocols, extensions)'
+      quality: 'basic',
+      description: 'NOT WIRED — installing this parser changes nothing today',
+      wired: false,
     },
     {
       language: 'Kotlin',
       extensions: ['kt', 'kts'],
       npmPackage: 'tree-sitter-kotlin',
       installed: false,
-      quality: 'good',
-      description: 'Tree-sitter AST (data classes, coroutines)'
+      quality: 'basic',
+      description: 'NOT WIRED — installing this parser changes nothing today',
+      wired: false,
     }
   ];
 

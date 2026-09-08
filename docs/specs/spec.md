@@ -169,7 +169,7 @@ report a confidence figure per finding. *(ADR-0007)*
 
 **R18.** Coding-standards detection MUST consider only source files. Patterns quoted
 from Markdown, changelogs or test fixtures are not project standards.
-*(NOT ENFORCED — the analyser has no extension filter; see §7)*
+*(enforced: all seven detectors route through a single source-file filter)*
 
 **R19.** No listing of files may present a truncated set without stating the full count
 and labelling itself as a sample. *(gate `no-silent-truncation-in-diagnostics`;
@@ -179,7 +179,7 @@ regression for issue #3)*
 
 **R20.** The `parsers` operation MUST NOT advertise a parser whose installation would not
 change extraction quality. Today only TypeScript, JavaScript, Python and Java are wired
-into the graph builder. *(NOT ENFORCED — the registry advertises eight more; see §7)*
+into the graph builder. *(enforced: each registry entry carries a `wired` flag, surfaced in the parsers response)*
 
 **R21.** Documented behaviour MUST match implemented behaviour. Any change to the tool
 schema, exported types, or CLI flags requires a corresponding change to this document or
@@ -277,11 +277,6 @@ debt.
 
 - **R13, R14 / A3** — graph coverage and deletion propagation are unverified on
   non-TypeScript project shapes. Tracked as issue #5.
-- **R18** — coding-standards detection has no source-file filter, so it quotes patterns
-  found in Markdown and test fixtures as though they were project conventions.
-- **R20** — `index({op:"parsers"})` advertises Tree-sitter parsers for Go, Rust, C, C++,
-  Ruby, PHP, Swift and Kotlin. Only TypeScript, JavaScript, Python and Java are wired
-  into the graph builder; installing any other changes nothing.
 - **Coverage** — 11.16% of statements. The suite is narrow rather than shallow: a
   mutation run on the best-tested module scored 70.63% before improvement, so the
   assertions that exist are real.

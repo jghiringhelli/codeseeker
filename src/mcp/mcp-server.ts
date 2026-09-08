@@ -1589,8 +1589,9 @@ export class CodeSeekerMcpServer {
       const available = parsers.filter(p => !p.installed);
       return {
         content: [{ type: 'text' as const, text: JSON.stringify({
-          installed_parsers: installed.map(p => ({ language: p.language, extensions: p.extensions, quality: p.quality })),
-          available_parsers: available.map(p => ({ language: p.language, extensions: p.extensions, npm_package: p.npmPackage, quality: p.quality })),
+          installed_parsers: installed.map(p => ({ language: p.language, extensions: p.extensions, quality: p.quality, wired: p.wired })),
+          available_parsers: available.map(p => ({ language: p.language, extensions: p.extensions, npm_package: p.npmPackage, quality: p.quality, wired: p.wired })),
+          note: 'Only parsers with wired:true are consumed by the graph builder. Installing one marked wired:false does not change relationship extraction for that language today — it still uses regex. See spec R20.',
         }, null, 2) }],
       };
     }
