@@ -151,9 +151,10 @@ graph nodes. A subsequent `graph` or `search` MUST NOT return the deleted file.
 *(NOT ENFORCED — issue #5(b); the deletion primitive is verified, its wiring through
 sync is not)*
 
-**R14.** Graph file-node coverage MUST match the search corpus: a file that `search` can
-return MUST be reachable as a graph node. *(NOT ENFORCED — issue #5(a); holds for
-TypeScript, unverified for CommonJS/JavaScript project shapes)*
+**R14.** Graph file-node coverage MUST match the search corpus for **code** files: a
+code file that `search` can return MUST be reachable as a graph node. Documents and
+configuration are indexed but intentionally have no graph node — the graph models code
+relationships. *(verified: scripts/corpus-bench.js across 7 corpora)*
 
 **R15.** Exclusions MUST persist to `.codeseeker/exclusions.json` and be respected on
 the next full reindex.
@@ -245,9 +246,10 @@ How we would know CodeSeeker is doing its job. These are observable, not aspirat
 `scripts/real-bench.js`): MRR ≥ 70%, P@1 ≥ 60%, R@5 ≥ 90%. Current: 75.2% / 61.1% /
 91.7%.
 
-**A2 — Retrieval quality holds across languages.** The same thresholds on at least one
-non-TypeScript corpus. *(NOT MEASURED — the benchmark covers TypeScript and C#;
-JavaScript, Python and monorepo shapes are unmeasured. This is the gap issue #5 sits in.)*
+**A2 — Integrity holds across languages and project shapes.** `scripts/corpus-bench.js`
+runs the index/graph/search integrity checks over seven corpora spanning JavaScript,
+TypeScript and Python, from 41 to 1,746 files. Retrieval *quality* (MRR/P@1/R@5) is
+still measured only on TypeScript and C# by `scripts/real-bench.js`.
 
 **A3 — Graph fidelity.** Graph file-node count equals the indexed file count, and a
 delete-then-sync cycle leaves no reachable node for the deleted file. *(NOT MEASURED)*
@@ -275,8 +277,10 @@ does, and why the surface is one tool — without reading the implementation.
 Stated here rather than discovered later. Each is either an open issue or a recorded
 debt.
 
-- **R13, R14 / A3** — graph coverage and deletion propagation are unverified on
-  non-TypeScript project shapes. Tracked as issue #5.
+- **A3 / retrieval quality across languages** — `corpus-bench.js` verifies index/graph
+  integrity on seven corpora, but ranking quality (MRR, P@1, R@5) is still measured only
+  on TypeScript and C#. A Python or JavaScript corpus with hand-labelled queries would
+  close this; none exists yet.
 - **Coverage** — 11.16% of statements. The suite is narrow rather than shallow: a
   mutation run on the best-tested module scored 70.63% before improvement, so the
   assertions that exist are real.

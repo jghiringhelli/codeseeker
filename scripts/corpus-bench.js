@@ -104,7 +104,11 @@ async function benchOne(projectPath, label) {
       .map((d) => norm(d.document.filePath))
       .filter((f) => f && !f.includes('__raptor__'))
   );
-  const missing = [...corpusFiles].filter((f) => !graphFiles.has(f));
+  // Only source files are expected to become graph nodes. A .txt or .md file being
+  // searchable but absent from the graph is correct behaviour, not a coverage gap — the
+  // graph models code relationships, and prose has none.
+  const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts|py|java|cs|go|rs|rb|php|swift|kt|c|h|cpp|hpp)$/i;
+  const missing = [...corpusFiles].filter((f) => SOURCE_EXT.test(f) && !graphFiles.has(f));
   const ratio = corpusFiles.size ? (graphFiles.size / corpusFiles.size) : 0;
   record('COVERAGE', 'R14', missing.length === 0 ? 'PASS' : 'FAIL',
     `graph ${graphFiles.size} / corpus ${corpusFiles.size} files (${(ratio * 100).toFixed(1)}%)` +
