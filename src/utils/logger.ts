@@ -112,7 +112,11 @@ export class Logger implements ILogger {
     const contextStr = this.context ? ` [${this.context}]` : '';
     const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
 
-    console.log(`${timestamp} ${level}${contextStr}: ${message}${metaStr}`);
+    // stderr, never stdout. When the process is an MCP server, stdout carries JSON-RPC
+    // and a single line of human-readable text corrupts the stream — a strict client
+    // responds by closing the connection. Diagnostics belong on stderr in every mode, so
+    // this does not depend on knowing which mode we are in.
+    process.stderr.write(`${timestamp} ${level}${contextStr}: ${message}${metaStr}\n`);
   }
 }
 

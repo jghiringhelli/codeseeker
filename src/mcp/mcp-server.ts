@@ -1880,7 +1880,38 @@ export class CodeSeekerMcpServer {
 /**
  * Main entry point for MCP server
  */
+/**
+ * Reserve stdout for the protocol.
+ *
+ * In MCP mode stdout is the JSON-RPC channel. A single line of human-readable output on
+ * it desynchronises the client's parser, and a strict client answers by closing the
+ * connection — reported to the user as nothing more informative than "Connection closed".
+ *
+ * This is not hypothetical: the coding-standards generator printed two progress lines
+ * during indexing, and that was enough to corrupt a live session.
+ *
+ * Chasing every `console.log` in the tree does not hold — there are hundreds in
+ * MCP-reachable code and the next one is one commit away. Redirecting the console here
+ * covers all of them, including code that does not know it is running under MCP. The SDK
+ * transport writes to `process.stdout` directly, so the protocol is unaffected.
+ */
+function reserveStdoutForProtocol(): void {
+  const toStderr = (...args: unknown[]) => {
+    const line = args
+      .map(a => (typeof a === 'string' ? a : (() => { try { return JSON.stringify(a); } catch { return String(a); } })()))
+      .join(' ');
+    process.stderr.write(line + '\n');
+  };
+  console.log = toStderr;
+  console.info = toStderr;
+  console.warn = toStderr;
+  console.debug = toStderr;
+  // console.error already goes to stderr and is left alone.
+}
+
 export async function startMcpServer(): Promise<void> {
+  reserveStdoutForProtocol();
+
   const server = new CodeSeekerMcpServer();
   let isShuttingDown = false;
 

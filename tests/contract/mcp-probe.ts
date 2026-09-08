@@ -32,10 +32,22 @@ export class McpProbe {
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private stdoutBuffer = '';
   private stderrText = '';
+  private nonProtocolLines: string[] = [];
 
   /** Server log output. Useful when a contract fails and the reason is a startup error. */
   get stderr(): string {
     return this.stderrText;
+  }
+
+  /**
+   * Every stdout line that was not valid JSON-RPC.
+   *
+   * The probe skips such lines so one stray write cannot break the whole run, but a
+   * skipped line is exactly what a strict client refuses to tolerate. Recording them
+   * makes the tolerance visible instead of load-bearing.
+   */
+  get nonProtocolStdout(): string[] {
+    return [...this.nonProtocolLines];
   }
 
   async start(env: Record<string, string> = {}): Promise<void> {
@@ -101,12 +113,16 @@ export class McpProbe {
       const line = this.stdoutBuffer.slice(0, idx).trim();
       this.stdoutBuffer = this.stdoutBuffer.slice(idx + 1);
       if (!line) continue;
-      let msg: { id?: number; result?: unknown; error?: { message?: string } };
+      let msg: { id?: number; jsonrpc?: string; result?: unknown; error?: { message?: string } };
       try {
         msg = JSON.parse(line);
       } catch {
-        // Not protocol. A well-behaved server keeps stdout clean; if this fires, that is
-        // itself a finding, but it must not crash the probe.
+        // Not protocol. Recorded rather than merely skipped — see `nonProtocolStdout`.
+        this.nonProtocolLines.push(line.slice(0, 200));
+        continue;
+      }
+      if (msg.jsonrpc !== '2.0') {
+        this.nonProtocolLines.push(`non-jsonrpc: ${line.slice(0, 180)}`);
         continue;
       }
       if (typeof msg.id !== 'number') continue;

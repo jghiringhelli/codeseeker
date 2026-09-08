@@ -176,6 +176,20 @@ describe('MCP contract — live server over stdio', () => {
       expect(probe.stderr).toMatch(/CodeSeeker MCP server running on stdio/);
     });
 
+    it('every stdout line is valid JSON-RPC, with nothing else mixed in', () => {
+      // The tolerant reading above is not enough. This probe skips lines it cannot
+      // parse, so a polluted stdout would still let the suite pass while a strict
+      // client closed the connection. That is precisely what happened: the
+      // coding-standards generator printed two progress lines during indexing and
+      // corrupted a live session, surfacing only as "Connection closed".
+      //
+      // `startMcpServer` now redirects console.log/info/warn/debug to stderr for the
+      // life of the process, so library code that has no idea it is running under MCP
+      // cannot break the protocol. `scripts/mcp-stdout-purity.js` drives a full
+      // indexing run and asserts the same property end to end.
+      expect(probe.nonProtocolStdout).toEqual([]);
+    });
+
     it('survives an unknown action without crashing the process', async () => {
       await probe.callText('codeseeker', { action: 'search', search: { q: 'x' } }).catch(() => undefined);
       // The server must still answer afterwards.

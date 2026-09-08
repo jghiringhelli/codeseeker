@@ -47,7 +47,9 @@ export class CodingStandardsGenerator {
    * Generate coding standards file at project init
    */
   async generateStandards(projectId: string, projectPath: string): Promise<void> {
-    console.log('⏳ Analyzing coding patterns...');
+    // stderr, not stdout: this runs inside indexing, and under MCP stdout is carrying
+    // JSON-RPC at the same moment. A progress line there corrupts the protocol stream.
+    process.stderr.write('⏳ Analyzing coding patterns...\n');
 
     const analyzer = new CodingPatternsAnalyzer(this.vectorStore);
     const patterns = await analyzer.analyzePatterns(projectId);
@@ -76,7 +78,7 @@ export class CodingStandardsGenerator {
     const standardsPath = path.join(codeseekerDir, 'coding-standards.json');
     await fs.writeFile(standardsPath, JSON.stringify(standards, null, 2), 'utf-8');
 
-    console.log(`✓ Detected ${totalPatterns} coding patterns across ${patterns.size} categories`);
+    process.stderr.write(`✓ Detected ${totalPatterns} coding patterns across ${patterns.size} categories\n`);
 
     // Cache for quick access
     this.standardsCache.set(projectId, standards);
@@ -93,7 +95,7 @@ export class CodingStandardsGenerator {
       return; // No pattern-related files changed
     }
 
-    console.log(`⏳ Updating coding standards (${affectedCategories.join(', ')})...`);
+    process.stderr.write(`⏳ Updating coding standards (${affectedCategories.join(', ')})...\n`);
 
     // Load existing standards
     const standardsPath = path.join(projectPath, '.codeseeker', 'coding-standards.json');
@@ -121,7 +123,7 @@ export class CodingStandardsGenerator {
     existing.generated_at = new Date().toISOString();
     await fs.writeFile(standardsPath, JSON.stringify(existing, null, 2), 'utf-8');
 
-    console.log(`✓ Updated ${affectedCategories.length} standard categories`);
+    process.stderr.write(`✓ Updated ${affectedCategories.length} standard categories\n`);
 
     // Update cache
     this.standardsCache.set(projectId, existing);
