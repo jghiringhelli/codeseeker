@@ -156,6 +156,12 @@ code file that `search` can return MUST be reachable as a graph node. Documents 
 configuration are indexed but intentionally have no graph node — the graph models code
 relationships. *(verified: scripts/corpus-bench.js across 7 corpora)*
 
+**R15b.** An index MUST record which embedder built it, and a search against an index
+built by a different embedder MUST be refused with an error naming both identities.
+Vectors from two embedders share shape and range, so a mismatch degrades ranking without
+failing — the failure mode this forbids is silence, not error.
+*(tests/unit/embedding-identity.test.ts)*
+
 **R15.** Exclusions MUST persist to `.codeseeker/exclusions.json` and be respected on
 the next full reindex.
 
@@ -231,7 +237,7 @@ recorded baseline until the baseline is clean, then blocking.
 | `conventional-commits` | blocking | passing |
 | `coverage-threshold-80` | advisory | 11.16% statements |
 | `mutation-score-threshold` | advisory | 85.31% on the measured scope |
-| `npm-audit-no-high-cve` | advisory | 0 critical, 2 high |
+| `npm-audit-no-high-cve` | advisory | 0 critical, 4 high (all install-time or unreachable) |
 | `file-length-max-300` | advisory | 144 of 338 files over |
 | `typescript-strict-mode` | advisory | `strict: false` |
 | `adr-files-emitted` | blocking | 12 records |

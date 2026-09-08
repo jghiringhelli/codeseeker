@@ -38,6 +38,7 @@ import { CodingStandardsGenerator } from '../cli/services/analysis/coding-standa
 import { LanguageSupportService } from '../cli/services/project/language-support-service';
 import { getQueryCacheService, QueryCacheService } from './query-cache-service';
 import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
+import { embeddingStamp, checkEmbeddingCompatibility } from './embedding-identity';
 
 /**
  * Server version, read from package.json so it cannot drift from the published package.
@@ -502,6 +503,23 @@ export class CodeSeekerMcpServer {
         return {
           error: {
             content: [{ type: 'text' as const, text: `Project "${path.basename(projectPath)}" is registered but holds no indexed chunks. Run index({action: "init", path: "${projectPath}"}) first.` }],
+            isError: true,
+          },
+        };
+      }
+
+      // Refuse to search an index built by a different embedder. Its vectors are the
+      // same shape and range as ours, so nothing would error — the ranking would simply
+      // be wrong, which is worse than failing.
+      const compat = checkEmbeddingCompatibility(
+        (projectRecord as { metadata?: Record<string, unknown> }).metadata
+      );
+      if (!compat.compatible) {
+        return {
+          error: {
+            content: [{ type: 'text' as const, text:
+              `${compat.reason}\n\nRebuild the index to continue: ` +
+              `codeseeker({action:"index", index:{op:"init", path:"${projectPath}"}})` }],
             isError: true,
           },
         };
@@ -1396,7 +1414,9 @@ export class CodeSeekerMcpServer {
     const projectStore = storageManager.getProjectStore();
     await projectStore.upsert({
       id: projectId, name: projectName, path: absolutePath,
-      metadata: { indexedAt: new Date().toISOString(), indexing: true },
+      // Stamp which embedder built this index, so a later change to the model or its
+      // quantization is detected rather than silently degrading ranking (see embedding-identity.ts).
+      metadata: { indexedAt: new Date().toISOString(), indexing: true, ...embeddingStamp() },
     });
 
     const codingStandardsPath = path.join(absolutePath, '.codeseeker', 'coding-standards.json');
