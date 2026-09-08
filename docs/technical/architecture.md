@@ -112,7 +112,9 @@ Each chunk preserves surrounding class context so embeddings capture "method of 
 
 ### Phase 3 — Embedding + BM25 index
 
-Each chunk → `EmbeddingGeneratorAdapter` → Xenova ONNX → 384-dim float32 vector → stored in SQLite (`codeseeker_chunks` table).
+Each chunk → `EmbeddingGeneratorAdapter` → `@huggingface/transformers` running `Xenova/all-MiniLM-L6-v2` as **q8-quantized** ONNX → 384-dim float32 vector → stored in SQLite (`codeseeker_chunks` table).
+
+The quantization is load-bearing, not an implementation detail. The same model at fp32 produces vectors that differ by up to 1.03e-2 — enough to shift ranking against any index built at q8, and it would not error, only degrade. Every index is stamped with `model@dtype/dimensions` and a search against a mismatched stamp is refused (`src/mcp/embedding-identity.ts`). Before changing the model, the dtype or the package, run `node scripts/embedding-fingerprint.js --compare reports/embedding/baseline.json`.
 
 Simultaneously, chunk text → MiniSearch BM25 index with camelCase tokenisation (`UserService` → tokens `user`, `service`). Both stored in the embedded SQLite file under `.codeseeker/`.
 

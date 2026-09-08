@@ -674,10 +674,16 @@ codeseeker project cleanup
 
 ### Embedding Model
 
-CodeSeeker uses **Xenova/all-MiniLM-L6-v2** for all embeddings:
+CodeSeeker uses **Xenova/all-MiniLM-L6-v2** for all embeddings, run locally through
+`@huggingface/transformers`:
 - 384-dimensional vectors
+- **q8-quantized** ONNX weights — the same model at fp32 produces different vectors
 - Consistent model across indexing and retrieval
 - pgvector extension in PostgreSQL for similarity search
+
+Indexes are stamped with the embedder that built them. If you change the model or its
+quantization, existing indexes are refused rather than silently mis-ranked, and the error
+tells you to rebuild.
 
 ### Project Identity
 
