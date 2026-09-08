@@ -36,6 +36,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      # gate: contract-tests-against-live-env — spawns the built server and speaks MCP to it
+      - name: Behavioural contracts
+        run: npm run test:contract
+
       # gate: conventional-commits — validates every commit the PR adds
       - name: Conventional commits
         if: github.event_name == 'pull_request'

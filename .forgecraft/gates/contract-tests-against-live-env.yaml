@@ -1,0 +1,21 @@
+id: contract-tests-against-live-env
+name: API contract tests pass against live environment
+description: >
+  The committed API contract test suite must pass against the live target environment
+  (staging, CAE, or production candidate) before promotion. This is distinct from
+  running contract tests against a local server: the live environment exercises the
+  full deployment stack including authentication middleware, database connections,
+  environment-specific configuration, and any infrastructure-level routing. A service
+  that passes contract tests locally but fails against its own staging environment has
+  an environment configuration gap, not a test gap. Gate passes when the contract test
+  runner (Hurl, Postman/Newman, Pact, or equivalent) exits 0 against the environment
+  URL supplied via DEPLOY_URL. The test suite must be parameterized by URL and must not
+  require production data — it must function against a seeded or empty environment.
+property: Verifiable
+tags: [api, rest, any]
+phase: staging
+trigger: release
+blocking: true
+check:
+  type: script
+  command: "DEPLOY_URL=${DEPLOY_URL} ./scripts/run-contract-tests.sh"

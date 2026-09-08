@@ -405,7 +405,16 @@ export class CodeSeekerMcpServer {
       if (found) {
         return { projectPath: found.path, projectRecord: found };
       }
-      return { projectPath: await this.findProjectPath(path.resolve(project)) };
+      // Not a registered name or path — but it may be a *subdirectory* of an indexed
+      // project, so walk up for a .codeseeker marker and re-match the result against the
+      // registry. Re-matching is what lets the caller pass a nested path and still get a
+      // record; without it the walk produced a bare path that looked indexed but was not.
+      const walked = await this.findProjectPath(path.resolve(project));
+      const viaWalk = projects.find(p => path.resolve(p.path) === path.resolve(walked));
+      if (viaWalk) {
+        return { projectPath: viaWalk.path, projectRecord: viaWalk };
+      }
+      return { projectPath: walked };
     }
 
     if (projects.length === 0) {
@@ -464,7 +473,18 @@ export class CodeSeekerMcpServer {
   private async verifyIndexed(projectPath: string, projectRecord?: { id: string; name: string; path: string }): Promise<{
     error?: { content: Array<{ type: 'text'; text: string }>; isError: true };
   }> {
-    if (!projectRecord) return {};
+    // No registry record means the project was never indexed. Returning `{}` here let a
+    // search run against a non-existent index and answer "No results", which reads as
+    // "your code does not contain this" rather than "this project is not indexed" —
+    // a violation of contract C4 caught by the MCP contract suite.
+    if (!projectRecord) {
+      return {
+        error: {
+          content: [{ type: 'text' as const, text: `Project "${path.basename(projectPath) || projectPath}" is not indexed. Run codeseeker({action:"index",index:{op:"init",path:"${projectPath}"}}) first.` }],
+          isError: true,
+        },
+      };
+    }
     const storageManager = await getStorageManager();
     const vectorStore = storageManager.getVectorStore();
     try {

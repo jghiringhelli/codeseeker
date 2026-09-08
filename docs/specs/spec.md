@@ -200,7 +200,7 @@ user's own `claude` CLI. No `fetch()` to any model provider (ADR-0001).
 **C3 — Never write to source.** CodeSeeker writes only under `.codeseeker/`. It does not
 modify, move or delete a file it did not create.
 
-**C4 — Index explicitly, never implicitly.** A project must be indexed by an explicit
+**C4 — Index explicitly, never implicitly.** *(verified: tests/contract/mcp-protocol.contract.test.ts)* A project must be indexed by an explicit
 `index({op:"init"})` or `codeseeker init`. A query against an unindexed project returns
 an error naming the fix. Indexing a large repository silently inside a tool call would
 block the assistant for minutes with no way to cancel and no way to know why.
@@ -260,6 +260,10 @@ laptop. Current: 504 files, 9,714 chunks, 3,778 nodes, 4,647 edges in 147 second
 **A6 — The gate is usable.** `npm test` completes in under 60 seconds, so it can run on
 every push without being disabled. Current: ~11 seconds.
 
+**A8 — Contracts run against a live runtime.** The MCP protocol is exercised as a
+contract against a spawned server process, not in-process handlers. Current: 17 contract
+tests over stdio, run by `npm run test:contract`.
+
 **A7 — Documentation derives.** A reader given only this specification, `domain.md`,
 `architecture.md` and the ADRs can state what the tool surface is, what each action
 does, and why the surface is one tool — without reading the implementation.
@@ -284,8 +288,9 @@ debt.
 - **Composability** — 144 of 338 source files exceed 300 lines;
   `user-interaction-service.ts` is 2,264 and `mcp-server.ts` is 1,886. The change
   surface of those files is not predictable from their boundary declaration.
-- **Executable** — no behavioural contract suite runs against a live server. The MCP
-  protocol is a contract and could be probed as one; it is not.
+- **Executable** — a contract suite now runs against a live server over stdio, covering
+  the tool surface, the refusals and the error contracts. It does not yet cover the
+  retrieval contracts (R4-R8), which need an indexed fixture.
 
 ---
 
