@@ -1,12 +1,30 @@
 /**
- * Xenova Embedding Provider
- * SOLID Principles: Single Responsibility - Handle Xenova transformers only
+ * Transformers.js Embedding Provider
+ * SOLID Principles: Single Responsibility - Handle transformers.js feature extraction only
+ *
+ * Runs on `@huggingface/transformers`, the maintained successor to `@xenova/transformers`.
+ * The old package is frozen at 2.17.2 and will never receive another patch, which left
+ * four unfixable advisories in the dependency tree.
+ *
+ * VECTOR COMPATIBILITY — do not change `EMBEDDING_DTYPE` casually.
+ *
+ * `@xenova` v2 defaulted to the **quantized (q8)** ONNX weights. `@huggingface` v4
+ * defaults to fp32. Same model id, same dimensions, different numbers: measured max
+ * component delta 1.03e-2 between them, which is far above noise and would silently
+ * degrade ranking against every index built before the change. Pinning q8 reproduces the
+ * old vectors to 3.17e-7 — floating-point noise — so existing indexes stay valid and no
+ * user has to reindex.
+ *
+ * Verify with `node scripts/embedding-fingerprint.js --compare reports/embedding/baseline.json`
+ * before changing the model, the dtype, or this package.
  */
 
 import { Logger } from '../../../../../utils/logger';
 import { IEmbeddingProvider, EmbeddingConfig } from '../interfaces';
 
-// Dynamic import for ES module compatibility
+/** Quantization of the ONNX weights. Changing this invalidates every existing index. */
+const EMBEDDING_DTYPE = 'q8';
+
 let pipeline: any = null;
 
 export class XenovaEmbeddingProvider implements IEmbeddingProvider {
@@ -22,23 +40,18 @@ export class XenovaEmbeddingProvider implements IEmbeddingProvider {
   async initialize(): Promise<void> {
     if (!pipeline) {
       try {
-        // Use dynamic import with proper module resolution
-        const transformersModule = await (eval('import("@xenova/transformers")') as Promise<any>);
-        const { pipeline: pipelineFunc } = transformersModule;
-        pipeline = await pipelineFunc('feature-extraction', this.config.model);
-        this.logger.debug('Xenova transformers initialized');
+        // `@huggingface/transformers` ships a CommonJS build, so a plain require works.
+        // The previous package was ESM-only and needed an `eval('import(...)')` to get
+        // past TypeScript's module transform — that workaround is no longer necessary.
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { pipeline: pipelineFunc } = require('@huggingface/transformers');
+        pipeline = await pipelineFunc('feature-extraction', this.config.model, {
+          dtype: EMBEDDING_DTYPE,
+        });
+        this.logger.debug(`transformers.js initialized (${this.config.model}, dtype=${EMBEDDING_DTYPE})`);
       } catch (error: any) {
-        this.logger.error('Failed to initialize Xenova:', error);
-
-        // If ES Module import fails, provide helpful feedback
-        if (error.message?.includes('require() of ES Module')) {
-          this.logger.warn('⚠️ Xenova transformers requires ES Module support');
-          this.logger.info('💡 Falling back to local embeddings');
-          // Don't throw - let it fall back to local embeddings
-          return;
-        }
-
-        throw new Error(`Failed to initialize Xenova transformers: ${error.message}`);
+        this.logger.error('Failed to initialize transformers.js:', error);
+        throw new Error(`Failed to initialize transformers.js: ${error.message}`);
       }
     }
     this.xenovaExtractor = pipeline;
