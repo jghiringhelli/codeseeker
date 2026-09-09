@@ -38,7 +38,15 @@ import { CodingStandardsGenerator } from '../cli/services/analysis/coding-standa
 import { LanguageSupportService } from '../cli/services/project/language-support-service';
 import { getQueryCacheService, QueryCacheService } from './query-cache-service';
 import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
-import { embeddingStamp, checkEmbeddingCompatibility } from './embedding-identity';
+import { embeddingStamp } from './embedding-identity';
+import {
+  validateProjectPath,
+  generateProjectId,
+  findProjectPath,
+  resolveProject,
+  resolveIndexedProject,
+  verifyIndexed,
+} from './project-resolver';
 
 /**
  * Server version, read from package.json so it cannot drift from the published package.
@@ -123,12 +131,6 @@ export class CodeSeekerMcpServer {
   private readonly JOB_TTL_MS = 60 * 60 * 1000;
   private cleanupTimer: NodeJS.Timeout | null = null;
 
-  // Dangerous paths that should never be indexed (security)
-  private readonly DANGEROUS_PATHS = [
-    '/etc', '/var', '/usr', '/bin', '/sbin', '/lib', '/boot', '/root', '/proc', '/sys', '/dev',
-    'C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)', 'C:\\ProgramData',
-    '.ssh', '.gnupg', '.aws', '.azure', '.config',
-  ];
 
   constructor() {
     this.server = new McpServer({
@@ -170,28 +172,6 @@ export class CodeSeekerMcpServer {
     for (const projectId of jobsToDelete) {
       this.indexingJobs.delete(projectId);
     }
-  }
-
-  private validateProjectPath(projectPath: string): string | null {
-    const normalizedPath = path.normalize(projectPath);
-    if (normalizedPath.includes('..')) {
-      return 'Path traversal detected: paths with ".." are not allowed';
-    }
-    const lowerPath = normalizedPath.toLowerCase();
-    for (const dangerous of this.DANGEROUS_PATHS) {
-      const lowerDangerous = dangerous.toLowerCase();
-      if (lowerPath === lowerDangerous || lowerPath.startsWith(lowerDangerous + path.sep)) {
-        return `Security: cannot index system directory "${dangerous}"`;
-      }
-    }
-    const pathParts = normalizedPath.split(path.sep);
-    for (const part of pathParts) {
-      const lowerPart = part.toLowerCase();
-      if (lowerPart === '.ssh' || lowerPart === '.gnupg' || lowerPart === '.aws') {
-        return `Security: cannot index sensitive directory "${part}"`;
-      }
-    }
-    return null;
   }
 
   private startBackgroundIndexing(
@@ -300,23 +280,6 @@ export class CodeSeekerMcpServer {
     return this.indexingJobs.get(projectId);
   }
 
-  private async findProjectPath(startPath: string): Promise<string> {
-    let currentPath = path.resolve(startPath);
-    const root = path.parse(currentPath).root;
-    while (currentPath !== root) {
-      const configPath = path.join(currentPath, '.codeseeker', 'project.json');
-      if (fs.existsSync(configPath)) {
-        return currentPath;
-      }
-      currentPath = path.dirname(currentPath);
-    }
-    return startPath;
-  }
-
-  private generateProjectId(projectPath: string): string {
-    return crypto.createHash('md5').update(projectPath).digest('hex');
-  }
-
   private async getAllProjectDocuments(vectorStore: IVectorStore, projectId: string): Promise<VectorDocument[]> {
     const randomEmbedding = Array.from({ length: 384 }, () => Math.random() - 0.5);
     const results = await vectorStore.searchByVector(randomEmbedding, projectId, 10000);
@@ -387,154 +350,6 @@ export class CodeSeekerMcpServer {
    * Resolve project from name/path, returning project record and path.
    * Shared helper for search and analyze tools.
    */
-  private async resolveProject(project?: string): Promise<{
-    projectPath: string;
-    projectRecord?: { id: string; name: string; path: string; updatedAt: Date };
-    error?: { content: Array<{ type: 'text'; text: string }>; isError: true };
-  }> {
-    const storageManager = await getStorageManager();
-    const projectStore = storageManager.getProjectStore();
-    const projects = await projectStore.list();
-
-    if (project) {
-      const found = projects.find(p =>
-        p.name === project ||
-        p.path === project ||
-        path.basename(p.path) === project ||
-        path.resolve(project) === p.path
-      );
-      if (found) {
-        return { projectPath: found.path, projectRecord: found };
-      }
-      // Not a registered name or path — but it may be a *subdirectory* of an indexed
-      // project, so walk up for a .codeseeker marker and re-match the result against the
-      // registry. Re-matching is what lets the caller pass a nested path and still get a
-      // record; without it the walk produced a bare path that looked indexed but was not.
-      const walked = await this.findProjectPath(path.resolve(project));
-      const viaWalk = projects.find(p => path.resolve(p.path) === path.resolve(walked));
-      if (viaWalk) {
-        return { projectPath: viaWalk.path, projectRecord: viaWalk };
-      }
-      return { projectPath: walked };
-    }
-
-    if (projects.length === 0) {
-      return {
-        projectPath: '',
-        error: {
-          content: [{ type: 'text' as const, text: 'No indexed projects. Use index({action: "init", path: "/path/to/project"}) first.' }],
-          isError: true,
-        },
-      };
-    }
-    if (projects.length === 1) {
-      return { projectPath: projects[0].path, projectRecord: projects[0] };
-    }
-    const projectList = projects.map(p => `  - "${p.name}" (${p.path})`).join('\n');
-    return {
-      projectPath: '',
-      error: {
-        content: [{ type: 'text' as const, text: `Multiple projects indexed. Specify project parameter:\n\n${projectList}` }],
-        isError: true,
-      },
-    };
-  }
-
-  /**
-   * Resolve a project to an *indexed record*, for actions backed by the graph store.
-   *
-   * `resolveProject` may return a bare path for a project it has never indexed, which is
-   * fine for path-only callers. Graph-backed actions (`sym`, `graph`) need a projectId, so
-   * here an unindexed project is an error rather than a silent fall-through to `process.cwd()`.
-   * Sharing this with `search` is what keeps index detection consistent across actions.
-   */
-  private async resolveIndexedProject(project?: string): Promise<{
-    projectId?: string;
-    projectPath: string;
-    error?: { content: Array<{ type: 'text'; text: string }>; isError: true };
-  }> {
-    const { projectPath, projectRecord, error } = await this.resolveProject(project);
-    if (error) return { projectPath: '', error };
-    if (!projectRecord) {
-      const hint = projectPath || project || '/path/to/project';
-      return {
-        projectPath,
-        error: {
-          content: [{ type: 'text' as const, text: `Project "${project ?? path.basename(hint)}" is not indexed. Run codeseeker({action:"index",index:{op:"init",path:"${hint}"}}) first.` }],
-          isError: true,
-        },
-      };
-    }
-    return { projectId: projectRecord.id, projectPath: projectRecord.path };
-  }
-
-  /**
-   * Verify project has embeddings (is actually indexed).
-   */
-  private async verifyIndexed(projectPath: string, projectRecord?: { id: string; name: string; path: string }): Promise<{
-    error?: { content: Array<{ type: 'text'; text: string }>; isError: true };
-  }> {
-    // No registry record means the project was never indexed. Returning `{}` here let a
-    // search run against a non-existent index and answer "No results", which reads as
-    // "your code does not contain this" rather than "this project is not indexed" —
-    // a violation of contract C4 caught by the MCP contract suite.
-    if (!projectRecord) {
-      return {
-        error: {
-          content: [{ type: 'text' as const, text: `Project "${path.basename(projectPath) || projectPath}" is not indexed. Run codeseeker({action:"index",index:{op:"init",path:"${projectPath}"}}) first.` }],
-          isError: true,
-        },
-      };
-    }
-    const storageManager = await getStorageManager();
-    const vectorStore = storageManager.getVectorStore();
-    try {
-      // Ask how many chunks the project has, rather than searching for a magic word.
-      //
-      // This previously probed with searchByText('test', …) and treated zero hits as
-      // "not indexed". That is a content check masquerading as an existence check: a
-      // fully indexed project whose code happens not to contain the token "test" was
-      // declared unindexed, and every search against it failed. Reproduced on the
-      // RealWorld Django corpus — 156 embedded chunks, searchByText('test') → 0 hits,
-      // every query rejected. Any corpus can fail this way; Python simply made it
-      // visible first.
-      const chunkCount = await vectorStore.count(projectRecord.id);
-      if (!chunkCount) {
-        return {
-          error: {
-            content: [{ type: 'text' as const, text: `Project "${path.basename(projectPath)}" is registered but holds no indexed chunks. Run index({action: "init", path: "${projectPath}"}) first.` }],
-            isError: true,
-          },
-        };
-      }
-
-      // Refuse to search an index built by a different embedder. Its vectors are the
-      // same shape and range as ours, so nothing would error — the ranking would simply
-      // be wrong, which is worse than failing.
-      const compat = checkEmbeddingCompatibility(
-        (projectRecord as { metadata?: Record<string, unknown> }).metadata
-      );
-      if (!compat.compatible) {
-        return {
-          error: {
-            content: [{ type: 'text' as const, text:
-              `${compat.reason}\n\nRebuild the index to continue: ` +
-              `codeseeker({action:"index", index:{op:"init", path:"${projectPath}"}})` }],
-            isError: true,
-          },
-        };
-      }
-    } catch {
-      return {
-        error: {
-          content: [{ type: 'text' as const, text: `Project "${path.basename(projectPath)}" needs indexing. Run index({action: "init", path: "${projectPath}"}) first.` }],
-          isError: true,
-        },
-      };
-    }
-    return {};
-  }
-
   // ============================================================
   // TOOL REGISTRATION - 3 CONSOLIDATED TOOLS
   // ============================================================
@@ -618,7 +433,7 @@ export class CodeSeekerMcpServer {
             case 'graph': {
               const g = params.graph;
               if (!g) return { content: [{ type: 'text' as const, text: 'Provide graph params.' }], isError: true };
-              const { projectPath, error } = await this.resolveProject(params.project);
+              const { projectPath, error } = await resolveProject(params.project);
               if (error) return error;
               return await this.handleShowDependencies({
                 project: projectPath,
@@ -750,13 +565,13 @@ export class CodeSeekerMcpServer {
     exists: boolean,
     full: boolean
   ) {
-    const { projectPath, projectRecord, error } = await this.resolveProject(project);
+    const { projectPath, projectRecord, error } = await resolveProject(project);
     if (error) return error;
 
-    const indexCheck = await this.verifyIndexed(projectPath, projectRecord as any);
+    const indexCheck = await verifyIndexed(projectPath, projectRecord as any);
     if (indexCheck.error) return indexCheck.error;
 
-    const cacheProjectId = projectRecord?.id || this.generateProjectId(projectPath);
+    const cacheProjectId = projectRecord?.id || generateProjectId(projectPath);
     const cap = exists ? 5 : limit;
 
     // exists mode: skip cache, quick check
@@ -834,7 +649,7 @@ export class CodeSeekerMcpServer {
     const storageManager = await getStorageManager();
     const graphStore = storageManager.getGraphStore();
 
-    const { projectId, projectPath, error: resolveError } = await this.resolveIndexedProject(project);
+    const { projectId, projectPath, error: resolveError } = await resolveIndexedProject(project);
     if (resolveError) return resolveError;
 
     // Determine seed file paths
@@ -1373,7 +1188,7 @@ export class CodeSeekerMcpServer {
     }
 
     const absolutePath = path.isAbsolute(projectPath) ? projectPath : path.resolve(projectPath);
-    const pathError = this.validateProjectPath(absolutePath);
+    const pathError = validateProjectPath(absolutePath);
     if (pathError) {
       return { content: [{ type: 'text' as const, text: pathError }], isError: true };
     }
@@ -1386,7 +1201,7 @@ export class CodeSeekerMcpServer {
     }
 
     const projectName = params.name || path.basename(absolutePath);
-    const projectId = this.generateProjectId(absolutePath);
+    const projectId = generateProjectId(absolutePath);
 
     if (this.indexingMutex.has(projectId)) {
       return {
@@ -1795,7 +1610,7 @@ export class CodeSeekerMcpServer {
     const storageManager = await getStorageManager();
     const graphStore = storageManager.getGraphStore();
 
-    const { projectId, projectPath, error } = await this.resolveIndexedProject(project);
+    const { projectId, projectPath, error } = await resolveIndexedProject(project);
     if (error) return error;
 
     const allNodes = await graphStore.findNodes(projectId!);

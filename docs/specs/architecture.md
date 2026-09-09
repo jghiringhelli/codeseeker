@@ -95,7 +95,7 @@ Named, with scale, because an unstated violation is worse than a stated one.
 
 | Violation | Scale | Consequence |
 |---|---|---|
-| Files over 300 lines | 144 of 338 | The change surface of a unit is not predictable from its boundary declaration. Worst: `user-interaction-service.ts` 2,264; `mcp-server.ts` 1,886; `indexing-service.ts` 1,405. |
+| Files over 300 lines | 144 of 340 | The change surface of a unit is not predictable from its boundary declaration. Worst: `user-interaction-service.ts` 2,264; `mcp-server.ts` 1,782; `indexing-service.ts` 1,405. Project resolution was extracted to `src/mcp/project-resolver.ts` (240 lines); the rest is a campaign, not a session. |
 | `strict: false` in tsconfig | project-wide | Null-safety is unverified. Being enabled per-file as modules are touched. |
 | Retrieval contracts unexercised | R4-R8 | The contract suite covers the tool surface, refusals and errors against a live server, but not ranking behaviour — that needs an indexed fixture. |
 | Parser registry overstates support | 8 languages | `index({op:"parsers"})` offers Tree-sitter parsers that the graph builder does not consume. |
