@@ -26,7 +26,6 @@ jobs:
   publish-npm:
     if: ${{ !inputs.skip_npm }}
     runs-on: ubuntu-latest
-    continue-on-error: true  # manual publish via npm login is the fallback
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,7 +39,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-mcp-registry:
-    if: ${{ !inputs.skip_mcp }}
+    needs: [publish-npm]
+    if: ${{ always() && !inputs.skip_mcp && (needs.publish-npm.result == 'success' || inputs.skip_npm) }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -58,6 +58,20 @@ jobs:
           curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
       - name: Authenticate to MCP Registry
         run: ./mcp-publisher login github-oidc
+      - name: Wait for npm to serve the new version
+        env:
+          RELEASE_VERSION: ${{ env.VERSION }}
+        run: |
+          # The registry rejects a version it cannot see on npm yet, and npm takes a
+          # moment to serve a fresh publish. Poll rather than guess at a sleep.
+          V=${RELEASE_VERSION#v}
+          for i in $(seq 1 20); do
+            if npm view "codeseeker@$V" version >/dev/null 2>&1; then
+              echo "npm is serving codeseeker@$V"; exit 0
+            fi
+            echo "waiting for codeseeker@$V on npm ($i/20)"; sleep 15
+          done
+          echo "codeseeker@$V never appeared on npm; not registering it"; exit 1
       - name: Publish to MCP Registry
         run: |
           output=$(./mcp-publisher publish 2>&1) && echo "$output" && exit 0
@@ -88,7 +102,7 @@ jobs:
           git push origin "$SPLIT_SHA:refs/heads/plugin" --force
 
   create-release:
-    needs: [publish-mcp-registry]
+    needs: [publish-npm]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
