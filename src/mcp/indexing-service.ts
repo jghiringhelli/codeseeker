@@ -25,6 +25,25 @@ import type { ParsedCodeStructure } from '../cli/services/data/semantic-graph/pa
 import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
 import { AstChunker } from '../cli/services/search/ast-chunker';
 
+/**
+ * Words that can appear as `name(...) {` in JavaScript or TypeScript without being a
+ * declaration.
+ *
+ * The graph's value depends on its nodes meaning something. A node named `catch` is not
+ * wrong in a small way — it is a symbol a caller can look up, expand from, and be told is
+ * dead code, none of which is true. Control-flow keywords, the operators that take a
+ * parenthesised argument, and the framework callbacks that read like declarations but are
+ * call sites all belong here.
+ */
+const JS_NON_DECLARATIONS = new Set([
+  // control flow written as `keyword (...) {`
+  'if', 'else', 'for', 'while', 'do', 'switch', 'try', 'catch', 'finally', 'with',
+  // operators and expressions that take a parenthesised argument
+  'return', 'typeof', 'instanceof', 'delete', 'void', 'await', 'yield', 'new', 'in', 'of',
+  // declaration keywords that precede a name rather than being one
+  'function', 'class', 'const', 'let', 'var', 'import', 'export', 'require',
+]);
+
 export interface IndexingProgress {
   phase: 'scanning' | 'indexing' | 'graph' | 'raptor' | 'complete';
   filesTotal: number;
@@ -1196,9 +1215,17 @@ export class IndexingService {
         }
       }
     } else {
-      // Generic JS/TS regex
+      // Generic JS/TS regex.
+      //
+      // The third alternative — `name(args) {` — exists to catch class methods, which
+      // have no `function` keyword. It also matches every control-flow construct written
+      // the same way, and the exclusion list used to hold only if/for/while/switch. The
+      // result was 265 nodes named `catch` in this repository alone, plus `try`, `do` and
+      // friends, all typed `function`. They polluted `sym`, gave `graph` neighbours that
+      // mean nothing, and were counted by dead-code analysis.
       const classRegex = /class\s+(\w+)/g;
       const functionRegex = /(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:\([^)]*\)|[^=]*?)\s*=>|(\w+)\s*\([^)]*\)\s*{)/g;
+      let functionCount = 0;
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -1218,17 +1245,18 @@ export class IndexingService {
         }
 
         // Limit functions per file
-        if (elements.filter(e => e.type === 'function').length < 30) {
+        if (functionCount < 30) {
           functionRegex.lastIndex = 0;
           while ((match = functionRegex.exec(line)) !== null) {
             const funcName = match[1] || match[2] || match[3];
-            if (funcName && funcName.length > 2 && !['if', 'for', 'while', 'switch'].includes(funcName)) {
+            if (funcName && funcName.length > 2 && !JS_NON_DECLARATIONS.has(funcName)) {
               elements.push({
                 id: `function-${projectId}-${file.replace(/[\/\\]/g, '-')}-${funcName}`,
                 type: 'function',
                 name: funcName,
                 line: i + 1
               });
+              functionCount++;
             }
           }
         }
