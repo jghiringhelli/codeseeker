@@ -5,6 +5,84 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2026-09-09
+
+The release that makes a fresh install work. Every item below was reproduced before it
+was fixed, and the install journey that measures the whole sequence went from 5/10 on
+2.0.1 to 10/10 here.
+
+### Fixed
+
+- **The MCP connection could die mid-session, reported only as "Connection closed".**
+  stdout is the JSON-RPC channel, and the coding-standards generator — which runs at the
+  end of every index — printed two progress lines to it. That desynchronises a client's
+  parser and a strict client hangs up. `Logger` was worse: it wrote every message at
+  every level to `console.log`, so any log line anywhere in the tree could kill a live
+  session; it simply had not fired yet. The logger now writes to stderr, and
+  `startMcpServer` redirects console.log/info/warn/debug to stderr for the life of the
+  process, which covers the 319 `console.log` calls in MCP-reachable code and any added
+  later. The SDK transport writes to `process.stdout` directly, so the protocol is
+  unaffected.
+- **`sym` and `graph` reported "Project not indexed" for projects `search` resolved
+  fine.** Each carried a private copy of project resolution that fell back to
+  `process.cwd()` — an MCP server's working directory belongs to its launcher. All three
+  now use one resolver, extracted to `src/mcp/project-resolver.ts`. (#2)
+- **A search against an unindexed project answered "No results. Try different terms"**,
+  telling the user their code lacked what they asked for when the truth was that nothing
+  had been indexed. It now says so and names the fix.
+- **A fully indexed project could be declared unindexed.** The check searched for the
+  literal token "test" and read zero hits as proof of absence. The RealWorld Django
+  corpus has 156 embedded chunks and no occurrence of that word, so every query against a
+  working index was rejected. Replaced with a chunk count.
+- **`.mjs` and `.cjs` files were searchable but invisible to `graph`.** Three separate
+  extension lists disagreed; the one gating graph-node creation omitted them. Consolidated
+  to one `CODE_EXTENSIONS` constant, adding `.mts` and `.cts`. Measured across seven
+  corpora: 4 files in CodeSeeker, 14 in a 1,746-file monorepo. (#5)
+- **A graph seed that matched nothing listed 15 files with no total**, so a complete
+  500-file index looked like it was missing files. The error now carries
+  `indexed_file_count`, suggestions scored against the seed, and a sample labelled as a
+  sample. The project-root node no longer leaks into file listings as an empty string. (#3)
+- **Coding standards were derived from documentation and test fixtures.** All seven
+  detectors now filter to source files. On this repository: 6 non-source files cited as
+  evidence before, 0 after.
+- **`index({op:"parsers"})` advertised Tree-sitter support for nine languages the graph
+  builder does not consume.** Each entry now carries a `wired` flag and the unwired ones
+  are demoted from "excellent" to "basic".
+- **`npm test` never terminated.** The e2e helpers set `CODESEEKER_MOCK_CLAUDE` but
+  nothing read it, so every query spawned the real `claude` binary; and `shell: true` on
+  Windows left orphaned processes that held stdio open. Both fixed; the suite is now the
+  gate at ~11s, with e2e on demand.
+
+### Changed
+
+- **Embeddings run on `@huggingface/transformers`.** `@xenova/transformers` is frozen at
+  2.17.2 and will never be patched. Pinned to `dtype: 'q8'` because the new package
+  defaults to fp32, which produces vectors differing by up to 1.03e-2 from every existing
+  index — enough to shift ranking, and it degrades rather than fails. Verified
+  bit-identical: **no user needs to reindex.**
+- **Indexes are stamped with the embedder that built them**, and a search against a
+  mismatched stamp is refused with both identities named. Unstamped indexes are accepted,
+  since they were built by the same embedder still in use.
+- **Licence is Apache-2.0**, replacing PolyForm Small Business. Free for any use,
+  commercial included, with an explicit patent grant.
+- Server version is read from package.json instead of a hardcoded constant that had
+  already drifted.
+
+### Added
+
+- `scripts/install-journey.js` — ten timed steps measuring what a new user experiences,
+  from handshake to a useful answer.
+- `scripts/corpus-bench.js` — index/graph/search integrity over seven real projects
+  spanning JavaScript, TypeScript and Python, 41 to 1,746 files.
+- `scripts/mcp-stdout-purity.js` — drives a full index through a live server and asserts
+  stdout carried protocol only.
+- `scripts/embedding-fingerprint.js` — deterministic vector fingerprint, to be compared
+  before and after any change to the model, dtype or package.
+- Behavioural contract suite against a live server over stdio (18 contracts).
+- A written specification: `docs/specs/spec.md`, `domain.md`, `architecture.md` and use
+  cases, plus twelve ADRs as individual files.
+- Quality gates with a brownfield ramp, commit hooks, commitlint, and mutation testing.
+
 ## [2.0.1] - 2026-03-23
 
 ### Fixed
