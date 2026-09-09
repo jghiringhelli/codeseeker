@@ -89,16 +89,32 @@ The knowledge graph is built from AST-parsed imports at index time. It's what po
 
 ## Installation
 
-### Recommended: npx (no install needed)
+### Recommended: install once, configure once
 
-The standard way to configure any MCP server — no global install required:
+```bash
+npm install -g codeseeker
+claude mcp add codeseeker --scope user -e CODESEEKER_STORAGE_MODE=embedded -- codeseeker serve --mcp
+```
+
+`--scope user` makes it available in every project you open, not just the current one.
+
+**Why global rather than `npx -y`:** on a machine that has never seen the package, npx
+downloads it and builds native dependencies before the server can answer, which measured
+**13.7 seconds** to a completed MCP handshake. Clients that give up sooner report that as
+a connection failure. A global install answers in **759 ms** — the download happens once,
+at a moment when you are expecting it to.
+
+### npx (no install)
+
+Portable, and fine once the package is cached. Expect a slow first start.
 
 ```json
 {
   "mcpServers": {
     "codeseeker": {
       "command": "npx",
-      "args": ["-y", "codeseeker", "serve", "--mcp"]
+      "args": ["-y", "codeseeker", "serve", "--mcp"],
+      "env": { "CODESEEKER_STORAGE_MODE": "embedded" }
     }
   }
 }
@@ -106,11 +122,11 @@ The standard way to configure any MCP server — no global install required:
 
 Add this to your MCP config file ([see below](#advanced-installation-options) for per-client locations) and restart your editor.
 
-### npm global install
+### Other editors
 
 ```bash
 npm install -g codeseeker
-codeseeker install --vscode      # or --cursor, --windsurf
+codeseeker install --vscode      # or --cursor, --windsurf, --vs
 ```
 
 ### 🔌 Claude Code Plugin
