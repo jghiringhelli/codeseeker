@@ -1,19 +1,19 @@
 {
-  "_comment": "Corpora for scripts/corpus-bench.js. Chosen to span the project shapes CodeSeeker claims to support, not to be easy. The RealWorld implementations are the canonical cross-stack reference app, so the same domain appears in JavaScript, TypeScript and Python — which isolates language handling from domain difficulty. Absent paths are skipped with a notice rather than failing the run.",
+  "_comment": "Corpora for scripts/corpus-bench.js. Chosen to span the project shapes CodeSeeker claims to support, not to be easy. The RealWorld implementations are the canonical cross-stack reference app, so the same domain appears in JavaScript, TypeScript and Python \u2014 which isolates language handling from domain difficulty. Absent paths are skipped with a notice rather than failing the run.",
   "corpora": [
     {
       "name": "realworld-react-redux",
       "path": "C:/Users/juang/AppData/Local/Temp/claude/C--workspace-PragmaWorks-mcp-CodeSeeker/6e94b577-d5b3-49e3-bfe3-d65caed92cab/scratchpad/corpora/react-redux-realworld-example-app",
       "language": "JavaScript",
       "shape": "flat SPA, JSX, ES modules",
-      "why": "The shape reported in issue #5 — JavaScript, flat layout, no TypeScript. Graph coverage was reported short here and has never been verified."
+      "why": "The shape reported in issue #5 \u2014 JavaScript, flat layout, no TypeScript. Graph coverage was reported short here and has never been verified."
     },
     {
       "name": "realworld-node-express",
       "path": "C:/Users/juang/AppData/Local/Temp/claude/C--workspace-PragmaWorks-mcp-CodeSeeker/6e94b577-d5b3-49e3-bfe3-d65caed92cab/scratchpad/corpora/node-express-realworld-example-app",
       "language": "JavaScript/TypeScript",
       "shape": "Express backend, models and routes",
-      "why": "Server-side JavaScript with CommonJS-style module resolution — the other half of the issue #5 hypothesis."
+      "why": "Server-side JavaScript with CommonJS-style module resolution \u2014 the other half of the issue #5 hypothesis."
     },
     {
       "name": "realworld-django",
@@ -34,7 +34,7 @@
       "path": "C:/workspace/PragmaWorks/pragmaworks",
       "language": "TypeScript",
       "shape": "MCP orchestration, small",
-      "why": "Our own, and the GS reference project — the exemplar CodeSeeker's own specification was modelled on."
+      "why": "Our own, and the GS reference project \u2014 the exemplar CodeSeeker's own specification was modelled on."
     },
     {
       "name": "chronicle",
@@ -49,6 +49,13 @@
       "language": "TypeScript",
       "shape": "large, ~2485 source files",
       "why": "Scale. Everything else here is under 600 files; indexing cost and graph integrity at 2485 is a different regime."
+    },
+    {
+      "name": "realworld-aspnetcore",
+      "path": "C:/Users/juang/AppData/Local/Temp/claude/C--workspace-PragmaWorks-mcp-CodeSeeker/6e94b577-d5b3-49e3-bfe3-d65caed92cab/scratchpad/corpora/aspnetcore-realworld-example-app",
+      "language": "C#",
+      "shape": "ASP.NET Core API, MediatR handlers, EF Core",
+      "why": "C# is claimed as supported with a regex parser and has never been measured on a real corpus. The same Conduit domain as the other RealWorld entries, so a score gap here is language handling rather than task difficulty."
     }
   ]
 }

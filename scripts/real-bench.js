@@ -174,6 +174,18 @@ const REACT_CORPUS = [
   { id: 'js-scope',      query: 'sql migration schema primary key index',                     mustFind: [],                                         mustNotFind: ['src/agent.js', 'src/store.js'] },
 ];
 
+const ASPNET_ROOT = corpusPath('realworld-aspnetcore');
+const ASPNET_CORPUS = [
+  { id: 'cs-jwt',        query: 'sign a JWT for a user with claims and an expiry',            mustFind: ['Security/JwtTokenGenerator.cs'],  mustNotFind: [] },
+  { id: 'cs-password',   query: 'hash and verify a user password with a salt',                mustFind: ['Security/PasswordHasher.cs'],     mustNotFind: [] },
+  { id: 'cs-slug',       query: 'turn an article title into a url slug',                      mustFind: ['Infrastructure/Slug.cs'],         mustNotFind: [] },
+  { id: 'cs-follow',     query: 'follow another person and record the relationship',          mustFind: ['Followers/Add.cs'],               mustNotFind: [] },
+  { id: 'cs-favorite',   query: 'mark an article as a favorite for the current user',         mustFind: ['Favorites/Add.cs'],               mustNotFind: [] },
+  { id: 'cs-errors',     query: 'translate an exception into a JSON error response',          mustFind: ['Errors/ErrorHandlingMiddleware.cs'], mustNotFind: [] },
+  { id: 'cs-currentuser',query: 'read the username of the currently authenticated caller',    mustFind: ['CurrentUserAccessor.cs'],         mustNotFind: [] },
+  { id: 'cs-scope',      query: 'kubernetes deployment yaml ingress replica set',             mustFind: [],  mustNotFind: ['Security/JwtTokenGenerator.cs'] },
+];
+
 const EXPRESS_ROOT = corpusPath('realworld-node-express');
 const EXPRESS_CORPUS = [
   { id: 'ex-article-crud', query: 'create update and delete an article by its slug',            mustFind: ['article.service.ts'],    mustNotFind: [] },
@@ -324,6 +336,7 @@ async function main() {
     ['RealWorld Conduit (Python/Django)',      DJANGO_ROOT,  'rw-django',  DJANGO_CORPUS],
     ['RealWorld Conduit (JavaScript/React)',   REACT_ROOT,   'rw-react',   REACT_CORPUS],
     ['RealWorld Conduit (TypeScript/Express)', EXPRESS_ROOT, 'rw-express', EXPRESS_CORPUS],
+    ['RealWorld Conduit (C#/ASP.NET Core)',    ASPNET_ROOT,  'rw-aspnet',  ASPNET_CORPUS],
   ]) {
     if (!root) { report(`\nSKIP ${label} - not listed in scripts/corpus.json`); continue; }
     const r = await runBench(label, root, name, corpus);
