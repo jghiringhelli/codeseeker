@@ -32,12 +32,36 @@ const c = { reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m', red: '\x1b[31m', 
  */
 const SINGLE_WORD_VERBS = new Set(['is', 'of', 'in', 'to', 'as', 'at', 'by', 'on', 'or', 'if', 'do', 'for', 'the', 'and', 'not', 'new', 'get', 'set', 'has']);
 
-function suspicious(name, type) {
+/**
+ * Short lowercase names that really are declarations in common frameworks. Django REST
+ * Framework viewsets declare `create`, `list`, `retrieve`, `update` and `destroy`; Express
+ * and DRF both declare handlers named for HTTP verbs. Flagging these overstated the noise
+ * on the Django corpus by 15 percentage points while every one of them was real.
+ */
+const FRAMEWORK_METHODS = new Set([
+  'main', 'init', 'run', 'parse', 'build', 'load', 'save', 'read', 'write', 'fetch',
+  'apply', 'merge', 'split', 'start', 'close', 'open', 'send',
+  // DRF viewset and generic-view methods
+  'create', 'list', 'retrieve', 'update', 'destroy', 'render', 'validate', 'perform',
+  // HTTP verbs, declared as handlers
+  'get', 'post', 'put', 'patch', 'delete', 'head', 'options',
+]);
+
+/** `home.js` -> `home`; the name an anonymous default export is given. */
+function moduleName(file) {
+  const base = (String(file).split(/[\/]/).pop() || '').replace(/\.[^.]+$/, '');
+  return base.replace(/[-_.]+(\w)/g, (_m, ch) => ch.toUpperCase());
+}
+
+function suspicious(name, type, file) {
   if (type !== 'function' && type !== 'method') return null;
   if (!name) return 'empty name';
   if (SINGLE_WORD_VERBS.has(name.toLowerCase())) return 'language keyword or preposition';
   if (name.length <= 2) return 'name too short to be a declaration';
-  if (/^[a-z]+$/.test(name) && name.length <= 6 && !/^(main|init|run|parse|build|load|save|read|write|fetch|apply|merge|split|start|close|open|send)$/.test(name)) {
+  // An anonymous `export default` takes its module's name deliberately, so `home` in
+  // `reducers/home.js` is the declaration, not a stray binding.
+  if (file && name === moduleName(file)) return null;
+  if (/^[a-z]+$/.test(name) && name.length <= 6 && !FRAMEWORK_METHODS.has(name)) {
     return 'short lowercase noun — likely a local binding';
   }
   return null;
@@ -71,7 +95,7 @@ function suspicious(name, type) {
     const callables = nodes.filter(n => n.type === 'function' || n.type === 'method');
     const flagged = [];
     for (const n of callables) {
-      const why = suspicious(n.name, n.type);
+      const why = suspicious(n.name, n.type, (n.properties && n.properties.relativePath) || '');
       if (why) flagged.push({ name: n.name, why, file: (n.properties && n.properties.relativePath) || '' });
     }
 
