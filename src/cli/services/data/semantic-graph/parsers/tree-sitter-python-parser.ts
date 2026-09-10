@@ -161,6 +161,18 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
     this.extractDecoratorsFromAST(rootNode, structure);
   }
 
+  /**
+   * Record where a symbol was declared. A tree-sitter node carries `startPosition.row`
+   * as a 0-based row; a node without one records nothing rather than claiming line 1.
+   */
+  private noteLine(structure: ParsedCodeStructure, name: string, node: TreeSitterNode): void {
+    const row = node?.startPosition?.row;
+    if (!name || typeof row !== 'number') return;
+    if (!structure.symbolLines) structure.symbolLines = {};
+    // First declaration wins: a redefinition should not move the original.
+    if (structure.symbolLines[name] === undefined) structure.symbolLines[name] = row + 1;
+  }
+
   private extractImportsFromAST(rootNode: TreeSitterNode, structure: ParsedCodeStructure): void {
     // Find import statements
     const importNodes = rootNode.descendantsOfType('import_statement');
@@ -251,10 +263,11 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
         // Extract methods and properties from class body
         const bodyNode = classNode.childForFieldName('body');
         if (bodyNode) {
-          this.extractClassMembers(bodyNode, classInfo);
+          this.extractClassMembers(bodyNode, classInfo, structure);
         }
 
         structure.classes.push(classInfo);
+        this.noteLine(structure, classInfo.name, classNode);
       }
     }
   }
@@ -262,7 +275,23 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
   private extractFunctionsFromAST(rootNode: TreeSitterNode, structure: ParsedCodeStructure): void {
     const functionNodes = rootNode.descendantsOfType('function_definition');
 
+    // `descendantsOfType` reaches into class bodies, so every method was also reported as
+    // a standalone function and the indexer built two graph nodes for it — `Profile.follow`
+    // and `follow`, same file, same line. On the Django corpus that was 51 of 117 function
+    // nodes. A method belongs to its class; collect their positions and skip them here.
+    const methodStarts = new Set<string>();
+    for (const classNode of rootNode.descendantsOfType('class_definition')) {
+      const body = classNode.childForFieldName('body');
+      if (!body) continue;
+      for (const method of body.descendantsOfType('function_definition')) {
+        methodStarts.add(`${method.startPosition.row}:${method.startPosition.column}`);
+      }
+    }
+
     for (const functionNode of functionNodes) {
+      if (methodStarts.has(`${functionNode.startPosition.row}:${functionNode.startPosition.column}`)) {
+        continue;
+      }
       const nameNode = functionNode.childForFieldName('name');
       const parametersNode = functionNode.childForFieldName('parameters');
 
@@ -286,6 +315,7 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
         }
 
         structure.functions.push(functionInfo);
+        this.noteLine(structure, functionInfo.name, functionNode);
       }
     }
   }
@@ -338,7 +368,11 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
     return superclasses;
   }
 
-  private extractClassMembers(bodyNode: TreeSitterNode, classInfo: ClassInfo): void {
+  private extractClassMembers(
+    bodyNode: TreeSitterNode,
+    classInfo: ClassInfo,
+    structure?: ParsedCodeStructure
+  ): void {
     const methodNodes = bodyNode.descendantsOfType('function_definition');
     const assignmentNodes = bodyNode.descendantsOfType('assignment');
 
@@ -347,6 +381,7 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
       const nameNode = methodNode.childForFieldName('name');
       if (nameNode) {
         classInfo.methods.push(nameNode.text);
+        if (structure) this.noteLine(structure, `${classInfo.name}.${nameNode.text}`, methodNode);
       }
     }
 
