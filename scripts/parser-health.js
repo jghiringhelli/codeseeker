@@ -97,6 +97,48 @@ const CASES = [
       return null;
     },
   },
+  {
+    language: 'C#',
+    parser: () => new (P('tree-sitter-csharp-parser.js').TreeSitterCSharpParser)(),
+    file: 'Delete.cs',
+    source: [
+      'using System.Net;',
+      'using Conduit.Infrastructure.Errors;',
+      '',
+      'namespace Conduit.Features.Articles;',
+      '',
+      'public class Delete',
+      '{',
+      '    public record Command(string Slug) : IRequest;',
+      '',
+      '    public class QueryHandler : IRequestHandler<Command>',
+      '    {',
+      '        public async ValueTask<Unit> Handle(Command message)',
+      '        {',
+      '            throw new RestException(HttpStatusCode.NotFound, "article");',
+      '        }',
+      '    }',
+      '}',
+    ].join('\n'),
+    expect: (r) => {
+      const names = r.classes.map((k) => k.name);
+      // The regex parser reports `Delete` with methods Handle, RestException,
+      // RestException — inventing two from a `throw new`, missing QueryHandler and the
+      // Command record, and attributing Handle to the wrong type.
+      for (const want of ['Delete', 'QueryHandler', 'Command']) {
+        if (!names.includes(want)) return `type ${want} not found`;
+      }
+      const handler = r.classes.find((k) => k.name === 'QueryHandler');
+      if (!handler.methods.includes('Handle')) return 'QueryHandler.Handle not found';
+      if (r.classes.some((k) => k.methods.includes('RestException'))) {
+        return '`throw new RestException(...)` read as a method declaration';
+      }
+      if (!r.imports.some((i) => i.from === 'Conduit.Infrastructure.Errors')) {
+        return 'using directive not extracted';
+      }
+      return null;
+    },
+  },
 ];
 
 (async () => {

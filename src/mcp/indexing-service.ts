@@ -17,7 +17,7 @@ import { getStorageManager } from '../storage';
 import { EmbeddingService } from '../cli/services/data/embedding/embedding-service';
 import { Logger } from '../utils/logger';
 import type { IVectorStore, IGraphStore, GraphNode, GraphEdge } from '../storage/interfaces';
-import { CSharpParser } from '../cli/services/data/semantic-graph/parsers/csharp-parser';
+import { TreeSitterCSharpParser } from '../cli/services/data/semantic-graph/parsers/tree-sitter-csharp-parser';
 import { GoParser } from '../cli/services/data/semantic-graph/parsers/go-parser';
 import { TreeSitterPythonParser } from '../cli/services/data/semantic-graph/parsers/tree-sitter-python-parser';
 import { TreeSitterJavaParser } from '../cli/services/data/semantic-graph/parsers/tree-sitter-java-parser';
@@ -73,7 +73,7 @@ export class IndexingService {
   // Language-specific parsers for proper AST extraction
   private readonly parsers = {
     typescript: new TypeScriptParser(),
-    csharp: new CSharpParser(),
+    csharp: new TreeSitterCSharpParser(),
     go: new GoParser(),
     // The Tree-sitter parsers, not PythonParser/JavaParser: those two are regex despite
     // their names, and PythonParser's own header still claims Tree-sitter above a body

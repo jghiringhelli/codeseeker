@@ -95,8 +95,8 @@ export class LanguageSupportService {
       npmPackage: 'tree-sitter-c-sharp',
       installed: false,
       quality: 'basic',
-      description: 'Regex parser (namespaces, classes, methods) — Tree-sitter not wired',
-      wired: false,
+      description: 'Tree-sitter AST (classes, records, structs, interfaces, enums)',
+      wired: true,
     },
     {
       language: 'Go',
