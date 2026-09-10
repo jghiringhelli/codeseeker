@@ -1137,13 +1137,18 @@ export class IndexingService {
         const absolutePath = file; // Will be resolved by caller
         const parsed: ParsedCodeStructure = await parser.parse(content, absolutePath);
 
+        // Where the parser located each declaration. A parser that cannot report a
+        // position leaves it absent, and `sym` then points at the top of the file — which
+        // is what every AST-parsed symbol in the index used to do.
+        const lineOf = (name: string): number => parsed.symbolLines?.[name] ?? 1;
+
         // Extract classes
         for (const cls of parsed.classes) {
           elements.push({
             id: `class-${projectId}-${file.replace(/[\/\\]/g, '-')}-${cls.name}`,
             type: 'class',
             name: cls.name,
-            line: 1 // Line info not available from parser, could be enhanced
+            line: lineOf(cls.name)
           });
 
           // Extract methods from classes (limit to 20 per class)
@@ -1152,7 +1157,7 @@ export class IndexingService {
               id: `function-${projectId}-${file.replace(/[\/\\]/g, '-')}-${cls.name}-${method}`,
               type: 'function',
               name: `${cls.name}.${method}`,
-              line: 1
+              line: lineOf(`${cls.name}.${method}`)
             });
           }
         }
@@ -1163,7 +1168,7 @@ export class IndexingService {
             id: `function-${projectId}-${file.replace(/[\/\\]/g, '-')}-${func.name}`,
             type: 'function',
             name: func.name,
-            line: 1
+            line: lineOf(func.name)
           });
         }
 
@@ -1173,7 +1178,7 @@ export class IndexingService {
             id: `class-${projectId}-${file.replace(/[\/\\]/g, '-')}-${iface}`,
             type: 'class',
             name: iface,
-            line: 1
+            line: lineOf(iface)
           });
         }
 

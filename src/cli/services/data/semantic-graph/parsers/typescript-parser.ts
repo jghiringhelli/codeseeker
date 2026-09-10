@@ -12,10 +12,10 @@ import { BaseLanguageParser, ParsedCodeStructure, ImportInfo, ExportInfo, ClassI
 const MAX_LABEL_LENGTH = 60;
 
 export class TypeScriptParser extends BaseLanguageParser {
-  
+
   async parse(content: string, filePath: string): Promise<ParsedCodeStructure> {
     const structure = this.createBaseStructure(filePath, this.detectLanguage(filePath));
-    
+
     try {
       const ast = parser.parse(content, {
         sourceType: 'module',
@@ -34,12 +34,12 @@ export class TypeScriptParser extends BaseLanguageParser {
       });
 
       this.extractStructure(ast, structure);
-      
+
     } catch (error) {
       console.warn(`Failed to parse ${filePath}: ${error.message}`);
       // Return basic structure even if parsing fails
     }
-    
+
     return structure;
   }
 
@@ -97,6 +97,7 @@ export class TypeScriptParser extends BaseLanguageParser {
       TSInterfaceDeclaration: (path) => {
         if (path.node.id?.name) {
           structure.interfaces.push(path.node.id.name);
+          this.noteLine(structure, path.node.id.name, path.node);
         }
       }
     });
@@ -106,7 +107,7 @@ export class TypeScriptParser extends BaseLanguageParser {
     if (!node.source?.value) return;
 
     const from = node.source.value;
-    
+
     node.specifiers?.forEach((spec: any) => {
       const importInfo: ImportInfo = {
         name: '',
@@ -126,7 +127,7 @@ export class TypeScriptParser extends BaseLanguageParser {
       }
 
       structure.imports.push(importInfo);
-      
+
       // Add to dependencies if it's a relative import
       if (from.startsWith('./') || from.startsWith('../')) {
         structure.dependencies.push(from);
@@ -212,6 +213,7 @@ export class TypeScriptParser extends BaseLanguageParser {
       if (t.isClassMethod(member) || (member.type === 'MethodDefinition')) {
         if (t.isIdentifier(member.key)) {
           classInfo.methods.push(member.key.name);
+          this.noteLine(structure, `${classInfo.name}.${member.key.name}`, member);
         }
       } else if (t.isClassProperty && t.isClassProperty(member) || (member.type === 'PropertyDefinition')) {
         if (t.isIdentifier(member.key)) {
@@ -221,6 +223,7 @@ export class TypeScriptParser extends BaseLanguageParser {
     });
 
     structure.classes.push(classInfo);
+    this.noteLine(structure, classInfo.name, node);
   }
 
   private extractFunction(node: any, structure: ParsedCodeStructure): void {
@@ -236,6 +239,7 @@ export class TypeScriptParser extends BaseLanguageParser {
     };
 
     structure.functions.push(functionInfo);
+    this.noteLine(structure, functionInfo.name, node);
   }
 
   /**
@@ -252,12 +256,14 @@ export class TypeScriptParser extends BaseLanguageParser {
     const alreadyNamed = Boolean((node.declaration as any).id);
     if (!isCallable || alreadyNamed) return;
 
+    const name = this.moduleName(structure.filePath);
     structure.functions.push({
-      name: this.moduleName(structure.filePath),
+      name,
       parameters: this.parameterNames(declaration),
       isAsync: declaration.async || false,
       isExported: true
     });
+    this.noteLine(structure, name, declaration);
   }
 
   /**
@@ -276,18 +282,33 @@ export class TypeScriptParser extends BaseLanguageParser {
     const callee = this.calleeName(node.callee);
     if (!callee) return;
 
+    const name = `${callee}(${label.value.slice(0, MAX_LABEL_LENGTH)})`;
     structure.functions.push({
-      name: `${callee}(${label.value.slice(0, MAX_LABEL_LENGTH)})`,
+      name,
       parameters: this.parameterNames(callback),
       isAsync: callback.async || false,
       isExported: false
     });
+    this.noteLine(structure, name, callback);
   }
 
   private calleeName(callee: any): string | null {
     if (t.isIdentifier(callee)) return callee.name;
     if (t.isMemberExpression(callee) && t.isIdentifier(callee.property)) return callee.property.name;
     return null;
+  }
+
+  /**
+   * Record where a symbol was declared. Babel gives every node a `loc`; a node without one
+   * (synthesised, or a parser without position tracking) records nothing rather than
+   * claiming line 1.
+   */
+  private noteLine(structure: ParsedCodeStructure, name: string, node: any): void {
+    const line = node?.loc?.start?.line;
+    if (!name || typeof line !== 'number') return;
+    if (!structure.symbolLines) structure.symbolLines = {};
+    // First declaration wins: an overload or a re-export should not move the definition.
+    if (structure.symbolLines[name] === undefined) structure.symbolLines[name] = line;
   }
 
   /** `article-list.js` -> `articleList`. */
@@ -315,5 +336,6 @@ export class TypeScriptParser extends BaseLanguageParser {
     };
 
     structure.functions.push(functionInfo);
+    this.noteLine(structure, functionInfo.name, node);
   }
 }

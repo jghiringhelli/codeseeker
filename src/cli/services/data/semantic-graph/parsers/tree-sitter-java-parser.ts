@@ -171,6 +171,18 @@ export class TreeSitterJavaParser extends BaseLanguageParser {
     }
   }
 
+  /**
+   * Record where a symbol was declared. A tree-sitter node carries `startPosition.row`
+   * as a 0-based row; a node without one records nothing rather than claiming line 1.
+   */
+  private noteLine(structure: ParsedCodeStructure, name: string, node: TreeSitterNode): void {
+    const row = node?.startPosition?.row;
+    if (!name || typeof row !== 'number') return;
+    if (!structure.symbolLines) structure.symbolLines = {};
+    // First declaration wins: a redefinition should not move the original.
+    if (structure.symbolLines[name] === undefined) structure.symbolLines[name] = row + 1;
+  }
+
   private extractImportsFromAST(rootNode: TreeSitterNode, structure: ParsedCodeStructure): void {
     const importNodes = rootNode.descendantsOfType('import_declaration');
 
@@ -240,10 +252,11 @@ export class TreeSitterJavaParser extends BaseLanguageParser {
         // Extract class members
         const bodyNode = classNode.childForFieldName('body');
         if (bodyNode) {
-          this.extractClassMembers(bodyNode, classInfo);
+          this.extractClassMembers(bodyNode, classInfo, structure);
         }
 
         structure.classes.push(classInfo);
+        this.noteLine(structure, classInfo.name, classNode);
       }
     }
 
@@ -254,6 +267,7 @@ export class TreeSitterJavaParser extends BaseLanguageParser {
       const nameNode = interfaceNode.childForFieldName('name');
       if (nameNode) {
         structure.interfaces.push(nameNode.text);
+        this.noteLine(structure, nameNode.text, interfaceNode);
 
         // Also create a class-like structure for interfaces
         const interfaceInfo: ClassInfo = {
@@ -283,6 +297,7 @@ export class TreeSitterJavaParser extends BaseLanguageParser {
           methods: [],
           properties: []
         });
+        this.noteLine(structure, nameNode.text, enumNode);
       }
     }
   }
@@ -298,13 +313,18 @@ export class TreeSitterJavaParser extends BaseLanguageParser {
     }
   }
 
-  private extractClassMembers(bodyNode: TreeSitterNode, classInfo: ClassInfo): void {
+  private extractClassMembers(
+    bodyNode: TreeSitterNode,
+    classInfo: ClassInfo,
+    structure?: ParsedCodeStructure
+  ): void {
     // Extract methods
     const methodNodes = bodyNode.descendantsOfType('method_declaration');
     for (const methodNode of methodNodes) {
       const nameNode = methodNode.childForFieldName('name');
       if (nameNode) {
         classInfo.methods.push(nameNode.text);
+        if (structure) this.noteLine(structure, `${classInfo.name}.${nameNode.text}`, methodNode);
       }
     }
 

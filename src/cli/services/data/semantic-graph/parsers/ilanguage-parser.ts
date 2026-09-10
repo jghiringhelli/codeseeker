@@ -43,6 +43,16 @@ export interface ParsedCodeStructure {
   interfaces: string[];
   variables: string[];
   dependencies: string[];
+  /**
+   * 1-based source line for each declared symbol the parser could locate, keyed by the
+   * name it reports elsewhere in this structure — a method under `Class.method`.
+   *
+   * Optional because the regex parsers do not all track position. A consumer that needs a
+   * line must handle its absence; what it must not do is invent one. Every AST-derived
+   * graph node used to be recorded at line 1, so `sym` pointed at the top of the file for
+   * every TypeScript, Python and Java symbol in the index.
+   */
+  symbolLines?: Record<string, number>;
 }
 
 /**
@@ -93,7 +103,8 @@ export abstract class BaseLanguageParser implements ILanguageParser {
       functions: [],
       interfaces: [],
       variables: [],
-      dependencies: []
+      dependencies: [],
+      symbolLines: {}
     };
   }
 }
