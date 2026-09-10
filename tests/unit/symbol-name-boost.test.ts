@@ -1,15 +1,25 @@
 /**
- * Symbol-Name Score Boost Tests (TDD)
+ * Symbol Score Boost Tests
  *
- * Verifies processRawResults() applies a +20% score boost when a query token
- * matches metadata.symbolName, metadata.functions, metadata.classes, or the
- * file's basename.
+ * `processRawResults()` grades a query-token match by how strong the evidence is:
+ *
+ *   +0.20  some chunk of the file DECLARES a symbol the query names
+ *   +0.12  only the filename shares a word with the query
+ *
+ * These were a single +0.20 for either, which is how a 14-line `routes.ts` that declares
+ * nothing outranked the controller declaring all eleven endpoints, and how a README
+ * outranked the service it describes. Over the 23 RealWorld benchmark queries the split
+ * moved MRR 66.3% -> 80.4% and P@1 43.5% -> 65.2%.
+ *
+ * The boost also read `metadata.classes` and `metadata.functions`. The indexer writes
+ * neither — it writes `symbolName` and `symbolType` — so those two inputs were always
+ * undefined in production and only ever fired in tests that supplied them by hand. The
+ * tests that did so are gone with the code path.
  *
  * Test strategy:
- *  - Two candidate files, A (no symbol match) and B (symbol match)
- *  - A starts with higher raw vector score than B
- *  - After boost B should outrank A
- *  - Mutation matrix: confirms boost value, token length filter, and RAPTOR exclusion
+ *  - Two candidate files, A (weaker evidence) and B (stronger), A with the higher raw score
+ *  - After boosting, B should outrank A
+ *  - Mutation matrix: confirms boost values, token length filter, and RAPTOR exclusion
  */
 
 import { SemanticSearchOrchestrator } from '../../src/cli/commands/services/semantic-search-orchestrator';
@@ -65,8 +75,8 @@ describe('symbol-name score boost', () => {
   it('boosts a file whose symbolName matches a query token above a higher-scoring competitor', () => {
     const orch = makeOrchestrator('UserService authentication');
     const results = [
-      makeResult('src/controllers/MegaController.ts', 0.80, { symbolName: 'MegaController' }),
-      makeResult('src/services/UserService.ts',       0.65, { symbolName: 'UserService' }),  // lower raw score
+      makeResult('src/controllers/MegaController.ts', 0.80, { symbolName: 'MegaController', symbolType: 'class' }),
+      makeResult('src/services/UserService.ts',       0.65, { symbolName: 'UserService', symbolType: 'class' }),  // lower raw score
     ];
     const ranked = process(orch, results);
     // UserService should now outrank MegaController due to symbolName token match
@@ -74,32 +84,50 @@ describe('symbol-name score boost', () => {
     expect(ranked[1].file).toContain('MegaController');
   });
 
-  it('boosts a file whose functions array contains a query token', () => {
-    const orch = makeOrchestrator('registerUser endpoint');
+  it('finds a declaration in any chunk of the file, not only the best-scoring one', () => {
+    // A service declares `getTags` in one chunk while an unrelated chunk of the same file
+    // scores highest. Reading only the winner's metadata would miss the declaration.
+    const orch = makeOrchestrator('return the list of popular tags');
     const results = [
-      makeResult('src/routes/HealthCheck.ts', 0.75, { symbolName: 'HealthCheck', functions: ['ping', 'status'] }),
-      makeResult('src/controllers/Auth.ts',   0.60, { symbolName: 'AuthController', functions: ['registerUser', 'loginUser'] }),
+      makeResult('src/tag/tag.service.ts', 0.55, { symbolName: 'buildClient', symbolType: 'function' }),
+      makeResult('src/tag/tag.service.ts', 0.50, { symbolName: 'getTags',     symbolType: 'function' }),
+      makeResult('src/tag/tag.model.ts',   0.62, { symbolName: 'Tag',         symbolType: 'class' }),
     ];
     const ranked = process(orch, results);
-    expect(ranked[0].file).toContain('Auth');
-    expect(ranked[1].file).toContain('HealthCheck');
+    expect(ranked[0].file).toContain('tag.service.ts');
   });
 
-  it('boosts a file whose classes array contains a query token', () => {
-    const orch = makeOrchestrator('DatabaseHelper operations');
+  it('ranks a file that declares the query term above one that merely shares its name', () => {
+    // The ex-routes failure: a 14-line `routes.ts` wiring routers together outranked the
+    // controller that declares every endpoint, because both scored the same +0.20.
+    const orch = makeOrchestrator('express routes exposing the articles REST endpoints');
     const results = [
-      makeResult('src/api/Router.ts',      0.72, { symbolName: 'Router', classes: ['Router'] }),
-      makeResult('src/utils/Database.ts',  0.58, { symbolName: 'Database', classes: ['DatabaseHelper'] }),
+      makeResult('src/app/routes/routes.ts',                   0.70, {}),
+      makeResult('src/app/routes/article/article.controller.ts', 0.62, {
+        symbolName: 'routesArticles', symbolType: 'function',
+      }),
     ];
     const ranked = process(orch, results);
-    expect(ranked[0].file).toContain('Database');
+    expect(ranked[0].file).toContain('article.controller.ts');
+  });
+
+  it('treats a chunk with no symbol type as no declaration', () => {
+    // `symbolType: 'unknown'` means the chunker could not identify a declaration. A prose
+    // or config chunk must not claim the declaration boost.
+    const orch = makeOrchestrator('article service');
+    const results = [
+      makeResult('docs/article.md',    0.70, { symbolName: 'article', symbolType: 'unknown' }),
+      makeResult('src/article.svc.ts', 0.62, { symbolName: 'article', symbolType: 'function' }),
+    ];
+    const ranked = process(orch, results);
+    expect(ranked[0].file).toContain('article.svc.ts');
   });
 
   it('does NOT boost files when no query token (>2 chars) matches any metadata', () => {
     const orch = makeOrchestrator('bcrypt hashing');
     const results = [
-      makeResult('src/config/Settings.ts', 0.80, { symbolName: 'Settings',  functions: ['load', 'save'] }),
-      makeResult('src/auth/Crypto.ts',     0.60, { symbolName: 'CryptoUtil', functions: ['hash', 'verify'] }),
+      makeResult('src/config/Settings.ts', 0.80, { symbolName: 'Settings',  symbolType: 'class' }),
+      makeResult('src/auth/Crypto.ts',     0.60, { symbolName: 'CryptoUtil', symbolType: 'class' }),
     ];
     const ranked = process(orch, results);
     // Neither symbolName contains "bcrypt" or "hashing" — order should be raw score
@@ -143,13 +171,25 @@ describe('symbol-name score boost', () => {
   });
 
   it('boosts filename match when metadata has no symbolName', () => {
+    // Weaker than a declaration but real: 0.12 against nothing still reverses a 0.11 gap.
     const orch = makeOrchestrator('ProcessorFactory creation');
     const results = [
-      makeResult('src/utils/Helpers.ts',          0.74, {}),
+      makeResult('src/utils/Helpers.ts',             0.64, {}),
       makeResult('src/services/ProcessorFactory.ts', 0.55, {}),  // no symbolName but filename matches
     ];
     const ranked = process(orch, results);
     expect(ranked[0].file).toContain('ProcessorFactory');
+  });
+
+  it('does not let a filename match outrank a declaration', () => {
+    // The README-outranks-the-service failure, stated as an invariant.
+    const orch = makeOrchestrator('log a user in and sign a jwt');
+    const results = [
+      makeResult('src/auth/jwt-notes.ts',   0.70, {}),                                       // name only
+      makeResult('src/auth/auth.service.ts', 0.70, { symbolName: 'login', symbolType: 'function' }),
+    ];
+    const ranked = process(orch, results);
+    expect(ranked[0].file).toContain('auth.service.ts');
   });
 });
 
@@ -224,13 +264,15 @@ describe('symbol-name boost — mutation detection', () => {
     // This test ensures the boost value is non-zero
     const orch = makeOrchestrator('UserService');
     const results = [
-      makeResult('src/controllers/MegaController.ts', 0.80, { symbolName: 'MegaController' }),
-      makeResult('src/services/UserService.ts',       0.65, { symbolName: 'UserService' }),
+      makeResult('src/controllers/MegaController.ts', 0.80, { symbolName: 'MegaController', symbolType: 'class' }),
+      makeResult('src/services/UserService.ts',       0.65, { symbolName: 'UserService', symbolType: 'class' }),
     ];
     const ranked = process(orch, results);
     const userServiceScore = ranked.find(r => r.file.includes('UserService'))?.similarity ?? 0;
     const megaScore        = ranked.find(r => r.file.includes('MegaController'))?.similarity ?? 0;
-    expect(userServiceScore).toBeGreaterThan(megaScore); // 0.65 + 0.20 = 0.85 > 0.80
+    // UserService declares the queried symbol: 0.65 + 0.10 (source) + 0.20 = 0.95.
+    // MegaController matches nothing: 0.80 + 0.10 = 0.90.
+    expect(userServiceScore).toBeGreaterThan(megaScore);
   });
 
   it('[mutation: token filter off] allowing 1-char tokens must not change ranking here', () => {
