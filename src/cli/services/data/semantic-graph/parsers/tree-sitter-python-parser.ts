@@ -47,6 +47,35 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
     await this.initializing;
   }
 
+  /** Why the AST path is unavailable, or null while it is available. */
+  private loadFailure: string | null = null;
+
+  /** The most recent AST parse that threw and fell back to regex, if any. */
+  private lastParseFailure: string | null = null;
+
+  /** The most recent AST parse failure, for diagnostics. Null when there has been none. */
+  lastAstParseFailure(): string | null {
+    return this.lastParseFailure;
+  }
+
+  /**
+   * Is this instance actually parsing an AST, or has it quietly degraded to regex?
+   *
+   * A caller cannot otherwise tell: both paths return the same shape, and the regex one
+   * returns fewer and occasionally malformed symbols. Tests assert on this so they fail
+   * loudly instead of passing against the fallback and reporting a green AST suite.
+   */
+  async usingAst(): Promise<boolean> {
+    await this.ensureInitialized();
+    return this.parser !== null && this.language !== null;
+  }
+
+  /** Reason the AST path is unavailable, for diagnostics. Null when it is available. */
+  async astUnavailableReason(): Promise<string | null> {
+    await this.ensureInitialized();
+    return this.loadFailure;
+  }
+
   async parse(content: string, filePath: string): Promise<ParsedCodeStructure> {
     const structure = this.createBaseStructure(filePath, 'python');
 
@@ -62,8 +91,11 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
       const tree = this.parser.parse(content);
       this.extractFromAST(tree.rootNode, structure);
     } catch (error) {
-      console.warn(`Tree-sitter parsing failed for ${filePath}: ${error.message}`);
-      // Fallback to regex parsing
+      // A loaded parser that throws is NOT the same as an absent one. Both used to end
+      // here and return regex output indistinguishable from a successful AST parse, so a
+      // real breakage looked like a slightly thinner result. Record it.
+      this.lastParseFailure = `${filePath}: ${(error as Error).message}`;
+      console.warn(`Tree-sitter parsing failed for ${this.lastParseFailure} — falling back to regex`);
       return this.parseWithRegex(content, structure);
     }
 
@@ -84,7 +116,8 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
         TreeSitter = treeSitterModule.default || treeSitterModule;
         Python = pythonModule.default || pythonModule;
       } catch (importError) {
-        console.warn('Tree-sitter dependencies not available, falling back to basic parsing');
+        this.loadFailure = `cannot load tree-sitter or tree-sitter-python: ${(importError as Error).message}`;
+        console.warn(`Tree-sitter unavailable, falling back to regex parsing — ${this.loadFailure}`);
         this.initialized = true;
         return;
       }
@@ -93,12 +126,24 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
       this.language = Python;
       this.parser.setLanguage(this.language);
 
+      // A native binding can load, accept setLanguage, and still return a tree with no
+      // rootNode — seen when the addon and its grammar come from different module
+      // registries. Every parse then throws inside extractFromAST and silently degrades to
+      // regex, one file at a time, with output that looks merely thin rather than broken.
+      // Decide once, here, so the parser is either trustworthy or honestly unavailable.
+      const probe = this.parser.parse('x = 1\n');
+      if (!probe?.rootNode?.descendantsOfType) {
+        throw new Error('loaded but produced no usable syntax tree');
+      }
+
       this.initialized = true;
       console.debug('Tree-sitter Python parser initialized');
     } catch (error) {
-      console.warn('Tree-sitter Python not available, will use regex fallback');
+      this.loadFailure = `tree-sitter Python failed to initialise: ${(error as Error).message}`;
+      console.warn(`${this.loadFailure} — falling back to regex parsing`);
       this.parser = null;
       this.language = null;
+      this.initialized = true;
     }
   }
 

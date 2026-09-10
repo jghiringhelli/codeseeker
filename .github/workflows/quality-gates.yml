@@ -36,6 +36,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      # gate: parser-health — every parser advertised as AST-backed must actually be one.
+      # Runs in a fresh process on purpose: jest resets its module registry between suites,
+      # and a native addon re-entered through a fresh registry can load, accept
+      # setLanguage, and return a tree with no rootNode. Inside jest that makes the check
+      # intermittent; here it is decisive.
+      - name: Parser health
+        run: npm run test:parsers
+
       # gate: contract-tests-against-live-env — spawns the built server and speaks MCP to it
       - name: Behavioural contracts
         run: npm run test:contract

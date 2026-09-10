@@ -24,6 +24,7 @@
     "test": "jest --testPathIgnorePatterns \"/node_modules/\" \"tests/integration/e2e\" \"tests/contract\"",
     "test:e2e": "jest tests/integration/e2e",
     "test:contract": "jest --testMatch \"**/tests/contract/**/*.contract.test.ts\"",
+    "test:parsers": "node scripts/parser-health.js",
     "test:all": "jest",
     "test:mutation": "stryker run",
     "test:watch": "jest --watch",
