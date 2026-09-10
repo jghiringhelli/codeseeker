@@ -441,16 +441,55 @@ Would you like me to:
 
 ## Language Support
 
-| Language | Parser | Relationship Extraction |
-|----------|--------|------------------------|
-| TypeScript/JavaScript | Babel AST | Excellent |
-| Python | Tree-sitter | Excellent |
-| Java | Tree-sitter | Excellent |
-| C# | Regex | Good |
-| Go | Regex | Good |
-| Rust, C/C++, Ruby, PHP | Regex | Basic |
+Every language is **indexed and searchable** — chunking and embeddings do not depend on a
+parser. What the parser changes is the *knowledge graph*: how accurately CodeSeeker knows
+which symbol is a declaration and what depends on what.
 
-Tree-sitter parsers install automatically when needed.
+| Language | Parser used | Relationship extraction |
+|----------|-------------|------------------------|
+| TypeScript, JavaScript (`.ts .tsx .js .jsx .mts .cts .mjs .cjs`) | Babel AST | Excellent |
+| Python | Tree-sitter AST | Excellent |
+| Java | Tree-sitter AST | Good — same parser as Python, but unmeasured (no Java corpus) |
+| C# | Regex | Good — classes and methods, no call graph |
+| Go | Regex | Good — packages and funcs, no call graph |
+| Rust, C/C++, Ruby, PHP, everything else | Regex | Basic |
+
+**Regex extraction is a real limitation, not a smaller version of the same thing.** It
+finds declarations by shape, so it misses anything written unusually and cannot tell a
+declaration from a call. Import edges stay reliable for TypeScript and JavaScript, where
+Babel parses them; call edges are heuristic everywhere.
+
+The ratings above are measured, not asserted. `scripts/corpus-bench.js` indexes seven
+real projects and `scripts/graph-quality.js` reports how much of each resulting graph is
+plausibly a real declaration. Java carries no rating of its own because no Java project is
+in that corpus; it shares Python's Tree-sitter code path, and that is all we can claim.
+
+### Adding a parser for your language
+
+If your project is mostly C#, Go, Rust, C++ or Ruby, you can install the Tree-sitter
+grammar for it:
+
+```bash
+npm install -g tree-sitter-go        # or tree-sitter-rust, tree-sitter-cpp, …
+```
+
+Then ask your assistant, or run:
+
+```js
+codeseeker({ action: "index", project: "/abs/path", index: { op: "parsers", list_available: true } })
+```
+
+The response marks each parser with `wired: true` or `wired: false`. **Only a parser
+marked `wired: true` is consumed by the graph builder** — installing one marked `false`
+changes nothing today, and the response says so rather than letting you find out by not
+noticing an improvement.
+
+Currently wired: TypeScript, JavaScript, Python, Java. The others are honest `false`.
+Wiring one is a small, self-contained change — a parser implementing
+`ILanguageParser` registered in `extensionToParser`
+([`src/mcp/indexing-service.ts`](src/mcp/indexing-service.ts)) — and contributions are
+welcome. `scripts/graph-quality.js` measures whether a new parser actually improved the
+graph, so the improvement is demonstrable rather than assumed.
 
 ## Keeping the Index in Sync
 

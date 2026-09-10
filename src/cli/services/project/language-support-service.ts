@@ -55,7 +55,7 @@ export class LanguageSupportService {
   private readonly parserRegistry: LanguageParserInfo[] = [
     {
       language: 'TypeScript',
-      extensions: ['ts', 'tsx'],
+      extensions: ['ts', 'tsx', 'mts', 'cts'],
       npmPackage: '@babel/parser', // Already bundled, uses Babel
       installed: true, // Always available
       quality: 'excellent',
@@ -64,7 +64,7 @@ export class LanguageSupportService {
     },
     {
       language: 'JavaScript',
-      extensions: ['js', 'jsx'],
+      extensions: ['js', 'jsx', 'mjs', 'cjs'],
       npmPackage: '@babel/parser', // Already bundled
       installed: true,
       quality: 'excellent',
