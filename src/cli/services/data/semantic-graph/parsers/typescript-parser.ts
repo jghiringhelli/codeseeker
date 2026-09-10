@@ -8,6 +8,9 @@ import traverse from '@babel/traverse';
 import * as t from '@babel/types';
 import { BaseLanguageParser, ParsedCodeStructure, ImportInfo, ExportInfo, ClassInfo, FunctionInfo } from './ilanguage-parser';
 
+/** A route path or a test description; past this a name stops being a name. */
+const MAX_LABEL_LENGTH = 60;
+
 export class TypeScriptParser extends BaseLanguageParser {
   
   async parse(content: string, filePath: string): Promise<ParsedCodeStructure> {
@@ -63,6 +66,14 @@ export class TypeScriptParser extends BaseLanguageParser {
 
       ExportDefaultDeclaration: (path) => {
         this.extractDefaultExport(path.node, structure);
+        this.extractAnonymousDefault(path.node, structure);
+      },
+
+      // A function passed as an argument after a string literal: `router.get('/articles',
+      // handler)`, `describe('the article service', () => {})`. The literal is the only
+      // name the callback has, and it is the name a reader would search for.
+      CallExpression: (path) => {
+        this.extractLabelledCallback(path.node, structure);
       },
 
       // Extract classes
@@ -225,6 +236,70 @@ export class TypeScriptParser extends BaseLanguageParser {
     };
 
     structure.functions.push(functionInfo);
+  }
+
+  /**
+   * `export default (state, action) => {…}` — the Redux reducer and Express middleware
+   * idiom. The function is anonymous, but the module is not, and the module name is what
+   * every importer already calls it. Without this the whole `reducers/` directory of a
+   * RealWorld app contributes zero symbols.
+   */
+  private extractAnonymousDefault(node: any, structure: ParsedCodeStructure): void {
+    const declaration: any = node.declaration;
+    const isCallable = t.isArrowFunctionExpression(declaration)
+      || t.isFunctionExpression(declaration)
+      || t.isFunctionDeclaration(declaration);
+    const alreadyNamed = Boolean((node.declaration as any).id);
+    if (!isCallable || alreadyNamed) return;
+
+    structure.functions.push({
+      name: this.moduleName(structure.filePath),
+      parameters: this.parameterNames(declaration),
+      isAsync: declaration.async || false,
+      isExported: true
+    });
+  }
+
+  /**
+   * Names an anonymous callback after the string literal that labels its call. Deliberately
+   * requires the literal to be the *first* argument, which is the shape of every routing
+   * and test-block API and almost nothing else.
+   */
+  private extractLabelledCallback(node: any, structure: ParsedCodeStructure): void {
+    const label = node.arguments?.[0];
+    if (!t.isStringLiteral(label) || !label.value) return;
+
+    const callback = node.arguments.find((arg: any) =>
+      t.isArrowFunctionExpression(arg) || (t.isFunctionExpression(arg) && !arg.id));
+    if (!callback) return;
+
+    const callee = this.calleeName(node.callee);
+    if (!callee) return;
+
+    structure.functions.push({
+      name: `${callee}(${label.value.slice(0, MAX_LABEL_LENGTH)})`,
+      parameters: this.parameterNames(callback),
+      isAsync: callback.async || false,
+      isExported: false
+    });
+  }
+
+  private calleeName(callee: any): string | null {
+    if (t.isIdentifier(callee)) return callee.name;
+    if (t.isMemberExpression(callee) && t.isIdentifier(callee.property)) return callee.property.name;
+    return null;
+  }
+
+  /** `article-list.js` -> `articleList`. */
+  private moduleName(filePath: string): string {
+    const base = (filePath.split(/[\/]/).pop() || '').replace(/\.[^.]+$/, '');
+    return base.replace(/[-_.]+(\w)/g, (_m, c: string) => c.toUpperCase()) || 'default';
+  }
+
+  private parameterNames(fn: any): string[] {
+    return (fn.params || [])
+      .filter((param: any) => t.isIdentifier(param))
+      .map((param: any) => param.name);
   }
 
   private extractFunctionFromVariable(node: any, structure: ParsedCodeStructure): void {
