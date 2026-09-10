@@ -31,3 +31,8 @@ Known limitation: on cross-file queries the penalty is not always sufficient. Th
 `prompt-builder.ts`, so the source file never enters the top-10 and cannot be
 graph-walked from. A stronger penalty, or a definition-versus-usage AST signal, is the
 open direction.
+
+ADR-0013 took that direction, using the chunk's own `symbolType` as the definition
+signal: MRR 66.3% -> 80.4% and P@1 43.5% -> 65.2% over 23 labelled RealWorld queries. It
+is not the whole answer — the signal comes from the AST chunker's regex classification
+rather than from a parser — so the open direction narrows to unifying those two.

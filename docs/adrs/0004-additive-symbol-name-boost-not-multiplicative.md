@@ -1,6 +1,6 @@
 # ADR 0004: Additive symbol-name boost, not multiplicative
 
-- **Status:** Accepted
+- **Status:** Accepted, refined by ADR-0013
 - **Date:** 2026-09-07
 
 ## Context
@@ -29,3 +29,7 @@ Positive: the boost is predictable and its effect provable from the arithmetic.
 
 Negative: an additive constant is scale-dependent. It assumes scores are normalised to
 roughly 0..1; if the scoring range changes, 0.20 must be revisited.
+
+Refined by ADR-0013: a file-name match and a declaration were treated as equally strong
+evidence and are no longer. The additive form and the 0.20 for a declaration are
+unchanged; a name-only match is now 0.12.
