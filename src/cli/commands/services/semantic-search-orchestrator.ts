@@ -44,6 +44,28 @@ export interface SemanticResult {
   };
 }
 
+/**
+ * How much of a source file's score a 1-hop neighbour inherits.
+ *
+ * Was 0.7, which put a neighbour of the top hit at 0.70 — above genuine direct matches in
+ * the middle of the list. Measured on scripts/graph-bench.js, whose queries are built so
+ * part of each answer is reachable only across an import edge:
+ *
+ *   0.7   R@5 65.0%   R@10 90.0%
+ *   0.6   R@5 75.0%   R@10 90.0%     <- dominates 0.7
+ *   0.5   R@5 80.0%   R@10 85.0%     <- buys precision by giving up the recall
+ *
+ * 0.6 keeps every file expansion uniquely finds while displacing fewer real answers.
+ * Ranking neighbours strictly below all direct hits was also tried: it took R@5 to 80.0%
+ * but dropped R@10 to 85.0% and failed seven assertions in the curated benchmark, which
+ * expects expansion to reach the top five. Being adjacent to an answer is weaker evidence
+ * than being one, but it is not worthless.
+ */
+export const GRAPH_HOP1_DECAY = 0.6;
+
+/** Second hop, from a file already reached by the first. */
+export const GRAPH_HOP2_DECAY = 0.7;
+
 export class SemanticSearchOrchestrator {
   private logger = Logger.getInstance();
   private projectId?: string;
@@ -563,7 +585,7 @@ export class SemanticSearchOrchestrator {
       // ── 1-hop: neighbors of top-10 results, scored per-source ────────────
       // Expanding from top-10 (not top-5) ensures files like role-executor at rank 7
       // contribute their neighbors even when not in the top 5.
-      const HOP1_DECAY = 0.7;
+      const HOP1_DECAY = GRAPH_HOP1_DECAY;
       const TOP_K = Math.min(10, results.length);
       // Track max source-score for each neighbor (per-source scoring)
       const hop1BestScore = new Map<string, number>();
@@ -595,7 +617,7 @@ export class SemanticSearchOrchestrator {
       //   prompt-builder.test.ts → prompt-builder.ts → orchestrator.ts
       // Targeted: only fires for test→source paths, avoids the scope leaks
       // that occur with unrestricted depth=2 expansion.
-      const HOP2_DECAY = 0.7;
+      const HOP2_DECAY = GRAPH_HOP2_DECAY;
       const hop2BestScore = new Map<string, number>();
 
       const hop2Seeds = depth >= 2

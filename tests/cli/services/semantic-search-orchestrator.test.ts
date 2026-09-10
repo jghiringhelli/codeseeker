@@ -71,7 +71,7 @@ jest.mock('../../../src/cli/services/search/raptor-indexing-service', () => ({
 }));
 
 // Import the class under test AFTER the mocks are registered
-import { SemanticSearchOrchestrator } from '../../../src/cli/commands/services/semantic-search-orchestrator';
+import { SemanticSearchOrchestrator, GRAPH_HOP1_DECAY, GRAPH_HOP2_DECAY } from '../../../src/cli/commands/services/semantic-search-orchestrator';
 
 // ── Test helpers ─────────────────────────────────────────────────────────────
 
@@ -510,9 +510,10 @@ describe('SemanticSearchOrchestrator – graph expansion (search_type=\'graph\')
     const target = results.find(r => r.file.includes('orchestrator.ts'));
     expect(target).toBeDefined();
     // Score path: raw(0.85) → processRawResults applies +0.10 typeBoost −0.15 testPenalty → 0.80
-    // hop1: 0.80 × 0.7 = 0.56; hop2: 0.56 × 0.7 ≈ 0.392
-    const expectedHop1Score = (0.85 + 0.10 - 0.15) * 0.7; // 0.56
-    expect(target!.similarity).toBeCloseTo(expectedHop1Score * 0.7, 2);
+    // then one hop, then a second. Derived from the exported constants rather than
+    // restating them, so tuning a decay does not silently make this assertion vacuous.
+    const expectedHop1Score = (0.85 + 0.10 - 0.15) * GRAPH_HOP1_DECAY;
+    expect(target!.similarity).toBeCloseTo(expectedHop1Score * GRAPH_HOP2_DECAY, 2);
   });
 });
 
