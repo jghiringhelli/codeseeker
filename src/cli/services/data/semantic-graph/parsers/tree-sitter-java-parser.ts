@@ -30,14 +30,25 @@ export class TreeSitterJavaParser extends BaseLanguageParser {
   private language: any = null;
   private initialized: boolean = false;
   
-  constructor() {
-    super();
-    this.initializeParser();
+  /**
+   * Initialisation is deferred, not eager. The constructor used to fire
+   * `initializeParser()` and drop the promise, so any `parse()` that arrived before the
+   * dynamic import settled fell through to the regex path without saying so. The whole
+   * point of this class is the AST, and a race decided whether you got one.
+   */
+  private initializing: Promise<void> | null = null;
+
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return;
+    if (!this.initializing) this.initializing = this.initializeParser();
+    await this.initializing;
   }
 
   async parse(content: string, filePath: string): Promise<ParsedCodeStructure> {
     const structure = this.createBaseStructure(filePath, 'java');
     
+    await this.ensureInitialized();
+
     if (!this.parser || !this.language) {
       console.warn('Tree-sitter Java not available, falling back to regex parsing');
       return this.parseWithRegex(content, structure);
@@ -69,7 +80,7 @@ export class TreeSitterJavaParser extends BaseLanguageParser {
         Java = javaModule.default || javaModule;
       } catch (importError) {
         console.warn('Tree-sitter dependencies not available, falling back to basic parsing');
-        this.initialized = false;
+        this.initialized = true;
         return;
       }
       
@@ -77,6 +88,7 @@ export class TreeSitterJavaParser extends BaseLanguageParser {
       this.language = Java;
       this.parser.setLanguage(this.language);
       
+      this.initialized = true;
       console.debug('Tree-sitter Java parser initialized');
     } catch (error) {
       console.warn('Tree-sitter Java not available, will use regex fallback');

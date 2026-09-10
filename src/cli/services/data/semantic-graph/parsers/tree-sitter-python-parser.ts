@@ -23,6 +23,8 @@ interface TreeSitterNode {
   endPosition: { row: number; column: number };
   namedChildren: TreeSitterNode[];
   childForFieldName(fieldName: string): TreeSitterNode | null;
+  /** Every child under a field. `name` is multi-valued on both import statement kinds. */
+  childrenForFieldName(fieldName: string): TreeSitterNode[];
   descendantsOfType(type: string): TreeSitterNode[];
 }
 
@@ -30,21 +32,32 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
   private parser: TreeSitterParser | null = null;
   private language: any = null;
   private initialized: boolean = false;
-  
-  constructor() {
-    super();
-    this.initializeParser();
+
+  /**
+   * Initialisation is deferred, not eager. The constructor used to fire
+   * `initializeParser()` and drop the promise, so any `parse()` that arrived before the
+   * dynamic import settled fell through to the regex path without saying so. The whole
+   * point of this class is the AST, and a race decided whether you got one.
+   */
+  private initializing: Promise<void> | null = null;
+
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return;
+    if (!this.initializing) this.initializing = this.initializeParser();
+    await this.initializing;
   }
 
   async parse(content: string, filePath: string): Promise<ParsedCodeStructure> {
     const structure = this.createBaseStructure(filePath, 'python');
-    
+
+    await this.ensureInitialized();
+
     if (!this.parser || !this.language) {
       // Fallback to regex parsing if tree-sitter not available
       console.warn('Tree-sitter not available, falling back to regex parsing');
       return this.parseWithRegex(content, structure);
     }
-    
+
     try {
       const tree = this.parser.parse(content);
       this.extractFromAST(tree.rootNode, structure);
@@ -53,7 +66,7 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
       // Fallback to regex parsing
       return this.parseWithRegex(content, structure);
     }
-    
+
     return structure;
   }
 
@@ -72,14 +85,15 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
         Python = pythonModule.default || pythonModule;
       } catch (importError) {
         console.warn('Tree-sitter dependencies not available, falling back to basic parsing');
-        this.initialized = false;
+        this.initialized = true;
         return;
       }
-      
+
       this.parser = new TreeSitter();
       this.language = Python;
       this.parser.setLanguage(this.language);
-      
+
+      this.initialized = true;
       console.debug('Tree-sitter Python parser initialized');
     } catch (error) {
       console.warn('Tree-sitter Python not available, will use regex fallback');
@@ -91,13 +105,13 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
   private extractFromAST(rootNode: TreeSitterNode, structure: ParsedCodeStructure): void {
     // Extract imports
     this.extractImportsFromAST(rootNode, structure);
-    
+
     // Extract classes
     this.extractClassesFromAST(rootNode, structure);
-    
+
     // Extract functions
     this.extractFunctionsFromAST(rootNode, structure);
-    
+
     // Extract decorators and other Python-specific constructs
     this.extractDecoratorsFromAST(rootNode, structure);
   }
@@ -106,34 +120,37 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
     // Find import statements
     const importNodes = rootNode.descendantsOfType('import_statement');
     const fromImportNodes = rootNode.descendantsOfType('import_from_statement');
-    
+
+    // `name` is a multi-valued field on both statement kinds: `import os, sys` and
+    // `from x import a, b, c` each carry one `name` child per imported symbol.
+    // `childForFieldName` returns only the first, so every import past the first was
+    // dropped — 8 of 16 on a single Django view module. Take them all.
+
     // Process regular imports: import module
     for (const importNode of importNodes) {
-      const nameNode = importNode.childForFieldName('name');
-      if (nameNode) {
+      for (const nameNode of this.fieldChildren(importNode, 'name')) {
         const moduleName = nameNode.text;
         structure.imports.push({
           name: moduleName,
           from: moduleName,
           isDefault: false
         });
-        
+
         if (moduleName.startsWith('.')) {
           structure.dependencies.push(moduleName);
         }
       }
     }
-    
+
     // Process from imports: from module import name
     for (const fromImportNode of fromImportNodes) {
       const moduleNode = fromImportNode.childForFieldName('module_name');
-      const nameNode = fromImportNode.childForFieldName('name');
-      
-      if (moduleNode && nameNode) {
-        const moduleName = moduleNode.text;
-        const importedNames = this.extractImportedNames(nameNode);
-        
-        for (const importedName of importedNames) {
+      const nameNodes = this.fieldChildren(fromImportNode, 'name');
+      if (!moduleNode || nameNodes.length === 0) continue;
+
+      const moduleName = moduleNode.text;
+      for (const nameNode of nameNodes) {
+        for (const importedName of this.extractImportedNames(nameNode)) {
           structure.imports.push({
             name: importedName.name,
             from: moduleName,
@@ -141,28 +158,40 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
             isDefault: false
           });
         }
-        
-        if (moduleName.startsWith('.')) {
-          structure.dependencies.push(moduleName);
-        }
+      }
+
+      if (moduleName.startsWith('.')) {
+        structure.dependencies.push(moduleName);
       }
     }
   }
 
+  /**
+   * All children under a field, tolerating a binding that predates
+   * `childrenForFieldName` by falling back to the single-valued accessor.
+   */
+  private fieldChildren(node: TreeSitterNode, field: string): TreeSitterNode[] {
+    if (typeof node.childrenForFieldName === 'function') {
+      return node.childrenForFieldName(field) || [];
+    }
+    const only = node.childForFieldName(field);
+    return only ? [only] : [];
+  }
+
   private extractClassesFromAST(rootNode: TreeSitterNode, structure: ParsedCodeStructure): void {
     const classNodes = rootNode.descendantsOfType('class_definition');
-    
+
     for (const classNode of classNodes) {
       const nameNode = classNode.childForFieldName('name');
       const superclassesNode = classNode.childForFieldName('superclasses');
-      
+
       if (nameNode) {
         const classInfo: ClassInfo = {
           name: nameNode.text,
           methods: [],
           properties: []
         };
-        
+
         // Extract inheritance
         if (superclassesNode) {
           const superclasses = this.extractSuperclasses(superclassesNode);
@@ -173,13 +202,13 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
             }
           }
         }
-        
+
         // Extract methods and properties from class body
         const bodyNode = classNode.childForFieldName('body');
         if (bodyNode) {
           this.extractClassMembers(bodyNode, classInfo);
         }
-        
+
         structure.classes.push(classInfo);
       }
     }
@@ -187,11 +216,11 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
 
   private extractFunctionsFromAST(rootNode: TreeSitterNode, structure: ParsedCodeStructure): void {
     const functionNodes = rootNode.descendantsOfType('function_definition');
-    
+
     for (const functionNode of functionNodes) {
       const nameNode = functionNode.childForFieldName('name');
       const parametersNode = functionNode.childForFieldName('parameters');
-      
+
       if (nameNode) {
         const functionInfo: FunctionInfo = {
           name: nameNode.text,
@@ -199,18 +228,18 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
           isAsync: this.isAsyncFunction(functionNode),
           isExported: !nameNode.text.startsWith('_') // Python convention
         };
-        
+
         // Extract parameters
         if (parametersNode) {
           functionInfo.parameters = this.extractParameters(parametersNode);
         }
-        
+
         // Extract return type annotation if present
         const returnTypeNode = functionNode.childForFieldName('return_type');
         if (returnTypeNode) {
           functionInfo.returnType = returnTypeNode.text;
         }
-        
+
         structure.functions.push(functionInfo);
       }
     }
@@ -218,7 +247,7 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
 
   private extractDecoratorsFromAST(rootNode: TreeSitterNode, structure: ParsedCodeStructure): void {
     const decoratorNodes = rootNode.descendantsOfType('decorator');
-    
+
     for (const decoratorNode of decoratorNodes) {
       const decoratorName = decoratorNode.text;
       // Store decorators as special variables for semantic analysis
@@ -228,13 +257,13 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
 
   private extractImportedNames(nameNode: TreeSitterNode): Array<{name: string, alias?: string}> {
     const names: Array<{name: string, alias?: string}> = [];
-    
+
     if (nameNode.type === 'dotted_as_names' || nameNode.type === 'aliased_import') {
       for (const child of nameNode.namedChildren) {
         if (child.type === 'aliased_import') {
           const nameChild = child.childForFieldName('name');
           const aliasChild = child.childForFieldName('alias');
-          
+
           if (nameChild) {
             names.push({
               name: nameChild.text,
@@ -248,26 +277,26 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
     } else {
       names.push({ name: nameNode.text });
     }
-    
+
     return names;
   }
 
   private extractSuperclasses(superclassesNode: TreeSitterNode): string[] {
     const superclasses: string[] = [];
-    
+
     for (const child of superclassesNode.namedChildren) {
       if (child.type === 'identifier' || child.type === 'attribute') {
         superclasses.push(child.text);
       }
     }
-    
+
     return superclasses;
   }
 
   private extractClassMembers(bodyNode: TreeSitterNode, classInfo: ClassInfo): void {
     const methodNodes = bodyNode.descendantsOfType('function_definition');
     const assignmentNodes = bodyNode.descendantsOfType('assignment');
-    
+
     // Extract methods
     for (const methodNode of methodNodes) {
       const nameNode = methodNode.childForFieldName('name');
@@ -275,7 +304,7 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
         classInfo.methods.push(nameNode.text);
       }
     }
-    
+
     // Extract properties (simplified - looks for assignments)
     for (const assignmentNode of assignmentNodes) {
       const leftNode = assignmentNode.childForFieldName('left');
@@ -287,7 +316,7 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
 
   private extractParameters(parametersNode: TreeSitterNode): string[] {
     const parameters: string[] = [];
-    
+
     for (const child of parametersNode.namedChildren) {
       if (child.type === 'identifier') {
         // Skip 'self' and 'cls' parameters
@@ -301,7 +330,7 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
         }
       }
     }
-    
+
     return parameters;
   }
 
@@ -318,20 +347,20 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
   // Fallback regex parsing (same as before)
   private async parseWithRegex(content: string, structure: ParsedCodeStructure): Promise<ParsedCodeStructure> {
     const lines = content.split('\n');
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       // Parse imports (simplified version)
       this.parseImportsRegex(line, structure);
-      
+
       // Parse classes (simplified version)
       this.parseClassesRegex(line, lines, i, structure);
-      
+
       // Parse functions (simplified version)
       this.parseFunctionsRegex(line, structure);
     }
-    
+
     return structure;
   }
 
@@ -346,7 +375,7 @@ export class TreeSitterPythonParser extends BaseLanguageParser {
         isDefault: false
       });
     }
-    
+
     const fromImportMatch = line.match(/^from\s+(.+?)\s+import\s+(.+)$/);
     if (fromImportMatch) {
       structure.imports.push({
