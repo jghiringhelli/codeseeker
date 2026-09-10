@@ -68,8 +68,22 @@ benchmark grows.
 Negative: the declaration signal comes from the AST chunker's own regex symbol detection,
 which is independent of the graph parsers. A chunk the chunker cannot classify gets
 `symbolType: 'unknown'` and forfeits the boost even when a real parser would have found a
-declaration there. Unifying the two is the next open direction, and it is what still
-limits the Express corpus (75.0%) relative to Django (79.6%).
+declaration there.
+
+**Unifying the two was tried and measured negative — do not repeat it.** Feeding the
+parsers' declarations into the chunker raised the share of chunks carrying a symbol from
+57% to 78% (Express 18% -> 72%) and *lowered* MRR from 80.4% to 78.3%, with the whole loss
+on Express (83.3% -> 75.0%). Splitting on those declarations as well was worse again
+(68.6%). Two lessons: the boost works because it is selective, so labelling more chunks
+dilutes it rather than sharpening it; and chunk *shape* dominates retrieval far more than
+chunk *labels* — the embedding of a route handler surrounded by its neighbours beats the
+embedding of the handler alone.
+
+A related change did land, in the opposite direction from the one expected: the chunker's
+`switch (...) {` and `if (...) {` boundaries look like a bug and are load-bearing.
+Removing them costs 13 MRR points, because they are real topic boundaries even though they
+name nothing. Splitting there while refusing to name the chunk keeps 80.4% and drops the
+junk names.
 
 Known limitation carried forward from ADR-0009: an off-topic query still returns files.
 `kubernetes deployment yaml ingress replica set` against a Django project returns
