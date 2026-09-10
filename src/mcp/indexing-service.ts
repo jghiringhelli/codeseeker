@@ -19,8 +19,8 @@ import { Logger } from '../utils/logger';
 import type { IVectorStore, IGraphStore, GraphNode, GraphEdge } from '../storage/interfaces';
 import { CSharpParser } from '../cli/services/data/semantic-graph/parsers/csharp-parser';
 import { GoParser } from '../cli/services/data/semantic-graph/parsers/go-parser';
-import { PythonParser } from '../cli/services/data/semantic-graph/parsers/python-parser';
-import { JavaParser } from '../cli/services/data/semantic-graph/parsers/java-parser';
+import { TreeSitterPythonParser } from '../cli/services/data/semantic-graph/parsers/tree-sitter-python-parser';
+import { TreeSitterJavaParser } from '../cli/services/data/semantic-graph/parsers/tree-sitter-java-parser';
 import { TypeScriptParser } from '../cli/services/data/semantic-graph/parsers/typescript-parser';
 import type { ParsedCodeStructure } from '../cli/services/data/semantic-graph/parsers/ilanguage-parser';
 import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
@@ -84,8 +84,12 @@ export class IndexingService {
     typescript: new TypeScriptParser(),
     csharp: new CSharpParser(),
     go: new GoParser(),
-    python: new PythonParser(),
-    java: new JavaParser()
+    // The Tree-sitter parsers, not PythonParser/JavaParser: those two are regex despite
+    // their names, and PythonParser's own header still claims Tree-sitter above a body
+    // that reads `TODO: Implement tree-sitter`. Each falls back to that same regex on its
+    // own if the native module will not load, so this is never worse.
+    python: new TreeSitterPythonParser(),
+    java: new TreeSitterJavaParser()
   };
 
   // Map file extensions to parser types
