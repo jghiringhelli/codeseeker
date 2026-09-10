@@ -227,6 +227,15 @@ Vectors from two embedders share shape and range, so a mismatch degrades ranking
 failing — the failure mode this forbids is silence, not error.
 *(tests/unit/embedding-identity.test.ts)*
 
+**R23.** A `search` response MUST carry a `confidence` of `high`, `low` or `unknown`,
+derived from the best raw cosine among its results, and MUST NOT suppress results on
+account of it. The `score` field is not a confidence: an FTS-only hit is normalised
+against the best score in its own result set and the ranking boosts saturate at 1.0, so
+its answerable and unanswerable distributions overlap by 42.3 points against the cosine's
+1.3. Search returns the closest files it has whether or not any are relevant, and the
+failure mode this forbids is a caller treating them as answers.
+*(tests/unit/search-confidence.test.ts, scripts/relevance-floor.js)*
+
 **R15.** Exclusions MUST persist to `.codeseeker/exclusions.json` and be respected on
 the next full reindex.
 

@@ -73,5 +73,6 @@ limits the Express corpus (75.0%) relative to Django (79.6%).
 
 Known limitation carried forward from ADR-0009: an off-topic query still returns files.
 `kubernetes deployment yaml ingress replica set` against a Django project returns
-`articles/views.py`. There is no relevance floor, so "nothing here matches" is not
-something CodeSeeker can currently say.
+`articles/views.py`. Addressed by ADR-0014, which labels such a response rather than
+filtering it — the boosts described above are part of why the reported score cannot
+express relevance.
