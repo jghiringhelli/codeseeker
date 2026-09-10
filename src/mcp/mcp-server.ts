@@ -627,6 +627,10 @@ export class CodeSeekerMcpServer {
     if (fromCache) resp.cached = true;
     if (results.length > cap) { resp.more = results.length - cap; }
 
+    const confidence = assessConfidence(results);
+    resp.confidence = confidence.level;
+    if (confidence.note) resp.confidence_note = confidence.note;
+
     return { content: [{ type: 'text' as const, text: JSON.stringify(resp) }] };
   }
 
@@ -1710,6 +1714,53 @@ export class CodeSeekerMcpServer {
  * covers all of them, including code that does not know it is running under MCP. The SDK
  * transport writes to `process.stdout` directly, so the protocol is unaffected.
  */
+/**
+ * Cosine similarity below which a corpus almost certainly does not contain an answer.
+ *
+ * Measured by scripts/relevance-floor.js over nine questions three RealWorld corpora can
+ * answer and fifteen they cannot: answerable queries score a mean cosine of 54.3% (min
+ * 33.3%), unanswerable ones 17.6% (max 34.7%). The two distributions overlap by 1.3
+ * points, so this separates them almost perfectly — unlike the `score` field, whose
+ * distributions overlap by 42.3 points and which is therefore not a confidence at all.
+ */
+export const LOW_CONFIDENCE_COSINE = 0.34;
+
+/**
+ * Say when the corpus probably has no answer, without hiding anything.
+ *
+ * Search always returns files: ask a Django project about Kubernetes and it returns
+ * `articles/views.py`, the least irrelevant thing it has. An agent reading that will
+ * answer the question from it. The `score` field cannot warn anybody, because an FTS-only
+ * hit is normalised against the best score in its own result set — the top text match is
+ * always 0.85 however irrelevant — and the additive ranking boosts push good and bad alike
+ * into the 1.0 cap. Kubernetes against this Express corpus reports 100%.
+ *
+ * The raw cosine behind that score does discriminate, and is already carried on every
+ * result as `debug.vectorScore`. Nothing consumed it. Results are still returned in full
+ * and in the same order; only the advice attached to them changes.
+ */
+export function assessConfidence(results: Array<{ debug?: { vectorScore?: number } }>): {
+  level: 'high' | 'low' | 'unknown';
+  note?: string;
+} {
+  const cosines = results
+    .map(r => r.debug?.vectorScore)
+    .filter((v): v is number => typeof v === 'number' && v > 0);
+
+  // A pure text search carries no cosine. Absent evidence is not evidence of absence.
+  if (cosines.length === 0) return { level: 'unknown' };
+
+  const best = Math.max(...cosines);
+  if (best >= LOW_CONFIDENCE_COSINE) return { level: 'high' };
+
+  return {
+    level: 'low',
+    note: `Best semantic match is ${Math.round(best * 100)}%, below the ${Math.round(LOW_CONFIDENCE_COSINE * 100)}% `
+      + 'at which this corpus usually contains an answer. These files are the closest available, '
+      + 'not necessarily relevant — verify before relying on them, or search for different terms.',
+  };
+}
+
 function reserveStdoutForProtocol(): void {
   const toStderr = (...args: unknown[]) => {
     const line = args
