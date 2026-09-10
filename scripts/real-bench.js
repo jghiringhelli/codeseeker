@@ -217,7 +217,14 @@ async function searchProject(projectId, projectPath, query, graphDepth = 1, rapt
   // has four `models.py`, four `views.py` and three `serializers.py`, so `mustFind:
   // ['models']` would be satisfied by the wrong app. Every existing target still matches,
   // because a basename is a substring of the path that ends with it.
-  return results.map(r => path.relative(projectPath, r.file).replace(/\\/g, '/'));
+  // Results already carry a project-relative path (spec R10); only an absolute one needs
+  // relativising. Re-relativising a relative path resolves it against the CWD instead,
+  // which produced a `../../..` chain back to wherever the benchmark was launched from.
+  return results.map(r => {
+    const file = r.file || '';
+    const rel = path.isAbsolute(file) ? path.relative(projectPath, file) : file;
+    return rel.replace(/\\/g, '/');
+  });
 }
 
 // ── Benchmark runner ──────────────────────────────────────────────────────────
