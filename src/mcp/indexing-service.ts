@@ -21,6 +21,7 @@ import { CSharpParser } from '../cli/services/data/semantic-graph/parsers/csharp
 import { GoParser } from '../cli/services/data/semantic-graph/parsers/go-parser';
 import { PythonParser } from '../cli/services/data/semantic-graph/parsers/python-parser';
 import { JavaParser } from '../cli/services/data/semantic-graph/parsers/java-parser';
+import { TypeScriptParser } from '../cli/services/data/semantic-graph/parsers/typescript-parser';
 import type { ParsedCodeStructure } from '../cli/services/data/semantic-graph/parsers/ilanguage-parser';
 import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
 import { AstChunker } from '../cli/services/search/ast-chunker';
@@ -80,6 +81,7 @@ export class IndexingService {
 
   // Language-specific parsers for proper AST extraction
   private readonly parsers = {
+    typescript: new TypeScriptParser(),
     csharp: new CSharpParser(),
     go: new GoParser(),
     python: new PythonParser(),
@@ -87,7 +89,26 @@ export class IndexingService {
   };
 
   // Map file extensions to parser types
+  /**
+   * Which parser handles which extension.
+   *
+   * TypeScript and JavaScript were absent from this map, so the two languages this
+   * project is mostly written in fell through to the regex fallback while the README
+   * promised "TypeScript/JavaScript | Babel AST | Excellent". The Babel parser existed
+   * and implemented the same interface the whole time; it was simply never registered.
+   *
+   * An extension not listed here still gets indexed and chunked — it just gets its graph
+   * elements from the regex fallback instead of an AST.
+   */
   private readonly extensionToParser: Record<string, keyof typeof this.parsers> = {
+    '.ts': 'typescript',
+    '.tsx': 'typescript',
+    '.mts': 'typescript',
+    '.cts': 'typescript',
+    '.js': 'typescript',
+    '.jsx': 'typescript',
+    '.mjs': 'typescript',
+    '.cjs': 'typescript',
     '.cs': 'csharp',
     '.go': 'go',
     '.py': 'python',
@@ -1152,7 +1173,15 @@ export class IndexingService {
           });
         }
 
-        return elements;
+        // An AST parser that produced nothing has not necessarily succeeded. The Babel
+        // parser catches its own syntax errors and returns an empty structure rather
+        // than throwing, so a file it could not read looks identical to a file with no
+        // declarations. Falling through on empty keeps the regex result we would
+        // otherwise have had, at the cost of running it on genuinely empty files.
+        if (elements.length > 0) {
+          return elements;
+        }
+        this.logger.debug(`Parser returned no elements for ${file}, falling back to regex`);
       } catch (error) {
         this.logger.debug(`Parser failed for ${file}, falling back to regex: ${error}`);
       }
