@@ -566,3 +566,80 @@ describe('AstChunker — segment edges', () => {
     }
   });
 });
+
+/**
+ * A boundary and a name are different decisions.
+ *
+ * `switch (action.type) {` matches the method pattern, so it was harvested as a symbol
+ * named `switch`. Since ADR-0013 a chunk's symbol name feeds the ranking boost, so that
+ * name would promote every reducer in a project for a query containing "switch".
+ *
+ * The tempting fix — skip those lines — was measured and is much worse: it took the three
+ * RealWorld corpora from 143 to 96 chunks for React alone (16.6 to 24.8 lines each) and
+ * retrieval from MRR 80.4% to 67.0%. Those lines are not declarations but they are topic
+ * boundaries: in a reducer each `case` block, in a component each conditional branch.
+ *
+ * So: split there, and leave the chunk unnamed.
+ */
+describe('control-flow keywords are boundaries, not names', () => {
+  const reducer = [
+    "import { HOME_PAGE_LOADED } from '../constants/actionTypes';", // 1
+    '',                                                             // 2
+    'export default (state = {}, action) => {',                     // 3
+    '  switch (action.type) {',                                     // 4
+    '    case HOME_PAGE_LOADED:',                                   // 5
+    '      return { ...state, tags: action.payload };',             // 6
+    '    default:',                                                 // 7
+    '      return state;',                                          // 8
+    '  }',                                                          // 9
+    '};',                                                           // 10
+  ].join('\n');
+
+  it('still splits at a switch', () => {
+    const chunks = new AstChunker().chunk(reducer, '.js');
+    expect(chunks.some(c => c.lineStart === 4)).toBe(true);
+  });
+
+  it('never names a chunk after a keyword', () => {
+    const chunks = new AstChunker().chunk(reducer, '.js');
+    const names = chunks.map(c => c.symbolName).filter(Boolean);
+    expect(names).not.toContain('switch');
+    expect(names).not.toContain('if');
+  });
+
+  it('leaves symbolType unset on a chunk it could not name', () => {
+    // A chunk with no symbolType forfeits the declaration boost, which is correct here:
+    // there is no declaration to boost.
+    const chunks = new AstChunker().chunk(reducer, '.js');
+    const atSwitch = chunks.find(c => c.lineStart === 4);
+    expect(atSwitch!.symbolName).toBeUndefined();
+    expect(atSwitch!.symbolType).toBeUndefined();
+  });
+
+  it('still names a real declaration', () => {
+    const chunks = new AstChunker().chunk(
+      'class Foo {\n  bar() {\n    return 1;\n  }\n}\n',
+      '.ts'
+    );
+    expect(chunks.map(c => c.symbolName)).toContain('Foo');
+  });
+});
+
+describe('extensions the chunker used to ignore', () => {
+  const source = 'export function handler() {\n  return 1;\n}\n';
+
+  it.each(['.mjs', '.cjs', '.mts', '.cts'])('detects declarations in %s', (ext) => {
+    // These fell through to fixed-size splitting with no symbol on any chunk — the same
+    // extension-list drift that once hid them from the graph.
+    const chunks = new AstChunker().chunk(source, ext);
+    expect(chunks.map(c => c.symbolName)).toContain('handler');
+  });
+
+  it('detects an async def, which the python patterns missed entirely', () => {
+    const chunks = new AstChunker().chunk(
+      'class Repo:\n    async def fetch(self):\n        pass\n',
+      '.py'
+    );
+    expect(chunks.map(c => c.symbolName)).toContain('Repo');
+  });
+});

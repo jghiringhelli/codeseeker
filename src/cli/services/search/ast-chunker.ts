@@ -36,11 +36,34 @@ export interface ChunkOptions {
 
 // ── Boundary detection ────────────────────────────────────────────────────────
 
+/**
+ * A place to split. `symbolName` is absent when the line is a good boundary but not a
+ * declaration — `switch (action.type) {` opens a new topic and names nothing.
+ */
 interface BoundaryMatch {
-  line: number; // 1-based line index in the file
-  symbolName: string;
-  symbolType: 'class' | 'function' | 'method';
+  line: number;
+  symbolName?: string;
+  symbolType?: 'class' | 'function' | 'method';
 }
+
+/**
+ * Words that look like a call site but never name a declaration.
+ *
+ * The method pattern below matches `name (args) {`, which is also the shape of
+ * `switch (action.type) {` and `if (cond) {`. Those were harvested as symbol names, and
+ * since ADR-0013 a chunk's symbol name feeds the ranking boost — so a query containing
+ * "switch" would have promoted every reducer in the project.
+ *
+ * Shared with the graph builder, which had its own copy of this list for the same reason.
+ */
+export const NON_DECLARATION_KEYWORDS = new Set([
+  // control flow written as `keyword (...) {`
+  'if', 'else', 'for', 'while', 'do', 'switch', 'try', 'catch', 'finally', 'with',
+  // operators and expressions that take a parenthesised argument
+  'return', 'typeof', 'instanceof', 'delete', 'void', 'await', 'yield', 'new', 'in', 'of',
+  // declaration keywords that precede a name rather than being one
+  'function', 'class', 'const', 'let', 'var', 'import', 'export', 'require',
+]);
 
 // TypeScript / JavaScript boundary patterns
 const TS_JS_PATTERNS: Array<{ re: RegExp; symbolType: 'class' | 'function' | 'method' }> = [
@@ -65,8 +88,11 @@ const TS_JS_PATTERNS: Array<{ re: RegExp; symbolType: 'class' | 'function' | 'me
 // Python boundary patterns
 const PY_PATTERNS: Array<{ re: RegExp; symbolType: 'class' | 'function' | 'method' }> = [
   { re: /^class\s+([A-Za-z_][A-Za-z0-9_]*)/, symbolType: 'class' },
-  { re: /^def\s+([A-Za-z_][A-Za-z0-9_]*)/, symbolType: 'function' },
-  { re: /^\s{4}def\s+([A-Za-z_][A-Za-z0-9_]*)/, symbolType: 'method' },
+  // `async def` matched nothing at all, and an indented `def` was only recognised at
+  // exactly four spaces — so a method in a two-space or nested class was either missed or
+  // read as a module-level function.
+  { re: /^(?:async\s+)?def\s+([A-Za-z_][A-Za-z0-9_]*)/, symbolType: 'function' },
+  { re: /^\s+(?:async\s+)?def\s+([A-Za-z_][A-Za-z0-9_]*)/, symbolType: 'method' },
 ];
 
 // Go boundary patterns
@@ -78,12 +104,17 @@ const GO_PATTERNS: Array<{ re: RegExp; symbolType: 'class' | 'function' | 'metho
 
 type LangPatterns = typeof TS_JS_PATTERNS;
 
+/**
+ * `.mjs`, `.cjs`, `.mts` and `.cts` were absent, so an ES-module or CommonJS file was
+ * split at fixed line counts with no symbol on any chunk — the same extension-list drift
+ * that once hid those files from the graph entirely.
+ */
+const TS_JS_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']);
+
 function patternsForExtension(ext: string): LangPatterns | null {
   const lower = ext.toLowerCase();
-  if (lower === '.ts' || lower === '.tsx' || lower === '.js' || lower === '.jsx') {
-    return TS_JS_PATTERNS;
-  }
-  if (lower === '.py') return PY_PATTERNS as LangPatterns;
+  if (TS_JS_EXTENSIONS.has(lower)) return TS_JS_PATTERNS;
+  if (lower === '.py' || lower === '.pyi') return PY_PATTERNS as LangPatterns;
   if (lower === '.go') return GO_PATTERNS as LangPatterns;
   return null;
 }
@@ -95,8 +126,17 @@ function detectBoundaries(lines: string[], patterns: LangPatterns): BoundaryMatc
     for (const { re, symbolType } of patterns) {
       const m = lineText.match(re);
       if (m && m[1]) {
-        // Prefer earlier patterns (class > function > method) if same line matches multiple
-        matches.push({ line: i + 1, symbolName: m[1], symbolType });
+        // `switch (action.type) {` and `if (cond) {` match the method pattern. They are
+        // still worth splitting on — in a reducer each opens a distinct topic, and removing
+        // those splits cost 13 MRR points on the benchmark — but naming a chunk `switch`
+        // feeds the declaration boost a word no reader would ever search for. So split
+        // here, and leave the chunk unnamed.
+        const isDeclaration = !NON_DECLARATION_KEYWORDS.has(m[1]);
+        matches.push({
+          line: i + 1,
+          symbolName: isDeclaration ? m[1] : undefined,
+          symbolType: isDeclaration ? symbolType : undefined,
+        });
         break;
       }
     }
@@ -209,10 +249,7 @@ export class AstChunker {
     const lines = source.split('\n');
     const patterns = patternsForExtension(extension);
 
-    let boundaries: BoundaryMatch[] = [];
-    if (patterns) {
-      boundaries = detectBoundaries(lines, patterns);
-    }
+    const boundaries = patterns ? detectBoundaries(lines, patterns) : [];
 
     return splitByBoundariesAndMax(lines, boundaries, maxChunkLines, overlapLines);
   }

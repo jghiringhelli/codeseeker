@@ -24,7 +24,7 @@ import { TreeSitterJavaParser } from '../cli/services/data/semantic-graph/parser
 import { TypeScriptParser } from '../cli/services/data/semantic-graph/parsers/typescript-parser';
 import type { ParsedCodeStructure } from '../cli/services/data/semantic-graph/parsers/ilanguage-parser';
 import { RaptorIndexingService } from '../cli/services/search/raptor-indexing-service';
-import { AstChunker } from '../cli/services/search/ast-chunker';
+import { AstChunker, NON_DECLARATION_KEYWORDS } from '../cli/services/search/ast-chunker';
 
 /**
  * Words that can appear as `name(...) {` in JavaScript or TypeScript without being a
@@ -36,15 +36,6 @@ import { AstChunker } from '../cli/services/search/ast-chunker';
  * parenthesised argument, and the framework callbacks that read like declarations but are
  * call sites all belong here.
  */
-const JS_NON_DECLARATIONS = new Set([
-  // control flow written as `keyword (...) {`
-  'if', 'else', 'for', 'while', 'do', 'switch', 'try', 'catch', 'finally', 'with',
-  // operators and expressions that take a parenthesised argument
-  'return', 'typeof', 'instanceof', 'delete', 'void', 'await', 'yield', 'new', 'in', 'of',
-  // declaration keywords that precede a name rather than being one
-  'function', 'class', 'const', 'let', 'var', 'import', 'export', 'require',
-]);
-
 export interface IndexingProgress {
   phase: 'scanning' | 'indexing' | 'graph' | 'raptor' | 'complete';
   filesTotal: number;
@@ -1287,7 +1278,7 @@ export class IndexingService {
           functionRegex.lastIndex = 0;
           while ((match = functionRegex.exec(line)) !== null) {
             const funcName = match[1] || match[2] || match[3];
-            if (funcName && funcName.length > 2 && !JS_NON_DECLARATIONS.has(funcName)) {
+            if (funcName && funcName.length > 2 && !NON_DECLARATION_KEYWORDS.has(funcName)) {
               elements.push({
                 id: `function-${projectId}-${file.replace(/[\/\\]/g, '-')}-${funcName}`,
                 type: 'function',
