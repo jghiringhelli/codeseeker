@@ -449,8 +449,8 @@ which symbol is a declaration and what depends on what.
 |----------|-------------|------------------------|
 | TypeScript, JavaScript (`.ts .tsx .js .jsx .mts .cts .mjs .cjs`) | Babel AST | Excellent |
 | Python | Tree-sitter AST | Excellent |
+| C# | Tree-sitter AST | Excellent |
 | Java | Tree-sitter AST | Good — same parser as Python, but unmeasured (no Java corpus) |
-| C# | Regex | Good — classes and methods, no call graph |
 | Go | Regex | Good — packages and funcs, no call graph |
 | Rust, C/C++, Ruby, PHP, everything else | Regex | Basic |
 
@@ -464,9 +464,14 @@ real projects and `scripts/graph-quality.js` reports how much of each resulting 
 plausibly a real declaration. Java carries no rating of its own because no Java project is
 in that corpus; it shares Python's Tree-sitter code path, and that is all we can claim.
 
+Measured on the four RealWorld Conduit implementations — the same application written four
+times, so a gap between them is language handling and not task difficulty — mean reciprocal
+rank over 30 labelled queries is TypeScript 83.3%, Python 81.5%, JavaScript 77.1%,
+C# 70.5%.
+
 ### Adding a parser for your language
 
-If your project is mostly C#, Go, Rust, C++ or Ruby, you can install the Tree-sitter
+If your project is mostly Go, Rust, C++ or Ruby, you can install the Tree-sitter
 grammar for it:
 
 ```bash
@@ -484,7 +489,7 @@ marked `wired: true` is consumed by the graph builder** — installing one marke
 changes nothing today, and the response says so rather than letting you find out by not
 noticing an improvement.
 
-Currently wired: TypeScript, JavaScript, Python, Java. The others are honest `false`.
+Currently wired: TypeScript, JavaScript, Python, Java, C#. The others are honest `false`.
 Wiring one is a small, self-contained change — a parser implementing
 `ILanguageParser` registered in `extensionToParser`
 ([`src/mcp/indexing-service.ts`](src/mcp/indexing-service.ts)) — and contributions are
