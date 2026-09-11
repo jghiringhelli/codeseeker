@@ -1889,8 +1889,9 @@ export function assessConfidence(results: Array<{ debug?: { vectorScore?: number
   return {
     level: 'low',
     note: `Best semantic match is ${Math.round(best * 100)}%, below the ${Math.round(LOW_CONFIDENCE_COSINE * 100)}% `
-      + 'at which this corpus usually contains an answer. These files are the closest available, '
-      + 'not necessarily relevant — verify before relying on them, or search for different terms.',
+      + 'at which this project usually contains an answer. These files are the closest available, '
+      + 'not necessarily relevant. Verify one before relying on it, and prefer grep for an exact '
+      + 'identifier or string — a weak semantic match is the case file search handles better.',
   };
 }
 
