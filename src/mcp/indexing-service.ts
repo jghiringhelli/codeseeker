@@ -36,6 +36,12 @@ import { AstChunker, NON_DECLARATION_KEYWORDS } from '../cli/services/search/ast
  * parenthesised argument, and the framework callbacks that read like declarations but are
  * call sites all belong here.
  */
+/**
+ * Extensions an import specifier may omit. Mirrors the parser's extension map; those two
+ * drifting apart is how .mjs and .cjs files came to be invisible to the graph once already.
+ */
+const IMPORT_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
+
 export interface IndexingProgress {
   phase: 'scanning' | 'indexing' | 'graph' | 'raptor' | 'complete';
   filesTotal: number;
@@ -1350,22 +1356,25 @@ export class IndexingService {
 
         // Resolve relative path
         const sourceDir = path.dirname(sourceFile);
-        let resolvedPath = path.join(sourceDir, importPath).replace(/\\/g, '/');
+        const base = path.join(sourceDir, importPath).replace(/\\/g, '/');
 
-        // Add extension if missing
-        if (!path.extname(resolvedPath)) {
-          const extensions = ['.ts', '.tsx', '.js', '.jsx'];
-          for (const ext of extensions) {
-            const withExt = resolvedPath + ext;
-            if (allFiles.includes(withExt)) {
-              resolvedPath = withExt;
-              break;
-            }
-          }
-        }
+        // An import specifier omits its extension, and deciding whether one is already
+        // present via `path.extname` is wrong: for `../../models/http-exception.model` it
+        // returns `.model`, so no extension was ever appended and the target was never
+        // found. That is the dominant naming convention in TypeScript backends —
+        // *.service.ts, *.model.ts, *.controller.ts, *.mapper.ts — so import edges, the one
+        // signal ADR-0008 calls reliable, were missing across most of such a project:
+        // article.service.ts declares six imports and produced one edge.
+        //
+        // Try the path as written, then each extension, then the directory's index file.
+        // `allFiles` is the authority on what exists, so a wrong guess simply fails to match.
+        const candidates = [base];
+        for (const ext of IMPORT_EXTENSIONS) candidates.push(base + ext);
+        for (const ext of IMPORT_EXTENSIONS) candidates.push(`${base}/index${ext}`);
+        const resolvedPath = candidates.find(candidate => allFiles.includes(candidate));
 
         // Check if target file exists in project
-        if (allFiles.includes(resolvedPath)) {
+        if (resolvedPath) {
           const targetFileNodeId = `file-${projectId}-${resolvedPath.replace(/[\/\\]/g, '-')}`;
           edges.push({
             id: `imports-${sourceFileNodeId}-${targetFileNodeId}`,
