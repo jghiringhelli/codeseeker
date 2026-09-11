@@ -10,6 +10,18 @@ BM25 + vector embeddings + RAPTOR directory summaries + graph expansion — fuse
 Works with **Claude Code**, **GitHub Copilot** (VS Code 1.99+), **Cursor**, **Windsurf**, and **Claude Desktop**.  
 One command to index; the Claude Code plugin keeps it in sync from there.
 
+Built by [PragmaWorks](https://pragmaworks.dev) as part of **Generative Specification** — the
+discipline for building software with AI that doesn't drift. Two sibling MCP servers compose
+with this one, each solving a different half of the same problem:
+
+| | what it gives your assistant |
+|---|---|
+| **CodeSeeker** (this) | *where things are* — semantic search and a knowledge graph over your code |
+| **[Chronicle](https://github.com/jghiringhelli/chronicle-mcp)** &nbsp;`npm i -g chronicle-mcp` | *what happened before* — tiered memory that survives context resets |
+| **[Forgecraft](https://github.com/jghiringhelli/forgecraft-mcp)** &nbsp;`npm i -g forgecraft-mcp` | *how it should be built* — SOLID, testing, architecture and CI/CD standards |
+
+They are independent: install one, or all three.
+
 ## The Problem
 
 AI assistants are powerful editors, but they navigate code like a tourist:
@@ -231,41 +243,56 @@ working directory.
 
 ## How Indexing Works
 
-**A project must be indexed once before search works.** CodeSeeker does not index on
-first query — if the project is unknown it returns an error telling you to initialise it.
-This is deliberate: silently indexing a large repository inside a tool call would block
-the assistant for minutes with no way to cancel.
+**You do not have to index anything first.** Searching a project CodeSeeker has never seen
+starts the index automatically and says so. Indexing runs in the background, so the call
+returns at once rather than blocking your assistant:
 
 ```
 User: "Find the authentication logic"
         │
         ▼
-┌──────────────────────────────────────────────┐
-│ Claude calls codeseeker({action:"search"})   │
-│         │                                    │
-│         ▼                                    │
-│ Project indexed? ──No──► error: run          │
-│         │                index op:"init"     │
-│        Yes                                   │
-│         ▼                                    │
-│ Return ranked results                        │
-└──────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│ Claude calls codeseeker({action:"search"})             │
+│         │                                              │
+│         ▼                                              │
+│ Project indexed? ──No──► starts indexing, returns      │
+│         │                {status:"indexing_started"}   │
+│        Yes                                             │
+│         ▼                                              │
+│ Return ranked results + confidence                     │
+└────────────────────────────────────────────────────────┘
 ```
 
-Index once, either way:
+So the first question you ask a new project answers with "indexing started, retry shortly"
+rather than with results. **A small project is ready in a couple of seconds; a large one
+takes several minutes.** Check with `index({op:"status"})` rather than guessing.
+
+You can still index deliberately, and it is worth doing for a big repository so the wait
+happens when you expect it:
 
 ```js
-codeseeker({ action: "index", index: { op: "init", path: "/abs/path/to/project" } })
+codeseeker({ action: "index", index: { op: "init", path: "/abs/path", name: "my-project" } })
 ```
 ```bash
 codeseeker init          # or, from the CLI
 ```
 
-Indexing runs in the background and takes 30 seconds to several minutes depending on
-project size. Poll it with `index({op:"status"})`. Subsequent searches are instant.
+`name` is the only thing an explicit init gives you that the automatic one cannot know —
+otherwise the project is registered under its directory name.
 
-If you use the Claude Code plugin, `/codeseeker:init` does this for you and hooks keep
-the index current afterwards.
+### Keeping the index current
+
+The index is a snapshot. Nothing watches your filesystem, so after files change there are
+three ways it gets back in step:
+
+| | how |
+|---|---|
+| **Claude Code plugin** | hooks re-sync after every `Edit`/`Write`, and fully after `git pull`/`checkout`/`merge`. This is the only hands-off option. |
+| **Manual** | `index({op:"sync", changes:[…]})` for named files, or `index({op:"sync", full_reindex:true})` after large external changes. |
+| **It tells you** | a search that returns a file which no longer exists reports `stale_index`, naming the missing files and the sync call. That is proof rather than a guess — a timestamp cannot tell you whether anything actually moved. |
+
+Without the plugin, an index that drifts will keep returning results; they will simply be
+from the code as it was. The `stale_index` signal is what surfaces that.
 
 ---
 
