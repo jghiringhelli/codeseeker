@@ -1,13 +1,9 @@
 {
+  "_comment": "Project scope: this repo IS CodeSeeker, so point at the local build. Using `npx codeseeker` here would run the published package instead, so you would edit code, restart, and still be testing the last release. Run `npm run build` before restarting.",
   "mcpServers": {
     "codeseeker": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "codeseeker",
-        "serve",
-        "--mcp"
-      ],
+      "command": "node",
+      "args": ["./dist/cli/codeseeker-cli.js", "serve", "--mcp"],
       "env": {
         "CODESEEKER_STORAGE_MODE": "embedded"
       }
