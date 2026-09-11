@@ -630,8 +630,12 @@ export class CodeSeekerMcpServer {
     return {
       content: [{ type: 'text' as const, text: JSON.stringify({
         status: 'indexing_started', project: projectName, project_path: projectPath,
+        // Deliberately not "a few seconds": a small project is ready in about two, but a
+        // 1,700-file monorepo takes three to six minutes. Promising seconds there would
+        // have the caller retry in a loop against an index that is not close to ready.
         message: `${projectName} was not indexed, so indexing started automatically. `
-          + `Retry ${operation} in a few seconds, or check progress with index({op:"status"}).`,
+          + `Small projects are ready in a few seconds; a large one can take several minutes. `
+          + `Check progress with index({op:"status"}), then retry ${operation}.`,
       }) }],
     };
   }
