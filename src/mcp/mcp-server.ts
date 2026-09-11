@@ -367,7 +367,19 @@ export class CodeSeekerMcpServer {
     this.server.registerTool(
       'codeseeker',
       {
-        description: 'Code intelligence: search (q), symbol lookup (sym), graph traversal (graph), analysis (analyze), index management (index).',
+        // ADR-0002 caps this at 400 characters: it is re-sent on every request, and a
+        // long description biases the model toward calling the tool where grep would do.
+        // So it says only which action answers which question, and when not to call at
+        // all. Per-action guidance lives on each parameter group, where it belongs.
+        description:
+          'Code intelligence on an indexed project. '
+          + 'search: find code by meaning when you lack the exact string. '
+          + 'graph: what depends on X, import chains, from edges not file reads. '
+          + 'sym: where X is declared. '
+          + 'Prefer grep for an exact literal, read for a known path. '
+          + 'search returns paths and signatures, not content, plus a confidence: '
+          + 'low means this project likely has no answer. '
+          + 'Unindexed projects self-index.',
         inputSchema: {
           action: z.enum(['search', 'sym', 'graph', 'analyze', 'index'])
             .describe('Routing key — fill only the matching nested param group'),
@@ -379,12 +391,12 @@ export class CodeSeekerMcpServer {
             full:   z.boolean().optional().default(false).describe('Add snippet to each result (default: summary only)'),
             limit:  z.number().optional().default(10),
             type:   z.enum(['hybrid', 'fts', 'vector']).optional().default('hybrid'),
-          }).optional().describe('Params for action=search'),
+          }).optional().describe('Find code by meaning. Answers "where is X handled", "how does Y work".'),
 
           sym: z.object({
             name: z.string().describe('Symbol name (exact or partial)'),
             full: z.boolean().optional().default(false).describe('Include resolved relationships'),
-          }).optional().describe('Params for action=sym'),
+          }).optional().describe('Resolve a symbol to where it is declared. Answers "where is X defined".'),
 
           graph: z.object({
             seed:  z.string().optional().describe('Seed file (relative path)'),
@@ -393,7 +405,7 @@ export class CodeSeekerMcpServer {
             rel:   z.array(z.enum(['imports','exports','calls','extends','implements','contains','uses','depends_on'])).optional(),
             dir:   z.enum(['in','out','both']).optional().default('both'),
             max:   z.number().optional().default(50),
-          }).optional().describe('Params for action=graph'),
+          }).optional().describe('Traverse declared relationships. Answers "what depends on X", "what does X import", "what breaks if I change X". Returns edges, not code — far cheaper than reading the files.'),
 
           analyze: z.object({
             kind:      z.enum(['duplicates','dead_code','standards']).describe('Analysis type'),
@@ -401,7 +413,7 @@ export class CodeSeekerMcpServer {
             min_lines: z.number().optional().default(5),
             patterns:  z.array(z.enum(['dead_code','god_class','circular_deps','feature_envy','coupling'])).optional(),
             category:  z.enum(['validation','error-handling','logging','testing','all']).optional().default('all'),
-          }).optional().describe('Params for action=analyze'),
+          }).optional().describe('Whole-project findings: duplicates, dead code, coding standards.'),
 
           index: z.object({
             op:          z.enum(['init','sync','status','parsers','exclude']).describe('Operation'),
@@ -414,7 +426,7 @@ export class CodeSeekerMcpServer {
             exclude_op:  z.enum(['exclude','include','list']).optional(),
             paths:       z.array(z.string()).optional(),
             reason:      z.string().optional(),
-          }).optional().describe('Params for action=index'),
+          }).optional().describe('Index management. Rarely needed: indexing happens automatically. Use op=sync after large external changes, op=status to list projects.'),
         },
       },
       async (params) => {
@@ -557,6 +569,88 @@ export class CodeSeekerMcpServer {
     }
   }
 
+  /**
+   * Make sure the project is indexed, indexing it if it is not.
+   *
+   * Every action used to stop on an unindexed project and tell the caller to run
+   * `index({op:"init"})` itself. That is a round trip and a decision for something with
+   * exactly one sensible answer: a caller that just asked to search a directory wants that
+   * directory searchable.
+   *
+   * Indexing is asynchronous, so this cannot return results on the spot. It returns a
+   * `status: "indexing_started"` telling the caller to retry — which is what the old error
+   * asked for, minus the call the caller had to compose.
+   *
+   * An embedding mismatch is deliberately NOT auto-handled. Rebuilding an index built by a
+   * different embedder throws away work and takes minutes; that is a decision, not a
+   * default (R22).
+   *
+   * @returns a response to return immediately, or null when the index is ready to use.
+   */
+  private async ensureIndexed(
+    projectPath: string,
+    projectRecord: { id: string; name: string; path: string; metadata?: unknown } | undefined,
+    operation: string
+  ): Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean } | null> {
+    const check = await verifyIndexed(projectPath, projectRecord as never);
+    if (!check.error) return null;
+
+    const reason = check.error.content[0]?.text ?? '';
+    // An embedder mismatch names both identities; it is not a missing index.
+    if (!reason.includes('not indexed') && !reason.includes('no indexed chunks') && !reason.includes('needs indexing')) {
+      return check.error;
+    }
+
+    const pathError = validateProjectPath(projectPath);
+    if (pathError || !fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
+      return check.error;
+    }
+
+    const projectId = projectRecord?.id ?? generateProjectId(projectPath);
+    const projectName = projectRecord?.name ?? path.basename(projectPath);
+
+    const running = this.getIndexingStatus(projectId);
+    if (running?.status === 'running' || this.indexingMutex.has(projectId)) {
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify({
+          status: 'indexing', project: projectName, progress: running?.progress,
+          message: `Indexing ${projectName}; ${operation} is not available yet. Retry shortly.`,
+        }) }],
+      };
+    }
+
+    this.indexingMutex.add(projectId);
+    const storageManager = await getStorageManager();
+    await storageManager.getProjectStore().upsert({
+      id: projectId, name: projectName, path: projectPath,
+      metadata: { indexedAt: new Date().toISOString(), indexing: true, ...embeddingStamp() },
+    });
+    this.startBackgroundIndexing(projectId, projectName, projectPath, true);
+
+    return {
+      content: [{ type: 'text' as const, text: JSON.stringify({
+        status: 'indexing_started', project: projectName, project_path: projectPath,
+        message: `${projectName} was not indexed, so indexing started automatically. `
+          + `Retry ${operation} in a few seconds, or check progress with index({op:"status"}).`,
+      }) }],
+    };
+  }
+
+  /**
+   * Auto-index for the actions that resolve to a record rather than a path.
+   *
+   * `resolveIndexedProject` fails before producing a record, so there is nothing to hand
+   * `ensureIndexed`. All that is available is the caller's hint, which is only actionable
+   * when it is a real directory — a bare project *name* that was never indexed cannot be
+   * located on disk, and that error stands.
+   */
+  private async autoIndexFromHint(hint: string | undefined, operation: string) {
+    if (!hint) return null;
+    const candidate = path.isAbsolute(hint) ? hint : path.resolve(hint);
+    if (!fs.existsSync(candidate) || !fs.statSync(candidate).isDirectory()) return null;
+    return this.ensureIndexed(candidate, undefined, operation);
+  }
+
   private async handleSearch(
     query: string,
     project: string | undefined,
@@ -568,8 +662,8 @@ export class CodeSeekerMcpServer {
     const { projectPath, projectRecord, error } = await resolveProject(project);
     if (error) return error;
 
-    const indexCheck = await verifyIndexed(projectPath, projectRecord as any);
-    if (indexCheck.error) return indexCheck.error;
+    const notReady = await this.ensureIndexed(projectPath, projectRecord as never, 'search');
+    if (notReady) return notReady;
 
     const cacheProjectId = projectRecord?.id || generateProjectId(projectPath);
     const cap = exists ? 5 : limit;
@@ -606,6 +700,17 @@ export class CodeSeekerMcpServer {
       return { content: [{ type: 'text' as const, text: `No results for: "${query}". Try different terms or reindex.` }] };
     }
 
+    // ── Staleness, proved rather than guessed ────────────────────────────
+    //
+    // An index goes stale silently: files move or are deleted and search keeps returning
+    // them, so the caller reads a path that is not there and has no way to know why. A
+    // timestamp would only be a guess. A result whose file is gone is proof, and checking
+    // the handful of paths already being returned costs nothing.
+    const missing = results
+      .slice(0, cap)
+      .map((r: any) => (path.isAbsolute(r.file) ? path.relative(projectPath, r.file) : r.file))
+      .filter((rel: string) => rel && !rel.startsWith('..') && !fs.existsSync(path.join(projectPath, rel)));
+
     const limited = results.slice(0, cap);
     const formatted = limited.map((r: any, i: number) => {
       const rel = path.isAbsolute(r.file) ? path.relative(projectPath, r.file) : r.file;
@@ -631,6 +736,14 @@ export class CodeSeekerMcpServer {
     resp.confidence = confidence.level;
     if (confidence.note) resp.confidence_note = confidence.note;
 
+    if (missing.length > 0) {
+      resp.stale_index = {
+        missing_files: missing.slice(0, 5),
+        message: `${missing.length} of the files returned no longer exist, so this index is out of date. `
+          + 'Re-sync it with index({op:"sync", full_reindex:true}) and search again.',
+      };
+    }
+
     return { content: [{ type: 'text' as const, text: JSON.stringify(resp) }] };
   }
 
@@ -654,7 +767,10 @@ export class CodeSeekerMcpServer {
     const graphStore = storageManager.getGraphStore();
 
     const { projectId, projectPath, error: resolveError } = await resolveIndexedProject(project);
-    if (resolveError) return resolveError;
+    if (resolveError) {
+      const started = await this.autoIndexFromHint(project, 'graph');
+      return started ?? resolveError;
+    }
 
     // Determine seed file paths
     let seedFilePaths: string[] = [];
@@ -1615,7 +1731,10 @@ export class CodeSeekerMcpServer {
     const graphStore = storageManager.getGraphStore();
 
     const { projectId, projectPath, error } = await resolveIndexedProject(project);
-    if (error) return error;
+    if (error) {
+      const started = await this.autoIndexFromHint(project, 'sym');
+      return started ?? error;
+    }
 
     const allNodes = await graphStore.findNodes(projectId!);
     const symLower = sym.toLowerCase();
