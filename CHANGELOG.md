@@ -5,6 +5,142 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-09-10
+
+The release where the graph became real. Four parsers were advertised and never wired,
+most import edges were silently dropped, and every AST-derived symbol was recorded at line
+1. Each of those was reproduced and measured before it was fixed, on the same application
+implemented four times — RealWorld Conduit in Python, JavaScript, TypeScript and C# — so a
+difference between them is language handling and not task difficulty.
+
+Mean reciprocal rank over 30 labelled queries: TypeScript 83.3%, Python 81.5%,
+JavaScript 77.1%, C# 70.6%.
+
+### Added
+
+- **`search` now reports a `confidence` of `high`, `low` or `unknown`.** Search returns the
+  closest files it has whether or not any are relevant: ask a Conduit backend about
+  Kubernetes and it answers with a JWT generator, at a reported score of 100.0%. That score
+  cannot warn anyone — an FTS-only hit is normalised against the best score in its own
+  result set, and the ranking boosts saturate at the 1.0 cap, so its answerable and
+  unanswerable distributions overlap by 42.3 points. The raw cosine behind it overlaps by
+  1.3 and was already carried on every result, consumed by nothing. Below 0.34 the response
+  also explains that the files are the closest available rather than necessarily relevant.
+  Nothing is suppressed: with a 1.3-point overlap a filter would silently discard real
+  answers, trading a visible failure for an invisible one. (spec R23, ADR-0014)
+- **An unindexed project indexes itself.** Every action used to stop with "run
+  `index({op:"init"})` first" — a round trip and a decision for something with one sensible
+  answer. An embedder mismatch is still refused rather than auto-rebuilt: that discards
+  minutes of work and is a decision, not a default (R22).
+- **A stale index says so, with proof.** Files move or are deleted and search keeps
+  returning them, so a caller reads a path that is not there and cannot tell why. A
+  timestamp would be a guess; a returned file that no longer exists is proof, and checking
+  the handful of paths already in hand costs nothing. `stale_index` names them and the sync
+  call.
+- **C# is parsed with Tree-sitter.** `tree-sitter-c-sharp` was already a dependency and was
+  never wired. The regex parser it replaces reported, for one 60-line MediatR handler,
+  `Delete[Handle, RestException, RestException]` — inventing two methods from `throw new
+  RestException(...)`, attributing `Handle` to the wrong type, and missing the
+  `QueryHandler` class and `Command` record entirely. `RestException` appeared as a callable
+  in 18 files of that corpus; not one declares it. Across 84 files: classes 81 → 137,
+  callables 265 → 117, and the graph-quality heuristic flags 0.0% of them rather than 1.5%.
+- **Two new measurement gates.** `scripts/parser-health.js` asserts in a fresh process that
+  every parser advertised as AST-backed actually produces one — it caught the Java import
+  bug below on its first run, and is now a CI gate. `scripts/graph-bench.js` asks whether
+  search can reach a file the query does not name: every query has a target that is
+  *lexically silent*, verified mechanically each run.
+- **The C# RealWorld corpus**, and labelled retrieval queries for Python, JavaScript and
+  C#. Ranking quality used to be scored on 18 queries across two TypeScript/C# codebases;
+  it is now 30 across four languages, plus 10 structural queries in the graph benchmark.
+
+### Fixed
+
+- **Import edges, the backbone of the graph, were mostly missing.** The resolver decided
+  whether a specifier already carried an extension with `path.extname`, which for
+  `../../models/http-exception.model` returns `.model` — so it never appended `.ts`, never
+  matched the file, and never created the edge. That is the dominant naming convention in
+  TypeScript backends (`*.service.ts`, `*.model.ts`, `*.controller.ts`), so an entire
+  ecosystem of projects had almost none. `article.service.ts` declares six imports and
+  produced one: the only specifier without a dot in its name. Now 209 edges where there
+  were 173 on that corpus.
+- **Four parsers were advertised and never used.** Babel was absent from the extension map,
+  so TypeScript and JavaScript — 541 of 543 files in this repository — fell through to
+  regex while the README promised "Babel AST | Excellent". `PythonParser` carried a header
+  reading "using Tree-sitter" above a body reading `TODO: Implement tree-sitter`. Java was
+  regex too, and its imports were **never extracted at all**: the grammar gives
+  `import_declaration` no `name` field, so the lookup returned null for every import ever
+  written. Wiring them moved callable nodes on this repository from 2,808 to 7,254 while
+  the share the quality heuristic flags fell from 14.5% to 1.6%.
+- **Every AST-derived symbol was recorded at line 1**, under a comment reading "Line info
+  not available from parser". So `sym` pointed at the top of the file for every TypeScript,
+  Python, Java and C# symbol — and wiring the real parsers made it worse, because the regex
+  fallback they replaced did compute a line. Parsers now report `symbolLines`. On the Django
+  corpus: 163 of 163 symbols at line 1 → 0 of 112.
+- **Python reported every method twice.** `descendantsOfType` reaches into class bodies, so
+  each method was collected as a method *and* as a top-level function, and the indexer built
+  a node for each — `Profile.follow` and `follow`, same file, same line. 51 of 117 function
+  nodes on the Django corpus.
+- **A neighbour could outrank a direct hit.** Graph expansion gave a neighbour 0.7 of its
+  source's score and re-sorted the whole list, so a neighbour of the top hit displaced a
+  genuine match. Worse, the project-root node — stored as a file node whose path *is* the
+  project root — was returned as `{file: ""}`, something no caller can open, and acted as a
+  hub connecting every file to every other. With real import edges and that hub removed,
+  expansion now adds recall at no cost to precision: R@10 85.0% → 90.0% with R@5 unchanged
+  at 80.0%, finding both lexically-silent targets instead of one. (ADR-0011)
+- **A file named after the query counted as much as a file declaring it.** Both earned the
+  same +0.20, which is how a 14-line `routes.ts` outranked the controller declaring all
+  eleven endpoints, and how a README outranked the `auth.service.ts` it describes. A
+  declaration keeps +0.20; a filename-only match drops to +0.12. Over 23 queries at the
+  time: MRR 66.3% → 80.4%, P@1 43.5% → 65.2%, R@5 95.7% → 100%. (ADR-0013)
+- **Chunks were named after control-flow keywords.** `switch (action.type) {` matches the
+  method-boundary pattern, so chunks were called `switch` and `if` — and since those names
+  now feed the ranking boost, a query containing "switch" would promote every reducer in a
+  project. Removing those boundaries was measured and is far worse (MRR 80.4% → 67.0%):
+  they are real topic boundaries even though they name nothing. Split there, leave the chunk
+  unnamed.
+- **Anonymous declarations yielded no symbol at all.** `export default (state, action) =>`
+  and `router.get('/articles', handler)` declare no name, so 19 of 39 Express files and 11
+  of 38 React files contributed nothing — including a 244-line controller holding an entire
+  REST surface. Both have a name in practice: the module, and the string literal labelling
+  the call.
+- **Tree-sitter could degrade to regex silently.** Initialisation was fired from a
+  constructor and never awaited, so a parse arriving first took the fallback without saying
+  so; and a binding can load, accept `setLanguage`, and still return a tree with no root.
+  Both now decide once, loudly, and `usingAst()` lets a caller ask which path it is on.
+- **Python kept only the first name of each import.** `childForFieldName` returns one child
+  of a multi-valued field, so `from rest_framework import generics, mixins, status` produced
+  one import. Over the Django corpus: 107 imports with 5 malformed names → 120 with none.
+- **The chunker ignored `.mjs`, `.cjs`, `.mts` and `.cts`** — the same extension drift that
+  once hid those files from the graph — and matched neither `async def` nor a Python method
+  at any indent but exactly four spaces.
+
+### Changed
+
+- **The tool description now says which action answers which question, and when to use
+  `grep` or `read` instead.** It previously listed action names only, which gives a caller
+  no basis to choose. It stays within the 400-character cap ADR-0002 sets, because it is
+  re-sent on every request; per-action guidance lives on each parameter group.
+
+### Measurement notes
+
+- `scripts/real-bench.js` is not perfectly reproducible: one run reported 77.2% MRR where
+  the same code gave 80.4% on two runs either side. Differences of about two points should
+  be read as noise; the larger ones here (13 and 18 points) are well clear of it.
+- Two directions were tried, measured, and rejected rather than shipped. Feeding the
+  parsers' declarations into the chunker raised chunks carrying a symbol from 57% to 78%
+  and *lowered* MRR from 80.4% to 78.3% — the declaration boost works because it is
+  selective, and chunk shape dominates chunk labels. Ranking graph neighbours strictly below
+  every direct hit reached R@5 80.0% but dropped R@10 to 85.0% and failed seven curated
+  assertions. Both are recorded in the ADRs so the directions are closed rather than
+  rediscovered.
+- Four high-severity advisories remain in the dependency tree, all without an upstream fix.
+  `sharp` and `adm-zip` arrive through `@huggingface/transformers`, the embedding runtime,
+  in its image-decoding path — which CodeSeeker never enters, because it embeds text. The
+  same tree shipped in 2.0.2.
+- Go is still regex, and is marked `wired: false` honestly. No Go corpus exists to measure a
+  parser against, and shipping one unmeasured is the mistake this release spent its time
+  undoing.
+
 ## [2.0.2] - 2026-09-09
 
 The release that makes a fresh install work. Every item below was reproduced before it
