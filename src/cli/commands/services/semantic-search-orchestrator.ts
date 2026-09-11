@@ -580,6 +580,17 @@ export class SemanticSearchOrchestrator {
       const toRelNorm = (fp: string): string =>
         normalize(path.isAbsolute(fp) ? path.relative(projectPath, fp) : fp);
 
+      /**
+       * A result must name something the caller can open.
+       *
+       * The project-root node is stored as a file node whose path IS the project root, so
+       * relativising it yields the empty string. It was then returned as a neighbour —
+       * `{rank: 2, file: "", sig: "[Graph-related: …]"}` — occupying a slot with nothing
+       * an agent can read. A path that escapes the project is equally unusable.
+       */
+      const isReadablePath = (rel: string): boolean =>
+        rel.length > 0 && rel !== '.' && !rel.startsWith('../');
+
       const existingPaths = new Set(results.map(r => normalize(r.file)));
 
       // ── 1-hop: neighbors of top-10 results, scored per-source ────────────
@@ -602,7 +613,7 @@ export class SemanticSearchOrchestrator {
         for (const neighbor of neighbors) {
           if (neighbor.type !== 'file') continue;
           const rel = toRelNorm(neighbor.filePath);
-          if (!existingPaths.has(rel)) {
+          if (isReadablePath(rel) && !existingPaths.has(rel)) {
             const derived = sourceScore * HOP1_DECAY;
             hop1BestScore.set(rel, Math.max(hop1BestScore.get(rel) ?? 0, derived));
             // Track non-test source files reached from test seeds for test-bridged 2-hop
@@ -642,7 +653,7 @@ export class SemanticSearchOrchestrator {
           for (const neighbor of neighbors) {
             if (neighbor.type !== 'file') continue;
             const rel = toRelNorm(neighbor.filePath);
-            if (!existingPaths.has(rel) && !hop1BestScore.has(rel)) {
+            if (isReadablePath(rel) && !existingPaths.has(rel) && !hop1BestScore.has(rel)) {
               const derived = hop1Score * HOP2_DECAY;
               hop2BestScore.set(rel, Math.max(hop2BestScore.get(rel) ?? 0, derived));
             }
