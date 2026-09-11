@@ -1323,22 +1323,32 @@ export class CodeSeekerMcpServer {
     const projectName = params.name || path.basename(absolutePath);
     const projectId = generateProjectId(absolutePath);
 
-    if (this.indexingMutex.has(projectId)) {
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify({
-          status: 'already_indexing', project_name: projectName,
-          message: 'Indexing request already being processed.',
-        }, null, 2) }],
-      };
-    }
-
     const existingJob = this.getIndexingStatus(projectId);
-    if (existingJob?.status === 'running') {
+    const alreadyRunning = this.indexingMutex.has(projectId) || existingJob?.status === 'running';
+
+    if (alreadyRunning) {
+      // Indexing is already in flight — almost always because a search triggered it
+      // automatically a moment ago. Returning here used to discard `name`, so a project
+      // auto-indexed as its directory basename could never be given the name the caller
+      // asked for: `index({op:"init", name:"journey"})` reported already_indexing and
+      // `index({op:"status"})` still listed `cs-journey-1789156437215`. The caller's name
+      // is the one thing this call carries that the automatic one could not know, so
+      // apply it rather than drop it.
+      if (params.name) {
+        const projectStore = (await getStorageManager()).getProjectStore();
+        const existing = await projectStore.findById(projectId);
+        if (existing && existing.name !== params.name) {
+          await projectStore.upsert({ ...existing, name: params.name });
+        }
+      }
+
       return {
         content: [{ type: 'text' as const, text: JSON.stringify({
           status: 'already_indexing', project_name: projectName,
-          progress: existingJob.progress,
-          message: 'Indexing in progress. Check with index({action: "status"}).',
+          progress: existingJob?.progress,
+          message: `Indexing ${projectName} is already in progress`
+            + (params.name ? ` (now named "${params.name}")` : '')
+            + '. Check with index({op: "status"}).',
         }, null, 2) }],
       };
     }

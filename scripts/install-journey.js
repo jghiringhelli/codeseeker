@@ -132,16 +132,28 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   step('exposes exactly one tool', tools.length === 1 && tools[0].name === 'codeseeker',
     `${tools.length} tool(s): ${tools.map(x => x.name).join(', ')} — description ${tools[0].description.length} chars`, Date.now() - t);
 
-  // 3 — the user asks before indexing. The answer must teach, not just refuse.
+  // 3 — the user asks before indexing. The answer must leave them knowing what happens
+  // next. Two answers satisfy that and the tool has given both: it used to refuse and name
+  // the init call; since 2.1.0 it starts indexing itself and says to retry. What must never
+  // happen is the 2.0.1 behaviour — "No results, try different terms" — which blamed the
+  // user's code for the tool's own empty index.
   t = Date.now();
   const premature = cli.text(await cli.call({ action: 'search', project: proj, search: { q: 'how does auth work' } }));
-  const teaches = /index/i.test(premature) && /init/i.test(premature);
-  step('an un-indexed query explains the fix', teaches, teaches ? `names the init call: "${premature.slice(0, 90)}…"` : `unhelpful: "${premature.slice(0, 110)}"`, Date.now() - t);
+  const namesTheFix = /index/i.test(premature) && /init/i.test(premature);
+  const startedItself = /indexing_started/.test(premature) && /retry/i.test(premature);
+  const teaches = namesTheFix || startedItself;
+  step('an un-indexed query leaves the user knowing what happens next', teaches,
+    teaches ? (startedItself ? 'indexes itself and says to retry' : 'names the init call')
+            : `unhelpful: "${premature.slice(0, 110)}"`, Date.now() - t);
 
   // 4 — indexing
   t = Date.now();
   const init = JSON.parse(cli.text(await cli.call({ action: 'index', index: { op: 'init', path: proj, name: 'journey' } })));
-  step('index starts without blocking', init.status === 'indexing_started', `returned immediately: ${init.status}`, Date.now() - t);
+  // `already_indexing` is the honest answer once step 3 has auto-started it. What matters
+  // is that the call returns at once rather than blocking on the index, and that the name
+  // the caller asked for takes effect — it used to be silently discarded here.
+  const returnedAtOnce = init.status === 'indexing_started' || init.status === 'already_indexing';
+  step('index starts without blocking', returnedAtOnce, `returned immediately: ${init.status}`, Date.now() - t);
 
   t = Date.now();
   let done = false, files = 0;
