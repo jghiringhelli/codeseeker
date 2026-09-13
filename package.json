@@ -21,6 +21,7 @@
     "build": "tsc && node -e \"require('fs').copyFileSync('src/cli/services/monitoring/file-scanning/file-scanner-config.json','dist/cli/services/monitoring/file-scanning/file-scanner-config.json')\"",
     "dev": "tsx src/index.ts",
     "start": "node dist/cli/codeseeker-cli.js",
+    "serve:mcp": "node dist/cli/codeseeker-cli.js serve --mcp",
     "test": "jest --testPathIgnorePatterns \"/node_modules/\" \"tests/integration/e2e\" \"tests/contract\"",
     "test:e2e": "jest tests/integration/e2e",
     "test:contract": "jest --testMatch \"**/tests/contract/**/*.contract.test.ts\"",

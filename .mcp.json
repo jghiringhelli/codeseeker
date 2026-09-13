@@ -1,9 +1,13 @@
 {
-  "_comment": "Project scope: this repo IS CodeSeeker, so point at the local build. Using `npx codeseeker` here would run the published package instead, so you would edit code, restart, and still be testing the last release. Run `npm run build` before restarting.",
+  "_comment": "This repo IS CodeSeeker, so serve the local build: `npx codeseeker` here would run the last published release, so you would edit code, restart, and still be testing 2.0.2. Run `npm run build` before restarting. Invoked through npm because npm resolves scripts against package.json's directory \u2014 a relative node path breaks whenever the client launches with a different cwd.",
   "mcpServers": {
     "codeseeker": {
-      "command": "node",
-      "args": ["./dist/cli/codeseeker-cli.js", "serve", "--mcp"],
+      "command": "npm",
+      "args": [
+        "run",
+        "--silent",
+        "serve:mcp"
+      ],
       "env": {
         "CODESEEKER_STORAGE_MODE": "embedded"
       }
