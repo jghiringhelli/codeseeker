@@ -1,6 +1,6 @@
 # Chronos — Functional Specification (proposed)
 
-*Version 0.1 · 2026-09-12 · status: **proposed, not adopted***
+*Version 0.2 · 2026-09-12 · status: **proposed — §7 conditions met, adoption not yet decided***
 
 A specification for an MCP server that does not exist yet. It is written first so that
 implementation derives from it rather than the reverse — and so that the decision *not*
@@ -109,9 +109,15 @@ constantly and import nothing from each other.)*
 their messages and any referenced issue or ADR — ordered oldest-first, so the reader gets
 the narrative rather than the latest patch.
 
-**R8.** Renames MUST be followed. A file's history MUST NOT begin at its current path.
-*(`git log --follow`. Without this, ownership of any refactored file is wrong and silently
-so.)*
+**R8.** Renames MUST be followed, **and the rename event MUST appear in the response**. A
+file's history MUST NOT begin at its current path, and a caller MUST be able to see that
+the path changed.
+
+*Amended in 0.2 after building the benchmark.* Following a rename silently is not enough:
+with `--follow --format` alone, the history of `bin/codeseeker.js` never mentions
+`bin/codemind.js`, so the caller cannot tell the path changed and cannot ask about the old
+one. `--name-status -M` puts the rename in the answer. Without `--follow` at all that file
+shows 1 commit instead of 6 — 83% of its history invisible.
 
 **R9.** Merge commits MUST be attributable but MUST NOT inflate authorship. A merge that
 touches 200 files does not make its author the owner of 200 files. The response MUST state
@@ -187,6 +193,25 @@ that decides which one a caller acts on is what the tool says it measured.
 
 This section is the point of writing the spec first. Chronos is **not** approved by the
 existence of this document.
+
+> **Status 2026-09-12: all three conditions met.** Measured by `scripts/chronos-bench.js`.
+> Adoption is now a decision rather than a question — the evidence no longer blocks it.
+>
+> | condition | result |
+> |---|---|
+> | §7.1 labelled query set | 21 questions, 3 repositories, 21/21 answers confirmed |
+> | §7.2 token claim | **186.6× cheaper** — 10,687 chars against 1,994,407 |
+> | §7.3 unanswerable today | holds — see below |
+>
+> §7.3 is the one that matters most. `indexing-service.ts` and `minisearch-text-store.ts`
+> change together four times and neither imports the other, so CodeSeeker's graph does not
+> rank that relationship low — it **cannot represent it**. Verified mechanically: 13 file
+> neighbours, and that file is not among them. It is not a tuning problem.
+>
+> Two defects in CodeSeeker were found by building this benchmark rather than by reading
+> code: the `history` action had to gain `--name-status -M` before R8 was verifiable
+> (amended above), and `import type { X } from` produced no graph edge at all, because the
+> regex captured `type` as the imported name. Both are fixed.
 
 1. **A labelled query set exists** — at least 20 questions over at least three real
    repositories, each with an answer confirmed by reading the history, before any
