@@ -1345,7 +1345,13 @@ export class IndexingService {
       }
     } else {
       // JS/TS imports and require()
-      const importRegex = /import\s+(?:{[^}]+}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]/g;
+      // `(?:type\s+)?` matters: `import type { IVectorStore } from '../storage/interfaces'`
+      // produced no edge at all. The alternation below captured `type` as the imported
+      // name, then looked for `from` and found `{`. TypeScript codebases using
+      // verbatimModuleSyntax write most of their imports this way, so the graph was
+      // missing them wholesale — found while building scripts/chronos-bench.js, which
+      // asked why an imported file was not a graph neighbour.
+      const importRegex = /import\s+(?:type\s+)?(?:{[^}]+}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]/g;
       const requireRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 
       const processImport = (importPath: string) => {

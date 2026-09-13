@@ -103,3 +103,27 @@ describe('import edge resolution', () => {
     expect(targets).toEqual([]);
   });
 });
+
+describe('type-only imports', () => {
+  it('creates an edge for `import type { X } from`', async () => {
+    // `import type { IVectorStore } from '../storage/interfaces'` produced no edge: the
+    // alternation captured `type` as the imported name, then looked for `from` and found
+    // `{`. TypeScript projects using verbatimModuleSyntax write most imports this way, so
+    // the graph was missing them wholesale. Found while building scripts/chronos-bench.js,
+    // which asked why an imported file was not a graph neighbour.
+    const targets = importTargets(SOURCE, "import type { Tag } from '../tag/tag.model';\n");
+    expect(targets).toHaveLength(1);
+    expect(targets[0]).toContain('tag.model.ts');
+  });
+
+  it('creates an edge for a default type import', async () => {
+    const targets = importTargets(SOURCE, "import type Prisma from '../../../prisma/prisma-client';\n");
+    expect(targets[0]).toContain('prisma-client.ts');
+  });
+
+  it('still creates an edge for the inline `{ type X }` form', async () => {
+    // This one always worked — the braces matched — and must keep working.
+    const targets = importTargets(SOURCE, "import { type Tag, other } from '../tag/tag.model';\n");
+    expect(targets[0]).toContain('tag.model.ts');
+  });
+});
