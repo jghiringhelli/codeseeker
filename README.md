@@ -22,6 +22,26 @@ with this one, each solving a different half of the same problem:
 
 They are independent: install one, or all three.
 
+### When you stop needing this
+
+CodeSeeker solves a retrieval problem, and that problem is shrinking.
+
+If you run a spec-driven loop with a real harness — a specification precise enough that a
+stateless model derives from it, and quality gates that verify the result against a live
+system — or an intent-driven one, your assistant is being handed the structure it would
+otherwise have to go find. A sentinel tool that routes actions instead of sprawling across a
+dozen endpoints removes another slice of the searching. Frontier models with better
+navigation and larger effective context remove more. Past a certain point, semantic search
+over your own code stops being the bottleneck, and this server becomes something you could
+uninstall without noticing.
+
+That is the intended outcome, not a defect: a method that works should make its own
+scaffolding unnecessary. Most teams do not start there, though, and until the process is in
+place CodeSeeker is the cheaper substitute — one command instead of a discipline.
+
+If you would rather have the process than the substitute, start with the field guide:
+**[Generative Specification — Field Guide (PDF)](https://github.com/jghiringhelli/generative-specification/blob/main/docs/white-paper/GenerativeSpecification_FieldGuide.pdf)**.
+
 ## The Problem
 
 AI assistants are powerful editors, but they navigate code like a tourist:
@@ -667,5 +687,6 @@ If that's useful to your team, get in touch: **https://pragmaworks.dev**
 An Apache-2.0 tool behind **Generative Specification (GS)** — the discipline for building software with AI that doesn't drift: you author a specification precise enough that a stateless AI derives correct code from it, and a harness verifies it against a live system.
 
 - 📄 **White paper** (open access): https://doi.org/10.5281/zenodo.21726017
+- 📕 **Field guide** — the short, practical on-ramp: https://github.com/jghiringhelli/generative-specification/blob/main/docs/white-paper/GenerativeSpecification_FieldGuide.pdf
 - 🧭 **Start here** — method, tools, testimonials: https://pragmaworks.dev
 - 🔨 **The Forge** — 2-day hands-on GS workshop for your team: https://forgeworkshop.dev

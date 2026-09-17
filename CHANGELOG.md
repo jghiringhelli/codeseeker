@@ -5,6 +5,33 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-09-17
+
+Two fixes that landed after 2.1.0 was tagged but before it reached npm, so the published
+2.1.0 never existed. Both were found by using the tool rather than by testing it.
+
+### Fixed
+
+- **A type-only import now creates a graph edge.** `import type { IVectorStore } from
+  '../storage/interfaces'` produced no edge at all: the regex alternation captured `type`
+  as the imported name, then looked for `from` and found a brace, so the statement matched
+  nothing and failed silently. TypeScript projects using `verbatimModuleSyntax` write most
+  of their imports this way, so those graphs were missing edges wholesale — an imported
+  file could sit outside its importer's neighbours with no sign anything was wrong. Found
+  while building a benchmark that needed to prove a relationship was *absent* from the
+  import graph, which meant first confirming a present one actually was.
+- **The MCP server starts from any working directory.** The project-scope config ran
+  `node ./dist/cli/codeseeker-cli.js`, a path resolved against whatever directory the MCP
+  client happened to launch from: it connected from the project root and failed with
+  `MODULE_NOT_FOUND` anywhere else. A new `serve:mcp` script is invoked through npm, which
+  resolves against package.json's own directory. Verified from an unrelated directory, with
+  stdout still protocol-only — startup lines go to stderr.
+
+### Changed
+
+- README states when CodeSeeker stops being necessary, and links the Generative
+  Specification field guide.
+
 ## [2.1.0] - 2026-09-10
 
 The release where the graph became real. Four parsers were advertised and never wired,
