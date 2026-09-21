@@ -5,6 +5,31 @@ All notable changes to CodeSeeker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2026-09-21
+
+One fix, found by doing the thing the release notes claimed and watching it not happen.
+
+### Fixed
+
+- **C# is parsed with Tree-sitter on a fresh install, not only in this repository.**
+  2.1.0 wired the C# Tree-sitter parser and measured it: 137 classes where regex found 81,
+  0% flagged. That held in development and nowhere else. The grammar was declared as
+  `tree-sitter-c-sharp@^0.23.1`; the lockfile resolved it to 0.23.1, but a user never
+  receives the lockfile, and `^0.23.1` resolves to 0.23.5 (published 2026-04-14), which is
+  ESM-only and requires `tree-sitter ^0.25` while everything else here runs on 0.21. It
+  cannot even be loaded from the CommonJS build, so the parser fell back to regex with a
+  warning nobody reads — and with it came back the bug 2.1.0 had just fixed: every C#
+  symbol recorded at line 1, and interfaces missing from the type list.
+
+  Reproduced by installing 2.1.1 from the registry into an empty directory and running
+  the shipped parser on one file: `usingAst: false`, `symbolLines: {}`. With the pin,
+  same install, same file: `usingAst: true`, `Foo: 1, Foo.Bar: 1, IBaz: 1`.
+
+  All five grammars are now pinned to the exact versions development is verified
+  against. A grammar is a native addon compiled for one runtime ABI; a caret range on one
+  is a promise that a stranger's future release will match the runtime you ship, and
+  0.23.5 is what that promise is worth.
+
 ## [2.1.1] - 2026-09-17
 
 Two fixes that landed after 2.1.0 was tagged but before it reached npm, so the published
