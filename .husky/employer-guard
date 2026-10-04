@@ -1,0 +1,41 @@
+#!/bin/sh
+# employer-guard: block commits/pushes whose author/committer/Co-authored-by email is on the
+# employer denylist. Usage (from hooks): employer-guard pre-commit | employer-guard pre-push <remote> <url>
+MODE="$1"; shift
+DENY="${EMPLOYER_DOMAINS_FILE:-$HOME/.githooks/employer-domains.txt}"
+if [ ! -f "$DENY" ]; then
+  echo "employer-guard: denylist $DENY not found; guard NOT enforced" >&2
+  [ "$MODE" = pre-push ] && cat >/dev/null
+  exit 0
+fi
+doms=$(sed 's/#.*//' "$DENY" | tr 'A-Z' 'a-z' | tr -d ' \r\t' | grep -v '^$')
+hit() { # stdin: email-ish lines; prints those matching a denied domain
+  tr 'A-Z' 'a-z' | tr -d '\r' | sed 's/.*<\(.*\)>.*/\1/' | while read -r e; do
+    for d in $doms; do case "$e" in *"@$d"|*".$d") echo "$e"; break;; esac; done
+  done
+}
+fail() {
+  cat >&2 <<MSG
+BLOCKED by employer-guard ($MODE): employer identity in a personal repo -> $1
+Fix: git config user.email jcghiri@gmail.com ; git config user.name "Juan Carlos Ghiringhelli"
+     unset GIT_AUTHOR_EMAIL GIT_COMMITTER_EMAIL (check your environment)
+     already committed? git commit --amend --reset-author  (or rebase with --reset-author)
+Denylist: $DENY   (bypass only if you are sure: --no-verify)
+MSG
+  exit 1
+}
+case "$MODE" in
+  pre-commit)
+    bad=$( { git var GIT_AUTHOR_IDENT; git var GIT_COMMITTER_IDENT; } 2>/dev/null | hit | head -1 )
+    [ -n "$bad" ] && fail "$bad";;
+  pre-push)
+    while read -r lref lsha rref rsha; do
+      case "$lsha" in *[!0]*) ;; *) continue;; esac   # deleting a ref
+      case "$rsha" in *[!0]*) extra="$rsha";; *) extra="";; esac
+      for c in $(git rev-list "$lsha" --not --remotes $extra 2>/dev/null); do
+        bad=$(git log -1 --format='%ae%n%ce%n%(trailers:key=Co-authored-by,valueonly,separator=%x0a)' "$c" | hit | head -1)
+        [ -n "$bad" ] && fail "commit $(git rev-parse --short "$c") ($bad) in $lref"
+      done
+    done;;
+esac
+exit 0

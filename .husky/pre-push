@@ -1,1 +1,2 @@
+_eg=$(mktemp); cat > "$_eg"; "$(dirname "$0")/employer-guard" pre-push "$@" < "$_eg" || { rm -f "$_eg"; exit 1; }; exec < "$_eg"; rm -f "$_eg" # employer-guard
 npm test
